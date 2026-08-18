@@ -1,0 +1,7 @@
+credentials/*.json
+config/rclone.conf
+storage/
+bin/
+venv/
+*.log
+__pycache__/
