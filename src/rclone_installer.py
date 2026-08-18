@@ -1,42 +1,163 @@
-import sys
-import os
 import platform
-import zipfile
 import shutil
+import zipfile
+
 from pathlib import Path
+
 import requests
 
-BIN_DIR = Path(__file__).resolve().parent.parent / "bin"
-RCLONE_EXE = BIN_DIR / ("rclone.exe" if platform.system() == "Windows" else "rclone")
+from config import settings
+
+
+def _get_rclone_filename() -> str:
+    """
+    Devuelve el nombre esperado del binario.
+    """
+
+    if platform.system() == "Windows":
+        return "rclone.exe"
+
+    return "rclone"
+
+
+def _get_rclone_download_url() -> str:
+    """
+    Construye la URL de descarga según el sistema.
+    """
+
+    system = platform.system().lower()
+
+    machine = platform.machine().lower()
+
+    if system == "windows":
+        os_name = "windows"
+    elif system == "linux":
+        os_name = "linux"
+    else:
+        raise RuntimeError(
+            "Unsupported operating system: "
+            f"{platform.system()}"
+        )
+
+    if machine in (
+        "x86_64",
+        "amd64",
+    ):
+        architecture = "amd64"
+
+    elif machine in (
+        "aarch64",
+        "arm64",
+    ):
+        architecture = "arm64"
+
+    else:
+        raise RuntimeError(
+            "Unsupported architecture: "
+            f"{machine}"
+        )
+
+    return (
+        "https://downloads.rclone.org/"
+        f"rclone-current-{os_name}-"
+        f"{architecture}.zip"
+    )
+
 
 def ensure_rclone_binary() -> Path:
-    """Garantiza la presencia del binario portable de Rclone en ./bin/ sin instalar nada en el SO."""
-    if RCLONE_EXE.exists():
-        return RCLONE_EXE
+    """
+    Garantiza que existe un binario portable de rclone.
 
-    BIN_DIR.mkdir(parents=True, exist_ok=True)
-    system = platform.system().lower()
-    arch = "amd64" # Ajustar a arm64 si aplica
-    
-    os_name = "windows" if system == "windows" else "linux"
-    url = f"https://downloads.rclone.org/rclone-current-{os_name}-{arch}.zip"
-    zip_path = BIN_DIR / "rclone.zip"
+    Para producción es recomendable incluir el binario
+    previamente en ./bin/ y evitar la descarga automática.
+    """
 
-    print(f"[RCLONE] Descargando binario portable de Rclone desde {url}...")
-    response = requests.get(url, stream=True)
-    with open(zip_path, "wb") as f:
-        shutil.copyfileobj(response.raw, f)
+    binary_path = (
+        settings.BIN_DIR
+        / _get_rclone_filename()
+    )
 
-    with zipfile.ZipFile(zip_path, "r") as z:
-        for member in z.namelist():
-            if member.endswith("rclone") or member.endswith("rclone.exe"):
-                with z.open(member) as src, open(RCLONE_EXE, "wb") as dst:
-                    shutil.copyfileobj(src, dst)
-                break
+    if binary_path.exists():
+        return binary_path
 
-    zip_path.unlink()
-    if system != "windows":
-        RCLONE_EXE.chmod(0o755)
+    settings.BIN_DIR.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
-    print(f"[RCLONE] Binario portable instalado en: {RCLONE_EXE}")
-    return RCLONE_EXE
+    url = _get_rclone_download_url()
+
+    archive_path = (
+        settings.BIN_DIR
+        / "rclone_download.zip"
+    )
+
+    print(
+        "[RCLONE] Downloading rclone from: "
+        f"{url}"
+    )
+
+    try:
+        response = requests.get(
+            url,
+            stream=True,
+            timeout=60,
+        )
+
+        response.raise_for_status()
+
+        with archive_path.open(
+            "wb"
+        ) as output:
+
+            shutil.copyfileobj(
+                response.raw,
+                output,
+            )
+
+        with zipfile.ZipFile(
+            archive_path,
+            "r",
+        ) as archive:
+
+            matching_member = next(
+                (
+                    name
+                    for name in archive.namelist()
+                    if name.endswith(
+                        _get_rclone_filename()
+                    )
+                ),
+                None,
+            )
+
+            if not matching_member:
+                raise RuntimeError(
+                    "rclone binary not found "
+                    "inside downloaded archive"
+                )
+
+            with archive.open(
+                matching_member
+            ) as source, binary_path.open(
+                "wb"
+            ) as destination:
+
+                shutil.copyfileobj(
+                    source,
+                    destination,
+                )
+
+    finally:
+        if archive_path.exists():
+            archive_path.unlink()
+
+    if platform.system() != "Windows":
+        binary_path.chmod(0o755)
+
+    print(
+        "[RCLONE] Binary available at: "
+        f"{binary_path}"
+    )
+
+    return binary_path
