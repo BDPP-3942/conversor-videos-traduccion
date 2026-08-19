@@ -1,0 +1,49 @@
+[app]
+# Proveedor por defecto: local, google_drive o rclone.
+provider = "local"
+source = "local://storage/input"
+target = "local://storage/output"
+source_lang = "es"
+target_lang = "en"
+log_level = "INFO"
+
+[local]
+# El contenido se coloca siempre en storage/input del proyecto.
+# Los directorios internos se crean automáticamente.
+archive_successful = true
+# Evita que una tarea programada procese un ZIP mientras todavía se está copiando.
+input_min_age_seconds = 60
+
+[google_drive]
+# Solo se usan cuando provider = "google_drive".
+source_folder_id = ""
+target_folder_id = ""
+credentials_file = "secrets/google/credentials.json"
+token_file = "secrets/google/token.json"
+original_transcript_subdir = "original_transcriptions"
+
+[rclone]
+# Solo se usan cuando provider = "rclone".
+remote = "remote_drive"
+config_file = "config/rclone.conf"
+
+[processing]
+whisper_model = "small"
+whisper_device = "cpu"
+whisper_compute_type = "int8"
+whisper_beam_size = 5
+whisper_vad_filter = true
+translation_retries = 10
+translation_retry_delay_seconds = 2.0
+max_zip_depth = 5
+max_extracted_files = 10000
+max_extracted_size_gb = 10.0
+
+[ffmpeg]
+bin = "ffmpeg"
+probe_bin = "ffprobe"
+preset = "medium"
+crf = 23
+audio_bitrate = "192k"
+mp3_quality = 2
+timeout_seconds = 7200

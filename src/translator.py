@@ -1,77 +1,45 @@
+from __future__ import annotations
+
 import logging
-from typing import List, Dict, Any
+import time
+from typing import Any
 
-from deep_translator import GoogleTranslator
-
-from config import settings
-
+from config.settings import AppSettings
 
 logger = logging.getLogger(__name__)
 
 
 class TextTranslator:
-    """
-    Traduce los segmentos generados por el STT.
-    """
-
-    def __init__(self):
-
+    def __init__(self, settings: AppSettings) -> None:
+        try:
+            from deep_translator import GoogleTranslator
+        except ImportError as exc:
+            raise RuntimeError("Translation support requires the deep-translator package") from exc
+        self.settings = settings
         self.translator = GoogleTranslator(
-            source=settings.SOURCE_LANG,
-            target=settings.TARGET_LANG,
+            source=settings.source_lang,
+            target=settings.target_lang,
         )
 
-    def translate_segments(
-        self,
-        segments: List[Dict[str, Any]],
-    ) -> List[Dict[str, Any]]:
+    def translate_segments(self, segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        translated = []
+        for index, segment in enumerate(segments, start=1):
+            text = str(segment.get("text", "")).strip()
+            output = self._translate_with_retries(text, index) if text else ""
+            translated.append({"start": segment["start"], "end": segment["end"], "text": output})
+        return translated
 
-        logger.info(
-            "Translating %d segments "
-            "(%s -> %s)",
-            len(segments),
-            settings.SOURCE_LANG,
-            settings.TARGET_LANG,
-        )
-
-        translated_segments = []
-
-        for index, segment in enumerate(
-            segments,
-            start=1,
-        ):
-
-            text = segment["text"].strip()
-
-            if not text:
-                translated_text = ""
-
-            else:
-                try:
-                    translated_text = (
-                        self.translator.translate(
-                            text
-                        )
-                    )
-
-                except Exception as exc:
-                    raise RuntimeError(
-                        "Translation failed for "
-                        f"segment {index}: {exc}"
-                    ) from exc
-
-            translated_segments.append(
-                {
-                    "start": segment["start"],
-                    "end": segment["end"],
-                    "text": (
-                        translated_text or ""
-                    ).strip(),
-                }
-            )
-
-        logger.info(
-            "Translation completed"
-        )
-
-        return translated_segments
+    def _translate_with_retries(self, text: str, index: int) -> str:
+        last_error: Exception | None = None
+        for attempt in range(1, self.settings.translation_retries + 1):
+            try:
+                return (self.translator.translate(text) or "").strip()
+            except Exception as exc:
+                last_error = exc
+                logger.warning(
+                    "Translation failed for segment %d (attempt %d/%d): %s",
+                    index, attempt, self.settings.translation_retries, exc,
+                )
+                if attempt < self.settings.translation_retries:
+                    time.sleep(self.settings.translation_retry_delay_seconds)
+        raise RuntimeError(f"Translation failed for segment {index}") from last_error

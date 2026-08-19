@@ -1,80 +1,37 @@
+from __future__ import annotations
 import logging
-from pathlib import Path
-from typing import List, Dict, Any
-
-from faster_whisper import WhisperModel
-
-from config import settings
-
+from typing import Any
+from config.settings import AppSettings
 
 logger = logging.getLogger(__name__)
-
-
+0
 class STTEngine:
-    """
-    Motor Speech-To-Text basado en faster-whisper.
-    """
-
-    def __init__(self):
-
-        logger.info(
-            "Initializing Whisper model '%s' "
-            "on %s (%s)",
-            settings.WHISPER_MODEL,
-            settings.WHISPER_DEVICE,
-            settings.WHISPER_COMPUTE_TYPE,
-        )
-
+    def __init__(self, settings: AppSettings) -> None:
+        try:
+            from faster_whisper import WhisperModel
+        except ImportError as exc:
+            raise RuntimeError("STT support requires the faster-whisper package") from exc
+        self.settings = settings
         self.model = WhisperModel(
-            settings.WHISPER_MODEL,
-            device=settings.WHISPER_DEVICE,
-            compute_type=(
-                settings.WHISPER_COMPUTE_TYPE
-            ),
+            settings.whisper_model,
+            device=settings.whisper_device,
+            compute_type=settings.whisper_compute_type,
         )
 
-    def transcribe(
-        self,
-        video_path: Path,
-    ) -> List[Dict[str, Any]]:
-
-        logger.info(
-            "Transcribing: %s",
-            video_path.name,
-        )
-
+    def transcribe(self, media_path):
+        logger.info("Transcribing: %s", media_path.name)
         segments, _ = self.model.transcribe(
-            str(video_path),
-            language=settings.SOURCE_LANG,
-            beam_size=settings.WHISPER_BEAM_SIZE,
-            vad_filter=settings.WHISPER_VAD_FILTER,
+            str(media_path),
+            language=self.settings.source_lang,
+            beam_size=self.settings.whisper_beam_size,
+            vad_filter=self.settings.whisper_vad_filter,
         )
-
-        result_segments = []
-
+        result = []
         for segment in segments:
-
             text = segment.text.strip()
-
-            if not text:
-                continue
-
-            result_segments.append(
-                {
-                    "start": float(
-                        segment.start
-                    ),
-                    "end": float(
-                        segment.end
-                    ),
-                    "text": text,
-                }
-            )
-
-        logger.info(
-            "STT completed: %d segments",
-            len(result_segments),
-        )
-
-        return result_segments
-    
+            if text:
+                result.append(
+                    {"start": float(segment.start), "end": float(segment.end), "text": text}
+                )
+        logger.info("STT completed: %d segments", len(result))
+        return result

@@ -1,0 +1,8 @@
+# Copia estos valores a config/app.toml o configura las variables de entorno.
+# NO pongas aquí credentials.json ni token.json.
+[google_drive]
+source_folder_id = "PEGA_AQUI_EL_ID_DE_INPUT"
+target_folder_id = "PEGA_AQUI_EL_ID_DE_OUTPUT"
+credentials_file = "secrets/google/credentials.json"
+token_file = "secrets/google/token.json"
+original_transcript_subdir = "original_transcriptions"

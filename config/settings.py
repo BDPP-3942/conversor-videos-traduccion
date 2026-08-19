@@ -1,175 +1,138 @@
+from __future__ import annotations
+
 import os
+from dataclasses import dataclass
 from pathlib import Path
 
-
-# ============================================================
-# RUTAS
-# ============================================================
-
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 CONFIG_DIR = BASE_DIR / "config"
-BIN_DIR = BASE_DIR / "bin"
-CREDENTIALS_DIR = BASE_DIR / "credentials"
-
-RCLONE_CONF_FILE = CONFIG_DIR / "rclone.conf"
-
+SECRETS_DIR = BASE_DIR / "secrets"
 STORAGE_DIR = BASE_DIR / "storage"
-LOCAL_TEMP_DIR = STORAGE_DIR / "temp_extracted"
-LOCAL_OUTPUT_DIR = STORAGE_DIR / "output_processed"
-LOG_DIR = STORAGE_DIR / "logs"
 
 
-# ============================================================
-# EJECUCIÓN
-# ============================================================
+@dataclass(frozen=True)
+class AppSettings:
+    provider: str = "local"
+    source: str = "local://storage/input"
+    target: str = "local://storage/output"
+    source_lang: str = "es"
+    target_lang: str = "en"
+    log_level: str = "INFO"
+    whisper_model: str = "small"
+    whisper_device: str = "cpu"
+    whisper_compute_type: str = "int8"
+    whisper_beam_size: int = 5
+    whisper_vad_filter: bool = True
+    translation_retries: int = 10
+    translation_retry_delay_seconds: float = 2.0
+    max_zip_depth: int = 5
+    max_extracted_files: int = 10_000
+    max_extracted_size_gb: float = 10.0
+    ffmpeg_bin: str = "ffmpeg"
+    ffprobe_bin: str = "ffprobe"
+    ffmpeg_preset: str = "medium"
+    ffmpeg_crf: int = 23
+    ffmpeg_audio_bitrate: str = "192k"
+    ffmpeg_mp3_quality: int = 2
+    ffmpeg_timeout_seconds: int = 7200
+    local_archive_successful: bool = True
+    local_input_min_age_seconds: int = 60
+    source_folder_id: str = ""
+    target_folder_id: str = ""
+    original_transcript_subdir: str = "original_transcriptions"
+    google_credentials_file: Path = SECRETS_DIR / "google" / "credentials.json"
+    google_token_file: Path = SECRETS_DIR / "google" / "token.json"
+    rclone_config_file: Path = CONFIG_DIR / "rclone.conf"
+    rclone_remote: str = "remote_drive"
 
-ENV_MODE = os.getenv(
-    "ENV_MODE",
-    "LOCAL",
-).upper()
+    @property
+    def max_extracted_size_bytes(self) -> int:
+        return int(self.max_extracted_size_gb * 1024**3)
 
-LOG_LEVEL = os.getenv(
-    "LOG_LEVEL",
-    "INFO",
-).upper()
-
-
-# ============================================================
-# RCLONE
-# ============================================================
-
-RCLONE_REMOTE = os.getenv(
-    "RCLONE_REMOTE",
-    "remote_drive",
-)
-
-
-# ============================================================
-# IDIOMAS
-# ============================================================
-
-SOURCE_LANG = os.getenv(
-    "SOURCE_LANG",
-    "es",
-)
-
-TARGET_LANG = os.getenv(
-    "TARGET_LANG",
-    "en",
-)
-
-
-# ============================================================
-# WHISPER / STT
-# ============================================================
-
-WHISPER_MODEL = os.getenv(
-    "WHISPER_MODEL",
-    "small",
-)
-
-WHISPER_DEVICE = os.getenv(
-    "WHISPER_DEVICE",
-    "cpu",
-)
-
-WHISPER_COMPUTE_TYPE = os.getenv(
-    "WHISPER_COMPUTE_TYPE",
-    "int8",
-)
-
-WHISPER_BEAM_SIZE = int(
-    os.getenv(
-        "WHISPER_BEAM_SIZE",
-        "5",
-    )
-)
-
-WHISPER_VAD_FILTER = os.getenv(
-    "WHISPER_VAD_FILTER",
-    "true",
-).lower() == "true"
-
-
-# ============================================================
-# EXTRACCIÓN DE ZIP
-# ============================================================
-
-# Profundidad máxima de ZIP dentro de ZIP.
-#
-# ZIP principal       -> nivel 0
-# ZIP interno         -> nivel 1
-# ZIP interno         -> nivel 2
-# ...
-MAX_ZIP_DEPTH = int(
-    os.getenv(
-        "MAX_ZIP_DEPTH",
-        "3",
-    )
-)
-
-# Número máximo de archivos que se pueden extraer.
-MAX_EXTRACTED_FILES = int(
-    os.getenv(
-        "MAX_EXTRACTED_FILES",
-        "10000",
-    )
-)
-
-# Tamaño total máximo descomprimido.
-#
-# 50 GB por defecto.
-MAX_EXTRACTED_SIZE_GB = float(
-    os.getenv(
-        "MAX_EXTRACTED_SIZE_GB",
-        "50",
-    )
-)
-
-MAX_EXTRACTED_SIZE_BYTES = int(
-    MAX_EXTRACTED_SIZE_GB * 1024 * 1024 * 1024
-)
+    @classmethod
+    def from_environment(cls) -> "AppSettings":
+        return cls(
+            provider=os.getenv("STORAGE_PROVIDER", cls.provider),
+            source=os.getenv("SOURCE_URI", cls.source),
+            target=os.getenv("TARGET_URI", cls.target),
+            source_lang=os.getenv("SOURCE_LANG", cls.source_lang),
+            target_lang=os.getenv("TARGET_LANG", cls.target_lang),
+            log_level=os.getenv("LOG_LEVEL", cls.log_level).upper(),
+            whisper_model=os.getenv("WHISPER_MODEL", cls.whisper_model),
+            whisper_device=os.getenv("WHISPER_DEVICE", cls.whisper_device),
+            whisper_compute_type=os.getenv("WHISPER_COMPUTE_TYPE", cls.whisper_compute_type),
+            whisper_beam_size=int(os.getenv("WHISPER_BEAM_SIZE", cls.whisper_beam_size)),
+            whisper_vad_filter=os.getenv("WHISPER_VAD_FILTER", "true").lower() == "true",
+            translation_retries=int(
+                os.getenv("TRANSLATION_RETRIES", cls.translation_retries)
+            ),
+            translation_retry_delay_seconds=float(
+                os.getenv("TRANSLATION_RETRY_DELAY_SECONDS", cls.translation_retry_delay_seconds)
+            ),
+            max_zip_depth=int(os.getenv("MAX_ZIP_DEPTH", cls.max_zip_depth)),
+            max_extracted_files=int(
+                os.getenv("MAX_EXTRACTED_FILES", cls.max_extracted_files)
+            ),
+            max_extracted_size_gb=float(
+                os.getenv("MAX_EXTRACTED_SIZE_GB", cls.max_extracted_size_gb)
+            ),
+            ffmpeg_bin=os.getenv("FFMPEG_BIN", cls.ffmpeg_bin),
+            ffprobe_bin=os.getenv("FFPROBE_BIN", cls.ffprobe_bin),
+            ffmpeg_preset=os.getenv("FFMPEG_PRESET", cls.ffmpeg_preset),
+            ffmpeg_crf=int(os.getenv("FFMPEG_CRF", cls.ffmpeg_crf)),
+            ffmpeg_audio_bitrate=os.getenv(
+                "FFMPEG_AUDIO_BITRATE", cls.ffmpeg_audio_bitrate
+            ),
+            ffmpeg_mp3_quality=int(
+                os.getenv("FFMPEG_MP3_QUALITY", cls.ffmpeg_mp3_quality)
+            ),
+            ffmpeg_timeout_seconds=int(
+                os.getenv("FFMPEG_TIMEOUT_SECONDS", cls.ffmpeg_timeout_seconds)
+            ),
+            local_archive_successful=os.getenv(
+                "LOCAL_ARCHIVE_SUCCESSFUL", "true"
+            ).lower()
+            == "true",
+            local_input_min_age_seconds=int(
+                os.getenv("LOCAL_INPUT_MIN_AGE_SECONDS", cls.local_input_min_age_seconds)
+            ),
+            source_folder_id=os.getenv("GDRIVE_SOURCE_FOLDER_ID", ""),
+            target_folder_id=os.getenv("GDRIVE_TARGET_FOLDER_ID", ""),
+            original_transcript_subdir=os.getenv(
+                "ORIGINAL_TRANSCRIPT_SUBDIR", cls.original_transcript_subdir
+            ),
+            google_credentials_file=Path(
+                os.getenv("GOOGLE_CREDENTIALS_FILE", cls.google_credentials_file)
+            ),
+            google_token_file=Path(os.getenv("GOOGLE_TOKEN_FILE", cls.google_token_file)),
+            rclone_config_file=Path(
+                os.getenv("RCLONE_CONFIG_FILE", cls.rclone_config_file)
+            ),
+            rclone_remote=os.getenv("RCLONE_REMOTE", cls.rclone_remote),
+        )
 
 
-# ============================================================
-# ARCHIVOS SOPORTADOS
-# ============================================================
-
-VIDEO_EXTENSIONS = {
-    ".mp4",
-}
+def resolve_project_path(value: str | Path) -> Path:
+    path = Path(value).expanduser()
+    if path.is_absolute():
+        return path.resolve()
+    return (BASE_DIR / path).resolve()
 
 
-# ============================================================
-# MIME TYPES
-# ============================================================
+def local_storage_paths() -> dict[str, Path]:
+    return {
+        "input": STORAGE_DIR / "input",
+        "output": STORAGE_DIR / "output",
+        "work": STORAGE_DIR / "work",
+        "original_transcriptions": STORAGE_DIR / "original_transcriptions",
+        "failures": STORAGE_DIR / "failures",
+        "archive": STORAGE_DIR / "archive",
+        "logs": STORAGE_DIR / "logs",
+        "state": STORAGE_DIR / "state",
+    }
 
-MIME_MP4 = "video/mp4"
-MIME_VTT = "text/vtt"
-MIME_ZIP = "application/zip"
-
-
-# ============================================================
-# DIRECTORIOS
-# ============================================================
 
 def ensure_directories() -> None:
-    """
-    Crea los directorios necesarios para la ejecución.
-
-    No se ejecuta automáticamente al importar este módulo.
-    """
-    directories = [
-        CREDENTIALS_DIR,
-        BIN_DIR,
-        LOCAL_TEMP_DIR,
-        LOCAL_OUTPUT_DIR,
-        LOG_DIR,
-    ]
-
-    for directory in directories:
-        directory.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
+    for path in local_storage_paths().values():
+        path.mkdir(parents=True, exist_ok=True)
+    (SECRETS_DIR / "google").mkdir(parents=True, exist_ok=True)

@@ -1,584 +1,155 @@
+from __future__ import annotations
+
 import argparse
 import json
 import logging
 import shutil
 import sys
-import tempfile
-
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Any, Dict, List
 
-from config import settings
-
-from src.cloud_manager import CloudManager
-from src.extractor import ZipExtractor
-from src.file_naming import FileNameFormatter
-from src.stt_engine import STTEngine
-from src.translator import TextTranslator
-from src.vtt_builder import VTTBuilder
-
+from config.loader import load_settings
+from config.settings import BASE_DIR, ensure_directories, resolve_project_path
+from src.storage.factory import create_storage_provider
+from src.storage.google_drive import GoogleDriveStorageProvider
+from src.storage.uri import parse_storage_uri
 
 logger = logging.getLogger(__name__)
 
 
-# ============================================================
-# LOGGING
-# ============================================================
-
-def configure_logging() -> None:
-    """
-    Configura logging para ejecución manual,
-    cron, Task Scheduler y n8n.
-    """
-
-    settings.LOG_DIR.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    log_file = (
-        settings.LOG_DIR
-        / "pipeline.log"
-    )
-
+def configure_logging(log_level: str) -> None:
+    log_dir = BASE_DIR / "storage" / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
-        level=getattr(
-            logging,
-            settings.LOG_LEVEL,
-            logging.INFO,
-        ),
-        format=(
-            "%(asctime)s "
-            "[%(levelname)s] "
-            "%(name)s - "
-            "%(message)s"
-        ),
+        level=getattr(logging, log_level.upper(), logging.INFO),
+        format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
         handlers=[
-            logging.StreamHandler(
-                sys.stdout
-            ),
-            logging.FileHandler(
-                log_file,
+            logging.StreamHandler(sys.stdout),
+            RotatingFileHandler(
+                log_dir / "pipeline.log",
+                maxBytes=10 * 1024 * 1024,
+                backupCount=5,
                 encoding="utf-8",
             ),
         ],
     )
 
 
-# ============================================================
-# PROCESAR VIDEO
-# ============================================================
-
-def process_video(
-    mp4_path: Path,
-    work_dir: Path,
-    target_folder_id: str,
-    cloud_manager: CloudManager,
-    stt_engine: STTEngine,
-    translator: TextTranslator,
-) -> Dict[str, Any]:
-
-    logger.info(
-        "Processing video: %s",
-        mp4_path.name,
-    )
-
-    # --------------------------------------------------------
-    # STT
-    # --------------------------------------------------------
-
-    segments_source = (
-        stt_engine.transcribe(
-            mp4_path
-        )
-    )
-
-    if not segments_source:
-        raise RuntimeError(
-            f"No STT segments generated for "
-            f"{mp4_path.name}"
-        )
-
-    # --------------------------------------------------------
-    # TRANSLATION
-    # --------------------------------------------------------
-
-    segments_target = (
-        translator.translate_segments(
-            segments_source
-        )
-    )
-
-    # --------------------------------------------------------
-    # VTT NAME
-    # --------------------------------------------------------
-
-    vtt_filename = (
-        FileNameFormatter.generate_vtt_name(
-            mp4_path.name,
-            settings.TARGET_LANG,
-        )
-    )
-
-    vtt_path = (
-        work_dir
-        / vtt_filename
-    )
-
-    # --------------------------------------------------------
-    # VTT
-    # --------------------------------------------------------
-
-    VTTBuilder.generate_vtt(
-        segments_target,
-        vtt_path,
-    )
-
-    # --------------------------------------------------------
-    # UPLOAD MP4
-    # --------------------------------------------------------
-
-    cloud_manager.upload_file(
-        mp4_path,
-        target_folder_id,
-        mime_type=settings.MIME_MP4,
-    )
-
-    # --------------------------------------------------------
-    # UPLOAD VTT
-    # --------------------------------------------------------
-
-    cloud_manager.upload_file(
-        vtt_path,
-        target_folder_id,
-        mime_type=settings.MIME_VTT,
-    )
-
-    # --------------------------------------------------------
-    # LOCAL COPY
-    # --------------------------------------------------------
-
-    if settings.ENV_MODE == "LOCAL":
-
-        output_mp4 = (
-            settings.LOCAL_OUTPUT_DIR
-            / mp4_path.name
-        )
-
-        output_vtt = (
-            settings.LOCAL_OUTPUT_DIR
-            / vtt_path.name
-        )
-
-        shutil.copy2(
-            mp4_path,
-            output_mp4,
-        )
-
-        shutil.copy2(
-            vtt_path,
-            output_vtt,
-        )
-
-    logger.info(
-        "Video completed: %s",
-        mp4_path.name,
-    )
-
-    return {
-        "video": mp4_path.name,
-        "vtt": vtt_path.name,
-        "segments": len(
-            segments_target
-        ),
-        "status": "success",
-    }
-
-
-# ============================================================
-# PROCESAR ZIP
-# ============================================================
-
-def process_zip(
-    zip_file: Dict[str, str],
-    source_folder_id: str,
-    target_folder_id: str,
-    env_mode: str,
-    cloud_manager: CloudManager,
-    stt_engine: STTEngine,
-    translator: TextTranslator,
-) -> Dict[str, Any]:
-
-    zip_id = zip_file["id"]
-    zip_name = zip_file["name"]
-
-    logger.info(
-        "Processing ZIP: %s",
-        zip_name,
-    )
-
-    temp_dir_obj = None
-
-    if env_mode == "PRODUCTION":
-
-        temp_dir_obj = (
-            tempfile.TemporaryDirectory()
-        )
-
-        work_dir = Path(
-            temp_dir_obj.name
-        )
-
-    else:
-
-        work_dir = (
-            settings.LOCAL_TEMP_DIR
-            / Path(zip_name).stem
-        )
-
-        if work_dir.exists():
-            shutil.rmtree(
-                work_dir
-            )
-
-        work_dir.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
-
-    try:
-
-        # ----------------------------------------------------
-        # DOWNLOAD
-        # ----------------------------------------------------
-
-        zip_download_path = (
-            work_dir
-            / zip_name
-        )
-
-        cloud_manager.download_file(
-            zip_id,
-            zip_download_path,
-        )
-
-        # ----------------------------------------------------
-        # EXTRACT
-        # ----------------------------------------------------
-
-        extractor = ZipExtractor()
-
-        extraction = (
-            extractor.extract_zip(
-                zip_download_path,
-                work_dir,
-            )
-        )
-
-        logger.info(
-            "ZIP extracted: %d MP4, "
-            "%d nested ZIP",
-            len(extraction.videos),
-            len(extraction.nested_zips),
-        )
-
-        # ----------------------------------------------------
-        # PROCESS VIDEOS
-        # ----------------------------------------------------
-
-        processed_videos: List[
-            Dict[str, Any]
-        ] = []
-
-        failed_videos: List[
-            Dict[str, Any]
-        ] = []
-
-        for mp4_path in extraction.videos:
-
-            try:
-
-                result = process_video(
-                    mp4_path=mp4_path,
-                    work_dir=work_dir,
-                    target_folder_id=(
-                        target_folder_id
-                    ),
-                    cloud_manager=(
-                        cloud_manager
-                    ),
-                    stt_engine=stt_engine,
-                    translator=translator,
-                )
-
-                processed_videos.append(
-                    result
-                )
-
-            except Exception as exc:
-
-                logger.exception(
-                    "Video processing failed: %s",
-                    mp4_path.name,
-                )
-
-                failed_videos.append(
-                    {
-                        "video": (
-                            mp4_path.name
-                        ),
-                        "error": str(exc),
-                    }
-                )
-
-        status = (
-            "success"
-            if not failed_videos
-            else "partial"
-        )
-
-        if not extraction.videos:
-            status = "error"
-
-        return {
-            "zip": zip_name,
-            "status": status,
-            "nested_zips": len(
-                extraction.nested_zips
-            ),
-            "videos_found": len(
-                extraction.videos
-            ),
-            "videos_processed": len(
-                processed_videos
-            ),
-            "videos_failed": len(
-                failed_videos
-            ),
-            "videos": processed_videos,
-            "errors": failed_videos,
-            "max_zip_depth": (
-                extraction.max_depth_reached
-            ),
-        }
-
-    finally:
-
-        if temp_dir_obj:
-            temp_dir_obj.cleanup()
-
-        elif work_dir.exists():
-            shutil.rmtree(
-                work_dir,
-                ignore_errors=True,
-            )
-
-
-# ============================================================
-# PIPELINE
-# ============================================================
-
-def run_pipeline(
-    source_folder_id: str,
-    target_folder_id: str,
-    env_mode: str,
-) -> Dict[str, Any]:
-
-    logger.info(
-        "Starting pipeline - mode=%s",
-        env_mode,
-    )
-
-    cloud_manager = CloudManager()
-
-    stt_engine = STTEngine()
-
-    translator = TextTranslator()
-
-    zips = (
-        cloud_manager.list_zip_files(
-            source_folder_id
-        )
-    )
-
-    if not zips:
-
-        logger.info(
-            "No ZIP files found."
-        )
-
-        return {
-            "status": "success",
-            "message": "No ZIP files found",
-            "zips_found": 0,
-            "zips_processed": 0,
-        }
-
-    logger.info(
-        "Found %d ZIP file(s)",
-        len(zips),
-    )
-
-    zip_results = []
-
-    for zip_file in zips:
-
-        result = process_zip(
-            zip_file=zip_file,
-            source_folder_id=(
-                source_folder_id
-            ),
-            target_folder_id=(
-                target_folder_id
-            ),
-            env_mode=env_mode,
-            cloud_manager=cloud_manager,
-            stt_engine=stt_engine,
-            translator=translator,
-        )
-
-        zip_results.append(
-            result
-        )
-
-    failed = [
-        result
-        for result in zip_results
-        if result["status"] == "error"
-    ]
-
-    partial = [
-        result
-        for result in zip_results
-        if result["status"] == "partial"
-    ]
-
-    if failed:
-        overall_status = "error"
-
-    elif partial:
-        overall_status = "partial"
-
-    else:
-        overall_status = "success"
-
-    return {
-        "status": overall_status,
-        "zips_found": len(zips),
-        "zips_processed": len(
-            zip_results
-        ),
-        "zips": zip_results,
-    }
-
-
-# ============================================================
-# CLI
-# ============================================================
-
 def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Video/audio STT + translation pipeline")
+    parser.add_argument("--config", type=Path, default=BASE_DIR / "config" / "app.toml")
+    sub = parser.add_subparsers(dest="command", required=True)
 
-    parser = argparse.ArgumentParser(
-        description=(
-            "STT + Translation + VTT "
-            "Media Processing Pipeline"
-        )
+    run = sub.add_parser("run", help="Run one processing batch")
+    run.add_argument("--provider", choices=["local", "google_drive", "rclone"], default=None)
+    run.add_argument("--source", default=None, help="Source URI. Example: local://storage/input")
+    run.add_argument("--target", default=None, help="Target URI. Example: gdrive://FOLDER_ID")
+    run.add_argument(
+        "--no-archive",
+        action="store_true",
+        help="Do not archive successful local inputs",
     )
 
-    parser.add_argument(
-        "--source",
-        required=True,
-        help=(
-            "Google Drive source folder ID"
-        ),
-    )
+    auth = sub.add_parser("auth", help="One-time interactive provider setup")
+    auth.add_argument("provider", choices=["google"])
 
-    parser.add_argument(
-        "--target",
-        required=True,
-        help=(
-            "Google Drive target folder ID"
-        ),
-    )
-
-    parser.add_argument(
-        "--mode",
-        choices=[
-            "LOCAL",
-            "PRODUCTION",
-        ],
-        default=settings.ENV_MODE,
-        help=(
-            "Execution mode"
-        ),
-    )
-
+    sub.add_parser("doctor", help="Check local runtime and configuration")
+    sub.add_parser("init", help="Create the storage and secrets directories")
     return parser
 
 
-# ============================================================
-# ENTRYPOINT
-# ============================================================
+def _build_locations(settings, provider: str, source: str | None, target: str | None):
+    if source and target:
+        return source, target
+    if provider == "google_drive":
+        if not settings.source_folder_id or not settings.target_folder_id:
+            raise ValueError(
+                "Google Drive requires google_drive.source_folder_id and "
+                "google_drive.target_folder_id in config/app.toml"
+            )
+        return f"gdrive://{settings.source_folder_id}", f"gdrive://{settings.target_folder_id}"
+    return settings.source, settings.target
+
+
+def command_run(args) -> int:
+    settings = load_settings(args.config)
+    provider = (args.provider or settings.provider).lower()
+    from dataclasses import replace
+    settings = replace(settings, provider=provider)
+    source, target = _build_locations(settings, provider, args.source, args.target)
+    parsed_source = parse_storage_uri(source)
+    parsed_target = parse_storage_uri(target)
+    if parsed_source.scheme != parsed_target.scheme:
+        raise ValueError("Source and target must use the same storage provider")
+    if provider == "local" and args.no_archive:
+        settings = replace(settings, local_archive_successful=False)
+    configure_logging(settings.log_level)
+    from src.pipeline import MediaPipeline
+    storage = create_storage_provider(provider, settings)
+    pipeline = MediaPipeline(settings, storage)
+    try:
+        result = pipeline.run(parsed_source.value, parsed_target.value)
+    finally:
+        storage.close()
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return {"success": 0, "partial": 2, "error": 1}.get(result["status"], 1)
+
+
+def command_auth(args) -> int:
+    settings = load_settings(args.config)
+    if args.provider != "google":
+        return 2
+    configure_logging("INFO")
+    provider = GoogleDriveStorageProvider(
+        resolve_project_path(settings.google_credentials_file),
+        resolve_project_path(settings.google_token_file),
+        allow_interactive_auth=True,
+    )
+    provider.close()
+    print("Google Drive authorization completed. Future 'run' executions are unattended.")
+    return 0
+
+
+def command_doctor(args) -> int:
+    settings = load_settings(args.config)
+    ensure_directories()
+    checks = {}
+    checks["ffmpeg"] = shutil.which(settings.ffmpeg_bin) is not None
+    checks["ffprobe"] = shutil.which(settings.ffprobe_bin) is not None
+    checks["config"] = Path(args.config).is_file()
+    checks["local_input"] = (BASE_DIR / "storage" / "input").is_dir()
+    checks["local_output"] = (BASE_DIR / "storage" / "output").is_dir()
+    checks["python"] = sys.version_info >= (3, 11)
+    print(json.dumps(checks, indent=2))
+    return 0 if all(checks.values()) else 1
+
 
 def main() -> int:
-
-    settings.ensure_directories()
-
-    configure_logging()
-
-    parser = build_parser()
-
-    args = parser.parse_args()
-
-    try:
-
-        result = run_pipeline(
-            source_folder_id=args.source,
-            target_folder_id=args.target,
-            env_mode=args.mode,
-        )
-
-        # Muy importante para n8n:
-        # el resultado se puede consumir como JSON.
-        print(
-            json.dumps(
-                result,
-                ensure_ascii=False,
-                indent=2,
-            )
-        )
-
-        if result["status"] == "error":
-            return 1
-
-        if result["status"] == "partial":
-            return 2
-
+    args = build_parser().parse_args()
+    if args.command == "init":
+        ensure_directories()
+        print(f"Storage initialized under: {BASE_DIR / 'storage'}")
         return 0
-
+    try:
+        ensure_directories()
+        if args.command == "run":
+            return command_run(args)
+        if args.command == "auth":
+            return command_auth(args)
+        if args.command == "doctor":
+            return command_doctor(args)
+        return 2
     except Exception as exc:
-
-        logger.exception(
-            "Pipeline failed"
-        )
-
-        error_result = {
-            "status": "error",
-            "error": str(exc),
-        }
-
+        logging.getLogger(__name__).exception("Command failed")
         print(
             json.dumps(
-                error_result,
+                {"status": "error", "error_type": type(exc).__name__, "error": str(exc)},
                 ensure_ascii=False,
                 indent=2,
             )
         )
-
         return 1
 
 
 if __name__ == "__main__":
-    sys.exit(
-        main()
-    )
+    sys.exit(main())

@@ -1,0 +1,113 @@
+from __future__ import annotations
+
+from dataclasses import replace
+from pathlib import Path
+import tomllib
+
+from config.settings import AppSettings, BASE_DIR, resolve_project_path
+
+
+def load_settings(config_path: Path | None = None) -> AppSettings:
+    path = config_path or (BASE_DIR / "config" / "app.toml")
+    if not path.is_file():
+        settings = AppSettings()
+    else:
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+        app = data.get("app", {})
+        local = data.get("local", {})
+        google = data.get("google_drive", {})
+        rclone = data.get("rclone", {})
+        processing = data.get("processing", {})
+        ffmpeg = data.get("ffmpeg", {})
+
+        settings = AppSettings(
+            provider=str(app.get("provider", "local")),
+            source=str(app.get("source", "local://storage/input")),
+            target=str(app.get("target", "local://storage/output")),
+            source_lang=str(app.get("source_lang", "es")),
+            target_lang=str(app.get("target_lang", "en")),
+            log_level=str(app.get("log_level", "INFO")).upper(),
+            whisper_model=str(processing.get("whisper_model", "small")),
+            whisper_device=str(processing.get("whisper_device", "cpu")),
+            whisper_compute_type=str(processing.get("whisper_compute_type", "int8")),
+            whisper_beam_size=int(processing.get("whisper_beam_size", 5)),
+            whisper_vad_filter=bool(processing.get("whisper_vad_filter", True)),
+            translation_retries=int(processing.get("translation_retries", 3)),
+            translation_retry_delay_seconds=float(
+                processing.get("translation_retry_delay_seconds", 2.0)
+            ),
+            max_zip_depth=int(processing.get("max_zip_depth", 3)),
+            max_extracted_files=int(processing.get("max_extracted_files", 10000)),
+            max_extracted_size_gb=float(processing.get("max_extracted_size_gb", 10.0)),
+            ffmpeg_bin=str(ffmpeg.get("bin", "ffmpeg")),
+            ffprobe_bin=str(ffmpeg.get("probe_bin", "ffprobe")),
+            ffmpeg_preset=str(ffmpeg.get("preset", "medium")),
+            ffmpeg_crf=int(ffmpeg.get("crf", 23)),
+            ffmpeg_audio_bitrate=str(ffmpeg.get("audio_bitrate", "192k")),
+            ffmpeg_mp3_quality=int(ffmpeg.get("mp3_quality", 2)),
+            ffmpeg_timeout_seconds=int(ffmpeg.get("timeout_seconds", 7200)),
+            local_archive_successful=bool(local.get("archive_successful", True)),
+            local_input_min_age_seconds=int(local.get("input_min_age_seconds", 60)),
+            source_folder_id=str(google.get("source_folder_id", "")),
+            target_folder_id=str(google.get("target_folder_id", "")),
+            original_transcript_subdir=str(
+                google.get("original_transcript_subdir", "original_transcriptions")
+            ),
+            google_credentials_file=Path(
+                str(google.get("credentials_file", "secrets/google/credentials.json"))
+            ),
+            google_token_file=Path(
+                str(google.get("token_file", "secrets/google/token.json"))
+            ),
+            rclone_config_file=Path(str(rclone.get("config_file", "config/rclone.conf"))),
+            rclone_remote=str(rclone.get("remote", "remote_drive")),
+        )
+
+    return _apply_environment_overrides(settings)
+
+
+def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
+    env = AppSettings.from_environment()
+    replacements = {}
+    mapping = {
+        "STORAGE_PROVIDER": "provider",
+        "SOURCE_URI": "source",
+        "TARGET_URI": "target",
+        "SOURCE_LANG": "source_lang",
+        "TARGET_LANG": "target_lang",
+        "LOG_LEVEL": "log_level",
+        "WHISPER_MODEL": "whisper_model",
+        "WHISPER_DEVICE": "whisper_device",
+        "WHISPER_COMPUTE_TYPE": "whisper_compute_type",
+        "WHISPER_BEAM_SIZE": "whisper_beam_size",
+        "WHISPER_VAD_FILTER": "whisper_vad_filter",
+        "TRANSLATION_RETRIES": "translation_retries",
+        "TRANSLATION_RETRY_DELAY_SECONDS": "translation_retry_delay_seconds",
+        "MAX_ZIP_DEPTH": "max_zip_depth",
+        "MAX_EXTRACTED_FILES": "max_extracted_files",
+        "MAX_EXTRACTED_SIZE_GB": "max_extracted_size_gb",
+        "FFMPEG_BIN": "ffmpeg_bin",
+        "FFPROBE_BIN": "ffprobe_bin",
+        "FFMPEG_PRESET": "ffmpeg_preset",
+        "FFMPEG_CRF": "ffmpeg_crf",
+        "FFMPEG_AUDIO_BITRATE": "ffmpeg_audio_bitrate",
+        "FFMPEG_MP3_QUALITY": "ffmpeg_mp3_quality",
+        "FFMPEG_TIMEOUT_SECONDS": "ffmpeg_timeout_seconds",
+        "GDRIVE_SOURCE_FOLDER_ID": "source_folder_id",
+        "GDRIVE_TARGET_FOLDER_ID": "target_folder_id",
+        "ORIGINAL_TRANSCRIPT_SUBDIR": "original_transcript_subdir",
+        "GOOGLE_CREDENTIALS_FILE": "google_credentials_file",
+        "GOOGLE_TOKEN_FILE": "google_token_file",
+        "RCLONE_CONFIG_FILE": "rclone_config_file",
+        "RCLONE_REMOTE": "rclone_remote",
+    }
+    import os
+
+    for env_name, field_name in mapping.items():
+        if env_name in os.environ:
+            replacements[field_name] = getattr(env, field_name)
+    if "LOCAL_ARCHIVE_SUCCESSFUL" in os.environ:
+        replacements["local_archive_successful"] = env.local_archive_successful
+    if "LOCAL_INPUT_MIN_AGE_SECONDS" in os.environ:
+        replacements["local_input_min_age_seconds"] = env.local_input_min_age_seconds
+    return replace(settings, **replacements)

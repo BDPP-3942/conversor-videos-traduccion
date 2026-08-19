@@ -1,25 +1,12 @@
 @echo off
-SETLOCAL EnableDelayedExpansion
-
-cd /d "%~dp0\.."
-SET VENV_DIR=venv
-
-IF NOT EXIST "%VENV_DIR%" (
-    echo [INFO] Creando entorno virtual en Windows...
-    python -m venv %VENV_DIR%
-    IF !ERRORLEVEL! NEQ 0 (
-        echo [ERROR] No se pudo crear el entorno virtual.
-        exit /b %ERRORLEVEL%
-    )
-) ELSE (
-    echo [INFO] El entorno virtual ya existe.
-)
-
-echo [INFO] Activando entorno e instalando dependencias desde requirements.txt...
-call %VENV_DIR%\Scripts\activate.bat
+setlocal
+cd /d "%~dp0.."
+if not exist venv python -m venv venv
+call venv\Scripts\activate.bat
 python -m pip install --upgrade pip
-pip install -r requirements.txt
-
-echo [OK] Entorno virtual Windows desplegado correctamente.
-ENDLOCAL
-pause
+python -m pip install -r requirements-dev.txt
+python main.py init
+python main.py doctor
+if %ERRORLEVEL% NEQ 0 exit /b %ERRORLEVEL%
+echo Entorno listo.
+endlocal

@@ -1,17 +1,9 @@
 #!/usr/bin/env bash
-set -e
-
+set -euo pipefail
 cd "$(dirname "$0")/.."
-VENV_DIR="venv"
-
-if [ ! -d "$VENV_DIR" ]; then
-    echo "[INFO] Creando entorno virtual en Linux..."
-    python3 -m venv "$VENV_DIR"
-fi
-
-echo "[INFO] Activando entorno e instalando dependencias desde requirements.txt..."
-source "$VENV_DIR/bin/activate"
-python3 -m pip install --upgrade pip
-pip install -r requirements.txt
-
-echo "[OK] Entorno virtual Linux desplegado correctamente."
+[[ -d venv ]] || python3 -m venv venv
+venv/bin/python -m pip install --upgrade pip
+venv/bin/python -m pip install -r requirements-dev.txt
+venv/bin/python main.py init
+venv/bin/python main.py doctor || true
+echo "Entorno listo."
