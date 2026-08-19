@@ -1,6 +1,8 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.pytest_cache/
+.ruff_cache/
 venv/
 .venv/
 .vscode/
@@ -9,12 +11,15 @@ venv/
 .env.*
 secrets/
 config/rclone.conf
-storage/*/*
-!storage/*/.gitkeep
-!storage/*/$
+storage/*
+storage/**/*
+!storage/**/
+!storage/**/.gitkeep
 build/
 dist/
 *.spec
 *.log
 *.tmp
 *.temp
+tools/ffmpeg/bin/*
+!tools/ffmpeg/bin/.gitkeep

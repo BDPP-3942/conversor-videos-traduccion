@@ -1,11 +1,9 @@
-import shutil
 import subprocess
 from pathlib import Path
 
-import pytest
-
 from config.settings import AppSettings
 from src.media_converter import MediaConverter
+from src.ffmpeg_resolver import FFmpegResolver
 
 
 def test_mp3_source_gets_black_video_command(tmp_path: Path) -> None:
@@ -19,12 +17,10 @@ def test_mp3_source_gets_black_video_command(tmp_path: Path) -> None:
 
 
 def test_wmv_is_converted_to_mp4_and_mp3(tmp_path: Path) -> None:
-    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
-        pytest.skip("FFmpeg/ffprobe not installed")
     source = tmp_path / "input.wmv"
     subprocess.run(
         [
-            "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+            str(FFmpegResolver.resolve(AppSettings())), "-hide_banner", "-loglevel", "error", "-y",
             "-f", "lavfi", "-i", "color=c=blue:s=320x180:r=10",
             "-f", "lavfi", "-i", "sine=frequency=1000:sample_rate=44100",
             "-t", "1", "-c:v", "wmv2", "-c:a", "wmav2", str(source),

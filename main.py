@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import shutil
 import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -12,6 +11,7 @@ from config.loader import load_settings
 from config.settings import BASE_DIR, ensure_directories, resolve_project_path
 from src.storage.factory import create_storage_provider
 from src.storage.google_drive import GoogleDriveStorageProvider
+from src.ffmpeg_resolver import FFmpegResolver
 from src.storage.uri import parse_storage_uri
 
 logger = logging.getLogger(__name__)
@@ -45,9 +45,9 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--source", default=None, help="Source URI. Example: local://storage/input")
     run.add_argument("--target", default=None, help="Target URI. Example: gdrive://FOLDER_ID")
     run.add_argument(
-        "--no-archive",
+        "--no-retain-sources",
         action="store_true",
-        help="Do not archive successful local inputs",
+        help="Remove successful local source ZIPs instead of retaining them in storage/archive/sources",
     )
 
     auth = sub.add_parser("auth", help="One-time interactive provider setup")
@@ -81,8 +81,8 @@ def command_run(args) -> int:
     parsed_target = parse_storage_uri(target)
     if parsed_source.scheme != parsed_target.scheme:
         raise ValueError("Source and target must use the same storage provider")
-    if provider == "local" and args.no_archive:
-        settings = replace(settings, local_archive_successful=False)
+    if provider == "local" and args.no_retain_sources:
+        settings = replace(settings, local_retain_sources=False)
     configure_logging(settings.log_level)
     from src.pipeline import MediaPipeline
     storage = create_storage_provider(provider, settings)
@@ -114,8 +114,11 @@ def command_doctor(args) -> int:
     settings = load_settings(args.config)
     ensure_directories()
     checks = {}
-    checks["ffmpeg"] = shutil.which(settings.ffmpeg_bin) is not None
-    checks["ffprobe"] = shutil.which(settings.ffprobe_bin) is not None
+    ffmpeg_check = FFmpegResolver.doctor(settings)
+    checks["ffmpeg"] = ffmpeg_check["available"]
+    checks["ffmpeg_path"] = ffmpeg_check.get("path", "")
+    if "error" in ffmpeg_check:
+        checks["ffmpeg_error"] = ffmpeg_check["error"]
     checks["config"] = Path(args.config).is_file()
     checks["local_input"] = (BASE_DIR / "storage" / "input").is_dir()
     checks["local_output"] = (BASE_DIR / "storage" / "output").is_dir()

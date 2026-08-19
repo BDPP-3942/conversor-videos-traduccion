@@ -28,14 +28,13 @@ class AppSettings:
     max_zip_depth: int = 5
     max_extracted_files: int = 10_000
     max_extracted_size_gb: float = 10.0
-    ffmpeg_bin: str = "ffmpeg"
-    ffprobe_bin: str = "ffprobe"
+    ffmpeg_bin: str = ""
     ffmpeg_preset: str = "medium"
     ffmpeg_crf: int = 23
     ffmpeg_audio_bitrate: str = "192k"
     ffmpeg_mp3_quality: int = 2
     ffmpeg_timeout_seconds: int = 7200
-    local_archive_successful: bool = True
+    local_retain_sources: bool = True
     local_input_min_age_seconds: int = 60
     source_folder_id: str = ""
     target_folder_id: str = ""
@@ -77,7 +76,6 @@ class AppSettings:
                 os.getenv("MAX_EXTRACTED_SIZE_GB", cls.max_extracted_size_gb)
             ),
             ffmpeg_bin=os.getenv("FFMPEG_BIN", cls.ffmpeg_bin),
-            ffprobe_bin=os.getenv("FFPROBE_BIN", cls.ffprobe_bin),
             ffmpeg_preset=os.getenv("FFMPEG_PRESET", cls.ffmpeg_preset),
             ffmpeg_crf=int(os.getenv("FFMPEG_CRF", cls.ffmpeg_crf)),
             ffmpeg_audio_bitrate=os.getenv(
@@ -89,8 +87,8 @@ class AppSettings:
             ffmpeg_timeout_seconds=int(
                 os.getenv("FFMPEG_TIMEOUT_SECONDS", cls.ffmpeg_timeout_seconds)
             ),
-            local_archive_successful=os.getenv(
-                "LOCAL_ARCHIVE_SUCCESSFUL", "true"
+            local_retain_sources=os.getenv(
+                "LOCAL_RETAIN_SOURCES", "true"
             ).lower()
             == "true",
             local_input_min_age_seconds=int(
@@ -124,7 +122,6 @@ def local_storage_paths() -> dict[str, Path]:
         "input": STORAGE_DIR / "input",
         "output": STORAGE_DIR / "output",
         "work": STORAGE_DIR / "work",
-        "original_transcriptions": STORAGE_DIR / "original_transcriptions",
         "failures": STORAGE_DIR / "failures",
         "archive": STORAGE_DIR / "archive",
         "logs": STORAGE_DIR / "logs",

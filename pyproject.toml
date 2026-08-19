@@ -4,13 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "video-translation-pipeline"
-version = "2.0.0"
+version = "2.1.0"
 description = "Local and pluggable video/audio transcription and translation pipeline"
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "faster-whisper>=1,<2",
     "deep-translator>=1.11,<2",
     "webvtt-py>=0.4,<1",
+    "imageio-ffmpeg>=0.6,<1",
 ]
 
 [project.optional-dependencies]

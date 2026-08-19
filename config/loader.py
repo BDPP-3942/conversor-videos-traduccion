@@ -39,14 +39,13 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             max_zip_depth=int(processing.get("max_zip_depth", 3)),
             max_extracted_files=int(processing.get("max_extracted_files", 10000)),
             max_extracted_size_gb=float(processing.get("max_extracted_size_gb", 10.0)),
-            ffmpeg_bin=str(ffmpeg.get("bin", "ffmpeg")),
-            ffprobe_bin=str(ffmpeg.get("probe_bin", "ffprobe")),
+            ffmpeg_bin=str(ffmpeg.get("bin", "")),
             ffmpeg_preset=str(ffmpeg.get("preset", "medium")),
             ffmpeg_crf=int(ffmpeg.get("crf", 23)),
             ffmpeg_audio_bitrate=str(ffmpeg.get("audio_bitrate", "192k")),
             ffmpeg_mp3_quality=int(ffmpeg.get("mp3_quality", 2)),
             ffmpeg_timeout_seconds=int(ffmpeg.get("timeout_seconds", 7200)),
-            local_archive_successful=bool(local.get("archive_successful", True)),
+            local_retain_sources=bool(local.get("retain_sources", True)),
             local_input_min_age_seconds=int(local.get("input_min_age_seconds", 60)),
             source_folder_id=str(google.get("source_folder_id", "")),
             target_folder_id=str(google.get("target_folder_id", "")),
@@ -87,7 +86,6 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
         "MAX_EXTRACTED_FILES": "max_extracted_files",
         "MAX_EXTRACTED_SIZE_GB": "max_extracted_size_gb",
         "FFMPEG_BIN": "ffmpeg_bin",
-        "FFPROBE_BIN": "ffprobe_bin",
         "FFMPEG_PRESET": "ffmpeg_preset",
         "FFMPEG_CRF": "ffmpeg_crf",
         "FFMPEG_AUDIO_BITRATE": "ffmpeg_audio_bitrate",
@@ -106,8 +104,8 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
     for env_name, field_name in mapping.items():
         if env_name in os.environ:
             replacements[field_name] = getattr(env, field_name)
-    if "LOCAL_ARCHIVE_SUCCESSFUL" in os.environ:
-        replacements["local_archive_successful"] = env.local_archive_successful
+    if "LOCAL_RETAIN_SOURCES" in os.environ:
+        replacements["local_retain_sources"] = env.local_retain_sources
     if "LOCAL_INPUT_MIN_AGE_SECONDS" in os.environ:
         replacements["local_input_min_age_seconds"] = env.local_input_min_age_seconds
     return replace(settings, **replacements)

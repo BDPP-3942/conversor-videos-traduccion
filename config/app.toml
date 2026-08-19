@@ -10,7 +10,7 @@ log_level = "INFO"
 [local]
 # El contenido se coloca siempre en storage/input del proyecto.
 # Los directorios internos se crean automáticamente.
-archive_successful = true
+retain_sources = true
 # Evita que una tarea programada procese un ZIP mientras todavía se está copiando.
 input_min_age_seconds = 60
 
@@ -40,8 +40,8 @@ max_extracted_files = 10000
 max_extracted_size_gb = 10.0
 
 [ffmpeg]
-bin = "ffmpeg"
-probe_bin = "ffprobe"
+# Vacío = resolver automático: tools/ffmpeg/bin -> imageio-ffmpeg -> PATH.
+bin = ""
 preset = "medium"
 crf = 23
 audio_bitrate = "192k"

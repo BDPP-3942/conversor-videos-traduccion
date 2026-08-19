@@ -6,6 +6,8 @@ call venv\Scripts\activate.bat
 python -m pip install --upgrade pip
 python -m pip install -r requirements-dev.txt
 python main.py init
+python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"
+if %ERRORLEVEL% NEQ 0 exit /b %ERRORLEVEL%
 python main.py doctor
 if %ERRORLEVEL% NEQ 0 exit /b %ERRORLEVEL%
 echo Entorno listo.

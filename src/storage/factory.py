@@ -13,7 +13,7 @@ def create_storage_provider(provider: str, settings: AppSettings) -> StorageProv
     normalized = provider.lower()
     if normalized == "local":
         return LocalStorageProvider(
-            settings.local_archive_successful, settings.local_input_min_age_seconds
+            settings.local_retain_sources, settings.local_input_min_age_seconds
         )
     if normalized in {"google_drive", "gdrive"}:
         return GoogleDriveStorageProvider(

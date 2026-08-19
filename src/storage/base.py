@@ -34,7 +34,9 @@ class StorageProvider(ABC):
     def ensure_folder(self, parent: str, name: str) -> str:
         raise NotImplementedError
 
-    def finalize_source(self, file: StorageFile, status: str) -> None:
+    def finalize_source(
+        self, file: StorageFile, status: str, output_folders: list[str] | None = None
+    ) -> None:
         """Hook opcional para retirar fuentes procesadas del buzón de entrada."""
 
     def close(self) -> None:

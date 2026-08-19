@@ -1,233 +1,85 @@
-# Video Translation Pipeline
+# Conversor de traducción de vídeos
 
-Pipeline de procesamiento multimedia para:
+Pipeline local y opcionalmente conectado a Google Drive/rclone para normalizar vídeo/audio, transcribir con Whisper y generar subtítulos traducidos.
 
-1. Recoger ZIP desde una carpeta local, Google Drive o rclone.
-2. Extraer ZIP de forma segura, incluidos ZIP anidados.
-3. Detectar MP4, MP3, WMV, MOV, MKV y AVI sin asumir una extensión única.
-4. Normalizar cada entrada a MP4 + MP3.
-5. Generar transcripción original con Whisper.
-6. Guardar la transcripción original como VTT independiente.
-7. Traducir los segmentos y generar el VTT traducido.
-8. Publicar los resultados en el proveedor seleccionado.
-9. Marcar automáticamente los nombres que requieren revisión.
+## Almacenamiento local
 
-## Arquitectura
-
-El pipeline no depende de un proveedor concreto. Utiliza `StorageProvider` con tres implementaciones:
-
-- `LocalStorageProvider`: el modo recomendado para desarrollo y para equipos sin nube.
-- `GoogleDriveStorageProvider`: Google Drive API + OAuth de usuario.
-- `RcloneStorageProvider`: adaptador opcional de compatibilidad.
-
-Para añadir un futuro proveedor solo hay que implementar `StorageProvider` y registrarlo en la factoría; el pipeline de vídeo no se modifica.
-
-## Estructura local
-
-La primera ejecución crea automáticamente:
+El proyecto usa exclusivamente carpetas bajo `./storage` para el modo local:
 
 ```text
 storage/
-├── input/                    # PON AQUÍ LOS ZIP QUE QUIERES PROCESAR
-├── output/                   # MP4, MP3, VTT traducidos y manifiestos
-├── original_transcriptions/  # VTT originales de Whisper
-├── failures/                 # Errores por vídeo
-├── archive/                  # ZIP procesados correctamente
-├── work/                     # Temporales de una ejecución
-├── logs/                     # pipeline.log
-└── state/                    # reservado para estado futuro
+├── input/                         # ZIP pendientes de procesar
+├── work/                          # SOLO temporales de una ejecución; siempre se eliminan
+├── output/
+│   ├── <resultado>/
+│   │   ├── <resultado>.mp4
+│   │   ├── <resultado>.mp3
+│   │   ├── <resultado>_en.vtt
+│   │   └── original_transcriptions/
+│   │       └── <resultado>_original.vtt
+│   └── _manifests/
+├── archive/
+│   └── sources/                   # copia local de los ZIP procesados correctamente
+├── state/
+│   └── processed.jsonl            # índice name + SHA-256 de ZIP procesados
+├── failures/                      # errores por medio
+└── logs/
 ```
 
-En modo local el usuario solo necesita copiar los ZIP a `storage/input` y ejecutar el programa.
+### Detección de ZIP ya procesados
 
-Los ZIP procesados completamente se mueven a `storage/archive/<timestamp>/` para que una tarea programada no vuelva a cogerlos. Los ZIP con errores parciales permanecen en `storage/input` para poder reintentarlos.
+Cada ZIP local se identifica por:
 
-## Salidas
+- nombre del archivo;
+- SHA-256 del contenido.
 
-Por vídeo:
+Solo una entrada con el mismo nombre y el mismo SHA-256 y estado `success` se considera ya procesada. Un ZIP con el mismo nombre pero contenido distinto vuelve a procesarse.
 
-```text
-37x02_OPT_DE_TAICH_LA_GRAN_RUEDA.mp4
-37x02_OPT_DE_TAICH_LA_GRAN_RUEDA.mp3
-37x02_OPT_DE_TAICH_LA_GRAN_RUEDA_en.vtt
-```
+Cuando un ZIP termina correctamente, el original se copia a `storage/archive/sources/`, se verifica su SHA-256, se añade una entrada a `storage/state/processed.jsonl` y solo entonces se elimina de `storage/input/`.
 
-y en la carpeta independiente:
+Los estados `partial` y `error` no se registran como procesados y el ZIP permanece en `input` para poder reintentarlo.
 
-```text
-storage/original_transcriptions/
-└── 37x02_OPT_DE_TAICH_LA_GRAN_RUEDA_original.vtt
-```
-
-Cuando el árbol de origen no aporta suficiente información se usan `SIN_CURSO` y/o `SIN_LECCION` y el manifiesto incluye `review_required=true`.
-
-## Configuración que debes administrar
-
-### `config/app.toml`
-
-Es el fichero principal que puedes editar.
-
-Para trabajar solo en local no necesitas cambiar nada: el valor inicial es:
-
-```toml
-[app]
-provider = "local"
-source = "local://storage/input"
-target = "local://storage/output"
-source_lang = "es"
-target_lang = "en"
-```
-
-Puedes cambiar el modelo Whisper, idiomas, límites ZIP y parámetros FFmpeg en las secciones `[processing]` y `[ffmpeg]`.
-
-### Google Drive
-
-Rellena únicamente:
-
-```toml
-[app]
-provider = "google_drive"
-
-[google_drive]
-source_folder_id = "ID_DE_INPUT"
-target_folder_id = "ID_DE_OUTPUT"
-credentials_file = "secrets/google/credentials.json"
-token_file = "secrets/google/token.json"
-```
-
-`credentials.json` es el OAuth Client ID de tipo Desktop App descargado de Google Cloud. `token.json` se crea tras la primera autorización y contiene credenciales sensibles; ambos están excluidos del control de versiones.
-
-Google documenta actualmente este flujo para aplicaciones de escritorio Python: se utiliza un cliente OAuth de tipo Desktop y el fichero de token se reutiliza en las ejecuciones siguientes; el access token puede renovarse con el refresh token sin repetir la autorización.
-
-### rclone
-
-Solo si necesitas conservar este proveedor:
-
-```toml
-[rclone]
-remote = "remote_drive"
-config_file = "config/rclone.conf"
-```
-
-Crea el fichero real con `rclone config` y no lo versionará Git.
-
-## Instalación local
-
-### Windows
-
-```cmd
-scripts\setup_env.bat
-```
-
-### Linux/macOS
+Para no conservar los ZIP tras un procesamiento correcto:
 
 ```bash
-./scripts/setup_env.sh
+python main.py run --no-retain-sources
 ```
 
-FFmpeg y FFprobe deben estar disponibles en `PATH`, o puedes configurar sus rutas en `[ffmpeg]`.
+## FFmpeg en local
 
-## Probar en local
+No es necesario instalar FFmpeg globalmente ni modificar el `PATH` de Windows.
 
-1. Copia uno o varios ZIP a `storage/input`.
-2. Ejecuta:
+La resolución se hace en este orden:
 
-```cmd
-scripts\run_local.bat
-```
+1. `FFMPEG_BIN` / `ffmpeg.bin` configurado explícitamente.
+2. `tools/ffmpeg/bin/ffmpeg.exe` (Windows) o `ffmpeg` (Linux/macOS).
+3. Binario proporcionado por `imageio-ffmpeg`.
+4. `PATH` del sistema como último recurso.
 
-o:
+`setup_env.bat` y `setup_env.sh` instalan las dependencias y ejecutan `doctor` para verificar el entorno.
 
-```bash
-./scripts/run_local.sh
-```
-
-La ejecución no necesita credenciales de nube.
-
-También puedes comprobar el entorno con:
-
-```bash
-python main.py doctor
-```
-
-## Google Drive sin interfaz durante el trabajo
-
-La autorización de usuario de Google se hace una sola vez en una máquina interactiva:
-
-```bash
-python main.py auth google
-```
-
-El proceso crea `secrets/google/token.json`. A partir de ese momento, `python main.py run` no inicia una autorización interactiva: utiliza el token guardado y lo refresca cuando sea necesario.
-
-Para un equipo estrictamente sin interfaz desde el principio, realiza el comando `auth google` en otro equipo controlado, y copia `credentials.json` + `token.json` al directorio `secrets/google/` del equipo que ejecutará la tarea. El token debe tratarse como un secreto y no incrustarse en el ejecutable.
-
-### Importante sobre Google OAuth en producción
-
-Si la pantalla de consentimiento está configurada como aplicación externa en estado `Testing`, Google indica actualmente que los refresh tokens emitidos para esos usuarios de prueba pueden caducar a los 7 días. Para una rutina programada estable hay que revisar el estado de publicación de la aplicación y pasar a `In production` según las condiciones de Google.
-
-## Ejecución programada
-
-### Windows Task Scheduler
-
-Usa `scripts\run_scheduled.bat` como acción. No contiene `pause` ni entrada interactiva.
-
-Ejemplo conceptual:
-
-```text
-Program/script: C:\ruta\proyecto\scripts\run_scheduled.bat
-Start in:       C:\ruta\proyecto
-```
-
-Configura el usuario de la tarea con permisos de lectura/escritura en `storage` y acceso a `secrets/google/token.json` si usas Drive.
-
-### Linux cron/systemd timer
-
-Usa:
-
-```bash
-/path/proyecto/scripts/run_scheduled.sh
-```
-
-El proceso devuelve:
-
-```text
-0 = procesamiento correcto
-1 = error fatal
-2 = procesamiento parcial
-```
-
-Esto permite que el programador detecte fallos sin interpretar logs.
-
-## Ejecutable
-
-Se recomienda `PyInstaller --onedir` en vez de `--onefile` para este proyecto porque Whisper, FFmpeg y sus modelos/binaries tienen un tamaño significativo y el formato `onedir` facilita mantener ficheros externos de configuración y secretos.
+## Preparación local
 
 Windows:
 
-```cmd
+```bat
 scripts\setup_env.bat
-scripts\build_windows.bat
+scripts\run_local.bat
 ```
 
-Linux:
+Linux/macOS:
 
 ```bash
 ./scripts/setup_env.sh
-./scripts/build_linux.sh
+./scripts/run_local.sh
 ```
 
-El ejecutable se genera bajo `dist/VideoTranslationPipeline/`.
+Coloca los ZIP en `storage/input/`.
 
-No debes incrustar `secrets/google` dentro del ejecutable. Mantén `storage/`, `config/app.toml`, `secrets/google/` y FFmpeg como datos externos al binario.
+## Configuración que se administra manualmente
 
-También conviene disponer el modelo Whisper de forma controlada en el equipo final; si quieres evitar descargas durante una tarea programada, predescárgalo y define la caché/modelo según tu estrategia de despliegue.
+Copia `.env.example` a `.env` cuando necesites sobrescribir valores por entorno.
 
-## Tests
+Para Google Drive se administra `secrets/google/credentials.json` y `secrets/google/token.json` mediante el flujo de autenticación correspondiente. No deben incluirse credenciales reales en Git.
 
-```bash
-python -m pytest
-python -m ruff check .
-```
-
-Las pruebas unitarias no necesitan Google Drive. Las pruebas multimedia reales requieren FFmpeg y el resto de dependencias del entorno.
+Para rclone se administra `config/rclone.conf`.
