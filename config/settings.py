@@ -126,6 +126,7 @@ def local_storage_paths() -> dict[str, Path]:
         "archive": STORAGE_DIR / "archive",
         "logs": STORAGE_DIR / "logs",
         "state": STORAGE_DIR / "state",
+        "manifests": STORAGE_DIR / "output/_manifests",
     }
 
 
