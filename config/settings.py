@@ -3,8 +3,9 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+import sys
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent.parent
 CONFIG_DIR = BASE_DIR / "config"
 SECRETS_DIR = BASE_DIR / "secrets"
 STORAGE_DIR = BASE_DIR / "storage"
@@ -47,10 +48,16 @@ class AppSettings:
     normalize_legacy_names: bool = True
     max_parallel_videos: int = 2
     ffmpeg_avoid_reencode: bool = True
-    google_credentials_file: Path = SECRETS_DIR / "google" / "credentials.json"
-    google_token_file: Path = SECRETS_DIR / "google" / "token.json"
-    rclone_config_file: Path = CONFIG_DIR / "rclone.conf"
+    google_credentials_file: Path = SECRETS_DIR / "providers" / "google" / "default" / "credentials.json"
+    google_token_file: Path = SECRETS_DIR / "providers" / "google" / "default" / "token.json"
+    google_profile: str = "default"
+    rclone_config_file: Path = SECRETS_DIR / "rclone" / "rclone.conf"
+    rclone_binary_file: Path = BASE_DIR / "tools" / "rclone" / "rclone"
     rclone_remote: str = "remote_drive"
+    provider_profile_dir: Path = SECRETS_DIR / "providers"
+    run_lock_file: Path = STORAGE_DIR / "state" / "run.lock"
+    auto_bootstrap_rclone: bool = True
+    auto_update_rclone: bool = False
 
     @property
     def max_extracted_size_bytes(self) -> int:
@@ -119,10 +126,16 @@ class AppSettings:
                 os.getenv("GOOGLE_CREDENTIALS_FILE", cls.google_credentials_file)
             ),
             google_token_file=Path(os.getenv("GOOGLE_TOKEN_FILE", cls.google_token_file)),
+            google_profile=os.getenv("GOOGLE_PROFILE", cls.google_profile),
             rclone_config_file=Path(
                 os.getenv("RCLONE_CONFIG_FILE", cls.rclone_config_file)
             ),
+            rclone_binary_file=Path(os.getenv("RCLONE_BINARY_FILE", cls.rclone_binary_file)),
             rclone_remote=os.getenv("RCLONE_REMOTE", cls.rclone_remote),
+            run_lock_file=Path(os.getenv("RUN_LOCK_FILE", cls.run_lock_file)),
+            auto_bootstrap_rclone=os.getenv("AUTO_BOOTSTRAP_RCLONE", "true").lower() == "true",
+            auto_update_rclone=os.getenv("AUTO_UPDATE_RCLONE", "false").lower() == "true",
+            provider_profile_dir=Path(os.getenv("PROVIDER_PROFILE_DIR", cls.provider_profile_dir)),
         )
 
 

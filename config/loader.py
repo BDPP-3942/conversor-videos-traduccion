@@ -26,9 +26,11 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
         local = data.get("local", {})
         google = data.get("google_drive", {})
         rclone = data.get("rclone", {})
+        providers = data.get("providers", {})
         processing = data.get("processing", {})
         ffmpeg = data.get("ffmpeg", {})
         workflow = data.get("workflow", {})
+        runtime_cfg = data.get("runtime", {})
 
         settings = AppSettings(
             provider=str(app.get("provider", "local")),
@@ -70,16 +72,22 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             normalize_legacy_names=bool(workflow.get("normalize_legacy_names", True)),
             max_parallel_videos=int(workflow.get("max_parallel_videos", 2)),
             google_credentials_file=Path(
-                str(google.get("credentials_file", "secrets/google/credentials.json"))
+                str(google.get("credentials_file", "secrets/providers/google/default/credentials.json"))
             ),
             google_token_file=Path(
-                str(google.get("token_file", "secrets/google/token.json"))
+                str(google.get("token_file", "secrets/providers/google/default/token.json"))
             ),
-            rclone_config_file=Path(str(rclone.get("config_file", "config/rclone.conf"))),
+            rclone_config_file=Path(str(rclone.get("config_file", "secrets/rclone/rclone.conf"))),
+            rclone_binary_file=Path(str(rclone.get("binary_file", "tools/rclone/rclone"))),
             rclone_remote=str(rclone.get("remote", "remote_drive")),
+            provider_profile_dir=Path(str(providers.get("profile_dir", "secrets/providers"))),
             ffmpeg_avoid_reencode=bool(ffmpeg.get("avoid_reencode", True)),
+            run_lock_file=Path(str(runtime_cfg.get("run_lock_file", "storage/state/run.lock"))),
+            auto_bootstrap_rclone=bool(runtime_cfg.get("auto_bootstrap_rclone", True)),
+            auto_update_rclone=bool(runtime_cfg.get("auto_update_rclone", False)),
         )
 
+    settings = _apply_runtime_provider(settings)
     return _apply_environment_overrides(settings)
 
 
@@ -119,11 +127,16 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
         "GOOGLE_CREDENTIALS_FILE": "google_credentials_file",
         "GOOGLE_TOKEN_FILE": "google_token_file",
         "RCLONE_CONFIG_FILE": "rclone_config_file",
+        "RCLONE_BINARY_FILE": "rclone_binary_file",
         "RCLONE_REMOTE": "rclone_remote",
+        "PROVIDER_PROFILE_DIR": "provider_profile_dir",
         "RESUME_ENABLED": "resume_enabled",
         "NORMALIZE_LEGACY_NAMES": "normalize_legacy_names",
         "MAX_PARALLEL_VIDEOS": "max_parallel_videos",
         "FFMPEG_AVOID_REENCODE": "ffmpeg_avoid_reencode",
+        "RUN_LOCK_FILE": "run_lock_file",
+        "AUTO_BOOTSTRAP_RCLONE": "auto_bootstrap_rclone",
+        "AUTO_UPDATE_RCLONE": "auto_update_rclone",
     }
     import os
 
@@ -135,3 +148,29 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
     if "LOCAL_INPUT_MIN_AGE_SECONDS" in os.environ:
         replacements["local_input_min_age_seconds"] = env.local_input_min_age_seconds
     return replace(settings, **replacements)
+
+
+def _apply_runtime_provider(settings: AppSettings) -> AppSettings:
+    runtime_path = BASE_DIR / "config" / "runtime.toml"
+    if not runtime_path.is_file():
+        return settings
+    try:
+        runtime = tomllib.loads(runtime_path.read_text(encoding="utf-8")).get("active", {})
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
+        raise RuntimeError(f"Invalid runtime provider file: {runtime_path}") from exc
+    if not isinstance(runtime, dict):
+        return settings
+    values = {}
+    for name in ("provider", "source", "target", "rclone_remote"):
+        if name in runtime:
+            values[name] = str(runtime[name])
+    if "archive" in runtime and runtime.get("provider") in {"google_drive", "gdrive"}:
+        values["archive_folder_id"] = str(runtime.get("archive", ""))
+    if runtime.get("profile") or runtime.get("provider") in {"google_drive", "gdrive"}:
+        profile = str(runtime.get("profile", settings.google_profile or "default"))
+        values["google_profile"] = profile
+        values["google_credentials_file"] = settings.provider_profile_dir / "google" / profile / "credentials.json"
+        values["google_token_file"] = settings.provider_profile_dir / "google" / profile / "token.json"
+        if "archive" in runtime:
+            values["archive_folder_id"] = str(runtime.get("archive", ""))
+    return replace(settings, **values) if values else settings

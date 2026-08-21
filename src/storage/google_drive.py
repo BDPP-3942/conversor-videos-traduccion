@@ -53,8 +53,8 @@ class GoogleDriveStorageProvider(StorageProvider):
         if not self._allow_interactive_auth:
             raise RuntimeError(
                 "Google Drive is not authorized for unattended execution. "
-                "Run 'python main.py auth google' once on an interactive machine "
-                "and keep secrets/google/token.json available to the scheduled task."
+                "Run the one-time interactive setup command on the deployment machine "
+                "and keep the generated token.json available to the scheduled task account."
             )
         if not self._credentials_file.is_file():
             raise FileNotFoundError(
@@ -70,6 +70,10 @@ class GoogleDriveStorageProvider(StorageProvider):
     def _save_token(self, credentials) -> None:
         self._token_file.parent.mkdir(parents=True, exist_ok=True)
         self._token_file.write_text(credentials.to_json(), encoding="utf-8")
+        try:
+            self._token_file.chmod(0o600)
+        except OSError:
+            pass
 
     def list_zip_files(self, location: str) -> list[StorageFile]:
         query = (

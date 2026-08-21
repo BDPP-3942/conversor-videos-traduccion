@@ -24,6 +24,7 @@ def create_storage_provider(provider: str, settings: AppSettings) -> StorageProv
         return provider
     if normalized == "rclone":
         return RcloneStorageProvider(
+            resolve_project_path(settings.rclone_binary_file),
             resolve_project_path(settings.rclone_config_file),
             settings.rclone_remote,
         )

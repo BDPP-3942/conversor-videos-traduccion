@@ -1,42 +1,38 @@
 # Changelog
 
-## 2.6.0
-- Añadidos modos explícitos `--mode local`, `--mode cloud` y `--mode rclone`.
-- `run_local` permite seleccionar el modo directamente; por defecto sigue siendo local.
-- `run_scheduled` usa Google Drive/cloud por defecto.
-- El proveedor Google Drive mueve el ZIP procesado a `archive_folder_id` tras éxito para evitar reprocesados en ejecuciones programadas.
-- El modo cloud mantiene FFmpeg/Whisper/traducción en local, sube los resultados y elimina los temporales mediante `TemporaryDirectory`.
-- Añadida variable `GDRIVE_ARCHIVE_FOLDER_ID` y `google_drive.archive_folder_id`.
-- `setup_env --cloud` instala las dependencias Google; `setup_env --rclone` comprueba el ejecutable rclone.
-- Rclone documentado correctamente como herramienta CLI externa, no como librería Python.
+## v5.0.0 - unattended cloud execution
 
+- Google Drive now performs a silent OAuth refresh check during every preflight when a refresh token exists.
+- Scheduled mode never starts an interactive OAuth flow.
+- rclone remotes are health-checked with a read-only listing before unattended processing; this lets rclone refresh OAuth tokens automatically when the backend supports refresh.
+- Multiple rclone remotes remain stored in one isolated `rclone.conf`; switching provider does not delete previous remotes.
+- Added optional rclone binary auto-update check/upgrade, disabled by default for scheduler stability.
+- Added explicit provider `verify` command for administrators.
+- Added Windows Task Scheduler installation script using the executable directory as working directory.
+- Added scheduler/unattended documentation and recovery procedures.
 
-## 2.5.0
-- Añadida inferencia conservadora de nombres textuales de curso y lección.
-- Reconocimiento de marcadores `curso/course`, `lección/lesson`, `capítulo/chapter`, `clase`, `tema` y `unidad`.
-- Priorización de números fiables sobre etiquetas textuales.
-- Eliminación de ruido habitual de WeTransfer, Google Drive y compresores antes de inferir nombres.
-- Los nombres textuales inferidos se normalizan con la política WordPress y el límite real del filesystem.
-- Añadidas pruebas de regresión para cursos/lecciones textuales, ruido de descargas y no-inferencia de nombres arbitrarios.
+# Changelog
 
-## 2.4.0
-- Reanudación paralela por vídeo con un máximo configurable de workers locales.
-- Traducción por lotes mediante `deep-translator` con fallback individual por lote.
-- Whisper optimizado por defecto para throughput: beam size 1, `best_of=1`, `temperature=0`, sin condicionamiento del texto anterior, VAD y sin word timestamps.
-- Hilos de Whisper ajustables automáticamente por worker.
-- MP4 ya compatibles: intento de remux/copia con `-c copy` y fallback a transcodificación H.264/AAC si falla.
-- Migración de nombres antiguos: normalización WordPress + ajuste al límite real del filesystem + actualización de manifests.
-- Nuevas opciones CLI para `parallel-videos`, batch de traducción, parámetros Whisper y copia FFmpeg.
+## [4.0.0] - 2026-08-21
 
+### Added
+- Unattended execution contract with `run --scheduled`.
+- Double-click behavior for the compiled executable: no arguments means scheduled execution.
+- Persistent active-provider runtime with source, target, profile and Google archive location.
+- One-time `provider setup-google` flow combining OAuth and folder configuration.
+- One-time `provider setup-rclone` flow combining remote authentication and active location configuration.
+- Cross-platform execution lock at `storage/state/run.lock`.
+- Unattended readiness checks that never start an OAuth browser flow.
+- Frozen executable root resolution so PyInstaller builds keep `config`, `secrets` and `storage` beside the executable.
+- Dedicated documentation for Windows Task Scheduler, cron/systemd and credential lifecycle.
 
-## 2.3.0
+### Changed
+- Scheduled execution no longer hardcodes Google Drive.
+- Switching provider preserves previous credentials/remotes instead of deleting them.
+- Google token persistence and refresh are explicitly treated as installation state, not runtime interaction.
+- rclone configuration remains outside the executable and is reused by every scheduled execution.
 
-- Añadida reanudación real por vídeo mediante manifests incrementales.
-- Un vídeo solo se reutiliza si el manifest indica `success` y existen MP4, MP3, VTT traducido y VTT original.
-- El manifest se actualiza después de cada vídeo para permitir recuperación tras interrupciones.
-- Compatibilidad de lectura con manifests antiguos en formato de lista.
-- Añadida migración automática de nombres antiguos Unicode/especiales a nombres ASCII compatibles con WordPress.
-- La migración se aplica a carpetas y archivos locales y a los proveedores Google Drive/rclone cuando están disponibles sus operaciones correspondientes.
-- Añadidas opciones `resume_enabled`, `normalize_legacy_names`, `--no-resume` y `--no-name-migration`.
-- Se mantiene la finalización idempotente de fuentes desaparecidas y el tratamiento de `FileNotFoundError` como advertencia cuando ocurre después de un procesamiento correcto.
-- Añadidas pruebas de regresión para reanudación, manifests antiguos y migración de nombres.
+### Security
+- OAuth credentials are never bundled in PyInstaller output.
+- `rclone.conf`, Google tokens and runtime provider selection remain untracked.
+- Provider failures in scheduled mode return `not_ready` instead of opening interactive authentication.

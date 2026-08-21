@@ -1,5 +1,4 @@
 [app]
-# Proveedor por defecto: local, google_drive o rclone.
 provider = "local"
 source = "local://storage/input"
 target = "local://storage/output"
@@ -8,25 +7,28 @@ target_lang = "en"
 log_level = "INFO"
 
 [local]
-# El contenido se coloca siempre en storage/input del proyecto.
-# Los directorios internos se crean automáticamente.
 retain_sources = true
-# Evita que una tarea programada procese un ZIP mientras todavía se está copiando.
 input_min_age_seconds = 60
 
 [google_drive]
-# Solo se usan cuando provider = "google_drive" o --mode cloud.
 source_folder_id = ""
 target_folder_id = ""
 archive_folder_id = ""
-credentials_file = "secrets/google/credentials.json"
-token_file = "secrets/google/token.json"
 original_transcript_subdir = "original_transcriptions"
 
 [rclone]
-# Solo se usan cuando provider = "rclone".
+binary_file = "tools/rclone/rclone"
+config_file = "secrets/rclone/rclone.conf"
 remote = "remote_drive"
-config_file = "config/rclone.conf"
+
+[providers]
+profile_dir = "secrets/providers"
+
+[runtime]
+run_lock_file = "storage/state/run.lock"
+auto_bootstrap_rclone = true
+# Keep scheduler deterministic by default. Enable only if automatic rclone binary updates are desired.
+auto_update_rclone = false
 
 [processing]
 whisper_model = "small"
@@ -44,14 +46,11 @@ max_extracted_files = 10000
 max_extracted_size_gb = 10.0
 
 [workflow]
-# Reanuda por vídeo cuando el manifest y los 4 artefactos válidos ya existen.
 resume_enabled = true
-# Migra carpetas/ficheros creados por versiones antiguas a nombres compatibles con WordPress.
 normalize_legacy_names = true
 max_parallel_videos = 2
 
 [ffmpeg]
-# Vacío = resolver automático: tools/ffmpeg/bin -> imageio-ffmpeg -> PATH.
 bin = ""
 preset = "medium"
 crf = 23

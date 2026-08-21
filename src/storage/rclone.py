@@ -12,18 +12,30 @@ from src.storage.base import StorageFile, StorageProvider
 class RcloneStorageProvider(StorageProvider):
     """Adaptador opcional de compatibilidad."""
 
-    def __init__(self, config_file: Path, remote: str) -> None:
-        if not config_file.is_file():
-            raise FileNotFoundError(f"rclone config not found: {config_file}")
+    def __init__(self, binary_file: Path, config_file: Path, remote: str) -> None:
+        self.binary_file = binary_file
         self.config_file = config_file
         self.remote = remote
+        self.config_file.parent.mkdir(parents=True, exist_ok=True)
+        if not self.binary_file.is_file():
+            raise FileNotFoundError(
+                f"Managed rclone executable not found: {self.binary_file}. "
+                "Run `python main.py provider bootstrap` or enable the rclone provider setup."
+            )
+        if not self.config_file.is_file():
+            raise FileNotFoundError(
+                f"rclone configuration not found: {self.config_file}. "
+                "Run `python main.py provider auth-rclone ...` first."
+            )
 
     def _run(self, args: list[str]) -> str:
-        command = ["rclone", "--config", str(self.config_file), *args]
+        command = [str(self.binary_file), "--config", str(self.config_file), *args]
         try:
-            result = subprocess.run(command, capture_output=True, text=True, check=True)
+            result = subprocess.run(command, capture_output=True, text=True, check=True, timeout=300)
         except FileNotFoundError as exc:
             raise RuntimeError("rclone is not installed or not available in PATH") from exc
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError("rclone command timed out") from exc
         except subprocess.CalledProcessError as exc:
             raise RuntimeError((exc.stderr or "rclone failed").strip()) from exc
         return result.stdout
@@ -96,5 +108,16 @@ class RcloneStorageProvider(StorageProvider):
 
     def ensure_folder(self, parent: str, name: str) -> str:
         location = f"{parent.rstrip('/')}/{name}"
-        self._run(["mkdir", f"{self.remote}:{location}"])
+        if not self.folder_exists(parent, name):
+            self._run(["mkdir", f"{self.remote}:{location}"])
         return location
+
+    def finalize_source(self, file: StorageFile, status: str, output_folders: list[str] | None = None) -> None:
+        if status != "success":
+            return
+        archive = f"{self.remote}:{self._archive_path()}"
+        source = f"{self.remote}:{file.id}"
+        self._run(["moveto", source, f"{archive.rstrip('/')}/{file.name}"])
+
+    def _archive_path(self) -> str:
+        return "archive"
