@@ -7,7 +7,16 @@ import tomllib
 from config.settings import AppSettings, BASE_DIR, resolve_project_path
 
 
+def _load_dotenv() -> None:
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    load_dotenv(BASE_DIR / ".env", override=False)
+
+
 def load_settings(config_path: Path | None = None) -> AppSettings:
+    _load_dotenv()
     path = config_path or (BASE_DIR / "config" / "app.toml")
     if not path.is_file():
         settings = AppSettings()
@@ -19,6 +28,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
         rclone = data.get("rclone", {})
         processing = data.get("processing", {})
         ffmpeg = data.get("ffmpeg", {})
+        workflow = data.get("workflow", {})
 
         settings = AppSettings(
             provider=str(app.get("provider", "local")),
@@ -30,9 +40,12 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             whisper_model=str(processing.get("whisper_model", "small")),
             whisper_device=str(processing.get("whisper_device", "cpu")),
             whisper_compute_type=str(processing.get("whisper_compute_type", "int8")),
-            whisper_beam_size=int(processing.get("whisper_beam_size", 5)),
+            whisper_beam_size=int(processing.get("whisper_beam_size", 1)),
             whisper_vad_filter=bool(processing.get("whisper_vad_filter", True)),
-            translation_retries=int(processing.get("translation_retries", 3)),
+            whisper_condition_on_previous_text=bool(processing.get("whisper_condition_on_previous_text", False)),
+            whisper_cpu_threads=int(processing.get("whisper_cpu_threads", 0)),
+            translation_retries=int(processing.get("translation_retries", 10)),
+            translation_batch_size=int(processing.get("translation_batch_size", 40)),
             translation_retry_delay_seconds=float(
                 processing.get("translation_retry_delay_seconds", 2.0)
             ),
@@ -49,9 +62,13 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             local_input_min_age_seconds=int(local.get("input_min_age_seconds", 60)),
             source_folder_id=str(google.get("source_folder_id", "")),
             target_folder_id=str(google.get("target_folder_id", "")),
+            archive_folder_id=str(google.get("archive_folder_id", "")),
             original_transcript_subdir=str(
                 google.get("original_transcript_subdir", "original_transcriptions")
             ),
+            resume_enabled=bool(workflow.get("resume_enabled", True)),
+            normalize_legacy_names=bool(workflow.get("normalize_legacy_names", True)),
+            max_parallel_videos=int(workflow.get("max_parallel_videos", 2)),
             google_credentials_file=Path(
                 str(google.get("credentials_file", "secrets/google/credentials.json"))
             ),
@@ -60,6 +77,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             ),
             rclone_config_file=Path(str(rclone.get("config_file", "config/rclone.conf"))),
             rclone_remote=str(rclone.get("remote", "remote_drive")),
+            ffmpeg_avoid_reencode=bool(ffmpeg.get("avoid_reencode", True)),
         )
 
     return _apply_environment_overrides(settings)
@@ -80,7 +98,10 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
         "WHISPER_COMPUTE_TYPE": "whisper_compute_type",
         "WHISPER_BEAM_SIZE": "whisper_beam_size",
         "WHISPER_VAD_FILTER": "whisper_vad_filter",
+        "WHISPER_CONDITION_ON_PREVIOUS_TEXT": "whisper_condition_on_previous_text",
+        "WHISPER_CPU_THREADS": "whisper_cpu_threads",
         "TRANSLATION_RETRIES": "translation_retries",
+        "TRANSLATION_BATCH_SIZE": "translation_batch_size",
         "TRANSLATION_RETRY_DELAY_SECONDS": "translation_retry_delay_seconds",
         "MAX_ZIP_DEPTH": "max_zip_depth",
         "MAX_EXTRACTED_FILES": "max_extracted_files",
@@ -93,11 +114,16 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
         "FFMPEG_TIMEOUT_SECONDS": "ffmpeg_timeout_seconds",
         "GDRIVE_SOURCE_FOLDER_ID": "source_folder_id",
         "GDRIVE_TARGET_FOLDER_ID": "target_folder_id",
+        "GDRIVE_ARCHIVE_FOLDER_ID": "archive_folder_id",
         "ORIGINAL_TRANSCRIPT_SUBDIR": "original_transcript_subdir",
         "GOOGLE_CREDENTIALS_FILE": "google_credentials_file",
         "GOOGLE_TOKEN_FILE": "google_token_file",
         "RCLONE_CONFIG_FILE": "rclone_config_file",
         "RCLONE_REMOTE": "rclone_remote",
+        "RESUME_ENABLED": "resume_enabled",
+        "NORMALIZE_LEGACY_NAMES": "normalize_legacy_names",
+        "MAX_PARALLEL_VIDEOS": "max_parallel_videos",
+        "FFMPEG_AVOID_REENCODE": "ffmpeg_avoid_reencode",
     }
     import os
 

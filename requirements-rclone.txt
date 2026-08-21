@@ -1,2 +1,2 @@
--r requirements.txt
-requests>=2.31,<3
+# rclone is an external command-line application, not a Python package.
+# Install rclone separately from https://rclone.org/ and run: rclone config

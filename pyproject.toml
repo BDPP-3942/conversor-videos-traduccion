@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "video-translation-pipeline"
-version = "2.1.0"
+version = "2.6.0"
 description = "Local and pluggable video/audio transcription and translation pipeline"
 requires-python = ">=3.11,<3.14"
 dependencies = [
@@ -12,6 +12,7 @@ dependencies = [
     "deep-translator>=1.11,<2",
     "webvtt-py>=0.4,<1",
     "imageio-ffmpeg>=0.6,<1",
+    "python-dotenv>=1,<2",
 ]
 
 [project.optional-dependencies]
@@ -20,9 +21,7 @@ google = [
     "google-auth-httplib2>=0.2,<1",
     "google-auth-oauthlib>=1,<2",
 ]
-rclone = [
-    "requests>=2.31,<3",
-]
+rclone = []
 dev = [
     "pytest>=8,<9",
     "ruff>=0.9,<1",
@@ -44,4 +43,8 @@ line-length = 100
 select = ["E", "F", "I", "B", "UP"]
 
 [tool.setuptools]
-py-modules = []
+packages = ["config", "src", "src.storage"]
+py-modules = ["main"]
+
+[project.scripts]
+video-translation-pipeline = "main:main"

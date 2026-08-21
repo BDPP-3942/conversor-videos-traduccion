@@ -35,13 +35,41 @@ class MediaConverter:
 
         if source.suffix.lower() != ".mp3":
             self._ensure_audio_stream(source)
-        self._run(self._build_mp4_command(source, mp4))
+        if source.suffix.lower() == ".mp4" and self.settings.ffmpeg_avoid_reencode:
+            try:
+                self._run(self._build_mp4_copy_command(source, mp4))
+                logger.info("MP4 already compatible with container copy path: %s", source.name)
+            except RuntimeError:
+                logger.info("MP4 copy path failed; falling back to H.264/AAC transcode: %s", source.name)
+                self._run(self._build_mp4_command(source, mp4))
+        else:
+            self._run(self._build_mp4_command(source, mp4))
         self._run(self._build_mp3_command(source, mp3))
 
         for output in (mp4, mp3):
             if not output.is_file() or output.stat().st_size == 0:
                 raise RuntimeError(f"FFmpeg did not create a valid output: {output}")
         return MediaArtifacts(mp4, mp3)
+
+    def _build_mp4_copy_command(self, source: Path, output: Path) -> list[str]:
+        return [
+            self.ffmpeg_bin,
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            str(source),
+            "-map",
+            "0:v:0",
+            "-map",
+            "0:a:0?",
+            "-c",
+            "copy",
+            "-movflags",
+            "+faststart",
+            str(output),
+        ]
 
     def _build_mp4_command(self, source: Path, output: Path) -> list[str]:
         if source.suffix.lower() == ".mp3":

@@ -2,3 +2,4 @@ faster-whisper>=1,<2
 deep-translator>=1.11,<2
 webvtt-py>=0.4,<1
 imageio-ffmpeg>=0.6,<1
+python-dotenv>=1,<2

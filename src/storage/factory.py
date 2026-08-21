@@ -16,10 +16,12 @@ def create_storage_provider(provider: str, settings: AppSettings) -> StorageProv
             settings.local_retain_sources, settings.local_input_min_age_seconds
         )
     if normalized in {"google_drive", "gdrive"}:
-        return GoogleDriveStorageProvider(
+        provider = GoogleDriveStorageProvider(
             resolve_project_path(settings.google_credentials_file),
             resolve_project_path(settings.google_token_file),
+            archive_folder_id=settings.archive_folder_id,
         )
+        return provider
     if normalized == "rclone":
         return RcloneStorageProvider(
             resolve_project_path(settings.rclone_config_file),

@@ -3,6 +3,7 @@
 [google_drive]
 source_folder_id = "PEGA_AQUI_EL_ID_DE_INPUT"
 target_folder_id = "PEGA_AQUI_EL_ID_DE_OUTPUT"
+archive_folder_id = "PEGA_AQUI_EL_ID_DE_ARCHIVE"
 credentials_file = "secrets/google/credentials.json"
 token_file = "secrets/google/token.json"
 original_transcript_subdir = "original_transcriptions"

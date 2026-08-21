@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from src.file_naming import normalize_component, normalize_filename
 from src.storage.base import StorageFile, StorageProvider
 
 
@@ -10,6 +11,7 @@ class GoogleDriveStorageProvider(StorageProvider):
         self,
         credentials_file: Path,
         token_file: Path,
+        archive_folder_id: str = "",
         allow_interactive_auth: bool = False,
     ) -> None:
         try:
@@ -32,6 +34,7 @@ class GoogleDriveStorageProvider(StorageProvider):
         self._credentials_file = credentials_file
         self._token_file = token_file
         self._allow_interactive_auth = allow_interactive_auth
+        self._archive_folder_id = archive_folder_id
         self._service = build("drive", "v3", credentials=self._load_credentials())
 
     def _load_credentials(self):
@@ -134,6 +137,18 @@ class GoogleDriveStorageProvider(StorageProvider):
             ).execute()
         return StorageFile(id=result["id"], name=result["name"])
 
+    def folder_exists(self, parent: str, name: str) -> bool:
+        escaped = name.replace("'", "\\'")
+        query = (
+            f"'{parent}' in parents and trashed = false "
+            "and mimeType = 'application/vnd.google-apps.folder' "
+            f"and name = '{escaped}'"
+        )
+        result = self._service.files().list(
+            q=query, spaces="drive", fields="files(id)", pageSize=1
+        ).execute()
+        return bool(result.get("files"))
+
     def ensure_folder(self, parent: str, name: str) -> str:
         escaped = name.replace("'", "\\'")
         query = (
@@ -153,6 +168,107 @@ class GoogleDriveStorageProvider(StorageProvider):
         }
         created = self._service.files().create(body=metadata, fields="id").execute()
         return created["id"]
+
+
+    def file_exists(self, parent: str, name: str) -> bool:
+        escaped = name.replace("'", "\\'")
+        query = (
+            f"'{parent}' in parents and trashed = false "
+            "and mimeType != 'application/vnd.google-apps.folder' "
+            f"and name = '{escaped}'"
+        )
+        result = self._service.files().list(
+            q=query, spaces="drive", fields="files(id)", pageSize=1
+        ).execute()
+        return bool(result.get("files"))
+
+    def _list_children(self, parent: str) -> list[dict]:
+        query = f"'{parent}' in parents and trashed = false"
+        files = []
+        page_token = None
+        while True:
+            response = (
+                self._service.files().list(
+                    q=query, spaces="drive",
+                    fields="nextPageToken, files(id,name,mimeType)",
+                    pageSize=1000, pageToken=page_token,
+                ).execute()
+            )
+            files.extend(response.get("files", []))
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                return files
+
+    def normalize_existing_output_names(
+        self, target: str, original_transcript_subdir: str
+    ) -> dict[str, str]:
+        renamed: dict[str, str] = {}
+        for item in self._list_children(target):
+            if item["mimeType"] != "application/vnd.google-apps.folder":
+                continue
+            old = item["name"]
+            new = normalize_component(old)
+            folder_id = item["id"]
+            if new != old:
+                # Only rename when the normalized name is not already occupied.
+                if not self.folder_exists(target, new):
+                    self._service.files().update(
+                        fileId=folder_id, body={"name": new}, fields="id,name"
+                    ).execute()
+                    renamed[old] = new
+                    old = new
+            for child in self._list_children(folder_id):
+                child_name = child["name"]
+                if child["mimeType"] == "application/vnd.google-apps.folder":
+                    child_folder_id = child["id"]
+                    if child_name != original_transcript_subdir:
+                        normalized_dir = normalize_component(child_name)
+                        if normalized_dir != child_name:
+                            self._service.files().update(
+                                fileId=child_folder_id, body={"name": normalized_dir}, fields="id,name"
+                            ).execute()
+                            child_name = normalized_dir
+                    for nested in self._list_children(child_folder_id):
+                        if nested["mimeType"] == "application/vnd.google-apps.folder":
+                            continue
+                        normalized_nested = normalize_filename(nested["name"])
+                        if normalized_nested != nested["name"] and not self.file_exists(child_folder_id, normalized_nested):
+                            self._service.files().update(
+                                fileId=nested["id"], body={"name": normalized_nested}, fields="id,name"
+                            ).execute()
+                    continue
+                normalized_file = normalize_filename(child_name)
+                if normalized_file != child_name and not self.file_exists(folder_id, normalized_file):
+                    self._service.files().update(
+                        fileId=child["id"], body={"name": normalized_file}, fields="id,name"
+                    ).execute()
+        return renamed
+
+    def finalize_source(self, file: StorageFile, status: str, output_folders: list[str] | None = None) -> None:
+        if status != "success":
+            return
+        # Archive the cloud source instead of deleting it, so scheduled runs do not process it again.
+        # The archive folder is injected by the provider factory through _archive_folder_id.
+        archive_folder_id = getattr(self, "_archive_folder_id", "")
+        if not archive_folder_id:
+            raise RuntimeError(
+                "Google Drive archive folder is not configured. Set google_drive.archive_folder_id "
+                "or GDRIVE_ARCHIVE_FOLDER_ID before running unattended cloud mode."
+            )
+        try:
+            self._service.files().update(
+                fileId=file.id,
+                addParents=archive_folder_id,
+                removeParents=self._find_parent_ids(file.id),
+                fields="id,name,parents",
+            ).execute()
+        except Exception:
+            # Keep the original error so pipeline reports a cloud finalization problem.
+            raise
+
+    def _find_parent_ids(self, file_id: str) -> str:
+        meta = self._service.files().get(fileId=file_id, fields="parents").execute()
+        return ",".join(meta.get("parents", []))
 
     def close(self) -> None:
         self._service.close()

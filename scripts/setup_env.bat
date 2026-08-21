@@ -1,19 +1,27 @@
 @echo off
-setlocal EnableExtensions EnableDelayedExpansion
-
-cd /d "%~dp0"
+setlocal EnableExtensions
+cd /d "%~dp0.."
+set "INSTALL_CLOUD=false"
+set "INSTALL_RCLONE=false"
+:parse_args
+if "%~1"=="" goto args_done
+if /I "%~1"=="--cloud" set "INSTALL_CLOUD=true"
+if /I "%~1"=="--rclone" set "INSTALL_RCLONE=true"
+if not /I "%~1"=="--cloud" if not /I "%~1"=="--rclone" (echo [ERROR] Opcion desconocida: %~1 & exit /b 2)
+shift
+goto parse_args
+:args_done
 
 set "PYTHON_BIN="
-
-for %%P in (python3.14.exe python3.13.exe python3.12.exe python3.11.exe py.exe python.exe) do (
+for %%P in (python3.13.exe python3.12.exe python3.11.exe py.exe python.exe) do (
     if not defined PYTHON_BIN (
         where %%P >nul 2>&1
         if not errorlevel 1 (
             if "%%P"=="py.exe" (
-                py -3.13 -c "import sys; raise SystemExit(0 if sys.version_info >= (3,11) else 1)" >nul 2>&1
+                py -3.13 -c "import sys; raise SystemExit(0 if (3,11) <= sys.version_info[:2] < (3,14) else 1)" >nul 2>&1
                 if not errorlevel 1 set "PYTHON_BIN=py -3.13"
             ) else (
-                %%P -c "import sys; raise SystemExit(0 if sys.version_info >= (3,11) else 1)" >nul 2>&1
+                %%P -c "import sys; raise SystemExit(0 if (3,11) <= sys.version_info[:2] < (3,14) else 1)" >nul 2>&1
                 if not errorlevel 1 set "PYTHON_BIN=%%P"
             )
         )
@@ -21,69 +29,38 @@ for %%P in (python3.14.exe python3.13.exe python3.12.exe python3.11.exe py.exe p
 )
 
 if not defined PYTHON_BIN (
-    echo.
-    echo [ERROR] Se necesita Python 3.11 o superior.
-    echo Instala Python 3.13 desde:
-    echo https://www.python.org/downloads/
+    echo [ERROR] Se necesita Python 3.11, 3.12 o 3.13.
     exit /b 1
 )
 
 echo [INFO] Python seleccionado: %PYTHON_BIN%
 
 if exist ".venv\Scripts\python.exe" (
-    ".venv\Scripts\python.exe" -c "import sys; raise SystemExit(0 if sys.version_info >= (3,11) else 1)" >nul 2>&1
-    if errorlevel 1 (
-        echo [INFO] Eliminando entorno virtual incompatible...
-        rmdir /s /q ".venv"
-    )
+    ".venv\Scripts\python.exe" -c "import sys; raise SystemExit(0 if (3,11) <= sys.version_info[:2] < (3,14) else 1)" >nul 2>&1
+    if errorlevel 1 rmdir /s /q ".venv"
 )
 
 if not exist ".venv\Scripts\python.exe" (
-    echo [INFO] Creando entorno virtual...
     %PYTHON_BIN% -m venv .venv
-
-    if errorlevel 1 (
-        echo [ERROR] No se pudo crear el entorno virtual.
-        exit /b 1
-    )
+    if errorlevel 1 exit /b 1
 )
 
-echo [INFO] Python del entorno:
 ".venv\Scripts\python.exe" --version
-
 ".venv\Scripts\python.exe" -c "import tomllib"
-if errorlevel 1 (
-    echo [ERROR] tomllib no esta disponible.
-    echo [ERROR] El entorno no usa Python 3.11 o superior.
-    exit /b 1
-)
+if errorlevel 1 exit /b 1
 
-echo [INFO] Actualizando pip...
 ".venv\Scripts\python.exe" -m pip install --upgrade pip
-
-echo [INFO] Instalando dependencias...
 ".venv\Scripts\python.exe" -m pip install -r requirements.txt
+if "%INSTALL_CLOUD%"=="true" ".venv\Scripts\python.exe" -m pip install -r requirements-google.txt
+if errorlevel 1 exit /b 1
 
-if errorlevel 1 (
-    echo [ERROR] Fallo la instalacion de dependencias.
-    exit /b 1
-)
-
-echo [INFO] Verificando FFmpeg...
 ".venv\Scripts\python.exe" -c "import imageio_ffmpeg; print('[OK] FFmpeg:', imageio_ffmpeg.get_ffmpeg_exe())"
+if errorlevel 1 exit /b 1
 
-if errorlevel 1 (
-    echo [ERROR] No se pudo localizar FFmpeg.
-    exit /b 1
-)
+if "%INSTALL_RCLONE%"=="true" (where rclone >nul 2>&1 || (echo [ERROR] rclone no esta instalado. Ejecuta scripts\setup_rclone.bat & exit /b 1))
 
-echo [INFO] Ejecutando doctor...
 ".venv\Scripts\python.exe" main.py doctor
-
-if errorlevel 1 (
-    echo [ERROR] El doctor encontro problemas.
-    exit /b 1
-)
+if errorlevel 1 exit /b 1
 
 echo.
 echo [OK] Entorno preparado correctamente.

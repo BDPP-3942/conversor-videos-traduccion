@@ -41,7 +41,8 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     run = sub.add_parser("run", help="Run one processing batch")
-    run.add_argument("--provider", choices=["local", "google_drive", "rclone"], default=None)
+    run.add_argument("--provider", choices=["local", "google_drive", "gdrive", "rclone"], default=None)
+    run.add_argument("--mode", choices=["local", "cloud", "rclone"], default=None, help="Execution mode alias: local or cloud (Google Drive)")
     run.add_argument("--source", default=None, help="Source URI. Example: local://storage/input")
     run.add_argument("--target", default=None, help="Target URI. Example: gdrive://FOLDER_ID")
     run.add_argument(
@@ -49,6 +50,21 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Remove successful local source ZIPs instead of retaining them in storage/archive/sources",
     )
+    run.add_argument(
+        "--no-resume",
+        action="store_true",
+        help="Disable per-video resume and force normal processing for this run",
+    )
+    run.add_argument(
+        "--no-name-migration",
+        action="store_true",
+        help="Disable migration of legacy output names for this run",
+    )
+    run.add_argument("--parallel-videos", type=int, default=None, help="Maximum concurrent local video workers")
+    run.add_argument("--translation-batch-size", type=int, default=None, help="Translation batch size")
+    run.add_argument("--whisper-beam-size", type=int, default=None, help="Whisper beam size (1 is faster)")
+    run.add_argument("--whisper-cpu-threads", type=int, default=None, help="CPU threads per Whisper worker; 0=auto")
+    run.add_argument("--no-ffmpeg-copy", action="store_true", help="Force MP4 video re-encoding instead of copy/remux attempt")
 
     auth = sub.add_parser("auth", help="One-time interactive provider setup")
     auth.add_argument("provider", choices=["google"])
@@ -62,18 +78,22 @@ def _build_locations(settings, provider: str, source: str | None, target: str | 
     if source and target:
         return source, target
     if provider == "google_drive":
-        if not settings.source_folder_id or not settings.target_folder_id:
-            raise ValueError(
-                "Google Drive requires google_drive.source_folder_id and "
-                "google_drive.target_folder_id in config/app.toml"
-            )
+        missing = [name for name, value in (("source_folder_id", settings.source_folder_id), ("target_folder_id", settings.target_folder_id)) if not value]
+        if missing:
+            raise ValueError("Google Drive requires: " + ", ".join(f"google_drive.{item}" for item in missing))
         return f"gdrive://{settings.source_folder_id}", f"gdrive://{settings.target_folder_id}"
     return settings.source, settings.target
 
 
 def command_run(args) -> int:
     settings = load_settings(args.config)
-    provider = (args.provider or settings.provider).lower()
+    mode = (args.mode or "").lower()
+    if mode == "cloud":
+        provider = "google_drive"
+    elif mode:
+        provider = mode
+    else:
+        provider = (args.provider or settings.provider).lower()
     from dataclasses import replace
     settings = replace(settings, provider=provider)
     source, target = _build_locations(settings, provider, args.source, args.target)
@@ -81,8 +101,33 @@ def command_run(args) -> int:
     parsed_target = parse_storage_uri(target)
     if parsed_source.scheme != parsed_target.scheme:
         raise ValueError("Source and target must use the same storage provider")
+    expected_scheme = {
+        "local": "local",
+        "google_drive": "gdrive",
+        "gdrive": "gdrive",
+        "rclone": "rclone",
+    }[provider]
+    if parsed_source.scheme != expected_scheme:
+        raise ValueError(
+            f"Provider '{provider}' requires {expected_scheme}:// URIs "
+            f"(received {parsed_source.scheme}:// and {parsed_target.scheme}://)"
+        )
     if provider == "local" and args.no_retain_sources:
         settings = replace(settings, local_retain_sources=False)
+    if args.no_resume:
+        settings = replace(settings, resume_enabled=False)
+    if args.no_name_migration:
+        settings = replace(settings, normalize_legacy_names=False)
+    if args.parallel_videos is not None:
+        settings = replace(settings, max_parallel_videos=max(1, args.parallel_videos))
+    if args.translation_batch_size is not None:
+        settings = replace(settings, translation_batch_size=max(1, args.translation_batch_size))
+    if args.whisper_beam_size is not None:
+        settings = replace(settings, whisper_beam_size=max(1, args.whisper_beam_size))
+    if args.whisper_cpu_threads is not None:
+        settings = replace(settings, whisper_cpu_threads=max(0, args.whisper_cpu_threads))
+    if args.no_ffmpeg_copy:
+        settings = replace(settings, ffmpeg_avoid_reencode=False)
     configure_logging(settings.log_level)
     from src.pipeline import MediaPipeline
     storage = create_storage_provider(provider, settings)
