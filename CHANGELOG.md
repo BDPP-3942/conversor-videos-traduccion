@@ -1,3 +1,13 @@
+
+## Unreleased
+
+- Added content-aware media deduplication for similarly named files across different ZIP sources. Exact SHA-256 matches are treated as duplicates; strong matches additionally compare duration, dimensions and sampled video/audio fingerprints.
+- Persisted media identities in `storage/state/media_registry.jsonl` so duplicate decisions survive later runs.
+- Output collision suffixes now derive from media content rather than the ZIP-relative path, preventing needless name changes when the same media arrives through another archive path.
+- Improved filename context resolution to use meaningful ZIP/directory names while ignoring `wetransfer`/`drive-download` transport noise.
+- Pinned Ruff to `0.9.10` and added `required-version` to keep local and CI linting deterministic.
+- FFmpeg conversions now emit periodic progress logs instead of appearing silent during long operations.
+
 # Changelog
 
 ## v5.0.0 - unattended cloud execution

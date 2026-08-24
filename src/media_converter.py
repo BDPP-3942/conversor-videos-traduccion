@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import subprocess
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -184,20 +185,81 @@ class MediaConverter:
 
     def _run(self, command: list[str]) -> None:
         logger.debug("Running FFmpeg: %s", " ".join(command))
+        progress_command = (
+            command[:-1]
+            + ["-progress", "pipe:2", "-nostats", command[-1]]
+            if command
+            else command
+        )
+        process = None
+        last_progress_log = 0.0
+        last_out_time_ms = None
+        stderr_lines: list[str] = []
+        started = time.monotonic()
         try:
-            subprocess.run(
-                command,
-                check=True,
-                capture_output=True,
+            process = subprocess.Popen(
+                progress_command,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=self.settings.ffmpeg_timeout_seconds,
+                bufsize=1,
             )
+            assert process.stderr is not None
+            for line in process.stderr:
+                line = line.strip()
+                if not line:
+                    continue
+                stderr_lines.append(line)
+                if line.startswith("out_time_ms="):
+                    try:
+                        last_out_time_ms = int(line.split("=", 1)[1])
+                    except ValueError:
+                        last_out_time_ms = None
+                now = time.monotonic()
+                if now - last_progress_log >= 15 and last_out_time_ms is not None:
+                    elapsed_seconds = last_out_time_ms / 1_000_000
+                    speed = _extract_progress_value(stderr_lines, "speed")
+                    speed_text = f" speed={speed}" if speed else ""
+                    logger.info(
+                        "FFmpeg working: output_time=%s elapsed_wall=%.0fs%s",
+                        _format_duration(elapsed_seconds),
+                        now - started,
+                        speed_text,
+                    )
+                    last_progress_log = now
+            return_code = process.wait(timeout=self.settings.ffmpeg_timeout_seconds)
+            if return_code != 0:
+                detail = next(
+                    (line for line in reversed(stderr_lines) if not line.startswith(("frame=", "fps=", "out_", "progress="))),
+                    "FFmpeg conversion failed",
+                )
+                raise RuntimeError(detail)
         except FileNotFoundError as exc:
             raise RuntimeError(
                 "FFmpeg no está disponible. Ejecuta `pip install -r requirements.txt` "
                 "o configura FFMPEG_BIN."
             ) from exc
         except subprocess.TimeoutExpired as exc:
+            if process is not None:
+                process.kill()
+                process.wait()
             raise RuntimeError("FFmpeg conversion timed out") from exc
-        except subprocess.CalledProcessError as exc:
-            raise RuntimeError((exc.stderr or "FFmpeg conversion failed").strip()) from exc
+        finally:
+            if process is not None and process.poll() is None:
+                process.kill()
+                process.wait()
+
+
+def _extract_progress_value(lines: list[str], key: str) -> str | None:
+    prefix = f"{key}="
+    for line in reversed(lines):
+        if line.startswith(prefix):
+            return line[len(prefix) :].strip()
+    return None
+
+
+def _format_duration(seconds: float) -> str:
+    whole = max(0, int(seconds))
+    hours, remainder = divmod(whole, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"

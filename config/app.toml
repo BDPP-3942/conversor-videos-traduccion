@@ -49,6 +49,9 @@ max_extracted_size_gb = 10.0
 resume_enabled = true
 normalize_legacy_names = true
 max_parallel_videos = 2
+duplicate_name_similarity_threshold = 0.82
+duplicate_duration_tolerance_seconds = 1.5
+duplicate_visual_similarity_threshold = 0.91
 
 [ffmpeg]
 bin = ""

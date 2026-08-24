@@ -71,6 +71,9 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             resume_enabled=bool(workflow.get("resume_enabled", True)),
             normalize_legacy_names=bool(workflow.get("normalize_legacy_names", True)),
             max_parallel_videos=int(workflow.get("max_parallel_videos", 2)),
+            duplicate_name_similarity_threshold=float(workflow.get("duplicate_name_similarity_threshold", 0.82)),
+            duplicate_duration_tolerance_seconds=float(workflow.get("duplicate_duration_tolerance_seconds", 1.5)),
+            duplicate_visual_similarity_threshold=float(workflow.get("duplicate_visual_similarity_threshold", 0.91)),
             google_credentials_file=Path(
                 str(google.get("credentials_file", "secrets/providers/google/default/credentials.json"))
             ),
@@ -133,6 +136,9 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
         "RESUME_ENABLED": "resume_enabled",
         "NORMALIZE_LEGACY_NAMES": "normalize_legacy_names",
         "MAX_PARALLEL_VIDEOS": "max_parallel_videos",
+        "DUPLICATE_NAME_SIMILARITY_THRESHOLD": "duplicate_name_similarity_threshold",
+        "DUPLICATE_DURATION_TOLERANCE_SECONDS": "duplicate_duration_tolerance_seconds",
+        "DUPLICATE_VISUAL_SIMILARITY_THRESHOLD": "duplicate_visual_similarity_threshold",
         "FFMPEG_AVOID_REENCODE": "ffmpeg_avoid_reencode",
         "RUN_LOCK_FILE": "run_lock_file",
         "AUTO_BOOTSTRAP_RCLONE": "auto_bootstrap_rclone",

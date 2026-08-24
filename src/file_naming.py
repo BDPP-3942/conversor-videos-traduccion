@@ -128,7 +128,11 @@ class FileNameFormatter:
             lesson = cls._find_lesson(" ".join(context_values))
 
         course_name = cls._find_course_name(context_values + [stem])
+        if course_name is None:
+            course_name = cls._infer_context_course_name(context_values[:1])
         lesson_name = cls._find_lesson_name([stem] + context_values)
+        if lesson_name is None and lesson is None:
+            lesson_name = cls._infer_context_lesson_name(context_values)
 
         # Numeric values always win over textual guesses.
         if course is not None:
@@ -223,6 +227,33 @@ class FileNameFormatter:
         return None
 
     @classmethod
+    def _infer_context_course_name(cls, values: list[str]) -> Optional[str]:
+        for value in values:
+            if cls._looks_like_download_artifact(value):
+                continue
+            cleaned = cls._clean_context(value)
+            candidate = cls._clean_label(cleaned)
+            if not candidate or cls._is_generic_label(candidate):
+                continue
+            if cls._find_lesson(cleaned) is not None or cls._find_course(cleaned) is not None:
+                if re.search(r"\b(?:curso|course)\b", cleaned, re.IGNORECASE):
+                    continue
+            return candidate
+        return None
+
+    @classmethod
+    def _infer_context_lesson_name(cls, values: list[str]) -> Optional[str]:
+        for value in reversed(values):
+            if cls._looks_like_download_artifact(value):
+                continue
+            cleaned = cls._clean_context(value)
+            candidate = cls._clean_label(cleaned)
+            if not candidate or cls._is_generic_label(candidate):
+                continue
+            return candidate
+        return None
+
+    @classmethod
     def _find_lesson_name(cls, values: list[str]) -> Optional[str]:
         # Prefer explicit semantic markers. This avoids interpreting arbitrary text as a lesson.
         for value in values:
@@ -302,11 +333,53 @@ class FileNameFormatter:
             or bool(cls.FILENAME_ARTIFACT_PATTERN.search(value))
         )
 
+    @classmethod
+    def comparison_key(cls, filename: str) -> str:
+        """Normalize a media title for duplicate-candidate matching.
+
+        The comparison key removes transport/download noise but intentionally keeps
+        meaningful numeric prefixes such as lesson numbers.
+        """
+        path = Path(filename)
+        value = cls._clean_context(path.stem)
+        value = re.sub(
+            r"(?:[_\- .]+)(?:20\d{2}[-_](?:0?[1-9]|1[0-2])[-_](?:0?[1-9]|[12]\d|3[01])[_-]\d{4,6})(?:[-_]\d+)?$",
+            "",
+            value,
+            flags=re.IGNORECASE,
+        )
+        value = cls._remove_generic_tokens(value)
+        value = re.sub(r"[^a-zA-Z0-9]+", " ", _sanitize_text(value)).lower().strip()
+        return re.sub(r"\s+", " ", value)
+
+    @classmethod
+    def normalized_title(cls, filename: str) -> str:
+        return cls.comparison_key(filename)
+
     @staticmethod
     def _label_or_default(value: Optional[str], default: str) -> str:
         if not value:
             return default
         return _sanitize_text(value.replace(" ", "_"))
+
+
+def normalize_comparison_key(filename: str) -> str:
+    return FileNameFormatter.comparison_key(filename)
+
+
+def normalized_name_similarity(left: str, right: str) -> float:
+    from difflib import SequenceMatcher
+
+    left_tokens = set(left.split())
+    right_tokens = set(right.split())
+    if not left and not right:
+        return 1.0
+    if not left or not right:
+        return 0.0
+    sequence_score = SequenceMatcher(None, left, right).ratio()
+    union = left_tokens | right_tokens
+    token_score = len(left_tokens & right_tokens) / len(union) if union else 0.0
+    return 0.65 * sequence_score + 0.35 * token_score
 
 
 def normalize_filename(filename: str) -> str:

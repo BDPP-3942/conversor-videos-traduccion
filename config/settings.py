@@ -47,6 +47,9 @@ class AppSettings:
     resume_enabled: bool = True
     normalize_legacy_names: bool = True
     max_parallel_videos: int = 2
+    duplicate_name_similarity_threshold: float = 0.82
+    duplicate_duration_tolerance_seconds: float = 1.5
+    duplicate_visual_similarity_threshold: float = 0.91
     ffmpeg_avoid_reencode: bool = True
     google_credentials_file: Path = SECRETS_DIR / "providers" / "google" / "default" / "credentials.json"
     google_token_file: Path = SECRETS_DIR / "providers" / "google" / "default" / "token.json"
@@ -121,6 +124,9 @@ class AppSettings:
             resume_enabled=os.getenv("RESUME_ENABLED", "true").lower() == "true",
             normalize_legacy_names=os.getenv("NORMALIZE_LEGACY_NAMES", "true").lower() == "true",
             max_parallel_videos=int(os.getenv("MAX_PARALLEL_VIDEOS", cls.max_parallel_videos)),
+            duplicate_name_similarity_threshold=float(os.getenv("DUPLICATE_NAME_SIMILARITY_THRESHOLD", cls.duplicate_name_similarity_threshold)),
+            duplicate_duration_tolerance_seconds=float(os.getenv("DUPLICATE_DURATION_TOLERANCE_SECONDS", cls.duplicate_duration_tolerance_seconds)),
+            duplicate_visual_similarity_threshold=float(os.getenv("DUPLICATE_VISUAL_SIMILARITY_THRESHOLD", cls.duplicate_visual_similarity_threshold)),
             ffmpeg_avoid_reencode=os.getenv("FFMPEG_AVOID_REENCODE", "true").lower() == "true",
             google_credentials_file=Path(
                 os.getenv("GOOGLE_CREDENTIALS_FILE", cls.google_credentials_file)
