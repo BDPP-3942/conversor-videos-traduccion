@@ -41,7 +41,10 @@ class MediaConverter:
                 self._run(self._build_mp4_copy_command(source, mp4))
                 logger.info("MP4 already compatible with container copy path: %s", source.name)
             except RuntimeError:
-                logger.info("MP4 copy path failed; falling back to H.264/AAC transcode: %s", source.name)
+                logger.info(
+                    "MP4 copy path failed; falling back to H.264/AAC transcode: %s",
+                    source.name
+                )
                 self._run(self._build_mp4_command(source, mp4))
         else:
             self._run(self._build_mp4_command(source, mp4))
@@ -230,7 +233,12 @@ class MediaConverter:
             return_code = process.wait(timeout=self.settings.ffmpeg_timeout_seconds)
             if return_code != 0:
                 detail = next(
-                    (line for line in reversed(stderr_lines) if not line.startswith(("frame=", "fps=", "out_", "progress="))),
+                    (line for line in reversed(stderr_lines) if not line.startswith((
+                        "frame=",
+                        "fps=",
+                        "out_",
+                        "progress="
+                    ))),
                     "FFmpeg conversion failed",
                 )
                 raise RuntimeError(detail)

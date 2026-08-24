@@ -79,7 +79,11 @@ def test_manifest_supports_legacy_list_and_new_metadata(tmp_path):
     assert data["entries"][0]["source"] == "video.mp4"
 
     current = tmp_path / "current.json"
-    write_manifest(current, [{"source": "video.mp4", "status": "success"}], metadata={"zip_name": "x.zip"})
+    write_manifest(
+        current,
+        [{"source": "video.mp4", "status": "success"}],
+        metadata={"zip_name": "x.zip"}
+    )
     data = read_manifest(current)
     assert data["version"] == 2
     assert data["metadata"]["zip_name"] == "x.zip"

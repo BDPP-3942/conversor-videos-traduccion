@@ -4,7 +4,6 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from src.path_limits import _WINDOWS_RESERVED, fit_component
 
@@ -14,20 +13,20 @@ class FileNameInfo:
     original_name: str
     stem: str
     extension: str
-    language: Optional[str] = None
+    language: str | None = None
 
 
 @dataclass(frozen=True)
 class SourceNameMetadata:
-    course: Optional[int]
-    lesson: Optional[int]
+    course: int | None
+    lesson: int | None
     description: str
     output_stem: str
     confidence: str
     review_required: bool
-    review_reason: Optional[str]
-    course_name: Optional[str] = None
-    lesson_name: Optional[str] = None
+    review_reason: str | None
+    course_name: str | None = None
+    lesson_name: str | None = None
 
 
 class FileNameFormatter:
@@ -42,22 +41,36 @@ class FileNameFormatter:
         re.compile(r"\b(\d{1,4})\s*(?:º|°)\s*curso\b", re.IGNORECASE),
     )
     LESSON_PATTERNS = (
-        re.compile(r"(?:^|[_\- .])(?:cap[ií]tulo|lecci[oó]n|lesson|chapter|clase|tema|unidad)\s*[_\-.:#]*\s*(\d{1,4})\b", re.IGNORECASE),
+        re.compile(
+            r"(?:^|[_\- .])(?:cap[ií]tulo|lecci[oó]n|lesson|chapter|clase|tema|unidad)"
+            r"\s*[_\-.:#]*\s*(\d{1,4})\b",
+            re.IGNORECASE,
+        ),
         re.compile(r"^\s*(\d{1,4})\s*(?:º|°|[._-])\s*", re.IGNORECASE),
     )
     COURSE_TEXT_PATTERNS = (
         re.compile(r"\b(?:curso|course)\s*[:\-–—.]?\s*([^|/\\]+)", re.IGNORECASE),
     )
     LESSON_TEXT_PATTERNS = (
-        re.compile(r"\b(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)\s*[:\-–—.]?\s*([^|/\\]+)", re.IGNORECASE),
+        re.compile(
+            r"\b(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)"
+            r"\s*[:\-–—.]?\s*([^|/\\]+)",
+            re.IGNORECASE,
+        ),
     )
 
     # Prefixes/suffixes frequently produced by download/compression services.
     NOISE_PATTERNS = (
         re.compile(r"^wetransfer[_\-]+", re.IGNORECASE),
         re.compile(r"^drive-download[-_][0-9tz\-]+(?:[-_]\d+[-_]\d+)?[-_]", re.IGNORECASE),
-        re.compile(r"^(?:zip|rar|7z|archive|compressed|compression|backup|download|descarga)[-_ ]+", re.IGNORECASE),
-        re.compile(r"^(?:extract(?:ed)?|unzip(?:ped)?|descomprim(?:ido|ida|idos|idas))[-_ ]+", re.IGNORECASE),
+        re.compile(
+            r"^(?:zip|rar|7z|archive|compressed|compression|backup|download|descarga)[-_ ]+",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"^(?:extract(?:ed)?|unzip(?:ped)?|descomprim(?:ido|ida|idos|idas))[-_ ]+",
+            re.IGNORECASE,
+        ),
         re.compile(r"^files?[-_ ]+(?:from|de)[-_ ]+", re.IGNORECASE),
         re.compile(r"\s*\((?:copy|copia|\d+)\)\s*$", re.IGNORECASE),
         re.compile(r"[_\-]+copy\s*$", re.IGNORECASE),
@@ -168,11 +181,19 @@ class FileNameFormatter:
             reasons.append("lesson was not confidently inferred from source tree")
         elif lesson is None and lesson_name is not None:
             reasons.append("lesson name inferred from explicit text marker")
-        if combined_context and any(cls._looks_like_download_artifact(value) for value in context_values):
+        if combined_context and any(
+            cls._looks_like_download_artifact(value) for value in context_values
+        ):
             reasons.append("download/compression naming noise was ignored")
 
-        course_text = str(course) if course is not None else cls._label_or_default(course_name, "SIN_CURSO")
-        lesson_text = f"{lesson:02d}" if lesson is not None else cls._label_or_default(lesson_name, "SIN_LECCION")
+        course_text = str(course) if course is not None else cls._label_or_default(
+            course_name,
+            "SIN_CURSO"
+        )
+        lesson_text = f"{lesson:02d}" if lesson is not None else cls._label_or_default(
+            lesson_name,
+            "SIN_LECCION"
+        )
         label_prefix = f"{course_text}x{lesson_text}"
         description_key = _sanitize_text(description).lower()
         lesson_key = _sanitize_text(lesson_name or "").lower()
@@ -196,7 +217,7 @@ class FileNameFormatter:
         )
 
     @classmethod
-    def _find_course(cls, parts: list[str]) -> Optional[int]:
+    def _find_course(cls, parts: list[str]) -> int | None:
         for value in parts:
             for pattern in cls.COURSE_PATTERNS:
                 match = pattern.search(value)
@@ -205,7 +226,7 @@ class FileNameFormatter:
         return None
 
     @classmethod
-    def _find_lesson(cls, value: str) -> Optional[int]:
+    def _find_lesson(cls, value: str) -> int | None:
         for pattern in cls.LESSON_PATTERNS:
             match = pattern.search(value)
             if match:
@@ -213,7 +234,7 @@ class FileNameFormatter:
         return None
 
     @classmethod
-    def _find_course_name(cls, values: list[str]) -> Optional[str]:
+    def _find_course_name(cls, values: list[str]) -> str | None:
         # Only infer free-text course names when an explicit "curso/course" marker exists.
         for value in values:
             cleaned = cls._clean_context(value)
@@ -227,7 +248,7 @@ class FileNameFormatter:
         return None
 
     @classmethod
-    def _infer_context_course_name(cls, values: list[str]) -> Optional[str]:
+    def _infer_context_course_name(cls, values: list[str]) -> str | None:
         for value in values:
             if cls._looks_like_download_artifact(value):
                 continue
@@ -242,7 +263,7 @@ class FileNameFormatter:
         return None
 
     @classmethod
-    def _infer_context_lesson_name(cls, values: list[str]) -> Optional[str]:
+    def _infer_context_lesson_name(cls, values: list[str]) -> str | None:
         for value in reversed(values):
             if cls._looks_like_download_artifact(value):
                 continue
@@ -254,7 +275,7 @@ class FileNameFormatter:
         return None
 
     @classmethod
-    def _find_lesson_name(cls, values: list[str]) -> Optional[str]:
+    def _find_lesson_name(cls, values: list[str]) -> str | None:
         # Prefer explicit semantic markers. This avoids interpreting arbitrary text as a lesson.
         for value in values:
             cleaned = cls._clean_context(value)
@@ -271,10 +292,10 @@ class FileNameFormatter:
     def _build_description(
         cls,
         stem: str,
-        course: Optional[int],
-        lesson: Optional[int],
-        course_name: Optional[str],
-        lesson_name: Optional[str],
+        course: int | None,
+        lesson: int | None,
+        course_name: str | None,
+        lesson_name: str | None,
     ) -> str:
         description = cls._clean_context(stem)
         for pattern in cls.LESSON_PATTERNS:
@@ -308,7 +329,12 @@ class FileNameFormatter:
     @classmethod
     def _clean_label(cls, value: str) -> str:
         value = cls._clean_context(value)
-        value = re.sub(r"\b(?:curso|course|lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema)\b", "", value, flags=re.IGNORECASE)
+        value = re.sub(
+            r"\b(?:curso|course|lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema)\b",
+            "",
+            value,
+            flags=re.IGNORECASE
+        )
         value = re.sub(r"\b\d{1,4}\b", "", value)
         value = re.sub(r"[_\-]+", " ", value)
         value = re.sub(r"\s+", " ", value).strip(" ._-:;,")
@@ -323,13 +349,23 @@ class FileNameFormatter:
     @classmethod
     def _is_generic_label(cls, value: str) -> bool:
         compact = re.sub(r"[_ ]+", " ", value).strip().lower()
-        return compact in cls.GENERIC_TOKENS or not re.search(r"[a-záéíóúüñ]", compact, re.IGNORECASE)
+        return compact in cls.GENERIC_TOKENS or not re.search(
+            r"[a-záéíóúüñ]",
+            compact,
+            re.IGNORECASE
+        )
 
     @classmethod
     def _looks_like_download_artifact(cls, value: str) -> bool:
         lowered = value.lower()
         return (
-            lowered.startswith(("wetransfer_", "drive-download-", "zip-", "archive-", "compressed-"))
+            lowered.startswith((
+                "wetransfer_",
+                "drive-download-",
+                "zip-",
+                "archive-",
+                "compressed-"
+            ))
             or bool(cls.FILENAME_ARTIFACT_PATTERN.search(value))
         )
 
@@ -343,7 +379,8 @@ class FileNameFormatter:
         path = Path(filename)
         value = cls._clean_context(path.stem)
         value = re.sub(
-            r"(?:[_\- .]+)(?:20\d{2}[-_](?:0?[1-9]|1[0-2])[-_](?:0?[1-9]|[12]\d|3[01])[_-]\d{4,6})(?:[-_]\d+)?$",
+            r"(?:[_\- .]+)(?:20\d{2}[-_](?:0?[1-9]|1[0-2])[-_]"
+            r"(?:0?[1-9]|[12]\d|3[01])[_-]\d{4,6})(?:[-_]\d+)?$",
             "",
             value,
             flags=re.IGNORECASE,
@@ -357,7 +394,7 @@ class FileNameFormatter:
         return cls.comparison_key(filename)
 
     @staticmethod
-    def _label_or_default(value: Optional[str], default: str) -> str:
+    def _label_or_default(value: str | None, default: str) -> str:
         if not value:
             return default
         return _sanitize_text(value.replace(" ", "_"))

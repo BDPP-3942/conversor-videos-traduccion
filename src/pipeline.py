@@ -11,9 +11,9 @@ from config.settings import AppSettings, local_storage_paths
 from src.file_naming import (
     FileNameFormatter,
     fit_output_stem,
+    normalize_comparison_key,
     normalize_component,
     normalize_filename,
-    normalize_comparison_key,
 )
 from src.path_limits import fit_component
 from src.storage.base import StorageFile, StorageProvider
@@ -28,7 +28,11 @@ class MediaPipeline:
         from src.extractor import ZipExtractor
         from src.media_converter import MediaConverter
 
-        self.extractor = ZipExtractor(settings.max_zip_depth, settings.max_extracted_files, settings.max_extracted_size_bytes)
+        self.extractor = ZipExtractor(
+            settings.max_zip_depth,
+            settings.max_extracted_files,
+            settings.max_extracted_size_bytes
+        )
         self.media_converter = MediaConverter(settings)
         from src.media_identity import MediaIdentityResolver
         self.media_identity = MediaIdentityResolver(
@@ -52,7 +56,10 @@ class MediaPipeline:
         if getattr(getattr(self, "settings", None), "normalize_legacy_names", True):
             try:
                 normalize_outputs = getattr(self.storage, "normalize_existing_output_names", None)
-                migration = normalize_outputs(target, self.settings.original_transcript_subdir) if normalize_outputs else {}
+                migration = normalize_outputs(
+                    target,
+                    self.settings.original_transcript_subdir
+                ) if normalize_outputs else {}
                 if migration:
                     logger.info("Normalized %d legacy output path(s)", len(migration))
             except Exception:
@@ -66,27 +73,64 @@ class MediaPipeline:
         for zip_file in zips:
             try:
                 if hasattr(self.storage, "is_processed") and self.storage.is_processed(zip_file):
-                    result = {"zip": zip_file.name, "status": "skipped", "reason": "same source name and SHA-256 already processed"}
+                    result = {
+                        "zip": zip_file.name,
+                        "status": "skipped",
+                        "reason": "same source name and SHA-256 already processed"
+                    }
                 else:
                     result = self._process_zip(zip_file, target)
                     if result["status"] == "success":
                         try:
-                            self.storage.finalize_source(zip_file, "success", result.get("output_folders", []))
+                            self.storage.finalize_source(
+                                zip_file,
+                                "success",
+                                result.get("output_folders", [])
+                            )
                         except FileNotFoundError as exc:
-                            logger.warning("Source unavailable during finalization; keeping successful result: %s", exc)
+                            logger.warning(
+                                (
+                                    "Source unavailable during finalization; keeping "
+                                    "successful result: %s",
+                                ),
+                                exc
+                            )
             except Exception as exc:
                 logger.exception("ZIP processing failed: %s", zip_file.name)
-                result = {"zip": zip_file.name, "status": "error", "errors": [{"source": zip_file.name, "error_type": type(exc).__name__, "error": str(exc)}]}
+                result = {
+                    "zip": zip_file.name,
+                    "status": "error",
+                    "errors": [{
+                        "source": zip_file.name,
+                        "error_type": type(exc).__name__,
+                        "error": str(exc)
+                    }]
+                }
             results.append(result)
 
         failed = sum(item["status"] == "error" for item in results)
         partial = sum(item["status"] == "partial" for item in results)
         processed = sum(item["status"] in {"success", "partial", "error"} for item in results)
-        status = "error" if failed and not any(item["status"] == "success" for item in results) else "partial" if failed or partial else "success"
-        return {"status": status, "zips_found": len(zips), "zips_processed": processed, "zips_skipped": sum(item["status"] == "skipped" for item in results), "zips_failed": failed, "zips_partial": partial, "zips": results}
+        status = (
+            "error"
+            if failed and not any(item["status"] == "success" for item in results)
+            else "partial" if failed or partial else "success"
+        )
+        return {
+            "status": status,
+            "zips_found": len(zips),
+            "zips_processed": processed,
+            "zips_skipped": sum(item["status"] == "skipped" for item in results),
+            "zips_failed": failed,
+            "zips_partial": partial,
+            "zips": results
+        }
 
     def _manifest_path(self, zip_name: str) -> Path:
-        manifest_name = fit_component(Path(zip_name).stem, local_storage_paths()["manifests"]) + ".json"
+        manifest_name = fit_component(
+            Path(zip_name).stem,
+            local_storage_paths()["manifests"]
+        ) + ".json"
         return local_storage_paths()["manifests"] / manifest_name
 
     def _source_fingerprint(self, zip_file: StorageFile) -> dict[str, Any]:
@@ -115,7 +159,10 @@ class MediaPipeline:
             previous_entries = {
                 str(item.get("source")): item
                 for item in previous.get("entries", [])
-                if isinstance(item, dict) and item.get("source") and item.get("status") in {"success", "skipped_duplicate"}
+                if isinstance(item, dict) and item.get("source") and item.get("status") in {
+                    "success",
+                    "skipped_duplicate"
+                }
             }
             media_registry = self._load_media_registry()
             source_fingerprint = self._source_fingerprint(zip_file)
@@ -133,8 +180,12 @@ class MediaPipeline:
                 "resume_enabled": self.settings.resume_enabled,
                 "duplicate_detection": {
                     "name_similarity_threshold": self.settings.duplicate_name_similarity_threshold,
-                    "duration_tolerance_seconds": self.settings.duplicate_duration_tolerance_seconds,
-                    "visual_similarity_threshold": self.settings.duplicate_visual_similarity_threshold,
+                    "duration_tolerance_seconds": (
+                        self.settings.duplicate_duration_tolerance_seconds
+                    ),
+                    "visual_similarity_threshold": (
+                        self.settings.duplicate_visual_similarity_threshold
+                    ),
                 },
             }
 
@@ -154,7 +205,13 @@ class MediaPipeline:
                         processed.append(resumed)
                         if resumed.get("output_folder"):
                             used_stems.add(str(resumed["output_folder"]))
-                        self._write_progress_manifest(manifest_path, metadata, processed, failed, write_manifest)
+                        self._write_progress_manifest(
+                            manifest_path,
+                            metadata,
+                            processed,
+                            failed,
+                            write_manifest
+                        )
                         continue
                 metadata_item = FileNameFormatter.resolve_source_metadata(source_path, extract_root)
                 normalized_candidates.append(
@@ -167,14 +224,21 @@ class MediaPipeline:
                 )
 
             pending = []
-            for source_path, relative_source, metadata_item, normalized_name in normalized_candidates:
+            for (
+                source_path,
+                relative_source,
+                metadata_item,
+                normalized_name,
+            ) in normalized_candidates:
                 duplicate = self._find_media_duplicate(source_path, normalized_name, media_registry)
                 if duplicate:
                     duplicate_entry = {
                         "source": relative_source,
                         "status": "skipped_duplicate",
                         "duplicate_of": duplicate["registry_entry"].get("source"),
-                        "duplicate_of_output_folder": duplicate["registry_entry"].get("output_folder"),
+                        "duplicate_of_output_folder": duplicate["registry_entry"].get(
+                            "output_folder"
+                        ),
                         "duplicate_match": duplicate["status"],
                         "duplicate_score": round(float(duplicate["score"]), 4),
                         "duplicate_reason": duplicate["reason"],
@@ -188,7 +252,13 @@ class MediaPipeline:
                         duplicate_entry["duplicate_match"],
                         duplicate_entry["duplicate_score"],
                     )
-                    self._write_progress_manifest(manifest_path, metadata, processed, failed, write_manifest)
+                    self._write_progress_manifest(
+                        manifest_path,
+                        metadata,
+                        processed,
+                        failed,
+                        write_manifest
+                    )
                     continue
                 stem = self._allocate_stem(
                     metadata_item.output_stem,
@@ -202,22 +272,70 @@ class MediaPipeline:
 
             if pending:
                 workers = self._effective_parallelism()
-                logger.info("Processing %d remaining video(s) with %d worker(s)", len(pending), workers)
+                logger.info(
+                    "Processing %d remaining video(s) with %d worker(s)",
+                    len(pending),
+                    workers
+                )
                 if workers == 1:
-                    for source_path, relative_source, stem, normalized_name, metadata_item in pending:
+                    for (
+                        source_path,
+                        relative_source,
+                        stem,
+                        normalized_name,
+                        metadata_item,
+                    ) in pending:
                         try:
-                            item = self._process_media(source_path, extract_root, work_root, target, stem, normalized_name, metadata_item)
+                            item = self._process_media(
+                                source_path,
+                                extract_root,
+                                work_root,
+                                target,
+                                stem,
+                                normalized_name,
+                                metadata_item
+                            )
                             item["resumed"] = False
                             processed.append(item)
                             self._register_media_identity(source_path, normalized_name, item)
                         except Exception as exc:
-                            self._record_failure(zip_file, source_path, relative_source, exc, failed)
-                        self._write_progress_manifest(manifest_path, metadata, processed, failed, write_manifest)
+                            self._record_failure(
+                                zip_file,
+                                source_path,
+                                relative_source,
+                                exc,
+                                failed
+                            )
+                        self._write_progress_manifest(
+                            manifest_path,
+                            metadata,
+                            processed,
+                            failed,
+                            write_manifest
+                        )
                 else:
                     futures = {}
-                    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="video-worker") as executor:
-                        for source_path, relative_source, stem, normalized_name, metadata_item in pending:
-                            future = executor.submit(self._process_media, source_path, extract_root, work_root, target, stem, normalized_name, metadata_item)
+                    with ThreadPoolExecutor(
+                        max_workers=workers,
+                        thread_name_prefix="video-worker"
+                    ) as executor:
+                        for (
+                        source_path,
+                        relative_source,
+                        stem,
+                        normalized_name,
+                        metadata_item,
+                    ) in pending:
+                            future = executor.submit(
+                                self._process_media,
+                                source_path,
+                                extract_root,
+                                work_root,
+                                target,
+                                stem,
+                                normalized_name,
+                                metadata_item
+                            )
                             futures[future] = (source_path, relative_source)
                         for future in as_completed(futures):
                             source_path, relative_source = futures[future]
@@ -227,12 +345,27 @@ class MediaPipeline:
                                 processed.append(item)
                                 self._register_media_identity(
                                     source_path,
-                                    item.get("normalized_name", normalize_comparison_key(source_path.name)),
+                                    item.get(
+                                        "normalized_name",
+                                        normalize_comparison_key(source_path.name)
+                                    ),
                                     item,
                                 )
                             except Exception as exc:
-                                self._record_failure(zip_file, source_path, relative_source, exc, failed)
-                            self._write_progress_manifest(manifest_path, metadata, processed, failed, write_manifest)
+                                self._record_failure(
+                                    zip_file,
+                                    source_path,
+                                    relative_source,
+                                    exc,
+                                    failed
+                                )
+                            self._write_progress_manifest(
+                                manifest_path,
+                                metadata,
+                                processed,
+                                failed,
+                                write_manifest
+                            )
 
             status = "success" if processed and not failed else "partial" if processed else "error"
             result = {
@@ -241,7 +374,9 @@ class MediaPipeline:
                 "media_found": len(extraction.media),
                 "media_processed": sum(item.get("status") == "success" for item in processed),
                 "media_resumed": sum(item.get("resumed", False) for item in processed),
-                "media_skipped_duplicates": sum(item.get("status") == "skipped_duplicate" for item in processed),
+                "media_skipped_duplicates": sum(
+                    item.get("status") == "skipped_duplicate" for item in processed
+                ),
                 "media_failed": len(failed),
                 "parallel_workers": self._effective_parallelism(),
                 "nested_zips": len(extraction.nested_zips),
@@ -251,9 +386,21 @@ class MediaPipeline:
                 "extracted_bytes": extraction.extracted_bytes,
                 "videos": sorted(processed, key=lambda item: str(item.get("source", ""))),
                 "errors": failed,
-                "output_folders": sorted({str(item["output_folder"]) for item in processed if item.get("output_folder")}),
+                "output_folders": sorted(
+                    {
+                        str(item["output_folder"])
+                        for item in processed
+                        if item.get("output_folder")
+                    }
+                ),
             }
-            self._write_progress_manifest(manifest_path, metadata, processed, failed, write_manifest)
+            self._write_progress_manifest(
+                manifest_path,
+                metadata,
+                processed,
+                failed,
+                write_manifest
+            )
             if self.settings.provider.lower() in {"google_drive", "gdrive"}:
                 self.storage.upload_file(manifest_path, target, "application/json")
             return result
@@ -266,15 +413,29 @@ class MediaPipeline:
 
     def _record_failure(self, zip_file, source_path, relative_source, exc, failed):
         logger.exception("Media processing failed: %s", source_path.name)
-        failure = {"source": relative_source, "error_type": type(exc).__name__, "error": str(exc), "status": "error"}
+        failure = {
+            "source": relative_source,
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+            "status": "error"
+        }
         failed.append(failure)
         self._write_failure(zip_file.name, source_path.name, failure)
 
     def _write_progress_manifest(self, path, metadata, processed, failed, writer) -> None:
         writer(path, processed + failed, metadata=metadata)
 
-    def _try_resume(self, existing_entry: dict[str, Any] | None, target: str, relative_source: str) -> dict[str, Any] | None:
-        if not existing_entry or existing_entry.get("status") != "success" or existing_entry.get("source") != relative_source:
+    def _try_resume(
+        self,
+        existing_entry: dict[str, Any] | None,
+        target: str,
+        relative_source: str
+    ) -> dict[str, Any] | None:
+        if (
+            not existing_entry
+            or existing_entry.get("status") != "success"
+            or existing_entry.get("source") != relative_source
+        ):
             return None
         folder = normalize_component(str(existing_entry.get("output_folder", "")))
         if not folder:
@@ -282,8 +443,15 @@ class MediaPipeline:
         if not self.storage.folder_exists(target, folder):
             return None
         output_folder = self.storage.ensure_folder(target, folder)
-        original_folder = self.storage.ensure_folder(output_folder, self.settings.original_transcript_subdir)
-        artifacts = (normalize_filename(str(existing_entry.get("video", ""))), normalize_filename(str(existing_entry.get("audio", ""))), normalize_filename(str(existing_entry.get("translated_vtt", ""))))
+        original_folder = self.storage.ensure_folder(
+            output_folder,
+            self.settings.original_transcript_subdir
+        )
+        artifacts = (
+            normalize_filename(str(existing_entry.get("video", ""))),
+            normalize_filename(str(existing_entry.get("audio", ""))),
+            normalize_filename(str(existing_entry.get("translated_vtt", "")))
+        )
         original = normalize_filename(str(existing_entry.get("original_transcription", "")))
         if not all(artifacts) or not original:
             return None
@@ -292,7 +460,15 @@ class MediaPipeline:
         if not self.storage.file_exists(original_folder, original):
             return None
         resumed = dict(existing_entry)
-        resumed.update({"output_folder": folder, "video": artifacts[0], "audio": artifacts[1], "translated_vtt": artifacts[2], "original_transcription": original, "output_relative_path": f"{folder}/{artifacts[0]}", "source": relative_source})
+        resumed.update({
+            "output_folder": folder,
+            "video": artifacts[0],
+            "audio": artifacts[1],
+            "translated_vtt": artifacts[2],
+            "original_transcription": original,
+            "output_relative_path": f"{folder}/{artifacts[0]}",
+            "source": relative_source
+        })
         return resumed
 
     def _process_media(
@@ -324,8 +500,15 @@ class MediaPipeline:
         VTTBuilder.generate_vtt(translated, translated_path)
 
         output_folder = self.storage.ensure_folder(target, stem)
-        original_target = self.storage.ensure_folder(output_folder, self.settings.original_transcript_subdir)
-        for local_path, mime in ((artifacts.mp4_path, "video/mp4"), (artifacts.mp3_path, "audio/mpeg"), (translated_path, "text/vtt")):
+        original_target = self.storage.ensure_folder(
+            output_folder,
+            self.settings.original_transcript_subdir
+        )
+        for local_path, mime in (
+            (artifacts.mp4_path, "video/mp4"),
+            (artifacts.mp3_path, "audio/mpeg"),
+            (translated_path, "text/vtt")
+        ):
             self.storage.upload_file(local_path, output_folder, mime)
         self.storage.upload_file(original_path, original_target, "text/vtt")
 
@@ -383,7 +566,12 @@ class MediaPipeline:
         match = self.media_identity.find_duplicate(source_path, normalized_name, candidates)
         return match.__dict__ if match else None
 
-    def _register_media_identity(self, source_path: Path, normalized_name: str, item: dict[str, Any]) -> None:
+    def _register_media_identity(
+        self,
+        source_path: Path,
+        normalized_name: str,
+        item: dict[str, Any]
+    ) -> None:
         import json
 
         try:
@@ -404,8 +592,20 @@ class MediaPipeline:
         with path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n")
 
-    def _allocate_stem(self, base: str, used: set[str], target: str, source_path: Path, extract_root: Path, work_root: Path) -> str:
-        parent = local_storage_paths()["output"] if self.settings.provider.lower() == "local" else work_root
+    def _allocate_stem(
+        self,
+        base: str,
+        used: set[str],
+        target: str,
+        source_path: Path,
+        extract_root: Path,
+        work_root: Path
+    ) -> str:
+        parent = (
+            local_storage_paths()["output"]
+            if self.settings.provider.lower() == "local"
+            else work_root
+        )
         reserve = (f"_{self.settings.target_lang.lower()}.vtt", "_original.vtt")
         candidate = fit_output_stem(base, parent, reserve_suffixes=reserve)
         if candidate not in used and not self.storage.folder_exists(target, candidate):
@@ -417,7 +617,12 @@ class MediaPipeline:
         candidate = fit_output_stem(base, parent, digest, reserve_suffixes=reserve)
         index = 2
         while candidate in used or self.storage.folder_exists(target, candidate):
-            candidate = fit_output_stem(base, parent, f"{digest}_{index:02d}", reserve_suffixes=reserve)
+            candidate = fit_output_stem(
+                base,
+                parent,
+                f"{digest}_{index:02d}",
+                reserve_suffixes=reserve
+            )
             index += 1
         used.add(candidate)
         return candidate

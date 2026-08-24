@@ -1,6 +1,3 @@
-from pathlib import Path
-
-from src.auth.unattended import Readiness
 from src.providers.runtime import load_runtime, save_runtime
 from src.runtime_lock import RunLock
 

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Set
 from zipfile import ZipFile
 
 
@@ -43,7 +42,7 @@ class ZipExtractor:
         extract_to: Path,
         depth: int,
         result: ExtractionResult,
-        processed: Set[Path],
+        processed: set[Path],
     ) -> None:
         if depth > self.max_depth:
             raise ValueError(f"Maximum ZIP nesting depth exceeded: {self.max_depth}")

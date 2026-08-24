@@ -1,3 +1,11 @@
+## 4.1.1 - Ruff compatibility and code-quality cleanup
+
+- Fixed Ruff import ordering, unused imports and modernized Python 3.11 type annotations.
+- Replaced deprecated `subprocess` pipe handling with `capture_output` where applicable.
+- Added explicit `strict=True` to the media fingerprint `zip()` call.
+- Removed the exact Ruff version requirement; development environments now accept Ruff `>=0.9,<0.17`.
+- Preserved the duplicate-media detection and context-aware processed-video renaming behavior.
+
 
 ## Unreleased
 

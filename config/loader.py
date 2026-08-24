@@ -4,7 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 import tomllib
 
-from config.settings import AppSettings, BASE_DIR, resolve_project_path
+from config.settings import AppSettings, BASE_DIR
 
 
 def _load_dotenv() -> None:
@@ -44,7 +44,10 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             whisper_compute_type=str(processing.get("whisper_compute_type", "int8")),
             whisper_beam_size=int(processing.get("whisper_beam_size", 1)),
             whisper_vad_filter=bool(processing.get("whisper_vad_filter", True)),
-            whisper_condition_on_previous_text=bool(processing.get("whisper_condition_on_previous_text", False)),
+            whisper_condition_on_previous_text=bool(processing.get(
+                "whisper_condition_on_previous_text",
+                False
+            )),
             whisper_cpu_threads=int(processing.get("whisper_cpu_threads", 0)),
             translation_retries=int(processing.get("translation_retries", 10)),
             translation_batch_size=int(processing.get("translation_batch_size", 40)),
@@ -71,11 +74,23 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             resume_enabled=bool(workflow.get("resume_enabled", True)),
             normalize_legacy_names=bool(workflow.get("normalize_legacy_names", True)),
             max_parallel_videos=int(workflow.get("max_parallel_videos", 2)),
-            duplicate_name_similarity_threshold=float(workflow.get("duplicate_name_similarity_threshold", 0.82)),
-            duplicate_duration_tolerance_seconds=float(workflow.get("duplicate_duration_tolerance_seconds", 1.5)),
-            duplicate_visual_similarity_threshold=float(workflow.get("duplicate_visual_similarity_threshold", 0.91)),
+            duplicate_name_similarity_threshold=float(workflow.get(
+                "duplicate_name_similarity_threshold",
+                0.82
+            )),
+            duplicate_duration_tolerance_seconds=float(workflow.get(
+                "duplicate_duration_tolerance_seconds",
+                1.5
+            )),
+            duplicate_visual_similarity_threshold=float(workflow.get(
+                "duplicate_visual_similarity_threshold",
+                0.91
+            )),
             google_credentials_file=Path(
-                str(google.get("credentials_file", "secrets/providers/google/default/credentials.json"))
+                str(google.get(
+                    "credentials_file",
+                    "secrets/providers/google/default/credentials.json"
+                ))
             ),
             google_token_file=Path(
                 str(google.get("token_file", "secrets/providers/google/default/token.json"))
@@ -175,8 +190,12 @@ def _apply_runtime_provider(settings: AppSettings) -> AppSettings:
     if runtime.get("profile") or runtime.get("provider") in {"google_drive", "gdrive"}:
         profile = str(runtime.get("profile", settings.google_profile or "default"))
         values["google_profile"] = profile
-        values["google_credentials_file"] = settings.provider_profile_dir / "google" / profile / "credentials.json"
-        values["google_token_file"] = settings.provider_profile_dir / "google" / profile / "token.json"
+        values["google_credentials_file"] = (
+            settings.provider_profile_dir / "google" / profile / "credentials.json"
+        )
+        values["google_token_file"] = (
+            settings.provider_profile_dir / "google" / profile / "token.json"
+        )
         if "archive" in runtime:
             values["archive_folder_id"] = str(runtime.get("archive", ""))
     return replace(settings, **values) if values else settings

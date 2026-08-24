@@ -48,9 +48,9 @@ class GoogleOAuthManager:
         credential are treated as not ready for unattended execution.
         """
         try:
+            from google.auth.exceptions import RefreshError
             from google.auth.transport.requests import Request
             from google.oauth2.credentials import Credentials
-            from google.auth.exceptions import RefreshError
         except ImportError as exc:
             raise RuntimeError(
                 "Google OAuth requires google-auth and google-auth-oauthlib"
@@ -63,7 +63,10 @@ class GoogleOAuthManager:
         if credentials.valid:
             return credentials, False
         if not credentials.refresh_token:
-            raise RuntimeError("Google credential has no refresh token; interactive authorization is required.")
+            raise RuntimeError(
+                "Google credential has no refresh token; interactive authorization "
+                "is required."
+            )
         try:
             credentials.refresh(Request())
         except RefreshError as exc:

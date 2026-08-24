@@ -229,29 +229,45 @@ class GoogleDriveStorageProvider(StorageProvider):
                         normalized_dir = normalize_component(child_name)
                         if normalized_dir != child_name:
                             self._service.files().update(
-                                fileId=child_folder_id, body={"name": normalized_dir}, fields="id,name"
+                                fileId=child_folder_id,
+                                body={"name": normalized_dir},
+                                fields="id,name",
                             ).execute()
                             child_name = normalized_dir
                     for nested in self._list_children(child_folder_id):
                         if nested["mimeType"] == "application/vnd.google-apps.folder":
                             continue
                         normalized_nested = normalize_filename(nested["name"])
-                        if normalized_nested != nested["name"] and not self.file_exists(child_folder_id, normalized_nested):
+                        if normalized_nested != nested["name"] and not self.file_exists(
+                            child_folder_id,
+                            normalized_nested
+                        ):
                             self._service.files().update(
-                                fileId=nested["id"], body={"name": normalized_nested}, fields="id,name"
+                                fileId=nested["id"],
+                                body={"name": normalized_nested},
+                                fields="id,name",
                             ).execute()
                     continue
                 normalized_file = normalize_filename(child_name)
-                if normalized_file != child_name and not self.file_exists(folder_id, normalized_file):
+                if normalized_file != child_name and not self.file_exists(
+                    folder_id,
+                    normalized_file
+                ):
                     self._service.files().update(
                         fileId=child["id"], body={"name": normalized_file}, fields="id,name"
                     ).execute()
         return renamed
 
-    def finalize_source(self, file: StorageFile, status: str, output_folders: list[str] | None = None) -> None:
+    def finalize_source(
+        self,
+        file: StorageFile,
+        status: str,
+        output_folders: list[str] | None = None
+    ) -> None:
         if status != "success":
             return
-        # Archive the cloud source instead of deleting it, so scheduled runs do not process it again.
+        # Archive the cloud source instead of deleting it, so scheduled runs do not
+        # process it again.
         # The archive folder is injected by the provider factory through _archive_folder_id.
         archive_folder_id = getattr(self, "_archive_folder_id", "")
         if not archive_folder_id:

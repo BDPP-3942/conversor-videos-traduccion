@@ -1,5 +1,3 @@
-from pathlib import Path
-
 
 def test_google_preflight_refreshes_silently(monkeypatch, tmp_path):
     import src.auth.unattended as unattended

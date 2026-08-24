@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
-from config.settings import BASE_DIR, resolve_project_path
+from config.settings import resolve_project_path
 from src.auth.google_oauth import GoogleOAuthManager
 from src.auth.rclone_manager import RcloneManager
 
@@ -27,7 +24,11 @@ class ProviderRegistry:
         profile_dir = self.google_dir / profile
         manager = GoogleOAuthManager(profile_dir / "credentials.json", profile_dir / "token.json")
         credentials = manager.authorize()
-        return {"profile": profile, "token_file": str(manager.token_file), "valid": credentials.valid}
+        return {
+            "profile": profile,
+            "token_file": str(manager.token_file),
+            "valid": credentials.valid
+        }
 
     def google_status(self, profile: str) -> dict:
         manager = GoogleOAuthManager(
@@ -66,4 +67,7 @@ class ProviderRegistry:
 
 
 def _safe_profile(name: str) -> bool:
-    return bool(name) and name not in {".", ".."} and all(ch.isalnum() or ch in "-_." for ch in name)
+    return bool(name) and name not in {
+        ".",
+        ".."
+    } and all(ch.isalnum() or ch in "-_." for ch in name)

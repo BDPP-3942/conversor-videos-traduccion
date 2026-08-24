@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from src.pipeline import MediaPipeline
 from src.storage.base import StorageFile
 

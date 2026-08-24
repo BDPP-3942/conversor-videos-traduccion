@@ -3,7 +3,6 @@ from pathlib import Path
 from config.settings import AppSettings
 from src.file_naming import normalize_component
 from src.media_converter import MediaConverter
-from src.translator import TextTranslator
 
 
 def test_settings_default_to_performance_oriented_values():

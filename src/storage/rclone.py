@@ -31,7 +31,13 @@ class RcloneStorageProvider(StorageProvider):
     def _run(self, args: list[str]) -> str:
         command = [str(self.binary_file), "--config", str(self.config_file), *args]
         try:
-            result = subprocess.run(command, capture_output=True, text=True, check=True, timeout=300)
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=300
+            )
         except FileNotFoundError as exc:
             raise RuntimeError("rclone is not installed or not available in PATH") from exc
         except subprocess.TimeoutExpired as exc:
@@ -56,7 +62,12 @@ class RcloneStorageProvider(StorageProvider):
         destination.parent.mkdir(parents=True, exist_ok=True)
         self._run(["copyto", f"{self.remote}:{file.id}", str(destination)])
 
-    def upload_file(self, local_path: Path, location: str, mime_type: str | None = None) -> StorageFile:
+    def upload_file(
+        self,
+        local_path: Path,
+        location: str,
+        mime_type: str | None = None
+    ) -> StorageFile:
         if not local_path.is_file():
             raise FileNotFoundError(local_path)
         target = f"{self.remote}:{location.rstrip('/')}/{local_path.name}"
@@ -80,7 +91,11 @@ class RcloneStorageProvider(StorageProvider):
         items = json.loads(raw) if raw else []
         return any(item.get("Name") == name for item in items)
 
-    def normalize_existing_output_names(self, target: str, original_transcript_subdir: str) -> dict[str, str]:
+    def normalize_existing_output_names(
+        self,
+        target: str,
+        original_transcript_subdir: str
+    ) -> dict[str, str]:
         renamed: dict[str, str] = {}
         for item in self._items(target):
             if not item.get("IsDir"):
@@ -90,7 +105,11 @@ class RcloneStorageProvider(StorageProvider):
             current_path = f"{target.rstrip('/')}/{old}"
             target_name = new
             if new != old and not self.folder_exists(target, new):
-                self._run(["moveto", f"{self.remote}:{current_path}", f"{self.remote}:{target.rstrip('/')}/{new}"])
+                self._run([
+                    "moveto",
+                    f"{self.remote}:{current_path}",
+                    f"{self.remote}:{target.rstrip('/')}/{new}"
+                ])
                 renamed[old] = new
                 old = new
             folder_path = f"{target.rstrip('/')}/{old}"
@@ -112,7 +131,12 @@ class RcloneStorageProvider(StorageProvider):
             self._run(["mkdir", f"{self.remote}:{location}"])
         return location
 
-    def finalize_source(self, file: StorageFile, status: str, output_folders: list[str] | None = None) -> None:
+    def finalize_source(
+        self,
+        file: StorageFile,
+        status: str,
+        output_folders: list[str] | None = None
+    ) -> None:
         if status != "success":
             return
         archive = f"{self.remote}:{self._archive_path()}"

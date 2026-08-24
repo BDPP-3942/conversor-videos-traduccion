@@ -106,8 +106,8 @@ def test_local_output_name_migration_normalizes_legacy_unicode_names(tmp_path: P
 
 
 def test_normalize_existing_outputs_fits_old_long_names(tmp_path: Path, monkeypatch):
-    from src.storage.local import LocalStorageProvider
     from config import settings as settings_module
+    from src.storage.local import LocalStorageProvider
 
     monkeypatch.setattr(settings_module, "BASE_DIR", tmp_path)
     monkeypatch.setattr(settings_module, "STORAGE_DIR", tmp_path / "storage")

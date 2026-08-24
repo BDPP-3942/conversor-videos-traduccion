@@ -100,7 +100,10 @@ class MediaIdentityResolver:
         relevant = [
             item
             for item in candidates
-            if normalized_name_similarity(exact_name, normalize_comparison_key(str(item.get("normalized_name", ""))))
+            if normalized_name_similarity(
+                exact_name,
+                normalize_comparison_key(str(item.get("normalized_name", "")))
+            )
             >= self.name_threshold
         ]
         if not relevant:
@@ -130,7 +133,11 @@ class MediaIdentityResolver:
                     best = match
         return best
 
-    def candidate_names(self, registry_entries: list[dict[str, Any]], normalized_name: str) -> list[dict[str, Any]]:
+    def candidate_names(
+        self,
+        registry_entries: list[dict[str, Any]],
+        normalized_name: str
+    ) -> list[dict[str, Any]]:
         normalized_name = normalize_comparison_key(normalized_name)
         return [
             item
@@ -142,7 +149,11 @@ class MediaIdentityResolver:
             >= self.name_threshold
         ]
 
-    def _compare_identity(self, current: MediaIdentity, candidate: dict[str, Any]) -> tuple[float, list[str]]:
+    def _compare_identity(
+        self,
+        current: MediaIdentity,
+        candidate: dict[str, Any]
+    ) -> tuple[float, list[str]]:
         score = 0.0
         reasons: list[str] = []
         candidate_duration = _as_float(candidate.get("duration_seconds"))
@@ -161,7 +172,12 @@ class MediaIdentityResolver:
 
         width = candidate.get("width")
         height = candidate.get("height")
-        if current.width and current.height and int(width or 0) == current.width and int(height or 0) == current.height:
+        if (
+            current.width
+            and current.height
+            and int(width or 0) == current.width
+            and int(height or 0) == current.height
+        ):
             score += 0.15
             reasons.append("same video dimensions")
         elif current.media_type == "video" and candidate.get("media_type") != "video":
@@ -189,10 +205,14 @@ class MediaIdentityResolver:
         else:
             score += 0.10
 
-        if current.audio_channels and int(candidate.get("audio_channels") or 0) == current.audio_channels:
+        if current.audio_channels and (
+            int(candidate.get("audio_channels") or 0) == current.audio_channels
+        ):
             score += 0.05
             reasons.append("same audio channel count")
-        if current.audio_sample_rate and int(candidate.get("audio_sample_rate") or 0) == current.audio_sample_rate:
+        if current.audio_sample_rate and (
+            int(candidate.get("audio_sample_rate") or 0) == current.audio_sample_rate
+        ):
             score += 0.05
             reasons.append("same audio sample rate")
         return min(score, 1.0), reasons
@@ -202,8 +222,7 @@ class MediaIdentityResolver:
         try:
             result = subprocess.run(
                 command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 text=True,
                 timeout=min(self.timeout_seconds, 60),
                 check=False,
@@ -281,8 +300,7 @@ class MediaIdentityResolver:
             try:
                 result = subprocess.run(
                     command,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                    capture_output=True,
                     timeout=self.timeout_seconds,
                     check=True,
                 )
@@ -320,8 +338,7 @@ class MediaIdentityResolver:
             try:
                 result = subprocess.run(
                     command,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                    capture_output=True,
                     timeout=self.timeout_seconds,
                     check=True,
                 )
@@ -384,13 +401,20 @@ def _sample_similarity(left: tuple[str, ...], right: tuple[str, ...]) -> float:
 def _audio_features(raw: bytes) -> tuple[float, float, float]:
     if len(raw) < 4:
         return (0.0, 0.0, 0.0)
-    values = [sample[0] / 32768.0 for sample in struct.iter_unpack("<h", raw[: len(raw) - (len(raw) % 2)])]
+    values = [sample[0] / 32768.0 for sample in struct.iter_unpack(
+        "<h",
+        raw[: len(raw) - (len(raw) % 2)]
+    )]
     if not values:
         return (0.0, 0.0, 0.0)
     mean_abs = sum(abs(value) for value in values) / len(values)
     rms = (sum(value * value for value in values) / len(values)) ** 0.5
     crossings = sum(
-        1 for previous, current in zip(values, values[1:]) if (previous < 0) != (current < 0)
+        1 for previous, current in zip(
+            values,
+            values[1:],
+            strict=False,
+        ) if (previous < 0) != (current < 0)
     )
     return (mean_abs, rms, crossings / len(values))
 

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from config.settings import AppSettings, BASE_DIR
+from config.settings import AppSettings
 from src.ffmpeg_resolver import FFmpegResolver
 
 
@@ -22,4 +22,7 @@ def test_local_original_transcriptions_are_inside_video_output():
     provider = LocalStorageProvider(retain_sources=False, input_min_age_seconds=0)
     output = provider.ensure_folder("storage/output", "sample_video")
     original = provider.ensure_folder(output, "original_transcriptions")
-    assert original.endswith("sample_video\\original_transcriptions") or original.endswith("sample_video/original_transcriptions")
+    assert (
+        original.endswith("sample_video\\original_transcriptions")
+        or original.endswith("sample_video/original_transcriptions")
+    )
