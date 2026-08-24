@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from pathlib import Path
 from zipfile import ZipFile
-
 
 MEDIA_EXTENSIONS = {".mp4", ".mp3", ".wmv", ".mov", ".mkv", ".avi"}
 
