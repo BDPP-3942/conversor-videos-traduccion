@@ -628,7 +628,6 @@ class MediaPipeline:
     def _find_media_duplicate(
         self, source_path: Path, normalized_name: str, registry: list[dict[str, Any]]
     ):
-        from src.media_identity import MediaIdentityResolver
         from src.storage.processed_registry import sha256_file
 
         # Exact duplicates are resolved with one sequential SHA-256 pass, avoiding
@@ -643,7 +642,7 @@ class MediaPipeline:
                     "registry_entry": entry,
                 }
 
-        candidates = MediaIdentityResolver.candidate_names(registry, normalized_name)
+        candidates = self.media_identity.candidate_names(registry, normalized_name)
         if not candidates:
             return None
         match = self.media_identity.find_duplicate(source_path, normalized_name, candidates)
