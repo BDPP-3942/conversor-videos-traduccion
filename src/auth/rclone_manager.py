@@ -171,7 +171,10 @@ class RcloneManager:
             if expected.lower() != actual.lower():
                 raise RuntimeError("rclone download checksum verification failed")
             with zipfile.ZipFile(archive) as handle:
-                matches = [name for name in handle.namelist() if name.endswith("/rclone") or name.endswith("/rclone.exe")]
+                matches = [
+                    name for name in handle.namelist()
+                    if name.endswith("/rclone") or name.endswith("/rclone.exe")
+                ]
                 if len(matches) != 1:
                     raise RuntimeError("Unexpected rclone archive contents")
                 extracted = temp / Path(matches[0]).name

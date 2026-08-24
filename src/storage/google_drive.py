@@ -203,10 +203,16 @@ class GoogleDriveStorageProvider(StorageProvider):
             if not page_token:
                 return files
 
-    def rename_output_folder(self, target: str, old_name: str, new_name: str, original_transcript_subdir: str) -> dict[str, str]:
+    def rename_output_folder(
+        self, target: str, old_name: str, new_name: str, original_transcript_subdir: str
+    ) -> dict[str, str]:
         if old_name == new_name:
             return {}
-        old_items = [item for item in self._list_children(target) if item["name"] == old_name and item["mimeType"] == "application/vnd.google-apps.folder"]
+        old_items = [
+            item
+            for item in self._list_children(target)
+            if item["name"] == old_name and item["mimeType"] == "application/vnd.google-apps.folder"
+        ]
         if not old_items:
             return {}
         if self.folder_exists(target, new_name):
@@ -220,7 +226,9 @@ class GoogleDriveStorageProvider(StorageProvider):
                 for nested in self._list_children(child["id"]):
                     new_nested = self._rename_artifact_name(nested["name"], old_name, new_name)
                     if new_nested != nested["name"] and not self.file_exists(child["id"], new_nested):
-                        self._service.files().update(fileId=nested["id"], body={"name": new_nested}, fields="id,name").execute()
+                        self._service.files().update(
+                            fileId=nested["id"], body={"name": new_nested}, fields="id,name"
+                        ).execute()
                 continue
             new_child = self._rename_artifact_name(child["name"], old_name, new_name)
             if new_child != child["name"] and not self.file_exists(folder_id, new_child):
@@ -270,7 +278,10 @@ class GoogleDriveStorageProvider(StorageProvider):
                         if nested["mimeType"] == "application/vnd.google-apps.folder":
                             continue
                         normalized_nested = normalize_filename(nested["name"])
-                        if normalized_nested != nested["name"] and not self.file_exists(child_folder_id, normalized_nested):
+                        if (
+                            normalized_nested != nested["name"]
+                            and not self.file_exists(child_folder_id, normalized_nested)
+                        ):
                             self._service.files().update(
                                 fileId=nested["id"], body={"name": normalized_nested}, fields="id,name"
                             ).execute()

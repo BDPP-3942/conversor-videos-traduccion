@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import json
-from pathlib import Path
 
-from config.settings import BASE_DIR, resolve_project_path
+from config.settings import resolve_project_path
 from src.auth.google_oauth import GoogleOAuthManager
 from src.auth.rclone_manager import RcloneManager
 

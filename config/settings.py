@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
-import sys
 
 BASE_DIR = (
     Path(sys.executable).resolve().parent
@@ -79,7 +79,7 @@ class AppSettings:
         return int(self.max_extracted_size_gb * 1024**3)
 
     @classmethod
-    def from_environment(cls) -> "AppSettings":
+    def from_environment(cls) -> AppSettings:
         return cls(
             provider=os.getenv("STORAGE_PROVIDER", cls.provider),
             source=os.getenv("SOURCE_URI", cls.source),
@@ -92,7 +92,9 @@ class AppSettings:
             whisper_compute_type=os.getenv("WHISPER_COMPUTE_TYPE", cls.whisper_compute_type),
             whisper_beam_size=int(os.getenv("WHISPER_BEAM_SIZE", cls.whisper_beam_size)),
             whisper_vad_filter=os.getenv("WHISPER_VAD_FILTER", "true").lower() == "true",
-            whisper_condition_on_previous_text=os.getenv("WHISPER_CONDITION_ON_PREVIOUS_TEXT", "false").lower() == "true",
+            whisper_condition_on_previous_text=(
+                os.getenv("WHISPER_CONDITION_ON_PREVIOUS_TEXT", "false").lower() == "true"
+            ),
             whisper_cpu_threads=int(os.getenv("WHISPER_CPU_THREADS", cls.whisper_cpu_threads)),
             translation_retries=int(
                 os.getenv("TRANSLATION_RETRIES", cls.translation_retries)
@@ -142,9 +144,15 @@ class AppSettings:
             normalize_legacy_names=os.getenv("NORMALIZE_LEGACY_NAMES", "true").lower() == "true",
             rename_processed_duplicates=os.getenv("RENAME_PROCESSED_DUPLICATES", "true").lower() == "true",
             max_parallel_videos=int(os.getenv("MAX_PARALLEL_VIDEOS", cls.max_parallel_videos)),
-            duplicate_name_similarity_threshold=float(os.getenv("DUPLICATE_NAME_SIMILARITY_THRESHOLD", cls.duplicate_name_similarity_threshold)),
-            duplicate_duration_tolerance_seconds=float(os.getenv("DUPLICATE_DURATION_TOLERANCE_SECONDS", cls.duplicate_duration_tolerance_seconds)),
-            duplicate_visual_similarity_threshold=float(os.getenv("DUPLICATE_VISUAL_SIMILARITY_THRESHOLD", cls.duplicate_visual_similarity_threshold)),
+            duplicate_name_similarity_threshold=float(
+                os.getenv("DUPLICATE_NAME_SIMILARITY_THRESHOLD", cls.duplicate_name_similarity_threshold)
+            ),
+            duplicate_duration_tolerance_seconds=float(
+                os.getenv("DUPLICATE_DURATION_TOLERANCE_SECONDS", cls.duplicate_duration_tolerance_seconds)
+            ),
+            duplicate_visual_similarity_threshold=float(
+                os.getenv("DUPLICATE_VISUAL_SIMILARITY_THRESHOLD", cls.duplicate_visual_similarity_threshold)
+            ),
             ffmpeg_avoid_reencode=os.getenv("FFMPEG_AVOID_REENCODE", "true").lower() == "true",
             google_credentials_file=Path(
                 os.getenv("GOOGLE_CREDENTIALS_FILE", cls.google_credentials_file)

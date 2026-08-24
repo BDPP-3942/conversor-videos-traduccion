@@ -80,7 +80,9 @@ class RcloneStorageProvider(StorageProvider):
         items = json.loads(raw) if raw else []
         return any(item.get("Name") == name for item in items)
 
-    def rename_output_folder(self, target: str, old_name: str, new_name: str, original_transcript_subdir: str) -> dict[str, str]:
+    def rename_output_folder(
+        self, target: str, old_name: str, new_name: str, original_transcript_subdir: str
+    ) -> dict[str, str]:
         if old_name == new_name:
             return {}
         if not self.folder_exists(target, old_name):
@@ -100,11 +102,23 @@ class RcloneStorageProvider(StorageProvider):
                         continue
                     desired = self._rename_artifact_name(nested["Name"], old_name, new_name)
                     if desired != nested["Name"] and not self.file_exists(nested_path, desired):
-                        self._run(["moveto", f"{self.remote}:{nested_path}/{nested['Name']}", f"{self.remote}:{nested_path}/{desired}"])
+                        self._run(
+                            [
+                                "moveto",
+                                f"{self.remote}:{nested_path}/{nested['Name']}",
+                                f"{self.remote}:{nested_path}/{desired}",
+                            ]
+                        )
                 continue
             desired = self._rename_artifact_name(child["Name"], old_name, new_name)
             if desired != child["Name"] and not self.file_exists(new_path, desired):
-                self._run(["moveto", f"{self.remote}:{new_path}/{child['Name']}", f"{self.remote}:{new_path}/{desired}"])
+                self._run(
+                    [
+                        "moveto",
+                        f"{self.remote}:{new_path}/{child['Name']}",
+                        f"{self.remote}:{new_path}/{desired}",
+                    ]
+                )
         return {old_name: new_name}
 
     @staticmethod

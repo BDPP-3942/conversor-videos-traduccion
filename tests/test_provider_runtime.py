@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from src.auth.rclone_manager import _asset_name
 from src.providers.runtime import load_runtime, save_runtime
 
@@ -9,7 +7,13 @@ def test_runtime_provider_selection_roundtrip(tmp_path, monkeypatch):
 
     target = tmp_path / "runtime.toml"
     monkeypatch.setattr(runtime, "RUNTIME_FILE", target)
-    save_runtime(provider="rclone", profile="dropbox", source="rclone://input", target="rclone://output", rclone_remote="dropbox")
+    save_runtime(
+        provider="rclone",
+        profile="dropbox",
+        source="rclone://input",
+        target="rclone://output",
+        rclone_remote="dropbox",
+    )
     active = load_runtime()["active"]
     assert active["provider"] == "rclone"
     assert active["profile"] == "dropbox"

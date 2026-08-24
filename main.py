@@ -13,10 +13,10 @@ from config.settings import BASE_DIR, ensure_directories, resolve_project_path
 from src.auth.google_oauth import GoogleOAuthManager
 from src.auth.rclone_manager import RcloneManager
 from src.auth.unattended import check_unattended
+from src.ffmpeg_resolver import FFmpegResolver
 from src.providers.registry import ProviderRegistry
 from src.providers.runtime import clear_runtime, load_runtime, save_runtime
 from src.runtime_lock import RunLock
-from src.ffmpeg_resolver import FFmpegResolver
 from src.storage.factory import create_storage_provider
 from src.storage.uri import parse_storage_uri
 
@@ -42,7 +42,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     run = sub.add_parser("run", help="Run one unattended processing batch using the saved active profile")
-    run.add_argument("--scheduled", action="store_true", help="Scheduled-task mode: never opens a browser or asks for input")
+    run.add_argument(
+        "--scheduled", action="store_true", help="Scheduled-task mode: never opens a browser or asks for input"
+    )
     run.add_argument("--dry-run", action="store_true", help="Validate readiness without processing files")
     run.add_argument("--provider", choices=["local", "google_drive", "gdrive", "rclone"], default=None)
     run.add_argument("--source", default=None)
@@ -71,7 +73,9 @@ def build_parser() -> argparse.ArgumentParser:
     update = provider_sub.add_parser("update-rclone", help="Update managed rclone binary explicitly")
     update.add_argument("--force", action="store_true", help="Run the update even when auto-update is disabled")
 
-    setup_google = provider_sub.add_parser("setup-google", help="One-time Google Drive setup: OAuth + folders + active profile")
+    setup_google = provider_sub.add_parser(
+        "setup-google", help="One-time Google Drive setup: OAuth + folders + active profile"
+    )
     setup_google.add_argument("--profile", default="default")
     setup_google.add_argument("--source-folder-id", required=True)
     setup_google.add_argument("--target-folder-id", required=True)
@@ -146,16 +150,27 @@ def command_run(args) -> int:
     configure_logging(settings.log_level)
     if provider == "rclone" and settings.auto_update_rclone:
         try:
-            RcloneManager(resolve_project_path(settings.rclone_binary_file), resolve_project_path(settings.rclone_config_file)).self_update()
+            RcloneManager(
+                resolve_project_path(settings.rclone_binary_file),
+                resolve_project_path(settings.rclone_config_file),
+            ).self_update()
         except Exception as exc:
             logger.warning("Automatic rclone update skipped: %s", exc)
-    readiness = check_unattended(settings, ensure_rclone_binary=(provider == "rclone" and settings.auto_bootstrap_rclone))
+    readiness = check_unattended(
+        settings, ensure_rclone_binary=(provider == "rclone" and settings.auto_bootstrap_rclone)
+    )
     if not readiness.ready:
         payload = {"status": "not_ready", "provider": provider, "checks": readiness.checks, "errors": readiness.errors}
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return 3
     if args.dry_run:
-        print(json.dumps({"status": "ready", "provider": provider, "checks": readiness.checks}, ensure_ascii=False, indent=2))
+        print(
+            json.dumps(
+                {"status": "ready", "provider": provider, "checks": readiness.checks},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return 0
 
     from src.pipeline import MediaPipeline
@@ -174,7 +189,18 @@ def command_auth(args) -> int:
     profile_dir = resolve_project_path(settings.provider_profile_dir) / "google" / args.profile
     manager = GoogleOAuthManager(profile_dir / "credentials.json", profile_dir / "token.json")
     credentials = manager.authorize(open_browser=True)
-    print(json.dumps({"provider": "google_drive", "profile": args.profile, "authorized": bool(credentials.valid or credentials.refresh_token), "token_file": str(manager.token_file)}, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {
+                "provider": "google_drive",
+                "profile": args.profile,
+                "authorized": bool(credentials.valid or credentials.refresh_token),
+                "token_file": str(manager.token_file),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
     return 0
 
 
@@ -195,7 +221,13 @@ def command_provider(args) -> int:
             profile_dir = resolve_project_path(settings.provider_profile_dir) / "google" / args.profile
             manager = GoogleOAuthManager(profile_dir / "credentials.json", profile_dir / "token.json")
             credentials, refreshed = manager.refresh_silently()
-            result = {"provider": "google_drive", "profile": args.profile, "authorized": True, "refreshed": refreshed, "refreshable": bool(credentials.refresh_token)}
+            result = {
+                "provider": "google_drive",
+                "profile": args.profile,
+                "authorized": True,
+                "refreshed": refreshed,
+                "refreshable": bool(credentials.refresh_token),
+            }
         else:
             remote = args.profile
             result = registry.verify_rclone(remote, args.location)
@@ -214,8 +246,26 @@ def command_provider(args) -> int:
         profile_dir = resolve_project_path(settings.provider_profile_dir) / "google" / args.profile
         manager = GoogleOAuthManager(profile_dir / "credentials.json", profile_dir / "token.json")
         credentials = manager.authorize(open_browser=True)
-        save_runtime(provider="google_drive", profile=args.profile, source=f"gdrive://{args.source_folder_id}", target=f"gdrive://{args.target_folder_id}", archive=args.archive_folder_id)
-        print(json.dumps({"status": "success", "provider": "google_drive", "profile": args.profile, "authorized": bool(credentials.refresh_token), "active": True}, ensure_ascii=False, indent=2))
+        save_runtime(
+            provider="google_drive",
+            profile=args.profile,
+            source=f"gdrive://{args.source_folder_id}",
+            target=f"gdrive://{args.target_folder_id}",
+            archive=args.archive_folder_id,
+        )
+        print(
+            json.dumps(
+                {
+                    "status": "success",
+                    "provider": "google_drive",
+                    "profile": args.profile,
+                    "authorized": bool(credentials.refresh_token),
+                    "active": True,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return 0
     if args.provider_command == "auth-rclone":
         options = {}
@@ -225,10 +275,22 @@ def command_provider(args) -> int:
             key, value = item.split("=", 1)
             options[key] = value
         if args.non_interactive:
-            print(json.dumps(registry.rclone.config_create_non_interactive(args.name, args.backend, options), ensure_ascii=False, indent=2))
+            print(
+                json.dumps(
+                    registry.rclone.config_create_non_interactive(args.name, args.backend, options),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
         else:
             registry.rclone.config_interactive(name=args.name, backend=args.backend)
-            print(json.dumps({"status": "success", "provider": "rclone", "remote": args.name}, ensure_ascii=False, indent=2))
+            print(
+                json.dumps(
+                    {"status": "success", "provider": "rclone", "remote": args.name},
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
         return 0
     if args.provider_command == "setup-rclone":
         options = {}
@@ -238,8 +300,20 @@ def command_provider(args) -> int:
             key, value = item.split("=", 1)
             options[key] = value
         registry.rclone.config_interactive(name=args.name, backend=args.backend)
-        save_runtime(provider="rclone", profile=args.name, rclone_remote=args.name, source=f"rclone://{args.source}", target=f"rclone://{args.target}")
-        print(json.dumps({"status": "success", "provider": "rclone", "remote": args.name, "active": True}, ensure_ascii=False, indent=2))
+        save_runtime(
+            provider="rclone",
+            profile=args.name,
+            rclone_remote=args.name,
+            source=f"rclone://{args.source}",
+            target=f"rclone://{args.target}",
+        )
+        print(
+            json.dumps(
+                {"status": "success", "provider": "rclone", "remote": args.name, "active": True},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return 0
     if args.provider_command == "use":
         if args.provider == "local":
@@ -247,19 +321,35 @@ def command_provider(args) -> int:
         elif args.provider == "google_drive":
             if not registry.google_status(args.profile).get("authorized"):
                 raise RuntimeError("Google profile is not authorized; run provider setup-google once")
-            save_runtime(provider="google_drive", profile=args.profile, source=args.source, target=args.target, archive=args.archive)
+            save_runtime(
+                provider="google_drive",
+                profile=args.profile,
+                source=args.source,
+                target=args.target,
+                archive=args.archive,
+            )
         else:
             remotes = registry.rclone.list_remotes()
             if args.profile not in remotes:
                 raise RuntimeError(f"rclone remote '{args.profile}' does not exist")
-            save_runtime(provider="rclone", profile=args.profile, rclone_remote=args.profile, source=args.source, target=args.target)
+            save_runtime(
+                provider="rclone",
+                profile=args.profile,
+                rclone_remote=args.profile,
+                source=args.source,
+                target=args.target,
+            )
         print(json.dumps({"status": "success", "active": True}, ensure_ascii=False, indent=2))
         return 0
     if args.provider_command == "remove":
         runtime = load_runtime().get("active", {})
         if args.provider == "rclone" and runtime.get("rclone_remote") == args.name:
             raise RuntimeError("Switch provider before removing the active rclone remote")
-        if args.provider == "google_drive" and runtime.get("provider") in {"google_drive", "gdrive"} and runtime.get("profile", "default") == args.name:
+        if (
+            args.provider == "google_drive"
+            and runtime.get("provider") in {"google_drive", "gdrive"}
+            and runtime.get("profile", "default") == args.name
+        ):
             raise RuntimeError("Switch provider before removing the active Google profile")
         if args.provider == "rclone":
             registry.rclone.delete_remote(args.name)
@@ -313,7 +403,13 @@ def main() -> int:
         return 2
     except Exception as exc:
         logging.getLogger(__name__).exception("Command failed")
-        print(json.dumps({"status": "error", "error_type": type(exc).__name__, "error": str(exc)}, ensure_ascii=False, indent=2))
+        print(
+            json.dumps(
+                {"status": "error", "error_type": type(exc).__name__, "error": str(exc)},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return 1
 
 

@@ -2,8 +2,8 @@ import subprocess
 from pathlib import Path
 
 from config.settings import AppSettings
-from src.media_converter import MediaConverter
 from src.ffmpeg_resolver import FFmpegResolver
+from src.media_converter import MediaConverter
 
 
 def test_mp3_source_gets_black_video_command(tmp_path: Path) -> None:

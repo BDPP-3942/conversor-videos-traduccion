@@ -4,8 +4,6 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
-
 from src.path_limits import _WINDOWS_RESERVED, fit_component
 
 
@@ -14,20 +12,20 @@ class FileNameInfo:
     original_name: str
     stem: str
     extension: str
-    language: Optional[str] = None
+    language: str | None = None
 
 
 @dataclass(frozen=True)
 class SourceNameMetadata:
-    course: Optional[int]
-    lesson: Optional[int]
+    course: int | None
+    lesson: int | None
     description: str
     output_stem: str
     confidence: str
     review_required: bool
-    review_reason: Optional[str]
-    course_name: Optional[str] = None
-    lesson_name: Optional[str] = None
+    review_reason: str | None
+    course_name: str | None = None
+    lesson_name: str | None = None
 
 
 class FileNameFormatter:
@@ -42,14 +40,20 @@ class FileNameFormatter:
         re.compile(r"\b(\d{1,4})\s*(?:º|°)\s*curso\b", re.IGNORECASE),
     )
     LESSON_PATTERNS = (
-        re.compile(r"(?:^|[_\- .])(?:cap[ií]tulo|lecci[oó]n|lesson|chapter|clase|tema|unidad)\s*[_\-.:#]*\s*(\d{1,4})\b", re.IGNORECASE),
+        re.compile(
+            r"(?:^|[_\- .])(?:cap[ií]tulo|lecci[oó]n|lesson|chapter|clase|tema|unidad)\s*[_\-.:#]*\s*(\d{1,4})\b",
+            re.IGNORECASE,
+        ),
         re.compile(r"^\s*(\d{1,4})\s*(?:º|°|[._-])\s*", re.IGNORECASE),
     )
     COURSE_TEXT_PATTERNS = (
         re.compile(r"\b(?:curso|course)\s*[:\-–—.]?\s*([^|/\\]+)", re.IGNORECASE),
     )
     LESSON_TEXT_PATTERNS = (
-        re.compile(r"\b(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)\s*[:\-–—.]?\s*([^|/\\]+)", re.IGNORECASE),
+        re.compile(
+            r"\b(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)\s*[:\-–—.]?\s*([^|/\\]+)",
+            re.IGNORECASE,
+        ),
     )
 
     # Prefixes/suffixes frequently produced by download/compression services.
@@ -196,7 +200,7 @@ class FileNameFormatter:
         )
 
     @classmethod
-    def _find_course(cls, parts: list[str]) -> Optional[int]:
+    def _find_course(cls, parts: list[str]) -> int | None:
         for value in parts:
             for pattern in cls.COURSE_PATTERNS:
                 match = pattern.search(value)
@@ -205,7 +209,7 @@ class FileNameFormatter:
         return None
 
     @classmethod
-    def _find_lesson(cls, value: str) -> Optional[int]:
+    def _find_lesson(cls, value: str) -> int | None:
         for pattern in cls.LESSON_PATTERNS:
             match = pattern.search(value)
             if match:
@@ -213,7 +217,7 @@ class FileNameFormatter:
         return None
 
     @classmethod
-    def _find_course_name(cls, values: list[str]) -> Optional[str]:
+    def _find_course_name(cls, values: list[str]) -> str | None:
         # Only infer free-text course names when an explicit "curso/course" marker exists.
         for value in values:
             cleaned = cls._clean_context(value)
@@ -227,7 +231,7 @@ class FileNameFormatter:
         return None
 
     @classmethod
-    def _infer_context_course_name(cls, values: list[str]) -> Optional[str]:
+    def _infer_context_course_name(cls, values: list[str]) -> str | None:
         for value in values:
             if cls._looks_like_download_artifact(value):
                 continue
@@ -242,7 +246,7 @@ class FileNameFormatter:
         return None
 
     @classmethod
-    def _infer_context_lesson_name(cls, values: list[str]) -> Optional[str]:
+    def _infer_context_lesson_name(cls, values: list[str]) -> str | None:
         for value in reversed(values):
             if cls._looks_like_download_artifact(value):
                 continue
@@ -254,7 +258,7 @@ class FileNameFormatter:
         return None
 
     @classmethod
-    def _find_lesson_name(cls, values: list[str]) -> Optional[str]:
+    def _find_lesson_name(cls, values: list[str]) -> str | None:
         # Prefer explicit semantic markers. This avoids interpreting arbitrary text as a lesson.
         for value in values:
             cleaned = cls._clean_context(value)
@@ -271,10 +275,10 @@ class FileNameFormatter:
     def _build_description(
         cls,
         stem: str,
-        course: Optional[int],
-        lesson: Optional[int],
-        course_name: Optional[str],
-        lesson_name: Optional[str],
+        course: int | None,
+        lesson: int | None,
+        course_name: str | None,
+        lesson_name: str | None,
     ) -> str:
         description = cls._clean_context(stem)
         for pattern in cls.LESSON_PATTERNS:
@@ -308,7 +312,12 @@ class FileNameFormatter:
     @classmethod
     def _clean_label(cls, value: str) -> str:
         value = cls._clean_context(value)
-        value = re.sub(r"\b(?:curso|course|lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema)\b", "", value, flags=re.IGNORECASE)
+        value = re.sub(
+            r"\b(?:curso|course|lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema)\b",
+            "",
+            value,
+            flags=re.IGNORECASE,
+        )
         value = re.sub(r"\b\d{1,4}\b", "", value)
         value = re.sub(r"[_\-]+", " ", value)
         value = re.sub(r"\s+", " ", value).strip(" ._-:;,")
@@ -357,7 +366,7 @@ class FileNameFormatter:
         return cls.comparison_key(filename)
 
     @staticmethod
-    def _label_or_default(value: Optional[str], default: str) -> str:
+    def _label_or_default(value: str | None, default: str) -> str:
         if not value:
             return default
         return _sanitize_text(value.replace(" ", "_"))

@@ -45,8 +45,8 @@ def test_unsafe_windows_characters_are_replaced() -> None:
 
 
 def test_output_stem_reserves_room_for_vtt_suffix(tmp_path: Path) -> None:
-    from src.path_limits import get_filesystem_limits
     from src.file_naming import fit_output_stem
+    from src.path_limits import get_filesystem_limits
 
     limits = get_filesystem_limits(tmp_path)
     base = "a" * limits.max_component

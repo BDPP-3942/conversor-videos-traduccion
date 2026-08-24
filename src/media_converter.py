@@ -247,7 +247,11 @@ class MediaConverter:
             return_code = process.wait(timeout=self.settings.ffmpeg_timeout_seconds)
             if return_code != 0:
                 detail = next(
-                    (line for line in reversed(stderr_lines) if not line.startswith(("frame=", "fps=", "out_", "progress="))),
+                    (
+                        line
+                        for line in reversed(stderr_lines)
+                        if not line.startswith(("frame=", "fps=", "out_", "progress="))
+                    ),
                     "FFmpeg conversion failed",
                 )
                 raise RuntimeError(detail)

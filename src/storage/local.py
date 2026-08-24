@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from config.settings import resolve_project_path
-from src.file_naming import normalize_component, normalize_filename
+from src.file_naming import normalize_component
 from src.path_limits import fit_component
 from src.storage.base import StorageFile, StorageProvider
 from src.storage.processed_registry import ProcessedRegistry, sha256_file
@@ -75,7 +75,9 @@ class LocalStorageProvider(StorageProvider):
     def file_exists(self, parent: str, name: str) -> bool:
         return (self._folder(parent) / name).is_file()
 
-    def rename_output_folder(self, target: str, old_name: str, new_name: str, original_transcript_subdir: str) -> dict[str, str]:
+    def rename_output_folder(
+        self, target: str, old_name: str, new_name: str, original_transcript_subdir: str
+    ) -> dict[str, str]:
         root = self._folder(target)
         old = root / old_name
         new = root / new_name
@@ -92,7 +94,10 @@ class LocalStorageProvider(StorageProvider):
                         for nested in list(child.iterdir()):
                             if not nested.is_file():
                                 continue
-                            desired = fit_component(normalize_component(nested.stem.replace(old_name, new_name)), child) + nested.suffix.lower()
+                            desired = (
+                                fit_component(normalize_component(nested.stem.replace(old_name, new_name)), child)
+                                + nested.suffix.lower()
+                            )
                             if desired != nested.name and not (child / desired).exists():
                                 nested.rename(child / desired)
                         continue
@@ -121,7 +126,11 @@ class LocalStorageProvider(StorageProvider):
             if new_name != folder.name:
                 candidate = root / new_name
                 if candidate.exists():
-                    logger.warning("Cannot normalize output folder '%s' because '%s' already exists", folder.name, candidate.name)
+                    logger.warning(
+                        "Cannot normalize output folder '%s' because '%s' already exists",
+                        folder.name,
+                        candidate.name,
+                    )
                 else:
                     try:
                         folder.rename(candidate)
@@ -134,7 +143,9 @@ class LocalStorageProvider(StorageProvider):
         self._update_manifests_after_migration(root, mapping)
         return mapping
 
-    def _normalize_files_recursive(self, root: Path, storage_root: Path, original_transcript_subdir: str, mapping: dict[str, str]) -> None:
+    def _normalize_files_recursive(
+        self, root: Path, storage_root: Path, original_transcript_subdir: str, mapping: dict[str, str]
+    ) -> None:
         try:
             children = list(root.iterdir())
         except FileNotFoundError:

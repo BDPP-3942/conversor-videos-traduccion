@@ -202,8 +202,7 @@ class MediaIdentityResolver:
         try:
             result = subprocess.run(
                 command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 text=True,
                 timeout=min(self.timeout_seconds, 60),
                 check=False,
@@ -281,8 +280,7 @@ class MediaIdentityResolver:
             try:
                 result = subprocess.run(
                     command,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                    capture_output=True,
                     timeout=self.timeout_seconds,
                     check=True,
                 )
@@ -320,8 +318,7 @@ class MediaIdentityResolver:
             try:
                 result = subprocess.run(
                     command,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                    capture_output=True,
                     timeout=self.timeout_seconds,
                     check=True,
                 )
@@ -390,7 +387,7 @@ def _audio_features(raw: bytes) -> tuple[float, float, float]:
     mean_abs = sum(abs(value) for value in values) / len(values)
     rms = (sum(value * value for value in values) / len(values)) ** 0.5
     crossings = sum(
-        1 for previous, current in zip(values, values[1:]) if (previous < 0) != (current < 0)
+        1 for previous, current in zip(values, values[1:], strict=False) if (previous < 0) != (current < 0)
     )
     return (mean_abs, rms, crossings / len(values))
 
