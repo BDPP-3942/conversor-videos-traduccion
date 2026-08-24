@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "video-translation-pipeline"
-version = "4.1.1"
+version = "4.2.1"
 description = "Local and pluggable video/audio transcription and translation pipeline"
 requires-python = ">=3.11,<3.14"
 dependencies = [

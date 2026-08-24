@@ -1,5 +1,5 @@
-import subprocess
 from pathlib import Path
+import subprocess
 
 from config.settings import AppSettings
 from src.ffmpeg_resolver import FFmpegResolver

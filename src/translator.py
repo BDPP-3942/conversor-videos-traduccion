@@ -34,7 +34,7 @@ class TextTranslator:
             indexes = [index for index, _ in batch]
             texts = [text for _, text in batch]
             outputs = self._translate_batch_with_retries(texts, indexes)
-            for index, output in zip(indexes, outputs):
+            for index, output in zip(indexes, outputs, strict=True):
                 translated_by_index[index] = output.strip() if output else ""
 
         translated = []
@@ -54,12 +54,9 @@ class TextTranslator:
             try:
                 outputs = self.translator.translate_batch(texts)
                 if not isinstance(outputs, list) or len(outputs) != len(texts):
+                    output_count = len(outputs) if isinstance(outputs, list) else "invalid"
                     raise RuntimeError(
-                        f"Translator returned {len(outputs) if isinstance(
-                            outputs,
-                            list
-                        ) else 'invalid'} "
-                        f"items for {len(texts)} inputs"
+                        f"Translator returned {output_count} items for {len(texts)} inputs"
                     )
                 return [str(item or "") for item in outputs]
             except Exception as exc:
@@ -71,13 +68,9 @@ class TextTranslator:
                 if attempt < self.settings.translation_retries:
                     time.sleep(self.settings.translation_retry_delay_seconds)
 
-        logger.warning(
-            "Falling back to individual translation for batch %s-%s",
-            indexes[0],
-            indexes[-1]
-        )
+        logger.warning("Falling back to individual translation for batch %s-%s", indexes[0], indexes[-1])
         outputs: list[str] = []
-        for index, text in zip(indexes, texts):
+        for index, text in zip(indexes, texts, strict=True):
             outputs.append(self._translate_one_with_retries(text, index, last_error))
         return outputs
 

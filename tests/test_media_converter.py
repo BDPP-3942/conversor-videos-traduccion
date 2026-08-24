@@ -2,8 +2,8 @@ import subprocess
 from pathlib import Path
 
 from config.settings import AppSettings
-from src.ffmpeg_resolver import FFmpegResolver
 from src.media_converter import MediaConverter
+from src.ffmpeg_resolver import FFmpegResolver
 
 
 def test_mp3_source_gets_black_video_command(tmp_path: Path) -> None:
@@ -16,7 +16,27 @@ def test_mp3_source_gets_black_video_command(tmp_path: Path) -> None:
     assert str(source) in command
 
 
-def test_wmv_is_converted_to_mp4_and_mp3(tmp_path: Path) -> None:
+def test_secondary_video_command_is_lightweight_webm(tmp_path: Path) -> None:
+    converter = MediaConverter(AppSettings())
+    command = converter._build_secondary_video_command(tmp_path / "input.wmv", tmp_path / "result.webm")
+    joined = " ".join(command)
+    assert "libvpx" in joined
+    assert "libopus" in joined
+    assert "libvpx-vp9" in joined
+    assert "-lossless 1" in joined
+    assert "scale=" not in joined
+    assert "-r" not in command
+
+def test_secondary_video_command_supports_audio_only_sources(tmp_path: Path) -> None:
+    converter = MediaConverter(AppSettings())
+    command = converter._build_secondary_video_command(tmp_path / "input.mp3", tmp_path / "result.webm")
+    joined = " ".join(command)
+    assert "color=c=black" in joined
+    assert "-shortest" in command
+    assert "libvpx" in joined
+    assert "libopus" in joined
+
+def test_wmv_is_converted_to_mp4_and_webm(tmp_path: Path) -> None:
     source = tmp_path / "input.wmv"
     subprocess.run(
         [
@@ -29,9 +49,9 @@ def test_wmv_is_converted_to_mp4_and_mp3(tmp_path: Path) -> None:
     )
     artifacts = MediaConverter(AppSettings()).convert(source, "37x02_TEST", tmp_path / "out")
     assert artifacts.mp4_path.is_file()
-    assert artifacts.mp3_path.is_file()
+    assert artifacts.secondary_video_path.is_file()
     assert artifacts.mp4_path.stat().st_size > 0
-    assert artifacts.mp3_path.stat().st_size > 0
+    assert artifacts.secondary_video_path.stat().st_size > 0
 
 
 def test_mp4_uses_copy_path_when_enabled(tmp_path: Path) -> None:
@@ -48,4 +68,4 @@ def test_mp4_uses_copy_path_when_enabled(tmp_path: Path) -> None:
     converter = MediaConverter(AppSettings())
     artifacts = converter.convert(source, "copy_test", tmp_path / "out")
     assert artifacts.mp4_path.is_file()
-    assert artifacts.mp3_path.is_file()
+    assert artifacts.secondary_video_path.is_file()

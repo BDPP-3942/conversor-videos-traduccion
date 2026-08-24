@@ -3,6 +3,7 @@ from pathlib import Path
 from config.settings import AppSettings
 from src.file_naming import normalize_component
 from src.media_converter import MediaConverter
+from src.translator import TextTranslator
 
 
 def test_settings_default_to_performance_oriented_values():
@@ -12,6 +13,15 @@ def test_settings_default_to_performance_oriented_values():
     assert settings.translation_batch_size == 40
     assert settings.max_parallel_videos == 2
     assert settings.ffmpeg_avoid_reencode is True
+    assert settings.ffmpeg_preset == "medium"
+    assert settings.ffmpeg_crf == 23
+    assert settings.ffmpeg_audio_bitrate == "256k"
+    assert settings.secondary_video_extension == "webm"
+    assert settings.secondary_video_codec == "libvpx-vp9"
+    assert settings.secondary_video_crf == 30
+    assert settings.secondary_video_max_width == 0
+    assert settings.secondary_video_fps == 0
+    assert settings.secondary_video_audio_bitrate == "256k"
 
 
 def test_mp4_copy_command_avoids_reencode(tmp_path: Path):

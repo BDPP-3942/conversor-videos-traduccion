@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -53,7 +53,7 @@ class ProcessedRegistry:
             "size": size,
             "archive_name": archive_name,
             "output_folders": output_folders,
-            "processed_at": datetime.now(timezone.utc).isoformat(),
+            "processed_at": datetime.now(UTC).isoformat(),
             "status": "success",
         }
         with self.path.open("a", encoding="utf-8") as handle:

@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: video-translation-pipeline
-Version: 2.6.0
+Version: 4.2.1
 Summary: Local and pluggable video/audio transcription and translation pipeline
 Requires-Python: <3.14,>=3.11
 Requires-Dist: faster-whisper<2,>=1
@@ -15,6 +15,6 @@ Requires-Dist: google-auth-oauthlib<2,>=1; extra == "google"
 Provides-Extra: rclone
 Provides-Extra: dev
 Requires-Dist: pytest<9,>=8; extra == "dev"
-Requires-Dist: ruff<0.17,>=0.9; extra == "dev"
+Requires-Dist: ruff>=0.9,<0.17; extra == "dev"
 Provides-Extra: package
 Requires-Dist: pyinstaller<7,>=6; extra == "package"

@@ -12,7 +12,6 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-
 RCLONE_VERSION = "1.75.0"
 RCLONE_DOWNLOAD_BASE = "https://github.com/rclone/rclone/releases/download/v{version}"
 RCLONE_RELEASE_BASE = "https://downloads.rclone.org/v{version}"
@@ -45,11 +44,7 @@ class RcloneManager:
         if not self.config_file.exists() or not self.binary_path.is_file():
             return []
         result = self._run(["listremotes"], check=True)
-        return sorted(
-            line.strip().rstrip(":")
-            for line in result.stdout.splitlines()
-            if line.strip()
-        )
+        return sorted(line.strip().rstrip(":") for line in result.stdout.splitlines() if line.strip())
 
     def healthcheck(self, remote: str, location: str = "") -> dict[str, object]:
         """Perform a read-only remote listing.
@@ -131,13 +126,7 @@ class RcloneManager:
         self.config_file.parent.mkdir(parents=True, exist_ok=True)
         return [str(self.binary_path), "--config", str(self.config_file), *args]
 
-    def _run(
-        self,
-        args: list[str],
-        *,
-        check: bool,
-        timeout: int = 300
-    ) -> subprocess.CompletedProcess[str]:
+    def _run(self, args: list[str], *, check: bool, timeout: int = 300) -> subprocess.CompletedProcess[str]:
         try:
             return subprocess.run(
                 self._base_command(args),
@@ -182,11 +171,7 @@ class RcloneManager:
             if expected.lower() != actual.lower():
                 raise RuntimeError("rclone download checksum verification failed")
             with zipfile.ZipFile(archive) as handle:
-                matches = [
-                    name
-                    for name in handle.namelist()
-                    if name.endswith("/rclone") or name.endswith("/rclone.exe")
-                ]
+                matches = [name for name in handle.namelist() if name.endswith("/rclone") or name.endswith("/rclone.exe")]
                 if len(matches) != 1:
                     raise RuntimeError("Unexpected rclone archive contents")
                 extracted = temp / Path(matches[0]).name
@@ -197,12 +182,7 @@ class RcloneManager:
     def _chmod_executable(self) -> None:
         if os.name != "nt":
             try:
-                self.binary_path.chmod(
-            self.binary_path.stat().st_mode
-            | stat.S_IXUSR
-            | stat.S_IXGRP
-            | stat.S_IXOTH
-        )
+                self.binary_path.chmod(self.binary_path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
             except OSError:
                 pass
 

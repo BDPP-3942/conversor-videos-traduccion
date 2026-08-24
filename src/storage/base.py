@@ -42,6 +42,12 @@ class StorageProvider(ABC):
         """Return whether a file exists below a storage folder."""
         return False
 
+    def rename_output_folder(
+        self, target: str, old_name: str, new_name: str, original_transcript_subdir: str
+    ) -> dict[str, str]:
+        """Rename an already processed output folder and its generated artifact stems."""
+        return {}
+
     def normalize_existing_output_names(
         self, target: str, original_transcript_subdir: str
     ) -> dict[str, str]:
@@ -56,6 +62,8 @@ class StorageProvider(ABC):
         self, file: StorageFile, status: str, output_folders: list[str] | None = None
     ) -> None:
         """Hook opcional para retirar fuentes procesadas del buzón de entrada."""
+        return None
 
     def close(self) -> None:
-        pass
+        """Hook opcional para liberar recursos del proveedor."""
+        return None

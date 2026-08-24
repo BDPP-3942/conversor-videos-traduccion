@@ -27,10 +27,7 @@ class STTEngine:
             num_workers=1,
         )
         logger.info(
-            (
-                "Whisper ready: model=%s device=%s compute=%s cpu_threads=%d "
-                "beam=%d vad=%s condition_previous=%s",
-            ),
+            "Whisper ready: model=%s device=%s compute=%s cpu_threads=%d beam=%d vad=%s condition_previous=%s",
             settings.whisper_model,
             settings.whisper_device,
             settings.whisper_compute_type,
@@ -51,21 +48,13 @@ class STTEngine:
             temperature=0,
             condition_on_previous_text=self.settings.whisper_condition_on_previous_text,
             vad_filter=self.settings.whisper_vad_filter,
-            vad_parameters=(
-                {"min_silence_duration_ms": 500}
-                if self.settings.whisper_vad_filter
-                else None
-            ),
+            vad_parameters={"min_silence_duration_ms": 2000} if self.settings.whisper_vad_filter else None,
             word_timestamps=False,
         )
         result = []
         for segment in segments:
             text = segment.text.strip()
             if text:
-                result.append({
-                    "start": float(segment.start),
-                    "end": float(segment.end),
-                    "text": text
-                })
+                result.append({"start": float(segment.start), "end": float(segment.end), "text": text})
         logger.info("STT completed: %d segments", len(result))
         return result

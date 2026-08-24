@@ -106,8 +106,8 @@ def test_local_output_name_migration_normalizes_legacy_unicode_names(tmp_path: P
 
 
 def test_normalize_existing_outputs_fits_old_long_names(tmp_path: Path, monkeypatch):
-    from config import settings as settings_module
     from src.storage.local import LocalStorageProvider
+    from config import settings as settings_module
 
     monkeypatch.setattr(settings_module, "BASE_DIR", tmp_path)
     monkeypatch.setattr(settings_module, "STORAGE_DIR", tmp_path / "storage")
@@ -131,3 +131,23 @@ def test_normalize_existing_outputs_fits_old_long_names(tmp_path: Path, monkeypa
     assert len(folders) == 1
     assert len(folders[0].name.encode("utf-8")) <= 255
     assert any(p.suffix == ".mp4" for p in folders[0].iterdir())
+
+
+def test_local_storage_rename_output_folder_updates_artifact_stems(tmp_path: Path):
+    output = tmp_path / "output"
+    legacy = output / "Tema_viejo"
+    original = legacy / "original_transcriptions"
+    original.mkdir(parents=True)
+    (legacy / "Tema_viejo.mp4").write_bytes(b"video")
+    (legacy / "Tema_viejo.webm").write_bytes(b"webm")
+    (legacy / "Tema_viejo_en.vtt").write_text("WEBVTT\n", encoding="utf-8")
+    (original / "Tema_viejo_original.vtt").write_text("WEBVTT\n", encoding="utf-8")
+
+    provider = LocalStorageProvider(retain_sources=False, input_min_age_seconds=0)
+    mapping = provider.rename_output_folder(str(output), "Tema_viejo", "37x02_Tema_nuevo", "original_transcriptions")
+
+    assert mapping == {"Tema_viejo": "37x02_Tema_nuevo"}
+    assert (output / "37x02_Tema_nuevo" / "37x02_Tema_nuevo.mp4").is_file()
+    assert (output / "37x02_Tema_nuevo" / "37x02_Tema_nuevo.webm").is_file()
+    assert (output / "37x02_Tema_nuevo" / "37x02_Tema_nuevo_en.vtt").is_file()
+    assert (output / "37x02_Tema_nuevo" / "original_transcriptions" / "37x02_Tema_nuevo_original.vtt").is_file()

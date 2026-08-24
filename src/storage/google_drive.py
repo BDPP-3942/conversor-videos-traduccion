@@ -203,6 +203,40 @@ class GoogleDriveStorageProvider(StorageProvider):
             if not page_token:
                 return files
 
+    def rename_output_folder(self, target: str, old_name: str, new_name: str, original_transcript_subdir: str) -> dict[str, str]:
+        if old_name == new_name:
+            return {}
+        old_items = [item for item in self._list_children(target) if item["name"] == old_name and item["mimeType"] == "application/vnd.google-apps.folder"]
+        if not old_items:
+            return {}
+        if self.folder_exists(target, new_name):
+            raise FileExistsError(f"Output target already exists: {new_name}")
+        folder_id = old_items[0]["id"]
+        self._service.files().update(fileId=folder_id, body={"name": new_name}, fields="id,name").execute()
+        for child in self._list_children(folder_id):
+            if child["mimeType"] == "application/vnd.google-apps.folder":
+                if child["name"] != original_transcript_subdir:
+                    continue
+                for nested in self._list_children(child["id"]):
+                    new_nested = self._rename_artifact_name(nested["name"], old_name, new_name)
+                    if new_nested != nested["name"] and not self.file_exists(child["id"], new_nested):
+                        self._service.files().update(fileId=nested["id"], body={"name": new_nested}, fields="id,name").execute()
+                continue
+            new_child = self._rename_artifact_name(child["name"], old_name, new_name)
+            if new_child != child["name"] and not self.file_exists(folder_id, new_child):
+                self._service.files().update(fileId=child["id"], body={"name": new_child}, fields="id,name").execute()
+        return {old_name: new_name}
+
+    @staticmethod
+    def _rename_artifact_name(old_name: str, old_stem: str, new_stem: str) -> str:
+        path = Path(old_name)
+        stem = path.stem
+        if stem.startswith(old_stem):
+            stem = new_stem + stem[len(old_stem):]
+        else:
+            stem = normalize_component(stem)
+        return f"{stem}{path.suffix.lower()}"
+
     def normalize_existing_output_names(
         self, target: str, original_transcript_subdir: str
     ) -> dict[str, str]:
@@ -229,45 +263,29 @@ class GoogleDriveStorageProvider(StorageProvider):
                         normalized_dir = normalize_component(child_name)
                         if normalized_dir != child_name:
                             self._service.files().update(
-                                fileId=child_folder_id,
-                                body={"name": normalized_dir},
-                                fields="id,name",
+                                fileId=child_folder_id, body={"name": normalized_dir}, fields="id,name"
                             ).execute()
                             child_name = normalized_dir
                     for nested in self._list_children(child_folder_id):
                         if nested["mimeType"] == "application/vnd.google-apps.folder":
                             continue
                         normalized_nested = normalize_filename(nested["name"])
-                        if normalized_nested != nested["name"] and not self.file_exists(
-                            child_folder_id,
-                            normalized_nested
-                        ):
+                        if normalized_nested != nested["name"] and not self.file_exists(child_folder_id, normalized_nested):
                             self._service.files().update(
-                                fileId=nested["id"],
-                                body={"name": normalized_nested},
-                                fields="id,name",
+                                fileId=nested["id"], body={"name": normalized_nested}, fields="id,name"
                             ).execute()
                     continue
                 normalized_file = normalize_filename(child_name)
-                if normalized_file != child_name and not self.file_exists(
-                    folder_id,
-                    normalized_file
-                ):
+                if normalized_file != child_name and not self.file_exists(folder_id, normalized_file):
                     self._service.files().update(
                         fileId=child["id"], body={"name": normalized_file}, fields="id,name"
                     ).execute()
         return renamed
 
-    def finalize_source(
-        self,
-        file: StorageFile,
-        status: str,
-        output_folders: list[str] | None = None
-    ) -> None:
+    def finalize_source(self, file: StorageFile, status: str, output_folders: list[str] | None = None) -> None:
         if status != "success":
             return
-        # Archive the cloud source instead of deleting it, so scheduled runs do not
-        # process it again.
+        # Archive the cloud source instead of deleting it, so scheduled runs do not process it again.
         # The archive folder is injected by the provider factory through _archive_folder_id.
         archive_folder_id = getattr(self, "_archive_folder_id", "")
         if not archive_folder_id:

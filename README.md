@@ -120,3 +120,15 @@ La tarea ejecuta `VideoTranslationPipeline.exe run --scheduled` con el directori
 ## Versión de rclone
 
 La release estable de referencia del proyecto es rclone `v1.75.0`, publicada el 31 de julio de 2026.
+
+## Salidas y migración de resultados históricos
+
+Cada vídeo nuevo genera `MP4 + WebM + VTT traducido`, y la transcripción original se guarda en `original_transcriptions/`. El WebM es una copia ligera orientada a servidores con menos recursos.
+
+Los ZIP que ya estaban procesados no vuelven a pasar por conversión, Whisper ni traducción. Con `workflow.rename_processed_duplicates = true`, volver a introducir el ZIP permite ejecutar un flujo de solo renombrado: se extrae temporalmente el contenido, se vuelve a inferir curso/lección/descripción con las reglas actuales y se renombran la carpeta y los artefactos existentes. Esto permite migrar resultados generados antes de incorporar la nueva inferencia de nombres sin rehacer el procesamiento.
+
+La salida WebM se configura con `SECONDARY_VIDEO_*` o con la sección `[ffmpeg]` de `config/app.toml`. Las salidas MP3 antiguas se conservan para compatibilidad con `resume`; no se generan MP3 nuevos.
+
+## Rendimiento
+
+El perfil CPU por defecto usa Whisper `small` + `int8`, `beam_size=1`, sin `condition_on_previous_text`, VAD activo y dos trabajadores locales. FFmpeg usa `medium` por defecto y evita el reencode cuando un MP4 ya puede pasar por `-c copy`. La detección de duplicados exactos utiliza SHA-256 y evita el sondeo visual/audio con FFmpeg; la comparación probabilística más cara solo se usa para candidatos de nombre similares que no coinciden por hash.

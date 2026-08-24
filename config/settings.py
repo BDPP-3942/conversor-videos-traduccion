@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import os
-import sys
 from dataclasses import dataclass
 from pathlib import Path
+import sys
 
-BASE_DIR = Path(sys.executable).resolve().parent if getattr(
-    sys,
-    "frozen",
-    False
-) else Path(__file__).resolve().parent.parent
+BASE_DIR = (
+    Path(sys.executable).resolve().parent
+    if getattr(sys, "frozen", False)
+    else Path(__file__).resolve().parent.parent
+)
 CONFIG_DIR = BASE_DIR / "config"
 SECRETS_DIR = BASE_DIR / "secrets"
 STORAGE_DIR = BASE_DIR / "storage"
@@ -39,8 +39,15 @@ class AppSettings:
     ffmpeg_bin: str = ""
     ffmpeg_preset: str = "medium"
     ffmpeg_crf: int = 23
-    ffmpeg_audio_bitrate: str = "192k"
-    ffmpeg_mp3_quality: int = 2
+    ffmpeg_audio_bitrate: str = "256k"
+    secondary_video_extension: str = "webm"
+    secondary_video_codec: str = "libvpx-vp9"
+    secondary_video_crf: int = 30
+    secondary_video_max_width: int = 0
+    secondary_video_fps: int = 0
+    secondary_video_audio_codec: str = "libopus"
+    secondary_video_audio_bitrate: str = "256k"
+    secondary_video_cpu_used: int = 5
     ffmpeg_timeout_seconds: int = 7200
     local_retain_sources: bool = True
     local_input_min_age_seconds: int = 60
@@ -50,14 +57,13 @@ class AppSettings:
     original_transcript_subdir: str = "original_transcriptions"
     resume_enabled: bool = True
     normalize_legacy_names: bool = True
+    rename_processed_duplicates: bool = True
     max_parallel_videos: int = 2
     duplicate_name_similarity_threshold: float = 0.82
     duplicate_duration_tolerance_seconds: float = 1.5
     duplicate_visual_similarity_threshold: float = 0.91
     ffmpeg_avoid_reencode: bool = True
-    google_credentials_file: Path = (
-        SECRETS_DIR / "providers" / "google" / "default" / "credentials.json"
-    )
+    google_credentials_file: Path = SECRETS_DIR / "providers" / "google" / "default" / "credentials.json"
     google_token_file: Path = SECRETS_DIR / "providers" / "google" / "default" / "token.json"
     google_profile: str = "default"
     rclone_config_file: Path = SECRETS_DIR / "rclone" / "rclone.conf"
@@ -73,7 +79,7 @@ class AppSettings:
         return int(self.max_extracted_size_gb * 1024**3)
 
     @classmethod
-    def from_environment(cls) -> AppSettings:
+    def from_environment(cls) -> "AppSettings":
         return cls(
             provider=os.getenv("STORAGE_PROVIDER", cls.provider),
             source=os.getenv("SOURCE_URI", cls.source),
@@ -86,18 +92,12 @@ class AppSettings:
             whisper_compute_type=os.getenv("WHISPER_COMPUTE_TYPE", cls.whisper_compute_type),
             whisper_beam_size=int(os.getenv("WHISPER_BEAM_SIZE", cls.whisper_beam_size)),
             whisper_vad_filter=os.getenv("WHISPER_VAD_FILTER", "true").lower() == "true",
-            whisper_condition_on_previous_text=os.getenv(
-                "WHISPER_CONDITION_ON_PREVIOUS_TEXT",
-                "false"
-            ).lower() == "true",
+            whisper_condition_on_previous_text=os.getenv("WHISPER_CONDITION_ON_PREVIOUS_TEXT", "false").lower() == "true",
             whisper_cpu_threads=int(os.getenv("WHISPER_CPU_THREADS", cls.whisper_cpu_threads)),
             translation_retries=int(
                 os.getenv("TRANSLATION_RETRIES", cls.translation_retries)
             ),
-            translation_batch_size=int(os.getenv(
-                "TRANSLATION_BATCH_SIZE",
-                cls.translation_batch_size
-            )),
+            translation_batch_size=int(os.getenv("TRANSLATION_BATCH_SIZE", cls.translation_batch_size)),
             translation_retry_delay_seconds=float(
                 os.getenv("TRANSLATION_RETRY_DELAY_SECONDS", cls.translation_retry_delay_seconds)
             ),
@@ -114,9 +114,14 @@ class AppSettings:
             ffmpeg_audio_bitrate=os.getenv(
                 "FFMPEG_AUDIO_BITRATE", cls.ffmpeg_audio_bitrate
             ),
-            ffmpeg_mp3_quality=int(
-                os.getenv("FFMPEG_MP3_QUALITY", cls.ffmpeg_mp3_quality)
-            ),
+            secondary_video_extension=os.getenv("SECONDARY_VIDEO_EXTENSION", cls.secondary_video_extension),
+            secondary_video_codec=os.getenv("SECONDARY_VIDEO_CODEC", cls.secondary_video_codec),
+            secondary_video_crf=int(os.getenv("SECONDARY_VIDEO_CRF", cls.secondary_video_crf)),
+            secondary_video_max_width=int(os.getenv("SECONDARY_VIDEO_MAX_WIDTH", cls.secondary_video_max_width)),
+            secondary_video_fps=int(os.getenv("SECONDARY_VIDEO_FPS", cls.secondary_video_fps)),
+            secondary_video_audio_codec=os.getenv("SECONDARY_VIDEO_AUDIO_CODEC", cls.secondary_video_audio_codec),
+            secondary_video_audio_bitrate=os.getenv("SECONDARY_VIDEO_AUDIO_BITRATE", cls.secondary_video_audio_bitrate),
+            secondary_video_cpu_used=int(os.getenv("SECONDARY_VIDEO_CPU_USED", cls.secondary_video_cpu_used)),
             ffmpeg_timeout_seconds=int(
                 os.getenv("FFMPEG_TIMEOUT_SECONDS", cls.ffmpeg_timeout_seconds)
             ),
@@ -135,19 +140,11 @@ class AppSettings:
             ),
             resume_enabled=os.getenv("RESUME_ENABLED", "true").lower() == "true",
             normalize_legacy_names=os.getenv("NORMALIZE_LEGACY_NAMES", "true").lower() == "true",
+            rename_processed_duplicates=os.getenv("RENAME_PROCESSED_DUPLICATES", "true").lower() == "true",
             max_parallel_videos=int(os.getenv("MAX_PARALLEL_VIDEOS", cls.max_parallel_videos)),
-            duplicate_name_similarity_threshold=float(os.getenv(
-                "DUPLICATE_NAME_SIMILARITY_THRESHOLD",
-                cls.duplicate_name_similarity_threshold
-            )),
-            duplicate_duration_tolerance_seconds=float(os.getenv(
-                "DUPLICATE_DURATION_TOLERANCE_SECONDS",
-                cls.duplicate_duration_tolerance_seconds
-            )),
-            duplicate_visual_similarity_threshold=float(os.getenv(
-                "DUPLICATE_VISUAL_SIMILARITY_THRESHOLD",
-                cls.duplicate_visual_similarity_threshold
-            )),
+            duplicate_name_similarity_threshold=float(os.getenv("DUPLICATE_NAME_SIMILARITY_THRESHOLD", cls.duplicate_name_similarity_threshold)),
+            duplicate_duration_tolerance_seconds=float(os.getenv("DUPLICATE_DURATION_TOLERANCE_SECONDS", cls.duplicate_duration_tolerance_seconds)),
+            duplicate_visual_similarity_threshold=float(os.getenv("DUPLICATE_VISUAL_SIMILARITY_THRESHOLD", cls.duplicate_visual_similarity_threshold)),
             ffmpeg_avoid_reencode=os.getenv("FFMPEG_AVOID_REENCODE", "true").lower() == "true",
             google_credentials_file=Path(
                 os.getenv("GOOGLE_CREDENTIALS_FILE", cls.google_credentials_file)

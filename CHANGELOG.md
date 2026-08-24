@@ -9,11 +9,16 @@
 
 ## Unreleased
 
+- Added a rename-only migration path for ZIPs that were already processed: when a previously processed duplicate is supplied again, the pipeline extracts it only to re-infer the filename metadata, renames the existing output folder/artifacts, updates manifests/registries, and does not rerun FFmpeg, Whisper or translation.
+- Exact media duplicates now use a SHA-256 fast path before expensive FFmpeg identity sampling, including when the duplicate has a different filename.
+- Removed the extra FFmpeg audio-stream validation pass that was executed before every conversion.
+- Replaced the generated MP3 companion artifact with a WebM secondary video using VP9 lossless video by default, preserving source resolution/FPS and using high-quality 256 kb/s Opus audio. Historical MP3 outputs remain resumable and are not deleted by the migration.
+- Switched the default H.264 preset from `medium` to `veryfast` to prioritize throughput for CPU-based batch conversion.
 - Added content-aware media deduplication for similarly named files across different ZIP sources. Exact SHA-256 matches are treated as duplicates; strong matches additionally compare duration, dimensions and sampled video/audio fingerprints.
 - Persisted media identities in `storage/state/media_registry.jsonl` so duplicate decisions survive later runs.
 - Output collision suffixes now derive from media content rather than the ZIP-relative path, preventing needless name changes when the same media arrives through another archive path.
 - Improved filename context resolution to use meaningful ZIP/directory names while ignoring `wetransfer`/`drive-download` transport noise.
-- Pinned Ruff to `0.9.10` and added `required-version` to keep local and CI linting deterministic.
+- Ruff is now constrained to the compatible `<0.17` major range instead of a single patch release.
 - FFmpeg conversions now emit periodic progress logs instead of appearing silent during long operations.
 
 # Changelog

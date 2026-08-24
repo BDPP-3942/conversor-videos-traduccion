@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import tomllib
 from dataclasses import replace
 from pathlib import Path
-import tomllib
 
-from config.settings import AppSettings, BASE_DIR
+from config.settings import BASE_DIR, AppSettings
 
 
 def _load_dotenv() -> None:
@@ -44,10 +44,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             whisper_compute_type=str(processing.get("whisper_compute_type", "int8")),
             whisper_beam_size=int(processing.get("whisper_beam_size", 1)),
             whisper_vad_filter=bool(processing.get("whisper_vad_filter", True)),
-            whisper_condition_on_previous_text=bool(processing.get(
-                "whisper_condition_on_previous_text",
-                False
-            )),
+            whisper_condition_on_previous_text=bool(processing.get("whisper_condition_on_previous_text", False)),
             whisper_cpu_threads=int(processing.get("whisper_cpu_threads", 0)),
             translation_retries=int(processing.get("translation_retries", 10)),
             translation_batch_size=int(processing.get("translation_batch_size", 40)),
@@ -60,8 +57,15 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             ffmpeg_bin=str(ffmpeg.get("bin", "")),
             ffmpeg_preset=str(ffmpeg.get("preset", "medium")),
             ffmpeg_crf=int(ffmpeg.get("crf", 23)),
-            ffmpeg_audio_bitrate=str(ffmpeg.get("audio_bitrate", "192k")),
-            ffmpeg_mp3_quality=int(ffmpeg.get("mp3_quality", 2)),
+            ffmpeg_audio_bitrate=str(ffmpeg.get("audio_bitrate", "256k")),
+            secondary_video_extension=str(ffmpeg.get("secondary_video_extension", "webm")),
+            secondary_video_codec=str(ffmpeg.get("secondary_video_codec", "libvpx-vp9")),
+            secondary_video_crf=int(ffmpeg.get("secondary_video_crf", 30)),
+            secondary_video_max_width=int(ffmpeg.get("secondary_video_max_width", 0)),
+            secondary_video_fps=int(ffmpeg.get("secondary_video_fps", 0)),
+            secondary_video_audio_codec=str(ffmpeg.get("secondary_video_audio_codec", "libopus")),
+            secondary_video_audio_bitrate=str(ffmpeg.get("secondary_video_audio_bitrate", "256k")),
+            secondary_video_cpu_used=int(ffmpeg.get("secondary_video_cpu_used", 5)),
             ffmpeg_timeout_seconds=int(ffmpeg.get("timeout_seconds", 7200)),
             local_retain_sources=bool(local.get("retain_sources", True)),
             local_input_min_age_seconds=int(local.get("input_min_age_seconds", 60)),
@@ -73,24 +77,13 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             ),
             resume_enabled=bool(workflow.get("resume_enabled", True)),
             normalize_legacy_names=bool(workflow.get("normalize_legacy_names", True)),
+            rename_processed_duplicates=bool(workflow.get("rename_processed_duplicates", True)),
             max_parallel_videos=int(workflow.get("max_parallel_videos", 2)),
-            duplicate_name_similarity_threshold=float(workflow.get(
-                "duplicate_name_similarity_threshold",
-                0.82
-            )),
-            duplicate_duration_tolerance_seconds=float(workflow.get(
-                "duplicate_duration_tolerance_seconds",
-                1.5
-            )),
-            duplicate_visual_similarity_threshold=float(workflow.get(
-                "duplicate_visual_similarity_threshold",
-                0.91
-            )),
+            duplicate_name_similarity_threshold=float(workflow.get("duplicate_name_similarity_threshold", 0.82)),
+            duplicate_duration_tolerance_seconds=float(workflow.get("duplicate_duration_tolerance_seconds", 1.5)),
+            duplicate_visual_similarity_threshold=float(workflow.get("duplicate_visual_similarity_threshold", 0.91)),
             google_credentials_file=Path(
-                str(google.get(
-                    "credentials_file",
-                    "secrets/providers/google/default/credentials.json"
-                ))
+                str(google.get("credentials_file", "secrets/providers/google/default/credentials.json"))
             ),
             google_token_file=Path(
                 str(google.get("token_file", "secrets/providers/google/default/token.json"))
@@ -136,7 +129,14 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
         "FFMPEG_PRESET": "ffmpeg_preset",
         "FFMPEG_CRF": "ffmpeg_crf",
         "FFMPEG_AUDIO_BITRATE": "ffmpeg_audio_bitrate",
-        "FFMPEG_MP3_QUALITY": "ffmpeg_mp3_quality",
+        "SECONDARY_VIDEO_EXTENSION": "secondary_video_extension",
+        "SECONDARY_VIDEO_CODEC": "secondary_video_codec",
+        "SECONDARY_VIDEO_CRF": "secondary_video_crf",
+        "SECONDARY_VIDEO_MAX_WIDTH": "secondary_video_max_width",
+        "SECONDARY_VIDEO_FPS": "secondary_video_fps",
+        "SECONDARY_VIDEO_AUDIO_CODEC": "secondary_video_audio_codec",
+        "SECONDARY_VIDEO_AUDIO_BITRATE": "secondary_video_audio_bitrate",
+        "SECONDARY_VIDEO_CPU_USED": "secondary_video_cpu_used",
         "FFMPEG_TIMEOUT_SECONDS": "ffmpeg_timeout_seconds",
         "GDRIVE_SOURCE_FOLDER_ID": "source_folder_id",
         "GDRIVE_TARGET_FOLDER_ID": "target_folder_id",
@@ -150,6 +150,7 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
         "PROVIDER_PROFILE_DIR": "provider_profile_dir",
         "RESUME_ENABLED": "resume_enabled",
         "NORMALIZE_LEGACY_NAMES": "normalize_legacy_names",
+        "RENAME_PROCESSED_DUPLICATES": "rename_processed_duplicates",
         "MAX_PARALLEL_VIDEOS": "max_parallel_videos",
         "DUPLICATE_NAME_SIMILARITY_THRESHOLD": "duplicate_name_similarity_threshold",
         "DUPLICATE_DURATION_TOLERANCE_SECONDS": "duplicate_duration_tolerance_seconds",
@@ -190,12 +191,8 @@ def _apply_runtime_provider(settings: AppSettings) -> AppSettings:
     if runtime.get("profile") or runtime.get("provider") in {"google_drive", "gdrive"}:
         profile = str(runtime.get("profile", settings.google_profile or "default"))
         values["google_profile"] = profile
-        values["google_credentials_file"] = (
-            settings.provider_profile_dir / "google" / profile / "credentials.json"
-        )
-        values["google_token_file"] = (
-            settings.provider_profile_dir / "google" / profile / "token.json"
-        )
+        values["google_credentials_file"] = settings.provider_profile_dir / "google" / profile / "credentials.json"
+        values["google_token_file"] = settings.provider_profile_dir / "google" / profile / "token.json"
         if "archive" in runtime:
             values["archive_folder_id"] = str(runtime.get("archive", ""))
     return replace(settings, **values) if values else settings

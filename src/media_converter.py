@@ -16,7 +16,7 @@ MEDIA_EXTENSIONS = {".mp4", ".mp3", ".wmv", ".mov", ".mkv", ".avi"}
 @dataclass(frozen=True)
 class MediaArtifacts:
     mp4_path: Path
-    mp3_path: Path
+    secondary_video_path: Path
 
 
 class MediaConverter:
@@ -32,28 +32,23 @@ class MediaConverter:
 
         output_dir.mkdir(parents=True, exist_ok=True)
         mp4 = output_dir / f"{output_stem}.mp4"
-        mp3 = output_dir / f"{output_stem}.mp3"
-
-        if source.suffix.lower() != ".mp3":
-            self._ensure_audio_stream(source)
+        extension = self.settings.secondary_video_extension.lower().lstrip(".")
+        secondary = output_dir / f"{output_stem}.{extension}"
         if source.suffix.lower() == ".mp4" and self.settings.ffmpeg_avoid_reencode:
             try:
                 self._run(self._build_mp4_copy_command(source, mp4))
                 logger.info("MP4 already compatible with container copy path: %s", source.name)
             except RuntimeError:
-                logger.info(
-                    "MP4 copy path failed; falling back to H.264/AAC transcode: %s",
-                    source.name
-                )
+                logger.info("MP4 copy path failed; falling back to H.264/AAC transcode: %s", source.name)
                 self._run(self._build_mp4_command(source, mp4))
         else:
             self._run(self._build_mp4_command(source, mp4))
-        self._run(self._build_mp3_command(source, mp3))
+        self._run(self._build_secondary_video_command(source, secondary))
 
-        for output in (mp4, mp3):
+        for output in (mp4, secondary):
             if not output.is_file() or output.stat().st_size == 0:
                 raise RuntimeError(f"FFmpeg did not create a valid output: {output}")
-        return MediaArtifacts(mp4, mp3)
+        return MediaArtifacts(mp4, secondary)
 
     def _build_mp4_copy_command(self, source: Path, output: Path) -> list[str]:
         return [
@@ -96,12 +91,16 @@ class MediaConverter:
                 "-shortest",
                 "-c:v",
                 "libx264",
+                "-preset",
+                self.settings.ffmpeg_preset,
+                "-crf",
+                str(self.settings.ffmpeg_crf),
                 "-pix_fmt",
                 "yuv420p",
                 "-c:a",
                 "aac",
                 "-b:a",
-                "192k",
+                self.settings.ffmpeg_audio_bitrate,
                 str(output),
             ]
         return [
@@ -133,58 +132,73 @@ class MediaConverter:
             str(output),
         ]
 
-    def _build_mp3_command(self, source: Path, output: Path) -> list[str]:
-        return [
-            self.ffmpeg_bin,
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-y",
-            "-i",
-            str(source),
-            "-map",
-            "0:a:0",
-            "-vn",
-            "-codec:a",
-            "libmp3lame",
-            "-q:a",
-            str(self.settings.ffmpeg_mp3_quality),
-            str(output),
-        ]
+    def _build_secondary_video_command(self, source: Path, output: Path) -> list[str]:
+        codec = self.settings.secondary_video_codec
+        max_width = int(self.settings.secondary_video_max_width)
+        fps = int(self.settings.secondary_video_fps)
+        command = [self.ffmpeg_bin, "-hide_banner", "-loglevel", "error", "-y"]
+        if source.suffix.lower() == ".mp3":
+            video_width = max_width if max_width > 0 else 1280
+            video_fps = fps if fps > 0 else 24
+            command += [
+                "-f",
+                "lavfi",
+                "-i",
+                f"color=c=black:s={video_width}x720:r={video_fps}",
+                "-i",
+                str(source),
+                "-map",
+                "0:v:0",
+                "-map",
+                "1:a:0",
+                "-shortest",
+            ]
+        else:
+            command += [
+                "-i",
+                str(source),
+                "-map",
+                "0:v:0",
+                "-map",
+                "0:a:0?",
+            ]
+            if max_width > 0:
+                command += [
+                    "-vf",
+                    (
+                        f"scale=w='min({max_width},iw)':h=-2:"
+                        "force_original_aspect_ratio=decrease"
+                    ),
+                ]
 
-    def _ensure_audio_stream(self, source: Path) -> None:
-        command = [
-            self.ffmpeg_bin,
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-i",
-            str(source),
-            "-map",
-            "0:a:0",
-            "-frames:a",
-            "1",
-            "-f",
-            "null",
-            "-",
+        if fps > 0:
+            command += ["-r", str(fps)]
+        command += [
+            "-c:v",
+            codec,
+            "-c:a",
+            self.settings.secondary_video_audio_codec,
+            "-b:a",
+            self.settings.secondary_video_audio_bitrate,
         ]
-        try:
-            subprocess.run(
-                command,
-                check=True,
-                capture_output=True,
-                text=True,
-                timeout=60,
-            )
-        except FileNotFoundError as exc:
-            raise RuntimeError("FFmpeg no está disponible para procesar el medio") from exc
-        except subprocess.TimeoutExpired as exc:
-            raise RuntimeError("La comprobación de la pista de audio agotó el tiempo") from exc
-        except subprocess.CalledProcessError as exc:
-            detail = (exc.stderr or "").strip()
-            raise RuntimeError(
-                f"El medio no contiene una pista de audio procesable: {detail}"
-            ) from exc
+        if codec == "libvpx-vp9" and int(self.settings.secondary_video_crf) == 0:
+            command += ["-lossless", "1"]
+        else:
+            command += [
+                "-crf",
+                str(max(0, int(self.settings.secondary_video_crf))),
+                "-b:v",
+                "0",
+            ]
+        if codec in {"libvpx", "libvpx-vp9"}:
+            command += [
+                "-deadline",
+                "good",
+                "-cpu-used",
+                str(max(0, int(self.settings.secondary_video_cpu_used))),
+            ]
+        command.append(str(output))
+        return command
 
     def _run(self, command: list[str]) -> None:
         logger.debug("Running FFmpeg: %s", " ".join(command))
@@ -233,12 +247,7 @@ class MediaConverter:
             return_code = process.wait(timeout=self.settings.ffmpeg_timeout_seconds)
             if return_code != 0:
                 detail = next(
-                    (line for line in reversed(stderr_lines) if not line.startswith((
-                        "frame=",
-                        "fps=",
-                        "out_",
-                        "progress="
-                    ))),
+                    (line for line in reversed(stderr_lines) if not line.startswith(("frame=", "fps=", "out_", "progress="))),
                     "FFmpeg conversion failed",
                 )
                 raise RuntimeError(detail)

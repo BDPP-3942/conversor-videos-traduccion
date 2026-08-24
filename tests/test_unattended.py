@@ -1,3 +1,6 @@
+from pathlib import Path
+
+from src.auth.unattended import Readiness
 from src.providers.runtime import load_runtime, save_runtime
 from src.runtime_lock import RunLock
 
@@ -27,6 +30,6 @@ def test_run_lock_blocks_second_execution(tmp_path):
         second = RunLock(lock_path)
         try:
             with second:
-                assert False, "second execution should be blocked"
+                raise AssertionError("second execution should be blocked")
         except RuntimeError as exc:
             assert "already running" in str(exc)

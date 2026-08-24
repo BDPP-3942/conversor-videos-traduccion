@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from config.settings import AppSettings, resolve_project_path
 from src.storage.base import StorageProvider
 from src.storage.google_drive import GoogleDriveStorageProvider
