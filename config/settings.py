@@ -42,7 +42,7 @@ class AppSettings:
     ffmpeg_audio_bitrate: str = "256k"
     secondary_video_extension: str = "webm"
     secondary_video_codec: str = "libvpx-vp9"
-    secondary_video_crf: int = 30
+    secondary_video_crf: int = 0
     secondary_video_max_width: int = 0
     secondary_video_fps: int = 0
     secondary_video_audio_codec: str = "libopus"

@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: video-translation-pipeline
-Version: 4.2.1
+Version: 4.2.3
 Summary: Local and pluggable video/audio transcription and translation pipeline
 Requires-Python: <3.14,>=3.11
 Requires-Dist: faster-whisper<2,>=1

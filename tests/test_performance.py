@@ -18,7 +18,7 @@ def test_settings_default_to_performance_oriented_values():
     assert settings.ffmpeg_audio_bitrate == "256k"
     assert settings.secondary_video_extension == "webm"
     assert settings.secondary_video_codec == "libvpx-vp9"
-    assert settings.secondary_video_crf == 30
+    assert settings.secondary_video_crf == 0
     assert settings.secondary_video_max_width == 0
     assert settings.secondary_video_fps == 0
     assert settings.secondary_video_audio_bitrate == "256k"

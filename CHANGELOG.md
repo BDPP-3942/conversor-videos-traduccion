@@ -1,3 +1,10 @@
+## 4.2.3 - Pytest/secondary-video configuration alignment
+
+- Fixed the secondary WebM default mismatch that caused CI to fail: VP9 now defaults to CRF 0, emitting `-lossless 1` as required by the lossless-output policy.
+- Synchronized `config/app.toml`, `config/settings.py`, `config/loader.py`, and the performance test with the lossless WebM default.
+- Kept source resolution and FPS unmodified (`0` means no scaling/FPS override) and retained 256 kb/s Opus audio.
+
+
 ## 4.1.1 - Ruff compatibility and code-quality cleanup
 
 - Fixed Ruff import ordering, unused imports and modernized Python 3.11 type annotations.
