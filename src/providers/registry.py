@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 from config.settings import resolve_project_path
 from src.auth.google_oauth import GoogleOAuthManager
 from src.auth.rclone_manager import RcloneManager

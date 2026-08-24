@@ -48,9 +48,9 @@ class GoogleOAuthManager:
         credential are treated as not ready for unattended execution.
         """
         try:
+            from google.auth.exceptions import RefreshError
             from google.auth.transport.requests import Request
             from google.oauth2.credentials import Credentials
-            from google.auth.exceptions import RefreshError
         except ImportError as exc:
             raise RuntimeError(
                 "Google OAuth requires google-auth and google-auth-oauthlib"

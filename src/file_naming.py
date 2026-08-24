@@ -4,6 +4,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
+
 from src.path_limits import _WINDOWS_RESERVED, fit_component
 
 
