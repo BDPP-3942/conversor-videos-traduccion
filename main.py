@@ -107,8 +107,14 @@ def build_parser() -> argparse.ArgumentParser:
     provider_sub.add_parser("clear", help="Return to config/app.toml as active provider")
 
     dedupe = sub.add_parser("dedupe-output", help="Find and remove exact duplicate output folders with fragile names")
-    dedupe.add_argument("--target", default=None, help="Local output folder; defaults to the configured target")
-    dedupe.add_argument("--dry-run", action="store_true", help="Report automatic cleanup decisions without deleting anything")
+    dedupe.add_argument(
+        "--target", 
+        default=None, 
+        help="Local output folder; defaults to the configured target")
+    dedupe.add_argument(
+        "--dry-run", 
+        action="store_true", 
+        help="Report automatic cleanup decisions without deleting anything")
 
     sub.add_parser("doctor", help="Check interactive and unattended runtime readiness")
     sub.add_parser("init", help="Create runtime directories")
