@@ -132,3 +132,23 @@ La salida WebM se configura con `SECONDARY_VIDEO_*` o con la sección `[ffmpeg]`
 ## Rendimiento
 
 El perfil CPU por defecto usa Whisper `small` + `int8`, `beam_size=1`, sin `condition_on_previous_text`, VAD activo y dos trabajadores locales. FFmpeg usa `medium` por defecto y evita el reencode cuando un MP4 ya puede pasar por `-c copy`. La detección de duplicados exactos utiliza SHA-256 y evita el sondeo visual/audio con FFmpeg; la comparación probabilística más cara solo se usa para candidatos de nombre similares que no coinciden por hash.
+
+### Limpieza automática de duplicados de salida
+
+La ejecución normal del pipeline en proveedor local (`run` y `scripts/run_local.sh`) realiza automáticamente una limpieza de `storage/output` después del procesamiento. No es necesario pasar un parámetro de borrado.
+
+También existe el comando independiente `dedupe-output`, que por defecto aplica la misma política automática:
+
+```bash
+python main.py dedupe-output --target "/ruta/absoluta/storage/output"
+```
+
+Para inspeccionar decisiones sin borrar nada, se puede usar únicamente cuando se necesite comprobar el comportamiento:
+
+```bash
+python main.py dedupe-output --target "/ruta/absoluta/storage/output" --dry-run
+```
+
+La identidad del duplicado se calcula mediante SHA-256 de todos los recursos generados de la carpeta. Los nombres no determinan que dos resultados sean duplicados. Una carpeta solo se elimina automáticamente cuando existe otra carpeta con contenido idéntico y una puntuación de nombre estrictamente superior. Si no existe un referente claramente más estable, ambas se conservan.
+
+Las entradas eliminadas del registro `storage/state/media_registry.jsonl` se retiran y quedan auditadas en `storage/state/dedupe_history.jsonl`. Un fallo de la limpieza automática no borra resultados de forma adicional ni convierte un procesamiento correcto en `error`: se registra y el lote queda como `partial`.

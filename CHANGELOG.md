@@ -1,3 +1,8 @@
+## Unreleased
+
+- La deduplicación de resultados locales se ejecuta automáticamente al finalizar `run`; `--delete` deja de ser necesario.
+- `dedupe-output` aplica por defecto la limpieza y conserva `--dry-run` como modo explícito de simulación.
+
 ## 4.2.3 - Pytest/secondary-video configuration alignment
 
 - Fixed the secondary WebM default mismatch that caused CI to fail: VP9 now defaults to CRF 0, emitting `-lossless 1` as required by the lossless-output policy.
