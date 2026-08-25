@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 from __future__ import annotations
 
 import argparse
@@ -87,9 +88,9 @@ def build_parser() -> argparse.ArgumentParser:
     setup_rclone = provider_sub.add_parser("setup-rclone", help="One-time rclone setup + active source/target")
     setup_rclone.add_argument("name")
     setup_rclone.add_argument("backend")
-    setup_rclone.add_argument("--source", required=True)
-    setup_rclone.add_argument("--target", required=True)
-    setup_rclone.add_argument("--option", action="append", default=[])
+    setup_rclone.add_argument("--source", required=True, help="Remote folder path, e.g. input")
+    setup_rclone.add_argument("--target", required=True, help="Remote folder path, e.g. output")
+    setup_rclone.add_argument("--option", action="append", default=[], help="rclone option as key=value; repeatable")
     use = provider_sub.add_parser("use", help="Select the active provider/profile")
     use.add_argument("provider", choices=["local", "google_drive", "rclone"])
     use.add_argument("--profile", default="default")
