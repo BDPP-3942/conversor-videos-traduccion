@@ -140,10 +140,10 @@ class _WorkingProvider:
 
 
 def test_translation_fallback_reuses_existing_stt_and_media_artifacts(tmp_path):
-    source = tmp_path / "video.mp4"
-    source.write_bytes(b"source")
     extract_root = tmp_path / "extracted"
     extract_root.mkdir()
+    source = extract_root / "video.mp4"
+    source.write_bytes(b"source")
     work_root = tmp_path / "work"
     work_root.mkdir()
 
