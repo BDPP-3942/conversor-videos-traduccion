@@ -113,10 +113,19 @@ class TextTranslator:
         provider_by_index: dict[int, str] = {}
         errors_by_index: dict[int, list[str]] = {index: [] for index in indexes}
         unresolved = list(range(len(texts)))
+        previous_provider: str | None = None
 
-        for provider_name in self._provider_names:
+        for provider_position, provider_name in enumerate(self._provider_names):
             if not unresolved:
                 break
+            if previous_provider is not None:
+                logger.info(
+                    "Switching translation provider from '%s' to '%s' for %d unresolved segment(s)",
+                    previous_provider,
+                    provider_name,
+                    len(unresolved),
+                )
+            previous_provider = provider_name
             try:
                 provider = self._get_provider(provider_name)
             except Exception as exc:
@@ -162,7 +171,7 @@ class TextTranslator:
                     next_unresolved.append(position)
                     errors_by_index[index].append(f"{provider_name}: empty translation result")
 
-            if next_unresolved and provider_name != self._provider_names[-1]:
+            if next_unresolved and provider_position < len(self._provider_names) - 1:
                 logger.warning(
                     "Provider '%s' translated %d/%d segment(s); falling back only for %d unresolved segment(s)",
                     provider_name,
