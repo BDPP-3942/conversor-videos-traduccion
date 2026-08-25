@@ -1,10 +1,14 @@
 param(
     [string]$TaskName = "VideoTranslationPipeline",
     [string]$Executable = "",
-    [string]$Arguments = "run --scheduled"
+    [string]$Arguments = "run --scheduled",
+    [switch]$NoWebM
 )
 
 $ErrorActionPreference = "Stop"
+if ($NoWebM -and ($Arguments -notmatch "(^|\s)--no-webm(\s|$)")) {
+    $Arguments = "$Arguments --no-webm"
+}
 $AppRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 if ([string]::IsNullOrWhiteSpace($Executable)) {
     $dist = Join-Path $AppRoot "dist\VideoTranslationPipeline\VideoTranslationPipeline.exe"

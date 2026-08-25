@@ -42,6 +42,7 @@ class AppSettings:
     ffmpeg_preset: str = "medium"
     ffmpeg_crf: int = 23
     ffmpeg_audio_bitrate: str = "256k"
+    generate_webm: bool = True
     secondary_video_extension: str = "webm"
     secondary_video_codec: str = "libvpx-vp9"
     secondary_video_crf: int = 0
@@ -128,6 +129,7 @@ class AppSettings:
             ffmpeg_audio_bitrate=os.getenv(
                 "FFMPEG_AUDIO_BITRATE", cls.ffmpeg_audio_bitrate
             ),
+            generate_webm=os.getenv("GENERATE_WEBM", "true").lower() == "true",
             secondary_video_extension=os.getenv("SECONDARY_VIDEO_EXTENSION", cls.secondary_video_extension),
             secondary_video_codec=os.getenv("SECONDARY_VIDEO_CODEC", cls.secondary_video_codec),
             secondary_video_crf=int(os.getenv("SECONDARY_VIDEO_CRF", cls.secondary_video_crf)),

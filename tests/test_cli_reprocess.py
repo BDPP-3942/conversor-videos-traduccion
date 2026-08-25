@@ -35,3 +35,23 @@ def test_reprocess_wrappers_exist_and_dispatch_to_reprocess_command():
     assert "reprocess-subtitles" in unattended_sh
     assert "run_unattended.bat %*" in scheduled_bat
     assert 'run_unattended.sh "$@"' in scheduled_sh
+
+
+def test_run_parser_accepts_webm_toggle():
+    from main import build_parser
+
+    args = build_parser().parse_args(["run", "--no-webm"])
+    assert args.command == "run"
+    assert args.generate_webm is False
+
+    args = build_parser().parse_args(["run", "--generate-webm"])
+    assert args.generate_webm is True
+
+
+def test_run_webm_flags_are_mutually_exclusive():
+    from main import build_parser
+
+    parser = build_parser()
+    import pytest
+    with pytest.raises(SystemExit):
+        parser.parse_args(["run", "--no-webm", "--generate-webm"])

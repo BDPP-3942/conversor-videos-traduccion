@@ -57,6 +57,14 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--whisper-beam-size", type=int, default=None)
     run.add_argument("--whisper-cpu-threads", type=int, default=None)
     run.add_argument("--no-ffmpeg-copy", action="store_true")
+    webm_group = run.add_mutually_exclusive_group()
+    webm_group.add_argument(
+        "--generate-webm", dest="generate_webm", action="store_true", help="Generate the secondary WebM output"
+    )
+    webm_group.add_argument(
+        "--no-webm", dest="generate_webm", action="store_false", help="Do not generate the secondary WebM output"
+    )
+    run.set_defaults(generate_webm=None)
 
     auth = sub.add_parser("auth", help="One-time interactive authentication")
     auth.add_argument("provider", choices=["google"])
@@ -189,6 +197,8 @@ def command_run(args) -> int:
         settings = replace(settings, whisper_cpu_threads=max(0, args.whisper_cpu_threads))
     if args.no_ffmpeg_copy:
         settings = replace(settings, ffmpeg_avoid_reencode=False)
+    if args.generate_webm is not None:
+        settings = replace(settings, generate_webm=args.generate_webm)
 
     configure_logging(settings.log_level)
     if provider == "rclone" and settings.auto_update_rclone:
@@ -217,6 +227,7 @@ def command_run(args) -> int:
         return 0
 
     from src.pipeline import MediaPipeline
+
     with RunLock(resolve_project_path(settings.run_lock_file)):
         storage = create_storage_provider(provider, settings)
         try:

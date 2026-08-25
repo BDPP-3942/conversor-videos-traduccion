@@ -4,11 +4,11 @@ cd /d "%~dp0.."
 set "CMD=%~1"
 if /I "%CMD%"=="reprocess-subtitles" goto reprocess
 if exist "dist\VideoTranslationPipeline\VideoTranslationPipeline.exe" (
-  "dist\VideoTranslationPipeline\VideoTranslationPipeline.exe" run --scheduled
+  "dist\VideoTranslationPipeline\VideoTranslationPipeline.exe" run --scheduled %*
 ) else if exist "VideoTranslationPipeline.exe" (
-  "VideoTranslationPipeline.exe" run --scheduled
+  "VideoTranslationPipeline.exe" run --scheduled %*
 ) else if exist ".venv\Scripts\python.exe" (
-  ".venv\Scripts\python.exe" main.py run --scheduled
+  ".venv\Scripts\python.exe" main.py run --scheduled %*
 ) else (
   echo [ERROR] Ejecutable o entorno Python no encontrado.
   exit /b 1

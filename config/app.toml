@@ -59,6 +59,7 @@ duplicate_visual_similarity_threshold = 0.91
 
 [ffmpeg]
 bin = ""
+generate_webm = true
 preset = "medium"
 crf = 23
 audio_bitrate = "256k"

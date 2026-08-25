@@ -5,7 +5,7 @@ if [[ "${1:-}" == "reprocess-subtitles" ]]; then
     shift
     args=(--scheduled "$@")
 else
-    args=(run --scheduled)
+    args=(run --scheduled "$@")
 fi
 if [[ -x "./dist/VideoTranslationPipeline/VideoTranslationPipeline" ]]; then
   exec ./dist/VideoTranslationPipeline/VideoTranslationPipeline "${args[@]}"

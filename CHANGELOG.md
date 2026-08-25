@@ -1,4 +1,6 @@
 ## Unreleased
+
+- Añadida la opción configurable `generate_webm` para omitir la salida secundaria WebM en ejecuciones, builds y tareas programadas; el valor por defecto sigue siendo `true`.
 - `reprocess-subtitles` admite ahora ámbito concreto y general: con `--output-folder`, `--video` o `--source` reprocesa una salida; sin selector o con `--all` recorre todas las salidas existentes elegibles. El modo sigue siendo STT-only, translate-only o completo.
 - El reprocesado general aísla los errores por carpeta, continúa con las demás y devuelve un resumen global del lote.
 

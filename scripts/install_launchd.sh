@@ -18,7 +18,9 @@ if [[ ! -x "$EXECUTABLE" ]]; then
     exit 1
 fi
 
-# Default: normal unattended processing. Additional arguments can define a reprocess task, e.g.:
+# Default: normal unattended processing. Pass runtime options through the command arguments, e.g.:
+# scripts/install_launchd.sh com.video.translation.no-webm --no-webm
+# or: scripts/install_launchd.sh com.video.translation.reprocess reprocess-subtitles --scheduled --stt-only
 # scripts/install_launchd.sh com.video.translation.reprocess reprocess-subtitles --scheduled --output-folder 37x02_Tema --stt-only
 if [[ $# -eq 0 ]]; then
     PROGRAM_ARGS=(run --scheduled)

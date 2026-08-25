@@ -69,3 +69,37 @@ def test_mp4_uses_copy_path_when_enabled(tmp_path: Path) -> None:
     artifacts = converter.convert(source, "copy_test", tmp_path / "out")
     assert artifacts.mp4_path.is_file()
     assert artifacts.secondary_video_path.is_file()
+
+
+def test_converter_can_skip_secondary_webm(tmp_path: Path) -> None:
+    source = tmp_path / "input.mp4"
+    source.write_bytes(b"not-real-video")
+    converter = MediaConverter(AppSettings(generate_webm=False))
+    # Avoid invoking FFmpeg for this focused configuration test.
+    def fake_run(command):
+        output = Path(command[-1])
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(b"output")
+
+    converter._run = fake_run
+    artifacts = converter.convert(source, "no_webm", tmp_path / "out")
+    assert artifacts.mp4_path.name == "no_webm.mp4"
+    assert artifacts.secondary_video_path is None
+
+
+def test_converter_does_not_build_secondary_command_when_webm_disabled(tmp_path: Path, monkeypatch) -> None:
+    source = tmp_path / "input.mp4"
+    source.write_bytes(b"not-real-video")
+    converter = MediaConverter(AppSettings(generate_webm=False))
+    calls = []
+    def fake_run(command):
+        calls.append(command)
+        output = Path(command[-1])
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(b"output")
+
+    monkeypatch.setattr(converter, "_run", fake_run)
+    monkeypatch.setattr(converter, "_build_mp4_copy_command", lambda _source, output: ["ffmpeg", "mp4-copy", str(output)])
+    artifacts = converter.convert(source, "no_webm", tmp_path / "out")
+    assert artifacts.secondary_video_path is None
+    assert len(calls) == 1

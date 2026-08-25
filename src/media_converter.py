@@ -16,7 +16,7 @@ MEDIA_EXTENSIONS = {".mp4", ".mp3", ".wmv", ".mov", ".mkv", ".avi"}
 @dataclass(frozen=True)
 class MediaArtifacts:
     mp4_path: Path
-    secondary_video_path: Path
+    secondary_video_path: Path | None
 
 
 class MediaConverter:
@@ -32,8 +32,10 @@ class MediaConverter:
 
         output_dir.mkdir(parents=True, exist_ok=True)
         mp4 = output_dir / f"{output_stem}.mp4"
-        extension = self.settings.secondary_video_extension.lower().lstrip(".")
-        secondary = output_dir / f"{output_stem}.{extension}"
+        secondary: Path | None = None
+        if self.settings.generate_webm:
+            extension = self.settings.secondary_video_extension.lower().lstrip(".")
+            secondary = output_dir / f"{output_stem}.{extension}"
         if source.suffix.lower() == ".mp4" and self.settings.ffmpeg_avoid_reencode:
             try:
                 self._run(self._build_mp4_copy_command(source, mp4))
@@ -43,9 +45,12 @@ class MediaConverter:
                 self._run(self._build_mp4_command(source, mp4))
         else:
             self._run(self._build_mp4_command(source, mp4))
-        self._run(self._build_secondary_video_command(source, secondary))
+        if secondary is not None:
+            self._run(self._build_secondary_video_command(source, secondary))
 
         for output in (mp4, secondary):
+            if output is None:
+                continue
             if not output.is_file() or output.stat().st_size == 0:
                 raise RuntimeError(f"FFmpeg did not create a valid output: {output}")
         return MediaArtifacts(mp4, secondary)

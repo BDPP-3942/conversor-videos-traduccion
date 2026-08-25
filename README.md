@@ -123,7 +123,7 @@ La release estable de referencia del proyecto es rclone `v1.75.0`, publicada el 
 
 ## Salidas y migración de resultados históricos
 
-Cada vídeo nuevo genera `MP4 + WebM + VTT traducido`, y la transcripción original se guarda en `original_transcriptions/`. El WebM es una copia ligera orientada a servidores con menos recursos.
+Cada vídeo nuevo genera `MP4 + WebM + VTT traducido` por defecto, y la transcripción original se guarda en `original_transcriptions/`. El WebM es una copia ligera orientada a servidores con menos recursos. La generación del WebM puede desactivarse con `--no-webm` en `run` o con `generate_webm = false` en `[ffmpeg]`.
 
 ### Reprocesado selectivo y general de subtítulos
 
@@ -212,3 +212,21 @@ La configuración `whisper_model = "auto"` activa un perfil de recursos en funci
 El modelo no se incluye dentro del repositorio. `faster-whisper` descarga el modelo al primer uso; puedes forzar esa descarga durante la preparación con `scripts/setup_env.bat --prefetch-whisper` o `./scripts/setup_env.sh --prefetch-whisper`. En CPU, `int8` está soportado por faster-whisper/CTranslate2.
 
 El perfil automático está diseñado para priorizar estabilidad y evitar saturación por ejecutar varios modelos Whisper grandes simultáneamente. `max_parallel_videos = 0` significa automático.
+
+### Control de generación del WebM
+
+El comportamiento por defecto mantiene la generación del WebM. Para una ejecución concreta:
+
+```bash
+python main.py run --no-webm
+python main.py run --generate-webm
+```
+
+También puede fijarse en `config/app.toml`:
+
+```toml
+[ffmpeg]
+generate_webm = false
+```
+
+El valor también admite la variable de entorno `GENERATE_WEBM=false`. Los wrappers `run_local`, `run_scheduled` y `run_unattended` propagan estos argumentos. Al compilar, `scripts/build_windows.bat --no-webm` o `scripts/build_linux.sh --no-webm` empaquetan `config/app.toml` con el WebM desactivado.

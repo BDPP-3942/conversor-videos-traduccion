@@ -33,6 +33,7 @@ class MediaPipeline:
         )
         self.media_converter = MediaConverter(settings)
         from src.media_identity import MediaIdentityResolver
+
         self.media_identity = MediaIdentityResolver(
             settings.ffmpeg_bin,
             settings.ffmpeg_timeout_seconds,
@@ -46,6 +47,7 @@ class MediaPipeline:
         if not hasattr(self._thread_local, "stt_engine"):
             from src.stt_engine import STTEngine
             from src.translator import TextTranslator
+
             self._thread_local.stt_engine = STTEngine(self.settings)
             self._thread_local.translator = TextTranslator(self.settings)
         return self._thread_local.stt_engine, self._thread_local.translator
@@ -96,9 +98,7 @@ class MediaPipeline:
                 result = {
                     "zip": zip_file.name,
                     "status": "error",
-                    "errors": [
-                        {"source": zip_file.name, "error_type": type(exc).__name__, "error": str(exc)}
-                    ],
+                    "errors": [{"source": zip_file.name, "error_type": type(exc).__name__, "error": str(exc)}],
                 }
             results.append(result)
 
@@ -108,7 +108,9 @@ class MediaPipeline:
         status = (
             "error"
             if failed and not any(item["status"] == "success" for item in results)
-            else "partial" if failed or partial else "success"
+            else "partial"
+            if failed or partial
+            else "success"
         )
         return {
             "status": status,
@@ -145,6 +147,7 @@ class MediaPipeline:
             extraction = self.extractor.extract_zip(archive_target, extract_root)
 
             from src.manifest import read_manifest, write_manifest
+
             manifest_path = self._manifest_path(zip_file.name)
             previous = read_manifest(manifest_path)
             previous_entries = {
@@ -190,9 +193,7 @@ class MediaPipeline:
                 if self.settings.resume_enabled:
                     resumed = self._try_resume(existing_entry, target, relative_source)
                     if resumed:
-                        resumed = self._rename_existing_entry_if_needed(
-                            resumed, metadata_item, target, used_stems
-                        )
+                        resumed = self._rename_existing_entry_if_needed(resumed, metadata_item, target, used_stems)
                         resumed["resumed"] = True
                         processed.append(resumed)
                         if resumed.get("output_folder"):
@@ -226,18 +227,20 @@ class MediaPipeline:
                         duplicate["registry_entry"], metadata_item, target, used_stems
                     )
                     if renamed.get("output_folder"):
-                        duplicate_entry.update({
-                            "status": "renamed_existing",
-                            "output_folder": renamed["output_folder"],
-                            "output_relative_path": renamed.get("output_relative_path"),
-                            "rename_only": True,
-                            "name_metadata": renamed.get("name_metadata"),
-                            "video": renamed.get("video"),
-                            "secondary_video": renamed.get("secondary_video"),
-                            "audio": renamed.get("audio"),
-                            "translated_vtt": renamed.get("translated_vtt"),
-                            "original_transcription": renamed.get("original_transcription"),
-                        })
+                        duplicate_entry.update(
+                            {
+                                "status": "renamed_existing",
+                                "output_folder": renamed["output_folder"],
+                                "output_relative_path": renamed.get("output_relative_path"),
+                                "rename_only": True,
+                                "name_metadata": renamed.get("name_metadata"),
+                                "video": renamed.get("video"),
+                                "secondary_video": renamed.get("secondary_video"),
+                                "audio": renamed.get("audio"),
+                                "translated_vtt": renamed.get("translated_vtt"),
+                                "original_transcription": renamed.get("original_transcription"),
+                            }
+                        )
                     processed.append(duplicate_entry)
                     logger.info(
                         "Skipping duplicate processing %s -> %s (%s, score=%.2f)%s",
@@ -306,24 +309,14 @@ class MediaPipeline:
                                 self._record_failure(zip_file, source_path, relative_source, exc, failed)
                             self._write_progress_manifest(manifest_path, metadata, processed, failed, write_manifest)
 
-            has_partial_translation = any(
-                item.get("status") == "partial_translation" for item in processed
-            )
-            status = (
-                "partial"
-                if failed or has_partial_translation
-                else "success"
-                if processed
-                else "error"
-            )
+            has_partial_translation = any(item.get("status") == "partial_translation" for item in processed)
+            status = "partial" if failed or has_partial_translation else "success" if processed else "error"
             result = {
                 "zip": zip_file.name,
                 "status": status,
                 "media_found": len(extraction.media),
                 "media_processed": sum(item.get("status") == "success" for item in processed),
-                "media_partial_translation": sum(
-                    item.get("status") == "partial_translation" for item in processed
-                ),
+                "media_partial_translation": sum(item.get("status") == "partial_translation" for item in processed),
                 "media_resumed": sum(item.get("resumed", False) for item in processed),
                 "media_skipped_duplicates": sum(item.get("status") == "skipped_duplicate" for item in processed),
                 "media_failed": len(failed),
@@ -433,34 +426,35 @@ class MediaPipeline:
         transcription_dir.mkdir(parents=True, exist_ok=True)
         original_path = transcription_dir / f"{stem}_original.vtt"
         from src.vtt_builder import VTTBuilder
+
         VTTBuilder.generate_vtt(segments, original_path)
 
         translated = translator.translate_segments(segments)
-        translation_failed_segments = sum(
-            bool(segment.get("translation_failed")) for segment in translated
-        )
+        translation_failed_segments = sum(bool(segment.get("translation_failed")) for segment in translated)
         translated_path = work_root / f"{stem}_{self.settings.target_lang.lower()}.vtt"
         VTTBuilder.generate_vtt(translated, translated_path)
 
         output_folder = self.storage.ensure_folder(target, stem)
         original_target = self.storage.ensure_folder(output_folder, self.settings.original_transcript_subdir)
-        secondary_mime = (
-            "video/webm"
-            if artifacts.secondary_video_path.suffix.lower() == ".webm"
-            else "video/x-matroska"
-        )
-        for local_path, mime in (
+        uploads = [
             (artifacts.mp4_path, "video/mp4"),
-            (artifacts.secondary_video_path, secondary_mime),
             (translated_path, "text/vtt"),
-        ):
+        ]
+        if artifacts.secondary_video_path is not None:
+            secondary_mime = (
+                "video/webm" if artifacts.secondary_video_path.suffix.lower() == ".webm" else "video/x-matroska"
+            )
+            uploads.insert(1, (artifacts.secondary_video_path, secondary_mime))
+        for local_path, mime in uploads:
             self.storage.upload_file(local_path, output_folder, mime)
         self.storage.upload_file(original_path, original_target, "text/vtt")
 
         return {
             "source": str(source_path.relative_to(extract_root)),
             "video": artifacts.mp4_path.name,
-            "secondary_video": artifacts.secondary_video_path.name,
+            "secondary_video": artifacts.secondary_video_path.name
+            if artifacts.secondary_video_path is not None
+            else "",
             "translated_vtt": translated_path.name,
             "original_transcription": original_path.name,
             "output_folder": stem,
@@ -487,6 +481,7 @@ class MediaPipeline:
         work_base.mkdir(parents=True, exist_ok=True)
         temp_prefix = fit_component(f"rename_{Path(zip_file.name).stem}_", work_base)
         from src.manifest import read_manifest, write_manifest
+
         manifest_path = self._manifest_path(zip_file.name)
         previous = read_manifest(manifest_path)
         previous_entries = {
@@ -557,16 +552,18 @@ class MediaPipeline:
         new_folder = self._allocate_rename_stem(desired, old_folder, used_stems, target)
         result = dict(entry)
         if new_folder == old_folder:
-            result.update({
-                "status": "already_current",
-                "output_folder": old_folder,
-                "video": normalize_filename(str(entry.get("video", ""))),
-                "secondary_video": normalize_filename(str(entry.get("secondary_video", ""))),
-                "audio": normalize_filename(str(entry.get("audio", ""))),
-                "translated_vtt": normalize_filename(str(entry.get("translated_vtt", ""))),
-                "original_transcription": normalize_filename(str(entry.get("original_transcription", ""))),
-                "output_relative_path": f"{old_folder}/{normalize_filename(str(entry.get('video', '')))}",
-            })
+            result.update(
+                {
+                    "status": "already_current",
+                    "output_folder": old_folder,
+                    "video": normalize_filename(str(entry.get("video", ""))),
+                    "secondary_video": normalize_filename(str(entry.get("secondary_video", ""))),
+                    "audio": normalize_filename(str(entry.get("audio", ""))),
+                    "translated_vtt": normalize_filename(str(entry.get("translated_vtt", ""))),
+                    "original_transcription": normalize_filename(str(entry.get("original_transcription", ""))),
+                    "output_relative_path": f"{old_folder}/{normalize_filename(str(entry.get('video', '')))}",
+                }
+            )
             result["name_metadata"] = self._name_metadata(metadata_item)
             used_stems.add(old_folder)
             return result
@@ -576,13 +573,15 @@ class MediaPipeline:
             value = normalize_filename(str(entry.get(key, "")))
             if value:
                 result[key] = self._rename_artifact_filename(value, old_folder, new_folder)
-        result.update({
-            "status": "renamed_existing",
-            "output_folder": new_folder,
-            "output_relative_path": f"{new_folder}/{result.get('video', '')}",
-            "rename_only": True,
-            "name_metadata": self._name_metadata(metadata_item),
-        })
+        result.update(
+            {
+                "status": "renamed_existing",
+                "output_folder": new_folder,
+                "output_relative_path": f"{new_folder}/{result.get('video', '')}",
+                "rename_only": True,
+                "name_metadata": self._name_metadata(metadata_item),
+            }
+        )
         self._update_media_registry_folder(old_folder, new_folder)
         used_stems.add(new_folder)
         return result
@@ -605,7 +604,7 @@ class MediaPipeline:
         path = Path(filename)
         stem = path.stem
         if stem.startswith(old_stem):
-            stem = new_stem + stem[len(old_stem):]
+            stem = new_stem + stem[len(old_stem) :]
         else:
             stem = normalize_component(stem)
         return f"{stem}{path.suffix.lower()}"
@@ -643,9 +642,7 @@ class MediaPipeline:
                 entries.append(value)
         return entries
 
-    def _find_media_duplicate(
-        self, source_path: Path, normalized_name: str, registry: list[dict[str, Any]]
-    ):
+    def _find_media_duplicate(self, source_path: Path, normalized_name: str, registry: list[dict[str, Any]]):
         from src.storage.processed_registry import sha256_file
 
         # Exact duplicates are resolved with one sequential SHA-256 pass, avoiding
@@ -668,6 +665,7 @@ class MediaPipeline:
 
     def _update_media_registry_folder(self, old_name: str, new_name: str) -> None:
         import json
+
         path = self._media_registry_path()
         if not path.is_file():
             return
@@ -735,6 +733,7 @@ class MediaPipeline:
         base = f"{Path(zip_name).stem}_{Path(media_name).stem}"
         failure_path = failure_dir / (fit_component(base, failure_dir) + ".json")
         from src.manifest import write_manifest
+
         write_manifest(failure_path, [failure], metadata={"type": "media_failure"})
 
     def cleanup(self) -> None:

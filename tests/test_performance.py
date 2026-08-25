@@ -12,6 +12,7 @@ def test_settings_default_to_performance_oriented_values():
     assert settings.translation_batch_size == 0
     assert settings.max_parallel_videos == 0
     assert settings.ffmpeg_avoid_reencode is True
+    assert settings.generate_webm is True
     assert settings.ffmpeg_preset == "medium"
     assert settings.ffmpeg_crf == 23
     assert settings.ffmpeg_audio_bitrate == "256k"
