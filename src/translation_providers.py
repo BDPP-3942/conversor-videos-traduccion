@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Protocol
+import os
+from typing import Protocol
 
 from config.settings import AppSettings
 
@@ -24,13 +25,9 @@ def build_translation_provider(name: str, settings: AppSettings) -> TranslationP
     if provider == "google":
         return GoogleTranslator(source=settings.source_lang, target=settings.target_lang)
     if provider == "microsoft":
-        import os
-
         api_key = os.getenv("MICROSOFT_TRANSLATOR_API_KEY", "").strip()
         if not api_key:
-            raise RuntimeError(
-                "Microsoft translation provider requires MICROSOFT_TRANSLATOR_API_KEY"
-            )
+            raise RuntimeError("Microsoft translation provider requires MICROSOFT_TRANSLATOR_API_KEY")
         return MicrosoftTranslator(
             source=settings.source_lang,
             target=settings.target_lang,
