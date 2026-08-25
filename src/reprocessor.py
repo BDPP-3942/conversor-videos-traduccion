@@ -44,7 +44,9 @@ class SubtitleReprocessor:
         if mode not in {"stt_only", "translate_only", "full"}:
             raise ValueError(f"Unsupported reprocess mode: {mode}")
         if not any((output_folder, video_name, source)):
-            raise ValueError("A concrete reprocess target is required for reprocess(); use reprocess_all() for the general case")
+            raise ValueError(
+                "A concrete reprocess target is required for reprocess(); use reprocess_all() for the general case"
+            )
 
         self._temp_root = Path(tempfile.mkdtemp(prefix="subtitle-reprocess-"))
         try:
@@ -261,7 +263,11 @@ class SubtitleReprocessor:
             children = [item for item in child_items if not item.is_directory]
             has_video = any(Path(item.name).suffix.lower() in VIDEO_EXTENSIONS for item in children)
             transcript_folder = next(
-                (item for item in child_items if item.is_directory and item.name == self.settings.original_transcript_subdir),
+                (
+                    item
+                    for item in child_items
+                    if item.is_directory and item.name == self.settings.original_transcript_subdir
+                ),
                 None,
             )
             transcript_files = []
@@ -269,7 +275,9 @@ class SubtitleReprocessor:
                 transcript_files = [
                     item
                     for item in self.storage.list_children(transcript_folder.id)
-                    if not item.is_directory and Path(item.name).suffix.lower() == ".vtt" and ".bak" not in item.name.lower()
+                    if not item.is_directory
+                    and Path(item.name).suffix.lower() == ".vtt"
+                    and ".bak" not in item.name.lower()
                 ]
             if has_video or transcript_files:
                 folders.append(child.name)
