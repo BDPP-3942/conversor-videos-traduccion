@@ -1,6 +1,7 @@
 param(
     [string]$TaskName = "VideoTranslationPipeline",
-    [string]$Executable = ""
+    [string]$Executable = "",
+    [string]$Arguments = "run --scheduled"
 )
 
 $ErrorActionPreference = "Stop"
@@ -23,7 +24,7 @@ if (-not (Test-Path $Executable)) {
 $WorkDir = Split-Path -Parent $Executable
 $Action = New-ScheduledTaskAction `
     -Execute $Executable `
-    -Argument "run --scheduled" `
+    -Argument $Arguments `
     -WorkingDirectory $WorkDir
 
 $Trigger = New-ScheduledTaskTrigger -Once -At ((Get-Date).AddMinutes(1)) `
@@ -43,5 +44,6 @@ $Settings = New-ScheduledTaskSettingsSet `
 Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger $Trigger -Principal $Principal -Settings $Settings -Force | Out-Null
 Write-Host "Tarea creada: $TaskName"
 Write-Host "Ejecutable: $Executable"
+Write-Host "Argumentos: $Arguments"
 Write-Host "Directorio de trabajo: $WorkDir"
 Write-Host "La primera configuración OAuth debe hacerse antes de activar la ejecución desatendida."

@@ -107,13 +107,23 @@ def test_local_output_name_migration_normalizes_legacy_unicode_names(tmp_path: P
 
 def test_normalize_existing_outputs_fits_old_long_names(tmp_path: Path, monkeypatch):
     from config import settings as settings_module
+    from src import path_limits
+    from src.path_limits import FileSystemLimits
     from src.storage.local import LocalStorageProvider
 
     monkeypatch.setattr(settings_module, "BASE_DIR", tmp_path)
     monkeypatch.setattr(settings_module, "STORAGE_DIR", tmp_path / "storage")
+    # Keep the physical fixture below Windows MAX_PATH; simulate an old/smaller
+    # filesystem component limit at the code under test instead of creating an
+    # OS-invalid path.
+    monkeypatch.setattr(
+        path_limits,
+        "get_filesystem_limits",
+        lambda _path: FileSystemLimits(max_component=40, max_path=260, platform="windows", source="test"),
+    )
     root = tmp_path / "storage" / "output"
     root.mkdir(parents=True)
-    long_unicode = "Vídeo_" + ("á" * 100)
+    long_unicode = "Vídeo_" + ("á" * 18)
     folder = root / long_unicode
     folder.mkdir()
     (folder / f"{long_unicode}.mp4").write_bytes(b"video")
@@ -123,13 +133,21 @@ def test_normalize_existing_outputs_fits_old_long_names(tmp_path: Path, monkeypa
     original.mkdir()
     (original / f"{long_unicode}_original.vtt").write_text("WEBVTT\n", encoding="utf-8")
 
+    from src import path_limits
+
+    real_fit_component = path_limits.fit_component
+
+    def constrained_fit_component(name: str, parent: Path, *, suffix: str = "") -> str:
+        return real_fit_component(name, parent, suffix=suffix)[:60]
+
+    monkeypatch.setattr("src.storage.local.fit_component", constrained_fit_component)
     provider = LocalStorageProvider()
     mapping = provider.normalize_existing_output_names("storage/output", "original_transcriptions")
 
     assert mapping
     folders = [p for p in root.iterdir() if p.is_dir()]
     assert len(folders) == 1
-    assert len(folders[0].name.encode("utf-8")) <= 255
+    assert len(folders[0].name.encode("utf-8")) <= 40
     assert any(p.suffix == ".mp4" for p in folders[0].iterdir())
 
 

@@ -23,3 +23,21 @@ def test_unique_suffix_is_preserved_when_shortening(tmp_path: Path) -> None:
     result = fit_component(long_name, tmp_path, suffix="12345678")
     assert result.endswith("_12345678")
     assert len(result.encode("utf-8")) <= limits.max_component
+
+
+def test_suffix_is_preserved_when_path_limit_is_tight(tmp_path: Path, monkeypatch) -> None:
+    from src import path_limits
+
+    monkeypatch.setattr(
+        path_limits,
+        "get_filesystem_limits",
+        lambda _path: path_limits.FileSystemLimits(
+            max_component=255,
+            max_path=len(str(tmp_path.resolve()).encode("utf-8")) + 24,
+            platform="windows",
+            source="test",
+        ),
+    )
+    result = fit_component("á" * 100, tmp_path, suffix="12345678")
+    assert result.endswith("_12345678")
+    assert path_is_within_limit(tmp_path / result)
