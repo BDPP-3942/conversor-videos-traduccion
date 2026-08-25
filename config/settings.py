@@ -30,7 +30,10 @@ class AppSettings:
     whisper_vad_filter: bool = True
     whisper_condition_on_previous_text: bool = True
     whisper_cpu_threads: int = 0
+    translation_provider: str = "google"
+    translation_fallback_providers: tuple[str, ...] = ()
     translation_retries: int = 5
+    translation_max_retries_per_provider: int = 0
     translation_batch_size: int = 0
     translation_retry_delay_seconds: float = 1.5
     translation_min_request_interval_seconds: float = 0.35
@@ -85,8 +88,15 @@ class AppSettings:
     def max_extracted_size_bytes(self) -> int:
         return int(self.max_extracted_size_gb * 1024**3)
 
+    @property
+    def effective_translation_retries(self) -> int:
+        configured = self.translation_max_retries_per_provider or self.translation_retries
+        return max(1, int(configured))
+
     @classmethod
     def from_environment(cls) -> AppSettings:
+        fallback_raw = os.getenv("TRANSLATION_FALLBACK_PROVIDERS", "")
+        fallback = tuple(item.strip() for item in fallback_raw.split(",") if item.strip())
         return cls(
             provider=os.getenv("STORAGE_PROVIDER", cls.provider),
             source=os.getenv("SOURCE_URI", cls.source),
@@ -103,8 +113,11 @@ class AppSettings:
                 os.getenv("WHISPER_CONDITION_ON_PREVIOUS_TEXT", "false").lower() == "true"
             ),
             whisper_cpu_threads=int(os.getenv("WHISPER_CPU_THREADS", cls.whisper_cpu_threads)),
-            translation_retries=int(
-                os.getenv("TRANSLATION_RETRIES", cls.translation_retries)
+            translation_provider=os.getenv("TRANSLATION_PROVIDER", cls.translation_provider),
+            translation_fallback_providers=fallback,
+            translation_retries=int(os.getenv("TRANSLATION_RETRIES", cls.translation_retries)),
+            translation_max_retries_per_provider=int(
+                os.getenv("TRANSLATION_MAX_RETRIES_PER_PROVIDER", cls.translation_max_retries_per_provider)
             ),
             translation_batch_size=int(os.getenv("TRANSLATION_BATCH_SIZE", cls.translation_batch_size)),
             translation_retry_delay_seconds=float(
@@ -117,18 +130,12 @@ class AppSettings:
                 os.getenv("TRANSLATION_MAX_BACKOFF_SECONDS", cls.translation_max_backoff_seconds)
             ),
             max_zip_depth=int(os.getenv("MAX_ZIP_DEPTH", cls.max_zip_depth)),
-            max_extracted_files=int(
-                os.getenv("MAX_EXTRACTED_FILES", cls.max_extracted_files)
-            ),
-            max_extracted_size_gb=float(
-                os.getenv("MAX_EXTRACTED_SIZE_GB", cls.max_extracted_size_gb)
-            ),
+            max_extracted_files=int(os.getenv("MAX_EXTRACTED_FILES", cls.max_extracted_files)),
+            max_extracted_size_gb=float(os.getenv("MAX_EXTRACTED_SIZE_GB", cls.max_extracted_size_gb)),
             ffmpeg_bin=os.getenv("FFMPEG_BIN", cls.ffmpeg_bin),
             ffmpeg_preset=os.getenv("FFMPEG_PRESET", cls.ffmpeg_preset),
             ffmpeg_crf=int(os.getenv("FFMPEG_CRF", cls.ffmpeg_crf)),
-            ffmpeg_audio_bitrate=os.getenv(
-                "FFMPEG_AUDIO_BITRATE", cls.ffmpeg_audio_bitrate
-            ),
+            ffmpeg_audio_bitrate=os.getenv("FFMPEG_AUDIO_BITRATE", cls.ffmpeg_audio_bitrate),
             generate_webm=os.getenv("GENERATE_WEBM", "true").lower() == "true",
             secondary_video_extension=os.getenv("SECONDARY_VIDEO_EXTENSION", cls.secondary_video_extension),
             secondary_video_codec=os.getenv("SECONDARY_VIDEO_CODEC", cls.secondary_video_codec),
@@ -138,22 +145,13 @@ class AppSettings:
             secondary_video_audio_codec=os.getenv("SECONDARY_VIDEO_AUDIO_CODEC", cls.secondary_video_audio_codec),
             secondary_video_audio_bitrate=os.getenv("SECONDARY_VIDEO_AUDIO_BITRATE", cls.secondary_video_audio_bitrate),
             secondary_video_cpu_used=int(os.getenv("SECONDARY_VIDEO_CPU_USED", cls.secondary_video_cpu_used)),
-            ffmpeg_timeout_seconds=int(
-                os.getenv("FFMPEG_TIMEOUT_SECONDS", cls.ffmpeg_timeout_seconds)
-            ),
-            local_retain_sources=os.getenv(
-                "LOCAL_RETAIN_SOURCES", "true"
-            ).lower()
-            == "true",
-            local_input_min_age_seconds=int(
-                os.getenv("LOCAL_INPUT_MIN_AGE_SECONDS", cls.local_input_min_age_seconds)
-            ),
+            ffmpeg_timeout_seconds=int(os.getenv("FFMPEG_TIMEOUT_SECONDS", cls.ffmpeg_timeout_seconds)),
+            local_retain_sources=os.getenv("LOCAL_RETAIN_SOURCES", "true").lower() == "true",
+            local_input_min_age_seconds=int(os.getenv("LOCAL_INPUT_MIN_AGE_SECONDS", cls.local_input_min_age_seconds)),
             source_folder_id=os.getenv("GDRIVE_SOURCE_FOLDER_ID", ""),
             target_folder_id=os.getenv("GDRIVE_TARGET_FOLDER_ID", ""),
             archive_folder_id=os.getenv("GDRIVE_ARCHIVE_FOLDER_ID", ""),
-            original_transcript_subdir=os.getenv(
-                "ORIGINAL_TRANSCRIPT_SUBDIR", cls.original_transcript_subdir
-            ),
+            original_transcript_subdir=os.getenv("ORIGINAL_TRANSCRIPT_SUBDIR", cls.original_transcript_subdir),
             resume_enabled=os.getenv("RESUME_ENABLED", "true").lower() == "true",
             normalize_legacy_names=os.getenv("NORMALIZE_LEGACY_NAMES", "true").lower() == "true",
             rename_processed_duplicates=os.getenv("RENAME_PROCESSED_DUPLICATES", "true").lower() == "true",
@@ -168,14 +166,10 @@ class AppSettings:
                 os.getenv("DUPLICATE_VISUAL_SIMILARITY_THRESHOLD", cls.duplicate_visual_similarity_threshold)
             ),
             ffmpeg_avoid_reencode=os.getenv("FFMPEG_AVOID_REENCODE", "true").lower() == "true",
-            google_credentials_file=Path(
-                os.getenv("GOOGLE_CREDENTIALS_FILE", cls.google_credentials_file)
-            ),
+            google_credentials_file=Path(os.getenv("GOOGLE_CREDENTIALS_FILE", cls.google_credentials_file)),
             google_token_file=Path(os.getenv("GOOGLE_TOKEN_FILE", cls.google_token_file)),
             google_profile=os.getenv("GOOGLE_PROFILE", cls.google_profile),
-            rclone_config_file=Path(
-                os.getenv("RCLONE_CONFIG_FILE", cls.rclone_config_file)
-            ),
+            rclone_config_file=Path(os.getenv("RCLONE_CONFIG_FILE", cls.rclone_config_file)),
             rclone_binary_file=Path(os.getenv("RCLONE_BINARY_FILE", cls.rclone_binary_file)),
             rclone_remote=os.getenv("RCLONE_REMOTE", cls.rclone_remote),
             run_lock_file=Path(os.getenv("RUN_LOCK_FILE", cls.run_lock_file)),
