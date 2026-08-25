@@ -139,7 +139,7 @@ def test_fallback_preserves_successful_segments_when_all_providers_do_not_succee
     )
 
     assert result[0]["text"] == "EN:uno"
-    assert result[0]["translation_failed"] is not True
+    assert "translation_failed" not in result[0]
     assert result[1]["text"] == "dos"
     assert result[1]["translation_failed"] is True
     assert "microsoft" in result[1]["translation_errors"][0]
