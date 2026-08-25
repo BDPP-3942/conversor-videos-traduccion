@@ -12,7 +12,10 @@ def _load_dotenv() -> None:
         from dotenv import load_dotenv
     except ImportError:
         return
+    # A user .env has priority over the repository-safe defaults. Both use
+    # override=False so explicitly exported environment variables still win.
     load_dotenv(BASE_DIR / ".env", override=False)
+    load_dotenv(BASE_DIR / ".env.default", override=False)
 
 
 def load_settings(config_path: Path | None = None) -> AppSettings:
@@ -32,7 +35,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
         workflow = data.get("workflow", {})
         runtime_cfg = data.get("runtime", {})
         translation_provider = processing.get("translation_provider", "google")
-        fallback_providers = processing.get("translation_fallback_providers", [])
+        fallback_providers = processing.get("translation_fallback_providers", ["mymemory"])
         if isinstance(fallback_providers, str):
             fallback_providers = [fallback_providers]
 
