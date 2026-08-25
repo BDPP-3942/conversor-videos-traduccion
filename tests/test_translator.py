@@ -142,7 +142,9 @@ def test_fallback_preserves_successful_segments_when_all_providers_do_not_succee
     assert "translation_failed" not in result[0]
     assert result[1]["text"] == "dos"
     assert result[1]["translation_failed"] is True
-    assert "microsoft" in result[1]["translation_errors"][0]
+    errors = result[1]["translation_errors"]
+    assert errors[0] == "google: empty translation result"
+    assert any(error.startswith("microsoft: RuntimeError: provider unavailable") for error in errors[1:])
 
 
 def test_all_providers_fail_without_infinite_retry(monkeypatch):
