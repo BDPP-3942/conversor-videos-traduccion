@@ -62,7 +62,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
                 processing.get("translation_min_request_interval_seconds", 0.35)
             ),
             translation_max_backoff_seconds=float(processing.get("translation_max_backoff_seconds", 16.0)),
-            max_zip_depth=int(processing.get("max_zip_depth", 5)),
+            max_zip_depth=int(processing.get("max_zip_depth", 3)),
             max_extracted_files=int(processing.get("max_extracted_files", 10000)),
             max_extracted_size_gb=float(processing.get("max_extracted_size_gb", 10.0)),
             ffmpeg_bin=str(ffmpeg.get("bin", "")),
