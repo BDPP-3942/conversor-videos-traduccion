@@ -286,10 +286,19 @@ class SubtitleReprocessor:
     def _resolve_output_folder(
         self, target: str, output_folder: str | None, video_name: str | None, source: str | None
     ) -> str:
+        # Always return the provider-native identifier for the child folder under
+        # `target`. For local storage this is an absolute path below
+        # `storage/output`; returning only the folder name would incorrectly make
+        # LocalStorageProvider resolve it relative to the project root.
+        children = [
+            child for child in self.storage.list_children(target) if child.is_directory and child.name != "_manifests"
+        ]
+
         if output_folder:
-            if not self.storage.folder_exists(target, output_folder):
-                raise FileNotFoundError(f"Output folder does not exist: {output_folder}")
-            return output_folder
+            for child in children:
+                if child.name == output_folder:
+                    return child.id
+            raise FileNotFoundError(f"Output folder does not exist: {output_folder}")
 
         if source:
             matches = self._find_by_source(target, source)
@@ -297,23 +306,28 @@ class SubtitleReprocessor:
                 return matches[0]
             if not matches:
                 raise FileNotFoundError(f"No processed output matches source: {source}")
-            raise ValueError(f"Source matches multiple output folders: {matches}")
+            raise ValueError(f"Source matches multiple output folders: {[str(item) for item in matches]}")
 
         assert video_name
-        matches = []
-        for child in self.storage.list_children(target):
-            if child.is_directory and child.name != "_manifests":
-                if any(item.name == video_name for item in self.storage.list_children(child.id)):
-                    matches.append(child.id)
+        matches = [
+            child.id
+            for child in children
+            if any(item.name == video_name for item in self.storage.list_children(child.id))
+        ]
         if len(matches) == 1:
             return matches[0]
         if not matches:
             raise FileNotFoundError(f"No processed output contains video: {video_name}")
-        raise ValueError(f"Video matches multiple output folders: {[str(item) for item in matches]}")
+        raise ValueError(f"Video matches multiple output folders: {matches}")
 
     def _find_by_source(self, target: str, source: str) -> list[str]:
         matches: list[str] = []
         manifest_root = self.storage.ensure_folder(target, "_manifests")
+        children_by_name = {
+            child.name: child
+            for child in self.storage.list_children(target)
+            if child.is_directory and child.name != "_manifests"
+        }
         for item in self.storage.list_children(manifest_root):
             if item.is_directory or not item.name.lower().endswith(".json"):
                 continue
@@ -326,8 +340,9 @@ class SubtitleReprocessor:
                 if not isinstance(entry, dict) or entry.get("source") != source:
                     continue
                 folder = str(entry.get("output_folder", "")).strip()
-                if folder and self.storage.folder_exists(target, folder):
-                    matches.append(folder)
+                child = children_by_name.get(folder)
+                if child is not None:
+                    matches.append(child.id)
         return sorted(set(matches))
 
     def _resolve_video(self, candidates: list[StorageFile], preferred_name: str | None) -> StorageFile | None:
