@@ -7,6 +7,8 @@ if not exist ".venv\Scripts\python.exe" (
 )
 if /I "%~1"=="reprocess-subtitles" (
   ".venv\Scripts\python.exe" main.py %*
+) else if /I "%~1"=="duplicates" (
+  ".venv\Scripts\python.exe" main.py %*
 ) else (
   ".venv\Scripts\python.exe" main.py run %*
 )
