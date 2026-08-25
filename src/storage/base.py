@@ -42,6 +42,10 @@ class StorageProvider(ABC):
         """Return whether a file exists below a storage folder."""
         return False
 
+    def list_children(self, parent: str) -> list[StorageFile]:
+        """List direct child files/folders using the provider-native identifiers."""
+        return []
+
     def rename_output_folder(
         self, target: str, old_name: str, new_name: str, original_transcript_subdir: str
     ) -> dict[str, str]:

@@ -186,6 +186,16 @@ class GoogleDriveStorageProvider(StorageProvider):
         ).execute()
         return bool(result.get("files"))
 
+    def list_children(self, parent: str) -> list[StorageFile]:
+        return [
+            StorageFile(
+                id=item["id"],
+                name=item["name"],
+                is_directory=item["mimeType"] == "application/vnd.google-apps.folder",
+            )
+            for item in self._list_children(parent)
+        ]
+
     def _list_children(self, parent: str) -> list[dict]:
         query = f"'{parent}' in parents and trashed = false"
         files = []

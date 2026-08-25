@@ -108,14 +108,35 @@ def build_parser() -> argparse.ArgumentParser:
 
     dedupe = sub.add_parser("dedupe-output", help="Find and remove exact duplicate output folders with fragile names")
     dedupe.add_argument(
-        "--target", 
-        default=None, 
-        help="Local output folder; defaults to the configured target")
+        "--target",
+        default=None,
+        help="Local output folder; defaults to the configured target",
+    )
     dedupe.add_argument(
-        "--dry-run", 
-        action="store_true", 
-        help="Report automatic cleanup decisions without deleting anything")
+        "--dry-run",
+        action="store_true",
+        help="Report automatic cleanup decisions without deleting anything",
+    )
 
+    reprocess = sub.add_parser(
+        "reprocess-subtitles",
+        help="Reprocess STT and/or translation inside an existing output folder without regenerating media",
+    )
+    mode = reprocess.add_mutually_exclusive_group()
+    mode.add_argument("--stt-only", action="store_true", help="Regenerate only the original transcription")
+    mode.add_argument("--translate-only", action="store_true", help="Regenerate only the translated VTT")
+    reprocess.add_argument(
+        "--output-folder",
+        default=None,
+        help="Existing output folder name; never creates a suffix when it already exists",
+    )
+    reprocess.add_argument("--video", dest="video_name", default=None, 
+                           help="Existing video filename used to locate its output")
+    reprocess.add_argument("--source", default=None, help="Source path recorded in a processing manifest")
+    reprocess.add_argument("--provider", choices=["local", "google_drive", "gdrive", "rclone"], default=None)
+    reprocess.add_argument("--target", default=None, help="Configured output storage URI")
+
+    sub.add_parser("prefetch-whisper", help="Download/initialize the automatically selected Whisper model")
     sub.add_parser("doctor", help="Check interactive and unattended runtime readiness")
     sub.add_parser("init", help="Create runtime directories")
     return parser
@@ -373,6 +394,71 @@ def command_provider(args) -> int:
     return 2
 
 
+def command_reprocess_subtitles(args) -> int:
+    settings = load_settings(args.config)
+    provider = (args.provider or settings.provider).lower()
+    provider = "google_drive" if provider == "gdrive" else provider
+    settings = replace(settings, provider=provider)
+    target = args.target or settings.target
+    parsed_target = parse_storage_uri(target)
+    expected_scheme = {"local": "local", "google_drive": "gdrive", "rclone": "rclone"}[provider]
+    if parsed_target.scheme != expected_scheme:
+        raise ValueError(f"Provider {provider!r} requires {expected_scheme}:// target")
+
+    configure_logging(settings.log_level)
+    readiness = check_unattended(
+        settings, ensure_rclone_binary=(provider == "rclone" and settings.auto_bootstrap_rclone)
+    )
+    if not readiness.ready:
+        print(
+            json.dumps(
+                {"status": "not_ready", "provider": provider, "checks": readiness.checks, "errors": readiness.errors},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 3
+
+    mode = "stt_only" if args.stt_only else "translate_only" if args.translate_only else "full"
+    from src.reprocessor import SubtitleReprocessor
+
+    with RunLock(resolve_project_path(settings.run_lock_file)):
+        storage = create_storage_provider(provider, settings)
+        try:
+            result = SubtitleReprocessor(settings, storage).reprocess(
+                parsed_target.value,
+                mode=mode,
+                output_folder=args.output_folder,
+                video_name=args.video_name,
+                source=args.source,
+            )
+        finally:
+            storage.close()
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 2 if result.get("status") == "partial_translation" else 0
+
+
+def command_prefetch_whisper(args) -> int:
+    settings = load_settings(args.config)
+    configure_logging(settings.log_level)
+    from src.stt_engine import STTEngine
+
+    STTEngine(settings)
+    print(
+        json.dumps(
+            {
+                "status": "success",
+                "whisper_model": settings.whisper_model,
+                "resource_profile": settings.resource_profile,
+                "whisper_cpu_threads": settings.whisper_cpu_threads,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
 def command_doctor(args) -> int:
     settings = load_settings(args.config)
     ensure_directories()
@@ -414,6 +500,10 @@ def main() -> int:
             return command_auth(args)
         if args.command == "provider":
             return command_provider(args)
+        if args.command == "reprocess-subtitles":
+            return command_reprocess_subtitles(args)
+        if args.command == "prefetch-whisper":
+            return command_prefetch_whisper(args)
         if args.command == "doctor":
             return command_doctor(args)
         return 2
