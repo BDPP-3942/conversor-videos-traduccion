@@ -125,6 +125,29 @@ La release estable de referencia del proyecto es rclone `v1.75.0`, publicada el 
 
 Cada vídeo nuevo genera `MP4 + WebM + VTT traducido`, y la transcripción original se guarda en `original_transcriptions/`. El WebM es una copia ligera orientada a servidores con menos recursos.
 
+### Reprocesado selectivo de subtítulos
+
+El comando `reprocess-subtitles` trabaja sobre una carpeta de salida que ya existe y no entra en la lógica normal de deduplicación/renombrado. No crea carpetas `_01`, hashes ni variantes derivadas por colisión.
+
+```bash
+# Solo Whisper/STT; reutiliza el MP4 existente y no ejecuta FFmpeg
+python main.py reprocess-subtitles --output-folder 37x02_Tema --stt-only
+
+# Solo traducción; reutiliza la transcripción existente y no ejecuta Whisper ni FFmpeg
+python main.py reprocess-subtitles --output-folder 37x02_Tema --translate-only
+
+# STT + traducción sobre la misma salida
+python main.py reprocess-subtitles --output-folder 37x02_Tema
+
+# También puede resolverse por nombre de vídeo o por la ruta `source` registrada en un manifest
+python main.py reprocess-subtitles --video 37x02_Tema.mp4 --stt-only
+python main.py reprocess-subtitles --source "curso/carpeta/video.mp4" --translate-only
+```
+
+Antes de sustituir una transcripción o un VTT se validan existencia, tamaño, sintaxis, cantidad de segmentos y timestamps. La versión anterior queda conservada con un backup versionado (`.bak.<UTC timestamp>`), sin sobrescribir backups previos. Cada operación genera además un registro JSON en `reprocess_history/`.
+
+El diagnóstico de reprocesado compara huecos y solapamientos de timestamps. La traducción conserva los mismos `start/end` que recibe del STT, por lo que un desfase que ya esté presente en esos timestamps apunta al tramo Whisper/VAD/segmentación y no a la traducción.
+
 Los ZIP que ya estaban procesados no vuelven a pasar por conversión, Whisper ni traducción. Con `workflow.rename_processed_duplicates = true`, volver a introducir el ZIP permite ejecutar un flujo de solo renombrado: se extrae temporalmente el contenido, se vuelve a inferir curso/lección/descripción con las reglas actuales y se renombran la carpeta y los artefactos existentes. Esto permite migrar resultados generados antes de incorporar la nueva inferencia de nombres sin rehacer el procesamiento.
 
 La salida WebM se configura con `SECONDARY_VIDEO_*` o con la sección `[ffmpeg]` de `config/app.toml`. Las salidas MP3 antiguas se conservan para compatibilidad con `resume`; no se generan MP3 nuevos.

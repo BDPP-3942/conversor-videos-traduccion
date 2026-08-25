@@ -2,6 +2,11 @@
 
 - La deduplicación de resultados locales se ejecuta automáticamente al finalizar `run`; `--delete` deja de ser necesario.
 - `dedupe-output` aplica por defecto la limpieza y conserva `--dry-run` como modo explícito de simulación.
+- Añadido `reprocess-subtitles` con modos STT-only, translate-only y completo sobre carpetas existentes, sin competir con la deduplicación ni generar sufijos por colisión.
+- El reprocesado reutiliza MP4/WebM existentes, valida VTT/timestamps antes del reemplazo, conserva backups versionados y registra cada operación en `reprocess_history/`.
+- Añadida resolución del resultado por carpeta, vídeo o `source` de manifest, junto con el diagnóstico de gaps/solapamientos de timestamps para separar problemas de STT/VAD de los de traducción.
+- Añadido el comando `prefetch-whisper` usado por los scripts de instalación y ajustado PyInstaller para incluir las dependencias cargadas dinámicamente.
+- Corregidos scripts shell con finales de línea CRLF que impedían la validación `bash -n`, incluido `install_launchd.sh`.
 
 ## 4.2.3 - Pytest/secondary-video configuration alignment
 

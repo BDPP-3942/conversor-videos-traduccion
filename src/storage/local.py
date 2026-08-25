@@ -75,6 +75,13 @@ class LocalStorageProvider(StorageProvider):
     def file_exists(self, parent: str, name: str) -> bool:
         return (self._folder(parent) / name).is_file()
 
+    def list_children(self, parent: str) -> list[StorageFile]:
+        folder = self._folder(parent)
+        return [
+            StorageFile(id=str(child), name=child.name, is_directory=child.is_dir())
+            for child in sorted(folder.iterdir(), key=lambda item: item.name.lower())
+        ]
+
     def rename_output_folder(
         self, target: str, old_name: str, new_name: str, original_transcript_subdir: str
     ) -> dict[str, str]:
