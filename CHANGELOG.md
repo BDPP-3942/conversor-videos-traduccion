@@ -1,4 +1,6 @@
 ## Unreleased
+- `reprocess-subtitles` admite ahora ámbito concreto y general: con `--output-folder`, `--video` o `--source` reprocesa una salida; sin selector o con `--all` recorre todas las salidas existentes elegibles. El modo sigue siendo STT-only, translate-only o completo.
+- El reprocesado general aísla los errores por carpeta, continúa con las demás y devuelve un resumen global del lote.
 
 - La deduplicación de resultados locales se ejecuta automáticamente al finalizar `run`; `--delete` deja de ser necesario.
 - `dedupe-output` aplica por defecto la limpieza y conserva `--dry-run` como modo explícito de simulación.
@@ -7,6 +9,10 @@
 - Añadida resolución del resultado por carpeta, vídeo o `source` de manifest, junto con el diagnóstico de gaps/solapamientos de timestamps para separar problemas de STT/VAD de los de traducción.
 - Añadido el comando `prefetch-whisper` usado por los scripts de instalación y ajustado PyInstaller para incluir las dependencias cargadas dinámicamente.
 - Corregidos scripts shell con finales de línea CRLF que impedían la validación `bash -n`, incluido `install_launchd.sh`.
+- Los tests de reprocesado ya no dependen de un archivo externo al repositorio ni de ningún artefacto externo al repositorio; el caso de ZIP estructuralmente duplicado es autocontenido.
+- El reprocesado queda expuesto también mediante wrappers locales, desatendidos y ejecutables PyInstaller; `run_local`, `run_scheduled` y `run_unattended` pueden despachar `reprocess-subtitles`.
+- `reprocess-subtitles --scheduled` usa el proveedor/target persistidos y permite ejecución no interactiva en Task Scheduler/launchd.
+- `install_task_scheduler.ps1` y `install_launchd.sh` aceptan argumentos de comando para instalar tareas de reprocesado específicas.
 
 ## 4.2.3 - Pytest/secondary-video configuration alignment
 
@@ -76,3 +82,10 @@
 - OAuth credentials are never bundled in PyInstaller output.
 - `rclone.conf`, Google tokens and runtime provider selection remain untracked.
 - Provider failures in scheduled mode return `not_ready` instead of opening interactive authentication.
+
+## Checks after general reprocess scope
+
+- `reprocess-subtitles` supports concrete selection (`--output-folder`, `--video`, `--source`) and general selection (`--all` or no selector).
+- No selector now means all eligible existing output folders.
+- `--stt-only` affects transcription only; `--translate-only` affects translation only; without either, both are regenerated.
+- General reprocesado continues after per-folder failures and returns an aggregate summary.

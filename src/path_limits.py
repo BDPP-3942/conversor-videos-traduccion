@@ -129,8 +129,15 @@ def fit_component(name: str, parent: Path, *, suffix: str = "") -> str:
         parent_len = len(str(parent.resolve()).encode("utf-8"))
         separator_bytes = 1
         available = limits.max_path - parent_len - separator_bytes
-        if available > 0:
-            candidate = _truncate_by_utf8_bytes(candidate, available).rstrip(" .")
+        if available > 0 and len(candidate.encode("utf-8")) > available:
+            suffix_bytes = len(suffix.encode("utf-8"))
+            suffix_total = suffix_bytes + (1 if suffix else 0)
+            if suffix and available > suffix_total:
+                prefix_budget = available - suffix_total
+                prefix = _truncate_by_utf8_bytes(name, prefix_budget).rstrip(" .")
+                candidate = f"{prefix}_{suffix}" if prefix else suffix[: max(1, available - 1)]
+            else:
+                candidate = _truncate_by_utf8_bytes(candidate, available).rstrip(" .")
 
     return candidate or "_"
 

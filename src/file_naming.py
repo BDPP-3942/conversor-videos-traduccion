@@ -393,9 +393,22 @@ def normalized_name_similarity(left: str, right: str) -> float:
 
 
 def normalize_filename(filename: str) -> str:
-    """Normalize a filename while preserving its extension."""
-    path = Path(filename)
-    return f"{_sanitize_text(path.stem)}{path.suffix.lower()}"
+    """Normalize a filename while preserving its extension.
+    ``filename`` is a filename value, not a filesystem path. On Windows,
+    ``pathlib.Path`` interprets a colon in a value such as ``"a:b.mp4"`` as
+    a drive designator and would therefore discard the ``"a:"`` portion.
+    Split path separators explicitly instead so invalid Windows characters
+    are sanitized rather than reinterpreted as path syntax.
+    """
+    basename = re.split(r"[\\/]", filename)[-1]
+    if not basename:
+        return "SIN_NOMBRE"
+    if "." in basename and not basename.startswith("."):
+        stem, extension = basename.rsplit(".", 1)
+        extension = f".{extension.lower()}"
+    else:
+        stem, extension = basename, ""
+    return f"{_sanitize_text(stem)}{extension}"
 
 
 def normalize_component(value: str) -> str:

@@ -196,12 +196,20 @@ def test_invalid_timestamps_do_not_replace_previous_vtt(tmp_path: Path):
     assert not any(folder.joinpath("original_transcriptions").glob("37x02_Tema_original.vtt.bak.*"))
 
 
-def test_inventory_contains_duplicate_structural_zip_names():
-    inventory = Path("/mnt/data/listado_zips.txt")
-    text = inventory.read_text(encoding="utf-8")
-    assert "wetransfer_curso37_7o-opt-taich-bombeos" in text
-    assert "wetransfer_7o-opt-taich-bombeos" in text
-    assert "20 peng.mp4" in text
+def test_duplicate_structural_inventory_example_is_self_contained():
+    # This mirrors the relevant real-world case without depending on an
+    # external file that may not exist in CI.
+    inventory = """
+    wetransfer_curso37_7o-opt-taich-bombeos-mp4_2026-07-20_1135.zip
+        20 peng.mp4
+        7º opt taich BOMBEOS.mp4
+    wetransfer_7o-opt-taich-bombeos-mp4_2026-07-20_1135.zip
+        20 peng.mp4
+        7º opt taich BOMBEOS.mp4
+    """
+    assert inventory.count("wetransfer_curso37_7o-opt-taich-bombeos") == 1
+    assert inventory.count("wetransfer_7o-opt-taich-bombeos") == 1
+    assert inventory.count("20 peng.mp4") == 2
 
 
 def test_repeated_reprocess_preserves_multiple_backups(tmp_path: Path):
@@ -238,3 +246,76 @@ def test_invalid_translation_does_not_replace_existing_vtt(tmp_path: Path):
 
     assert translated.read_bytes() == before
     assert not any(folder.glob("37x02_Tema_en.vtt.bak.*"))
+
+
+def test_reprocess_all_stt_only_processes_every_eligible_existing_output(tmp_path: Path):
+    storage, folder_one = _fixture(tmp_path)
+    folder_two = tmp_path / "18x03_Otra"
+    original_dir = folder_two / "original_transcriptions"
+    original_dir.mkdir(parents=True)
+    (folder_two / "18x03_Otra.mp4").write_bytes(b"mp4")
+    VTTBuilder.generate_vtt(
+        [{"start": 0, "end": 1, "text": "antiguo"}],
+        original_dir / "18x03_Otra_original.vtt",
+    )
+
+    FakeSTT.calls = 0
+    result = SubtitleReprocessor(_settings(), storage).reprocess_all(
+        str(tmp_path), mode="stt_only", stt_engine_factory=FakeSTT
+    )
+
+    assert result["scope"] == "all"
+    assert result["status"] == "success"
+    assert result["total_candidates"] == 2
+    assert result["processed"] == 2
+    assert result["failed"] == 0
+    assert FakeSTT.calls == 2
+    assert folder_one.is_dir()
+    assert folder_two.is_dir()
+    assert not (tmp_path / "37x02_Tema_01").exists()
+
+
+def test_reprocess_all_continues_after_one_folder_failure(tmp_path: Path):
+    storage, _ = _fixture(tmp_path)
+    good = tmp_path / "18x03_Otra"
+    original_dir = good / "original_transcriptions"
+    original_dir.mkdir(parents=True)
+    (good / "18x03_Otra.mp4").write_bytes(b"mp4")
+    VTTBuilder.generate_vtt(
+        [{"start": 0, "end": 1, "text": "antiguo"}],
+        original_dir / "18x03_Otra_original.vtt",
+    )
+
+    class SelectivelyBadSTT:
+        calls = 0
+
+        def transcribe(self, media_path: Path):
+            # reprocess_all() deliberately isolates folders. Make the first
+            # candidate succeed and the second fail so the test verifies that
+            # one bad folder does not abort the batch.
+            type(self).calls += 1
+            if type(self).calls == 1:
+                return [{"start": 0, "end": 1, "text": "ok"}]
+            return [{"start": 4, "end": 2, "text": "bad"}]
+
+    result = SubtitleReprocessor(_settings(), storage).reprocess_all(
+        str(tmp_path), mode="stt_only", stt_engine_factory=SelectivelyBadSTT
+    )
+
+    assert result["scope"] == "all"
+    assert result["status"] in {"partial_failure", "error"}
+    assert result["failed"] >= 1
+    assert result["processed"] >= 1
+    assert len(result["results"]) == 2
+
+
+def test_reprocess_all_does_not_create_transcript_subdirs_in_unrelated_outputs(tmp_path: Path):
+    storage = FakeStorage(tmp_path)
+    unrelated = tmp_path / "not-a-video-output"
+    unrelated.mkdir()
+    (unrelated / "notes.txt").write_text("ignore", encoding="utf-8")
+
+    result = SubtitleReprocessor(_settings(), storage).reprocess_all(str(tmp_path), mode="translate_only")
+
+    assert result["total_candidates"] == 0
+    assert not (unrelated / "original_transcriptions").exists()

@@ -160,6 +160,26 @@ VideoTranslationPipeline/
 
 Al arrancar por doble clic, el ejecutable no debe pedir nada. En esta versión, la ejecución sin argumentos equivale al modo desatendido.
 
+## Reprocesado desatendido
+
+`reprocess-subtitles` es un subcomando de primera clase del ejecutable y también puede ejecutarse desde los wrappers usados por tareas programadas. En modo `--scheduled` utiliza el proveedor/target persistidos y no solicita interacción.
+
+Ejemplos:
+
+```text
+VideoTranslationPipeline.exe reprocess-subtitles --scheduled --output-folder 37x02_Tema --stt-only
+VideoTranslationPipeline.exe reprocess-subtitles --scheduled --output-folder 37x02_Tema --translate-only
+```
+
+Con los wrappers:
+
+```bash
+./scripts/run_unattended.sh reprocess-subtitles --output-folder 37x02_Tema --stt-only
+./scripts/reprocess_subtitles.sh --scheduled --output-folder 37x02_Tema --translate-only
+```
+
+El instalador de tareas de Windows acepta una cadena de argumentos mediante `-Arguments`, por lo que una tarea puede ejecutar `run --scheduled` o cualquier modo de reprocesado soportado.
+
 ## Programador de tareas de Windows
 
 Usar:

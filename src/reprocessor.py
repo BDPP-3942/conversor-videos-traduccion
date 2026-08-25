@@ -44,7 +44,7 @@ class SubtitleReprocessor:
         if mode not in {"stt_only", "translate_only", "full"}:
             raise ValueError(f"Unsupported reprocess mode: {mode}")
         if not any((output_folder, video_name, source)):
-            raise ValueError("Provide --output-folder, --video or --source to identify the existing output")
+            raise ValueError("A concrete reprocess target is required for reprocess(); use reprocess_all() for the general case")
 
         self._temp_root = Path(tempfile.mkdtemp(prefix="subtitle-reprocess-"))
         try:
@@ -185,6 +185,95 @@ class SubtitleReprocessor:
 
                 shutil.rmtree(self._temp_root, ignore_errors=True)
                 self._temp_root = None
+
+    def reprocess_all(
+        self,
+        target: str,
+        *,
+        mode: str,
+        stt_engine_factory: Callable[[], Any] | None = None,
+        translator_factory: Callable[[], Any] | None = None,
+    ) -> dict[str, Any]:
+        """Reprocess every existing output folder eligible for subtitle work.
+
+        This intentionally operates only on already existing output folders. It never
+        creates a new output folder, runs normal deduplication, or invokes FFmpeg.
+        Each folder is isolated so one bad result does not abort the whole batch.
+        """
+        mode = mode.lower().replace("-", "_")
+        if mode not in {"stt_only", "translate_only", "full"}:
+            raise ValueError(f"Unsupported reprocess mode: {mode}")
+
+        folders = self._list_reprocessable_folders(target)
+        results: list[dict[str, Any]] = []
+        failures = 0
+        partial_translation = 0
+        for folder in folders:
+            try:
+                result = self.reprocess(
+                    target,
+                    mode=mode,
+                    output_folder=folder,
+                    stt_engine_factory=stt_engine_factory,
+                    translator_factory=translator_factory,
+                )
+            except Exception as exc:
+                failures += 1
+                result = {
+                    "operation": "reprocess_subtitles",
+                    "mode": mode,
+                    "status": "error",
+                    "output_folder": folder,
+                    "error_type": type(exc).__name__,
+                    "error": str(exc),
+                }
+                logger.exception("Reprocess failed for output folder %s", folder)
+            else:
+                if result.get("status") == "partial_translation":
+                    partial_translation += 1
+            results.append(result)
+
+        if failures:
+            status = "partial_failure" if results and len(results) > failures else "error"
+        elif partial_translation:
+            status = "partial_translation"
+        else:
+            status = "success"
+
+        return {
+            "operation": "reprocess_subtitles",
+            "scope": "all",
+            "mode": mode,
+            "status": status,
+            "total_candidates": len(folders),
+            "processed": len(folders) - failures,
+            "failed": failures,
+            "partial_translation": partial_translation,
+            "results": results,
+        }
+
+    def _list_reprocessable_folders(self, target: str) -> list[str]:
+        folders: list[str] = []
+        for child in self.storage.list_children(target):
+            if not child.is_directory or child.name == "_manifests":
+                continue
+            child_items = self.storage.list_children(child.id)
+            children = [item for item in child_items if not item.is_directory]
+            has_video = any(Path(item.name).suffix.lower() in VIDEO_EXTENSIONS for item in children)
+            transcript_folder = next(
+                (item for item in child_items if item.is_directory and item.name == self.settings.original_transcript_subdir),
+                None,
+            )
+            transcript_files = []
+            if transcript_folder is not None:
+                transcript_files = [
+                    item
+                    for item in self.storage.list_children(transcript_folder.id)
+                    if not item.is_directory and Path(item.name).suffix.lower() == ".vtt" and ".bak" not in item.name.lower()
+                ]
+            if has_video or transcript_files:
+                folders.append(child.name)
+        return sorted(folders, key=str.lower)
 
     def _resolve_output_folder(
         self, target: str, output_folder: str | None, video_name: str | None, source: str | None

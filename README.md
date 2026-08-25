@@ -125,24 +125,52 @@ La release estable de referencia del proyecto es rclone `v1.75.0`, publicada el 
 
 Cada vídeo nuevo genera `MP4 + WebM + VTT traducido`, y la transcripción original se guarda en `original_transcriptions/`. El WebM es una copia ligera orientada a servidores con menos recursos.
 
-### Reprocesado selectivo de subtítulos
+### Reprocesado selectivo y general de subtítulos
 
-El comando `reprocess-subtitles` trabaja sobre una carpeta de salida que ya existe y no entra en la lógica normal de deduplicación/renombrado. No crea carpetas `_01`, hashes ni variantes derivadas por colisión.
+El comando `reprocess-subtitles` trabaja exclusivamente sobre resultados que ya existen y no entra en la lógica normal de deduplicación/renombrado. No crea carpetas `_01`, hashes ni variantes derivadas por colisión.
+
+Hay dos ámbitos: **concreto** y **general**.
+
+Para reprocesar un resultado concreto, indica una carpeta, un vídeo o un `source` de manifest:
 
 ```bash
-# Solo Whisper/STT; reutiliza el MP4 existente y no ejecuta FFmpeg
+# Solo transcripción / STT
 python main.py reprocess-subtitles --output-folder 37x02_Tema --stt-only
 
-# Solo traducción; reutiliza la transcripción existente y no ejecuta Whisper ni FFmpeg
+# Solo traducción
 python main.py reprocess-subtitles --output-folder 37x02_Tema --translate-only
 
-# STT + traducción sobre la misma salida
+# Ambas: STT + traducción
 python main.py reprocess-subtitles --output-folder 37x02_Tema
 
-# También puede resolverse por nombre de vídeo o por la ruta `source` registrada en un manifest
+# También puede localizarse por vídeo o source
 python main.py reprocess-subtitles --video 37x02_Tema.mp4 --stt-only
 python main.py reprocess-subtitles --source "curso/carpeta/video.mp4" --translate-only
 ```
+
+Para reprocesar **todas las salidas existentes elegibles**, puedes usar explícitamente `--all` o simplemente no indicar `--output-folder`, `--video` ni `--source`:
+
+```bash
+# Todas las salidas: solo STT
+python main.py reprocess-subtitles --all --stt-only
+
+# Todas las salidas: solo traducción
+python main.py reprocess-subtitles --all --translate-only
+
+# Todas las salidas: STT + traducción
+python main.py reprocess-subtitles --all
+
+# Equivalente al caso general anterior
+python main.py reprocess-subtitles
+```
+
+El modo se determina así:
+
+- `--stt-only`: vuelve a generar la transcripción/timestamps y no ejecuta traducción.
+- `--translate-only`: reutiliza la transcripción existente y no ejecuta Whisper ni FFmpeg.
+- sin ninguno: reprocesa ambas fases.
+
+En el ámbito general, cada carpeta se procesa de forma independiente. Si una falla o una traducción queda parcial, se registra en el resumen y se continúa con las demás.
 
 Antes de sustituir una transcripción o un VTT se validan existencia, tamaño, sintaxis, cantidad de segmentos y timestamps. La versión anterior queda conservada con un backup versionado (`.bak.<UTC timestamp>`), sin sobrescribir backups previos. Cada operación genera además un registro JSON en `reprocess_history/`.
 

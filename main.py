@@ -128,11 +128,23 @@ def build_parser() -> argparse.ArgumentParser:
     reprocess.add_argument(
         "--output-folder",
         default=None,
-        help="Existing output folder name; never creates a suffix when it already exists",
+        help="Specific existing output folder; omitted means all eligible existing output folders",
     )
-    reprocess.add_argument("--video", dest="video_name", default=None, 
-                           help="Existing video filename used to locate its output")
+    reprocess.add_argument(
+        "--all",
+        dest="reprocess_all",
+        action="store_true",
+        help="Explicitly select all eligible existing output folders",
+    )
+    reprocess.add_argument(
+        "--video", dest="video_name", default=None, help="Existing video filename used to locate its output"
+    )
     reprocess.add_argument("--source", default=None, help="Source path recorded in a processing manifest")
+    reprocess.add_argument(
+        "--scheduled",
+        action="store_true",
+        help="Run in unattended/scheduler mode; never prompts for interactive setup",
+    )
     reprocess.add_argument("--provider", choices=["local", "google_drive", "gdrive", "rclone"], default=None)
     reprocess.add_argument("--target", default=None, help="Configured output storage URI")
 
@@ -396,6 +408,8 @@ def command_provider(args) -> int:
 
 def command_reprocess_subtitles(args) -> int:
     settings = load_settings(args.config)
+    if args.scheduled and any(value is not None for value in (args.provider, args.target)):
+        raise ValueError("Scheduled reprocess mode must use the saved active provider configuration")
     provider = (args.provider or settings.provider).lower()
     provider = "google_drive" if provider == "gdrive" else provider
     settings = replace(settings, provider=provider)
@@ -419,22 +433,32 @@ def command_reprocess_subtitles(args) -> int:
         )
         return 3
 
+    selectors = [args.output_folder, args.video_name, args.source]
+    if args.reprocess_all and any(selectors):
+        raise ValueError("--all cannot be combined with --output-folder, --video or --source")
+
     mode = "stt_only" if args.stt_only else "translate_only" if args.translate_only else "full"
     from src.reprocessor import SubtitleReprocessor
 
     with RunLock(resolve_project_path(settings.run_lock_file)):
         storage = create_storage_provider(provider, settings)
         try:
-            result = SubtitleReprocessor(settings, storage).reprocess(
-                parsed_target.value,
-                mode=mode,
-                output_folder=args.output_folder,
-                video_name=args.video_name,
-                source=args.source,
-            )
+            reprocessor = SubtitleReprocessor(settings, storage)
+            if args.reprocess_all or not any(selectors):
+                result = reprocessor.reprocess_all(parsed_target.value, mode=mode)
+            else:
+                result = reprocessor.reprocess(
+                    parsed_target.value,
+                    mode=mode,
+                    output_folder=args.output_folder,
+                    video_name=args.video_name,
+                    source=args.source,
+                )
         finally:
             storage.close()
     print(json.dumps(result, ensure_ascii=False, indent=2))
+    if result.get("status") in {"error", "partial_failure"}:
+        return 1
     return 2 if result.get("status") == "partial_translation" else 0
 
 
