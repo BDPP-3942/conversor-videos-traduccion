@@ -15,15 +15,17 @@ class TranslationProvider(Protocol):
 
 
 def build_translation_provider(name: str, settings: AppSettings) -> TranslationProvider:
-    """Build one of the providers already supported by deep-translator."""
+    """Build a configured provider supported by the existing deep-translator dependency."""
     provider = name.strip().lower().replace("-", "_")
     try:
-        from deep_translator import GoogleTranslator, LibreTranslator, MicrosoftTranslator
+        from deep_translator import GoogleTranslator, LibreTranslator, MicrosoftTranslator, MyMemoryTranslator
     except ImportError as exc:
         raise RuntimeError("Translation support requires the deep-translator package") from exc
 
     if provider == "google":
         return GoogleTranslator(source=settings.source_lang, target=settings.target_lang)
+    if provider in {"mymemory", "my_memory"}:
+        return MyMemoryTranslator(source=settings.source_lang, target=settings.target_lang)
     if provider == "microsoft":
         api_key = os.getenv("MICROSOFT_TRANSLATOR_API_KEY", "").strip()
         if not api_key:
@@ -34,5 +36,16 @@ def build_translation_provider(name: str, settings: AppSettings) -> TranslationP
             api_key=api_key,
         )
     if provider in {"libretranslate", "libre"}:
-        return LibreTranslator(source=settings.source_lang, target=settings.target_lang)
+        api_key = os.getenv("LIBRETRANSLATE_API_KEY", "").strip()
+        if not api_key:
+            raise RuntimeError(
+                "LibreTranslate provider requires LIBRETRANSLATE_API_KEY with the current deep-translator API"
+            )
+        custom_url = os.getenv("LIBRETRANSLATE_URL", "").strip() or None
+        return LibreTranslator(
+            source=settings.source_lang,
+            target=settings.target_lang,
+            api_key=api_key,
+            custom_url=custom_url,
+        )
     raise ValueError(f"Unsupported translation provider: {name}")
