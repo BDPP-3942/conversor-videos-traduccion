@@ -7,6 +7,7 @@ import sys
 from dataclasses import replace
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from typing import Any
 
 from config.loader import load_settings
 from config.settings import BASE_DIR, ensure_directories, resolve_project_path
@@ -26,21 +27,13 @@ logger = logging.getLogger(__name__)
 def configure_logging(log_level: str) -> None:
     log_dir = BASE_DIR / "storage" / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
-    logging.basicConfig(
-        level=getattr(logging, log_level.upper(), logging.INFO),
-        format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
-        handlers=[
-            logging.StreamHandler(sys.stdout),
-            RotatingFileHandler(log_dir / "pipeline.log", maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"),
-        ],
-    )
+    logging.basicConfig(level=getattr(logging, log_level.upper(), logging.INFO), format="%(asctime)s [%(levelname)s] %(name)s - %(message)s", handlers=[logging.StreamHandler(sys.stdout), RotatingFileHandler(log_dir / "pipeline.log", maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8")])
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Unattended video/audio STT + translation pipeline")
     parser.add_argument("--config", type=Path, default=BASE_DIR / "config" / "app.toml")
     sub = parser.add_subparsers(dest="command", required=True)
-
     run = sub.add_parser("run", help="Run one unattended processing batch using the saved active profile")
     run.add_argument("--scheduled", action="store_true", help="Scheduled-task mode: never opens a browser or asks for input")
     run.add_argument("--dry-run", action="store_true", help="Validate readiness without processing files")
@@ -71,7 +64,6 @@ def build_parser() -> argparse.ArgumentParser:
     auth = sub.add_parser("auth", help="One-time interactive authentication")
     auth.add_argument("provider", choices=["google"])
     auth.add_argument("--profile", default="default")
-
     provider = sub.add_parser("provider", help="Configure and switch persistent provider profiles")
     provider_sub = provider.add_subparsers(dest="provider_command", required=True)
     provider_sub.add_parser("bootstrap", help="Install the managed rclone binary")
@@ -95,9 +87,9 @@ def build_parser() -> argparse.ArgumentParser:
     setup_rclone = provider_sub.add_parser("setup-rclone", help="One-time rclone setup + active source/target")
     setup_rclone.add_argument("name")
     setup_rclone.add_argument("backend")
-    setup_rclone.add_argument("--source", required=True, help="Remote folder path, e.g. input")
-    setup_rclone.add_argument("--target", required=True, help="Remote folder path, e.g. output")
-    setup_rclone.add_argument("--option", action="append", default=[], help="rclone option as key=value; repeatable")
+    setup_rclone.add_argument("--source", required=True)
+    setup_rclone.add_argument("--target", required=True)
+    setup_rclone.add_argument("--option", action="append", default=[])
     use = provider_sub.add_parser("use", help="Select the active provider/profile")
     use.add_argument("provider", choices=["local", "google_drive", "rclone"])
     use.add_argument("--profile", default="default")
@@ -113,14 +105,13 @@ def build_parser() -> argparse.ArgumentParser:
     mode = reprocess.add_mutually_exclusive_group()
     mode.add_argument("--stt-only", action="store_true", help="Regenerate only the original transcription")
     mode.add_argument("--translate-only", action="store_true", help="Regenerate only the translated VTT")
-    reprocess.add_argument("--output-folder", default=None, help="Specific existing output folder; omitted means all eligible existing output folders")
-    reprocess.add_argument("--all", dest="reprocess_all", action="store_true", help="Explicitly select all eligible existing output folders")
-    reprocess.add_argument("--video", dest="video_name", default=None, help="Existing video filename used to locate its output")
-    reprocess.add_argument("--source", default=None, help="Source path recorded in a processing manifest")
-    reprocess.add_argument("--scheduled", action="store_true", help="Run in unattended/scheduler mode; never prompts for interactive setup")
+    reprocess.add_argument("--output-folder", default=None)
+    reprocess.add_argument("--all", dest="reprocess_all", action="store_true")
+    reprocess.add_argument("--video", dest="video_name", default=None)
+    reprocess.add_argument("--source", default=None)
+    reprocess.add_argument("--scheduled", action="store_true")
     reprocess.add_argument("--provider", choices=["local", "google_drive", "gdrive", "rclone"], default=None)
-    reprocess.add_argument("--target", default=None, help="Configured output storage URI")
-
+    reprocess.add_argument("--target", default=None)
     sub.add_parser("prefetch-whisper", help="Download/initialize the automatically selected Whisper model")
     sub.add_parser("doctor", help="Check interactive and unattended runtime readiness")
     sub.add_parser("init", help="Create runtime directories")
@@ -134,7 +125,7 @@ def _build_locations(settings, provider: str, source: str | None, target: str | 
 
 
 def _run_automatic_deduplication(settings, target: str) -> dict[str, Any] | None:
-    if not settings.automatic_output_deduplication or settings.provider.lower() != "local":
+    if not getattr(settings, "automatic_output_deduplication", True) or settings.provider.lower() != "local":
         return None
     from src.output_deduplicator import OutputDeduplicator
     target_path = resolve_project_path(target.removeprefix("local://"))
