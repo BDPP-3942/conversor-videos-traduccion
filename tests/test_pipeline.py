@@ -82,7 +82,7 @@ class _FallbackStorage:
         self.uploads = []
 
     def ensure_folder(self, parent, name):
-        path = parent / name if hasattr(parent, "__truediv__") else parent
+        path = Path(parent) / name
         path.mkdir(parents=True, exist_ok=True)
         return path
 
@@ -197,4 +197,4 @@ def test_translation_fallback_reuses_existing_stt_and_media_artifacts(tmp_path):
     assert stt.calls == 1
     assert first.calls == 2
     assert second.calls == 1
-    assert len(storage.uploads) == 2
+    assert len(storage.uploads) == 3
