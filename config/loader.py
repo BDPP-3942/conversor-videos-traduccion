@@ -31,6 +31,10 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
         ffmpeg = data.get("ffmpeg", {})
         workflow = data.get("workflow", {})
         runtime_cfg = data.get("runtime", {})
+        translation_provider = processing.get("translation_provider", "google")
+        fallback_providers = processing.get("translation_fallback_providers", [])
+        if isinstance(fallback_providers, str):
+            fallback_providers = [fallback_providers]
 
         settings = AppSettings(
             provider=str(app.get("provider", "local")),
@@ -46,18 +50,19 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             whisper_vad_filter=bool(processing.get("whisper_vad_filter", True)),
             whisper_condition_on_previous_text=bool(processing.get("whisper_condition_on_previous_text", True)),
             whisper_cpu_threads=int(processing.get("whisper_cpu_threads", 0)),
+            translation_provider=str(translation_provider),
+            translation_fallback_providers=tuple(str(item) for item in fallback_providers if str(item).strip()),
             translation_retries=int(processing.get("translation_retries", 5)),
-            translation_batch_size=int(processing.get("translation_batch_size", 0)),
-            translation_retry_delay_seconds=float(
-                processing.get("translation_retry_delay_seconds", 1.5)
+            translation_max_retries_per_provider=int(
+                processing.get("max_retries_per_provider", processing.get("translation_retries", 5))
             ),
+            translation_batch_size=int(processing.get("translation_batch_size", 0)),
+            translation_retry_delay_seconds=float(processing.get("translation_retry_delay_seconds", 1.5)),
             translation_min_request_interval_seconds=float(
                 processing.get("translation_min_request_interval_seconds", 0.35)
             ),
-            translation_max_backoff_seconds=float(
-                processing.get("translation_max_backoff_seconds", 16.0)
-            ),
-            max_zip_depth=int(processing.get("max_zip_depth", 3)),
+            translation_max_backoff_seconds=float(processing.get("translation_max_backoff_seconds", 16.0)),
+            max_zip_depth=int(processing.get("max_zip_depth", 5)),
             max_extracted_files=int(processing.get("max_extracted_files", 10000)),
             max_extracted_size_gb=float(processing.get("max_extracted_size_gb", 10.0)),
             ffmpeg_bin=str(ffmpeg.get("bin", "")),
@@ -79,9 +84,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             source_folder_id=str(google.get("source_folder_id", "")),
             target_folder_id=str(google.get("target_folder_id", "")),
             archive_folder_id=str(google.get("archive_folder_id", "")),
-            original_transcript_subdir=str(
-                google.get("original_transcript_subdir", "original_transcriptions")
-            ),
+            original_transcript_subdir=str(google.get("original_transcript_subdir", "original_transcriptions")),
             resume_enabled=bool(workflow.get("resume_enabled", True)),
             normalize_legacy_names=bool(workflow.get("normalize_legacy_names", True)),
             rename_processed_duplicates=bool(workflow.get("rename_processed_duplicates", True)),
@@ -92,9 +95,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             google_credentials_file=Path(
                 str(google.get("credentials_file", "secrets/providers/google/default/credentials.json"))
             ),
-            google_token_file=Path(
-                str(google.get("token_file", "secrets/providers/google/default/token.json"))
-            ),
+            google_token_file=Path(str(google.get("token_file", "secrets/providers/google/default/token.json"))),
             rclone_config_file=Path(str(rclone.get("config_file", "secrets/rclone/rclone.conf"))),
             rclone_binary_file=Path(str(rclone.get("binary_file", "tools/rclone/rclone"))),
             rclone_remote=str(rclone.get("remote", "remote_drive")),
@@ -129,7 +130,9 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
         "WHISPER_VAD_FILTER": "whisper_vad_filter",
         "WHISPER_CONDITION_ON_PREVIOUS_TEXT": "whisper_condition_on_previous_text",
         "WHISPER_CPU_THREADS": "whisper_cpu_threads",
+        "TRANSLATION_PROVIDER": "translation_provider",
         "TRANSLATION_RETRIES": "translation_retries",
+        "TRANSLATION_MAX_RETRIES_PER_PROVIDER": "translation_max_retries_per_provider",
         "TRANSLATION_BATCH_SIZE": "translation_batch_size",
         "TRANSLATION_RETRY_DELAY_SECONDS": "translation_retry_delay_seconds",
         "TRANSLATION_MIN_REQUEST_INTERVAL_SECONDS": "translation_min_request_interval_seconds",
@@ -179,6 +182,8 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
     for env_name, field_name in mapping.items():
         if env_name in os.environ:
             replacements[field_name] = getattr(env, field_name)
+    if "TRANSLATION_FALLBACK_PROVIDERS" in os.environ:
+        replacements["translation_fallback_providers"] = env.translation_fallback_providers
     if "LOCAL_RETAIN_SOURCES" in os.environ:
         replacements["local_retain_sources"] = env.local_retain_sources
     if "LOCAL_INPUT_MIN_AGE_SECONDS" in os.environ:
