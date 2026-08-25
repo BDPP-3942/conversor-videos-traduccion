@@ -4,7 +4,9 @@ from main import build_parser
 
 
 def test_reprocess_parser_accepts_scheduled_mode():
-    args = build_parser().parse_args(["reprocess-subtitles", "--scheduled", "--output-folder", "37x02_Tema", "--translate-only"])
+    args = build_parser().parse_args(
+        ["reprocess-subtitles", "--scheduled", "--output-folder", "37x02_Tema", "--translate-only"]
+    )
     assert args.command == "reprocess-subtitles"
     assert args.scheduled is True
     assert args.translate_only is True
@@ -54,6 +56,7 @@ def test_run_parser_accepts_webm_toggle():
 
 def test_run_webm_flags_are_mutually_exclusive():
     import pytest
+
     parser = build_parser()
     with pytest.raises(SystemExit):
         parser.parse_args(["run", "--no-webm", "--generate-webm"])
