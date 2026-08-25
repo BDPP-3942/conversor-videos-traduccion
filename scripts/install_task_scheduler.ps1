@@ -6,7 +6,15 @@ param(
 $ErrorActionPreference = "Stop"
 $AppRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 if ([string]::IsNullOrWhiteSpace($Executable)) {
-    $Executable = Join-Path $AppRoot "VideoTranslationPipeline.exe"
+    $dist = Join-Path $AppRoot "dist\VideoTranslationPipeline\VideoTranslationPipeline.exe"
+    $root = Join-Path $AppRoot "VideoTranslationPipeline.exe"
+    if (Test-Path $dist) {
+        $Executable = $dist
+    } elseif (Test-Path $root) {
+        $Executable = $root
+    } else {
+        throw "No se encuentra el ejecutable compilado en dist\VideoTranslationPipeline ni en la raíz del proyecto."
+    }
 }
 if (-not (Test-Path $Executable)) {
     throw "No se encuentra el ejecutable: $Executable"

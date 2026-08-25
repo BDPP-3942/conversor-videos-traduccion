@@ -23,16 +23,18 @@ class AppSettings:
     source_lang: str = "es"
     target_lang: str = "en"
     log_level: str = "INFO"
-    whisper_model: str = "small"
+    whisper_model: str = "auto"
     whisper_device: str = "cpu"
     whisper_compute_type: str = "int8"
-    whisper_beam_size: int = 1
+    whisper_beam_size: int = 5
     whisper_vad_filter: bool = True
-    whisper_condition_on_previous_text: bool = False
+    whisper_condition_on_previous_text: bool = True
     whisper_cpu_threads: int = 0
-    translation_retries: int = 10
-    translation_batch_size: int = 40
-    translation_retry_delay_seconds: float = 2.0
+    translation_retries: int = 5
+    translation_batch_size: int = 0
+    translation_retry_delay_seconds: float = 1.5
+    translation_min_request_interval_seconds: float = 0.35
+    translation_max_backoff_seconds: float = 16.0
     max_zip_depth: int = 5
     max_extracted_files: int = 10_000
     max_extracted_size_gb: float = 10.0
@@ -58,7 +60,7 @@ class AppSettings:
     resume_enabled: bool = True
     normalize_legacy_names: bool = True
     rename_processed_duplicates: bool = True
-    max_parallel_videos: int = 2
+    max_parallel_videos: int = 0
     duplicate_name_similarity_threshold: float = 0.82
     duplicate_duration_tolerance_seconds: float = 1.5
     duplicate_visual_similarity_threshold: float = 0.91
@@ -73,6 +75,10 @@ class AppSettings:
     run_lock_file: Path = STORAGE_DIR / "state" / "run.lock"
     auto_bootstrap_rclone: bool = True
     auto_update_rclone: bool = False
+    auto_tune_resources: bool = True
+    resource_profile: str = "auto"
+    detected_logical_cpus: int = 0
+    detected_memory_gb: float = 0.0
 
     @property
     def max_extracted_size_bytes(self) -> int:
@@ -102,6 +108,12 @@ class AppSettings:
             translation_batch_size=int(os.getenv("TRANSLATION_BATCH_SIZE", cls.translation_batch_size)),
             translation_retry_delay_seconds=float(
                 os.getenv("TRANSLATION_RETRY_DELAY_SECONDS", cls.translation_retry_delay_seconds)
+            ),
+            translation_min_request_interval_seconds=float(
+                os.getenv("TRANSLATION_MIN_REQUEST_INTERVAL_SECONDS", cls.translation_min_request_interval_seconds)
+            ),
+            translation_max_backoff_seconds=float(
+                os.getenv("TRANSLATION_MAX_BACKOFF_SECONDS", cls.translation_max_backoff_seconds)
             ),
             max_zip_depth=int(os.getenv("MAX_ZIP_DEPTH", cls.max_zip_depth)),
             max_extracted_files=int(
@@ -167,6 +179,7 @@ class AppSettings:
             run_lock_file=Path(os.getenv("RUN_LOCK_FILE", cls.run_lock_file)),
             auto_bootstrap_rclone=os.getenv("AUTO_BOOTSTRAP_RCLONE", "true").lower() == "true",
             auto_update_rclone=os.getenv("AUTO_UPDATE_RCLONE", "false").lower() == "true",
+            auto_tune_resources=os.getenv("AUTO_TUNE_RESOURCES", "true").lower() == "true",
             provider_profile_dir=Path(os.getenv("PROVIDER_PROFILE_DIR", cls.provider_profile_dir)),
         )
 

@@ -1,6 +1,10 @@
 @echo off
 setlocal
 cd /d "%~dp0.."
-python main.py provider bootstrap
+if not exist ".venv\Scripts\python.exe" (
+  echo [ERROR] Ejecuta primero scripts\setup_env.bat
+  exit /b 1
+)
+".venv\Scripts\python.exe" main.py provider bootstrap
 set CODE=%ERRORLEVEL%
 endlocal & exit /b %CODE%

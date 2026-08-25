@@ -17,9 +17,10 @@ copy /Y "config\app.toml" "dist\VideoTranslationPipeline\config\app.toml" >nul
 copy /Y ".env.example" "dist\VideoTranslationPipeline\.env.example" >nul
 xcopy /E /I /Y "storage" "dist\VideoTranslationPipeline\storage" >nul
 xcopy /E /I /Y "tools" "dist\VideoTranslationPipeline\tools" >nul
-if not exist "dist\VideoTranslationPipeline\storage\input" mkdir "dist\VideoTranslationPipeline\storage\input"
-if not exist "dist\VideoTranslationPipeline\storage\output" mkdir "dist\VideoTranslationPipeline\storage\output"
+for %%D in (input work output archive failures logs state) do if not exist "dist\VideoTranslationPipeline\storage\%%D" mkdir "dist\VideoTranslationPipeline\storage\%%D"
 echo [OK] Aplicacion portable creada en dist\VideoTranslationPipeline\
-echo [INFO] Para empezar con doble clic, ejecuta el EXE sin argumentos.
-echo [INFO] Antes del primer procesamiento cloud, ejecuta provider setup-google o provider setup-rclone una sola vez.
+echo [INFO] Diagnostico: dist\VideoTranslationPipeline\VideoTranslationPipeline.exe doctor
+echo [INFO] Precarga: scripts\prefetch_whisper.bat
+echo [INFO] El modelo Whisper no se incluye en el EXE; se descarga en la cache del usuario.
+echo [INFO] Task Scheduler: scripts\install_task_scheduler.ps1
 endlocal

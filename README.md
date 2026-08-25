@@ -152,3 +152,12 @@ python main.py dedupe-output --target "/ruta/absoluta/storage/output" --dry-run
 La identidad del duplicado se calcula mediante SHA-256 de todos los recursos generados de la carpeta. Los nombres no determinan que dos resultados sean duplicados. Una carpeta solo se elimina automáticamente cuando existe otra carpeta con contenido idéntico y una puntuación de nombre estrictamente superior. Si no existe un referente claramente más estable, ambas se conservan.
 
 Las entradas eliminadas del registro `storage/state/media_registry.jsonl` se retiran y quedan auditadas en `storage/state/dedupe_history.jsonl`. Un fallo de la limpieza automática no borra resultados de forma adicional ni convierte un procesamiento correcto en `error`: se registra y el lote queda como `partial`.
+
+
+### Perfiles automáticos de CPU y RAM
+
+La configuración `whisper_model = "auto"` activa un perfil de recursos en función de CPU y RAM. Como referencia, un equipo de 24+ GB y 12+ hilos lógicos usa `medium` con `int8` y un único vídeo simultáneo; un equipo Apple Silicon con ~16 GB puede usar también `medium` pero manteniendo un único vídeo; equipos de 8 GB usan `small`. Se evita descargar el modelo de una máquina cuando no es necesario.
+
+El modelo no se incluye dentro del repositorio. `faster-whisper` descarga el modelo al primer uso; puedes forzar esa descarga durante la preparación con `scripts/setup_env.bat --prefetch-whisper` o `./scripts/setup_env.sh --prefetch-whisper`. En CPU, `int8` está soportado por faster-whisper/CTranslate2.
+
+El perfil automático está diseñado para priorizar estabilidad y evitar saturación por ejecutar varios modelos Whisper grandes simultáneamente. `max_parallel_videos = 0` significa automático.

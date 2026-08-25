@@ -3,14 +3,15 @@ from pathlib import Path
 from config.settings import AppSettings
 from src.file_naming import normalize_component
 from src.media_converter import MediaConverter
+from src.resource_profile import ResourceProfile
 
 
 def test_settings_default_to_performance_oriented_values():
     settings = AppSettings()
-    assert settings.whisper_beam_size == 1
-    assert settings.whisper_condition_on_previous_text is False
-    assert settings.translation_batch_size == 40
-    assert settings.max_parallel_videos == 2
+    assert settings.whisper_beam_size == 5
+    assert settings.whisper_condition_on_previous_text is True
+    assert settings.translation_batch_size == 0
+    assert settings.max_parallel_videos == 0
     assert settings.ffmpeg_avoid_reencode is True
     assert settings.ffmpeg_preset == "medium"
     assert settings.ffmpeg_crf == 23
@@ -32,3 +33,21 @@ def test_mp4_copy_command_avoids_reencode(tmp_path: Path):
 
 def test_normalization_policy_is_wordpress_friendly():
     assert normalize_component("Vídeo niño — prueba") == "Video_nino_prueba"
+
+
+def test_resource_profile_keeps_medium_for_high_end_hardware(monkeypatch):
+    monkeypatch.setattr("src.resource_profile._memory_gb", lambda: 32.0)
+    monkeypatch.setattr("src.resource_profile.os.cpu_count", lambda: 16)
+    profile = __import__("src.resource_profile", fromlist=["detect_profile"]).detect_profile(AppSettings())
+    assert profile.name == "high"
+    assert profile.whisper_model == "medium"
+    assert profile.max_parallel_videos == 1
+
+
+def test_resource_profile_uses_small_on_8gb_class_machine(monkeypatch):
+    monkeypatch.setattr("src.resource_profile._memory_gb", lambda: 8.0)
+    monkeypatch.setattr("src.resource_profile.os.cpu_count", lambda: 4)
+    profile = __import__("src.resource_profile", fromlist=["detect_profile"]).detect_profile(AppSettings())
+    assert profile.name == "low"
+    assert profile.whisper_model == "small"
+    assert profile.whisper_threads <= 4

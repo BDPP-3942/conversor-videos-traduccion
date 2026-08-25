@@ -25,22 +25,25 @@ remote = "remote_drive"
 profile_dir = "secrets/providers"
 
 [runtime]
+auto_tune_resources = true
 run_lock_file = "storage/state/run.lock"
 auto_bootstrap_rclone = true
 # Keep scheduler deterministic by default. Enable only if automatic rclone binary updates are desired.
 auto_update_rclone = false
 
 [processing]
-whisper_model = "small"
+whisper_model = "auto"
 whisper_device = "cpu"
 whisper_compute_type = "int8"
-whisper_beam_size = 1
-whisper_condition_on_previous_text = false
+whisper_beam_size = 5
+whisper_condition_on_previous_text = true
 whisper_cpu_threads = 0
 whisper_vad_filter = true
-translation_retries = 10
-translation_retry_delay_seconds = 2.0
-translation_batch_size = 40
+translation_retries = 5
+translation_retry_delay_seconds = 1.5
+translation_min_request_interval_seconds = 0.35
+translation_max_backoff_seconds = 16.0
+translation_batch_size = 0
 max_zip_depth = 5
 max_extracted_files = 10000
 max_extracted_size_gb = 10.0
@@ -49,7 +52,7 @@ max_extracted_size_gb = 10.0
 resume_enabled = true
 normalize_legacy_names = true
 rename_processed_duplicates = true
-max_parallel_videos = 2
+max_parallel_videos = 0
 duplicate_name_similarity_threshold = 0.82
 duplicate_duration_tolerance_seconds = 1.5
 duplicate_visual_similarity_threshold = 0.91

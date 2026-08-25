@@ -127,65 +127,6 @@ def _build_locations(settings, provider: str, source: str | None, target: str | 
     return settings.source, settings.target
 
 
-
-def _local_output_root(parsed_target) -> Path:
-    from config.settings import local_storage_paths
-
-    if parsed_target.scheme != "local":
-        raise ValueError("Automatic output deduplication currently supports only local targets")
-    root = Path(parsed_target.value)
-    if not root.is_absolute():
-        root = resolve_project_path(root)
-    else:
-        root = root.resolve()
-    if not root.exists():
-        root = local_storage_paths()["output"]
-    return root
-
-
-def _run_output_dedupe(root: Path, *, dry_run: bool = False) -> dict[str, object]:
-    from src.output_deduplicator import OutputDeduplicator
-
-    deduplicator = OutputDeduplicator(root, dry_run=dry_run)
-    decisions = deduplicator.find_decisions()
-    results = deduplicator.apply()
-    return {
-        "mode": "dry-run" if dry_run else "automatic",
-        "target": str(root),
-        "duplicate_groups": len(decisions),
-        "planned_or_deleted": len(results),
-        "groups": [
-            {
-                "canonical": item.canonical.name,
-                "canonical_score": item.canonical.stability_score,
-                "duplicates": [
-                    {"name": duplicate.name, "score": duplicate.stability_score}
-                    for duplicate in item.duplicates
-                ],
-                "reason": item.reason,
-            }
-            for item in decisions
-        ],
-        "results": results,
-    }
-
-
-def command_dedupe_output(args) -> int:
-    settings = load_settings(args.config)
-    target = args.target or settings.target
-    if args.target and "://" not in args.target:
-        root = Path(args.target)
-        if not root.is_absolute():
-            root = resolve_project_path(root)
-        else:
-            root = root.resolve()
-    else:
-        root = _local_output_root(parse_storage_uri(target))
-
-    payload = {"status": "success", **_run_output_dedupe(root, dry_run=args.dry_run)}
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
-    return 0
-
 def command_run(args) -> int:
     settings = load_settings(args.config)
     provider = (args.provider or settings.provider).lower()
@@ -247,19 +188,6 @@ def command_run(args) -> int:
         storage = create_storage_provider(provider, settings)
         try:
             result = MediaPipeline(settings, storage).run(parsed_source.value, parsed_target.value)
-            if provider == "local" and result.get("status") in {"success", "partial"}:
-                try:
-                    dedupe = _run_output_dedupe(_local_output_root(parsed_target))
-                    result["output_dedupe"] = dedupe
-                except Exception as exc:
-                    logger.exception("Automatic output deduplication failed")
-                    result["output_dedupe"] = {
-                        "mode": "automatic",
-                        "status": "error",
-                        "error": str(exc),
-                    }
-                    if result.get("status") == "success":
-                        result["status"] = "partial"
         finally:
             storage.close()
     print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -449,6 +377,12 @@ def command_doctor(args) -> int:
     settings = load_settings(args.config)
     ensure_directories()
     checks = {"config": Path(args.config).is_file(), "python": sys.version_info >= (3, 11)}
+    checks["resource_profile"] = settings.resource_profile
+    checks["whisper_model"] = settings.whisper_model
+    checks["whisper_cpu_threads"] = settings.whisper_cpu_threads
+    checks["max_parallel_videos"] = settings.max_parallel_videos
+    checks["detected_logical_cpus"] = settings.detected_logical_cpus
+    checks["detected_memory_gb"] = settings.detected_memory_gb
     ffmpeg_check = FFmpegResolver.doctor(settings)
     checks["ffmpeg"] = ffmpeg_check["available"]
     checks["ffmpeg_path"] = ffmpeg_check.get("path", "")
@@ -476,8 +410,6 @@ def main() -> int:
             return 0
         if args.command == "run":
             return command_run(args)
-        if args.command == "dedupe-output":
-            return command_dedupe_output(args)
         if args.command == "auth":
             return command_auth(args)
         if args.command == "provider":

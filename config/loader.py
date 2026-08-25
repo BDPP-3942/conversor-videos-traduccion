@@ -39,17 +39,23 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             source_lang=str(app.get("source_lang", "es")),
             target_lang=str(app.get("target_lang", "en")),
             log_level=str(app.get("log_level", "INFO")).upper(),
-            whisper_model=str(processing.get("whisper_model", "small")),
+            whisper_model=str(processing.get("whisper_model", "auto")),
             whisper_device=str(processing.get("whisper_device", "cpu")),
             whisper_compute_type=str(processing.get("whisper_compute_type", "int8")),
-            whisper_beam_size=int(processing.get("whisper_beam_size", 1)),
+            whisper_beam_size=int(processing.get("whisper_beam_size", 5)),
             whisper_vad_filter=bool(processing.get("whisper_vad_filter", True)),
-            whisper_condition_on_previous_text=bool(processing.get("whisper_condition_on_previous_text", False)),
+            whisper_condition_on_previous_text=bool(processing.get("whisper_condition_on_previous_text", True)),
             whisper_cpu_threads=int(processing.get("whisper_cpu_threads", 0)),
-            translation_retries=int(processing.get("translation_retries", 10)),
-            translation_batch_size=int(processing.get("translation_batch_size", 40)),
+            translation_retries=int(processing.get("translation_retries", 5)),
+            translation_batch_size=int(processing.get("translation_batch_size", 0)),
             translation_retry_delay_seconds=float(
-                processing.get("translation_retry_delay_seconds", 2.0)
+                processing.get("translation_retry_delay_seconds", 1.5)
+            ),
+            translation_min_request_interval_seconds=float(
+                processing.get("translation_min_request_interval_seconds", 0.35)
+            ),
+            translation_max_backoff_seconds=float(
+                processing.get("translation_max_backoff_seconds", 16.0)
             ),
             max_zip_depth=int(processing.get("max_zip_depth", 3)),
             max_extracted_files=int(processing.get("max_extracted_files", 10000)),
@@ -78,7 +84,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             resume_enabled=bool(workflow.get("resume_enabled", True)),
             normalize_legacy_names=bool(workflow.get("normalize_legacy_names", True)),
             rename_processed_duplicates=bool(workflow.get("rename_processed_duplicates", True)),
-            max_parallel_videos=int(workflow.get("max_parallel_videos", 2)),
+            max_parallel_videos=int(workflow.get("max_parallel_videos", 0)),
             duplicate_name_similarity_threshold=float(workflow.get("duplicate_name_similarity_threshold", 0.82)),
             duplicate_duration_tolerance_seconds=float(workflow.get("duplicate_duration_tolerance_seconds", 1.5)),
             duplicate_visual_similarity_threshold=float(workflow.get("duplicate_visual_similarity_threshold", 0.91)),
@@ -96,10 +102,13 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             run_lock_file=Path(str(runtime_cfg.get("run_lock_file", "storage/state/run.lock"))),
             auto_bootstrap_rclone=bool(runtime_cfg.get("auto_bootstrap_rclone", True)),
             auto_update_rclone=bool(runtime_cfg.get("auto_update_rclone", False)),
+            auto_tune_resources=bool(runtime_cfg.get("auto_tune_resources", True)),
         )
 
     settings = _apply_runtime_provider(settings)
-    return _apply_environment_overrides(settings)
+    settings = _apply_environment_overrides(settings)
+    from src.resource_profile import apply_resource_profile
+    return apply_resource_profile(settings)
 
 
 def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
@@ -122,6 +131,8 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
         "TRANSLATION_RETRIES": "translation_retries",
         "TRANSLATION_BATCH_SIZE": "translation_batch_size",
         "TRANSLATION_RETRY_DELAY_SECONDS": "translation_retry_delay_seconds",
+        "TRANSLATION_MIN_REQUEST_INTERVAL_SECONDS": "translation_min_request_interval_seconds",
+        "TRANSLATION_MAX_BACKOFF_SECONDS": "translation_max_backoff_seconds",
         "MAX_ZIP_DEPTH": "max_zip_depth",
         "MAX_EXTRACTED_FILES": "max_extracted_files",
         "MAX_EXTRACTED_SIZE_GB": "max_extracted_size_gb",
@@ -159,6 +170,7 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
         "RUN_LOCK_FILE": "run_lock_file",
         "AUTO_BOOTSTRAP_RCLONE": "auto_bootstrap_rclone",
         "AUTO_UPDATE_RCLONE": "auto_update_rclone",
+        "AUTO_TUNE_RESOURCES": "auto_tune_resources",
     }
     import os
 

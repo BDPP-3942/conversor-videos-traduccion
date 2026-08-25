@@ -270,7 +270,8 @@ class MediaPipeline:
                             )
                             item["resumed"] = False
                             processed.append(item)
-                            self._register_media_identity(source_path, normalized_name, item)
+                            if item.get("status") == "success":
+                                self._register_media_identity(source_path, normalized_name, item)
                         except Exception as exc:
                             self._record_failure(zip_file, source_path, relative_source, exc, failed)
                         self._write_progress_manifest(manifest_path, metadata, processed, failed, write_manifest)
@@ -295,21 +296,34 @@ class MediaPipeline:
                                 item = future.result()
                                 item["resumed"] = False
                                 processed.append(item)
-                                self._register_media_identity(
-                                    source_path,
-                                    item.get("normalized_name", normalize_comparison_key(source_path.name)),
-                                    item,
-                                )
+                                if item.get("status") == "success":
+                                    self._register_media_identity(
+                                        source_path,
+                                        item.get("normalized_name", normalize_comparison_key(source_path.name)),
+                                        item,
+                                    )
                             except Exception as exc:
                                 self._record_failure(zip_file, source_path, relative_source, exc, failed)
                             self._write_progress_manifest(manifest_path, metadata, processed, failed, write_manifest)
 
-            status = "success" if processed and not failed else "partial" if processed else "error"
+            has_partial_translation = any(
+                item.get("status") == "partial_translation" for item in processed
+            )
+            status = (
+                "partial"
+                if failed or has_partial_translation
+                else "success"
+                if processed
+                else "error"
+            )
             result = {
                 "zip": zip_file.name,
                 "status": status,
                 "media_found": len(extraction.media),
                 "media_processed": sum(item.get("status") == "success" for item in processed),
+                "media_partial_translation": sum(
+                    item.get("status") == "partial_translation" for item in processed
+                ),
                 "media_resumed": sum(item.get("resumed", False) for item in processed),
                 "media_skipped_duplicates": sum(item.get("status") == "skipped_duplicate" for item in processed),
                 "media_failed": len(failed),
@@ -422,6 +436,9 @@ class MediaPipeline:
         VTTBuilder.generate_vtt(segments, original_path)
 
         translated = translator.translate_segments(segments)
+        translation_failed_segments = sum(
+            bool(segment.get("translation_failed")) for segment in translated
+        )
         translated_path = work_root / f"{stem}_{self.settings.target_lang.lower()}.vtt"
         VTTBuilder.generate_vtt(translated, translated_path)
 
@@ -449,7 +466,8 @@ class MediaPipeline:
             "output_folder": stem,
             "output_relative_path": f"{stem}/{artifacts.mp4_path.name}",
             "segments": len(translated),
-            "status": "success",
+            "translation_failed_segments": translation_failed_segments,
+            "status": "partial_translation" if translation_failed_segments else "success",
             "normalized_name": normalized_name,
             "name_metadata": {
                 "course": metadata_item.course,
