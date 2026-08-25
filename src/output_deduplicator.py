@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 from __future__ import annotations
 
 import hashlib
@@ -5,10 +6,11 @@ import json
 import logging
 import re
 import shutil
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -151,7 +153,14 @@ class OutputDeduplicator:
             reason = str(item.get("reason", ""))
             validation_error = self._validate_delete_candidate(canonical_name, duplicate_name, signature)
             if validation_error:
-                results.append({"status": "skipped", "canonical": canonical_name, "duplicate": duplicate_name, "reason": validation_error})
+                results.append(
+                    {
+                        "status": "skipped",
+                        "canonical": canonical_name,
+                        "duplicate": duplicate_name,
+                        "reason": validation_error,
+                    }
+                )
                 continue
             result = {
                 "status": "planned" if dry_run else "deleted",
@@ -169,7 +178,6 @@ class OutputDeduplicator:
             self._remove_deleted_state(deleted_names)
         return results
 
-    # Compatibility with the previous API.
     def find_decisions(self) -> list[DuplicateDecision]:
         return self.analyze(self.scan())
 
@@ -217,7 +225,12 @@ class OutputDeduplicator:
             reasons.append("excessively long output name")
         return score, reasons
 
-    def _validate_delete_candidate(self, canonical_name: str, duplicate_name: str, expected_signature: tuple[str, ...]) -> str | None:
+    def _validate_delete_candidate(
+        self,
+        canonical_name: str,
+        duplicate_name: str,
+        expected_signature: tuple[str, ...],
+    ) -> str | None:
         if not canonical_name or not duplicate_name:
             return "invalid deletion plan entry"
         if canonical_name == duplicate_name:
@@ -289,23 +302,44 @@ class OutputDeduplicator:
                 entries = data.get("entries", [])
                 if not isinstance(entries, list):
                     continue
-                kept_entries = [entry for entry in entries if not (isinstance(entry, dict) and entry.get("output_folder") in deleted)]
-                removed_entries = [entry for entry in entries if isinstance(entry, dict) and entry.get("output_folder") in deleted]
+                kept_entries = [
+                    entry
+                    for entry in entries
+                    if not (isinstance(entry, dict) and entry.get("output_folder") in deleted)
+                ]
+                removed_entries = [
+                    entry
+                    for entry in entries
+                    if isinstance(entry, dict) and entry.get("output_folder") in deleted
+                ]
                 if removed_entries:
                     write_manifest(manifest_path, kept_entries, metadata=data.get("metadata", {}))
-                    manifest_updates.extend({"manifest": manifest_path.name, "entry": entry} for entry in removed_entries)
+                    manifest_updates.extend(
+                        {"manifest": manifest_path.name, "entry": entry}
+                        for entry in removed_entries
+                    )
         if removed_registry or manifest_updates:
             history_path.parent.mkdir(parents=True, exist_ok=True)
             with history_path.open("a", encoding="utf-8") as handle:
                 for item in removed_registry:
                     handle.write(json.dumps(item, ensure_ascii=False, separators=(",", ":")) + "\n")
                 for item in manifest_updates:
-                    handle.write(json.dumps({"status": "dedupe_manifest_entry_removed", **item}, ensure_ascii=False, separators=(",", ":")) + "\n")
+                    handle.write(
+                        json.dumps(
+                            {"status": "dedupe_manifest_entry_removed", **item},
+                            ensure_ascii=False,
+                            separators=(",", ":"),
+                        )
+                        + "\n"
+                    )
 
     @staticmethod
     def _content_signature(folder: Path) -> tuple[str, ...]:
         hashes: list[str] = []
-        for path in sorted((candidate for candidate in folder.rglob("*") if candidate.is_file()), key=lambda item: item.relative_to(folder).as_posix().casefold()):
+        for path in sorted(
+            (candidate for candidate in folder.rglob("*") if candidate.is_file()),
+            key=lambda item: item.relative_to(folder).as_posix().casefold(),
+        ):
             relative = path.relative_to(folder)
             if relative.parts and relative.parts[0] == "_manifests":
                 continue
@@ -328,7 +362,11 @@ class OutputDeduplicator:
                 "stability_reasons": list(decision.canonical.stability_reasons),
             },
             "duplicates": [
-                {"name": duplicate.name, "stability_score": duplicate.stability_score, "stability_reasons": list(duplicate.stability_reasons)}
+                {
+                    "name": duplicate.name,
+                    "stability_score": duplicate.stability_score,
+                    "stability_reasons": list(duplicate.stability_reasons),
+                }
                 for duplicate in decision.duplicates
             ],
         }
@@ -346,5 +384,8 @@ class OutputDeduplicator:
     def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         temporary = path.with_suffix(path.suffix + ".tmp")
-        temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        temporary.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
         temporary.replace(path)
