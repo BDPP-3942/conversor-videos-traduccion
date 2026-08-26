@@ -29,6 +29,7 @@ class AppSettings:
     whisper_beam_size: int = 5
     whisper_vad_filter: bool = True
     whisper_condition_on_previous_text: bool = True
+    whisper_initial_prompt: str = ""
     whisper_cpu_threads: int = 0
     translation_provider: str = "google"
     translation_fallback_providers: tuple[str, ...] = ()
@@ -112,6 +113,7 @@ class AppSettings:
             whisper_condition_on_previous_text=(
                 os.getenv("WHISPER_CONDITION_ON_PREVIOUS_TEXT", "false").lower() == "true"
             ),
+            whisper_initial_prompt=os.getenv("WHISPER_INITIAL_PROMPT", cls.whisper_initial_prompt),
             whisper_cpu_threads=int(os.getenv("WHISPER_CPU_THREADS", cls.whisper_cpu_threads)),
             translation_provider=os.getenv("TRANSLATION_PROVIDER", cls.translation_provider),
             translation_fallback_providers=fallback,
