@@ -10,7 +10,7 @@ from pathlib import Path
 class TranslationQuotaExceeded(RuntimeError):
     """Raised before a provider call when its configured free quota is exhausted."""
 
-    def __init__(self, provider: str, used: int, limit: int, window: str, unit: str = "characters") -> None:
+    def __init__(self, provider: str, used: int, limit: int, window: str, unit: str) -> None:
         self.provider = provider
         self.used = used
         self.limit = limit
@@ -20,17 +20,25 @@ class TranslationQuotaExceeded(RuntimeError):
 
 
 class TranslationQuotaGuard:
-    """Persist local free-tier usage reservations across concurrent requests."""
+    """Persist conservative free-tier usage reservations across concurrent requests."""
 
-    LIMITS = {
-        "deepl": ("%Y-%m", 500_000, "characters"),
-        "mymemory": ("%Y-%m-%d", 50_000, "characters"),
-    }
+    DEEPL_LIMIT = 500_000
+    MYMEMORY_ANONYMOUS_REQUESTS = 100
+    MYMEMORY_REGISTERED_REQUESTS = 1_000
 
-    def __init__(self, state_path: Path) -> None:
+    def __init__(self, state_path: Path, mymemory_registered: bool = False) -> None:
         self.state_path = Path(state_path)
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        self.mymemory_registered = mymemory_registered
         self._lock = threading.Lock()
+
+    def _quota(self, provider: str, now: datetime) -> tuple[str, int, str] | None:
+        if provider == "deepl":
+            return now.strftime("%Y-%m"), self.DEEPL_LIMIT, "characters"
+        if provider in {"mymemory", "my_memory"}:
+            limit = self.MYMEMORY_REGISTERED_REQUESTS if self.mymemory_registered else self.MYMEMORY_ANONYMOUS_REQUESTS
+            return now.strftime("%Y-%m-%d"), limit, "requests"
+        return None
 
     def _read(self) -> dict:
         if not self.state_path.is_file():
@@ -48,13 +56,15 @@ class TranslationQuotaGuard:
 
     def reserve(self, provider: str, texts: Iterable[str]) -> int:
         provider = provider.lower().replace("-", "_")
-        count = sum(len(str(text)) for text in texts)
-        if count <= 0 or provider not in self.LIMITS:
-            return count
-
+        values = [str(text) for text in texts]
+        if not values:
+            return 0
         now = datetime.now(UTC)
-        window_format, limit, unit = self.LIMITS[provider]
-        window = now.strftime(window_format)
+        quota = self._quota(provider, now)
+        if quota is None:
+            return sum(len(text) for text in values)
+        window, limit, unit = quota
+        count = len(values) if unit == "requests" else sum(len(text) for text in values)
         with self._lock:
             data = self._read()
             entry = data.get(provider, {})
@@ -67,11 +77,11 @@ class TranslationQuotaGuard:
 
     def record_quota_failure(self, provider: str) -> None:
         provider = provider.lower().replace("-", "_")
-        if provider not in self.LIMITS:
-            return
         now = datetime.now(UTC)
-        window_format, limit, _ = self.LIMITS[provider]
-        window = now.strftime(window_format)
+        quota = self._quota(provider, now)
+        if quota is None:
+            return
+        window, limit, _ = quota
         with self._lock:
             data = self._read()
             data[provider] = {"window": window, "used": limit}
@@ -79,10 +89,10 @@ class TranslationQuotaGuard:
 
     def usage(self, provider: str) -> dict[str, int | str] | None:
         provider = provider.lower().replace("-", "_")
-        if provider not in self.LIMITS:
+        quota = self._quota(provider, datetime.now(UTC))
+        if quota is None:
             return None
-        window_format, limit, unit = self.LIMITS[provider]
-        window = datetime.now(UTC).strftime(window_format)
+        window, limit, unit = quota
         with self._lock:
             entry = self._read().get(provider, {})
         used = int(entry.get("used", 0)) if entry.get("window") == window else 0
