@@ -386,9 +386,7 @@ def _audio_features(raw: bytes) -> tuple[float, float, float]:
         return (0.0, 0.0, 0.0)
     mean_abs = sum(abs(value) for value in values) / len(values)
     rms = (sum(value * value for value in values) / len(values)) ** 0.5
-    crossings = sum(
-        1 for previous, current in zip(values, values[1:], strict=False) if (previous < 0) != (current < 0)
-    )
+    crossings = sum(1 for previous, current in zip(values, values[1:], strict=False) if (previous < 0) != (current < 0))
     return (mean_abs, rms, crossings / len(values))
 
 

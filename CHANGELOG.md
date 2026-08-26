@@ -1,3 +1,17 @@
+# Changelog
+
+## v5.0.0 - reconstructed pipeline
+
+- Reinicio de la línea de versión en `v5.0.0` para la reconstrucción funcional del proyecto.
+- Añadidos proveedores de traducción HTTP directos para Google Cloud, DeepL Free y Microsoft Translator F0, con MyMemory como último fallback.
+- Añadidos límites de cuota persistentes, reintentos acotados por proveedor y fallback secuencial para segmentos no resueltos.
+- Unificada la política de nombres entre ZIP, vídeo directo y reprocesado.
+- Añadido procesamiento directo de MP4/MOV/MKV/AVI/WEBM/M4V/WMV sin contenedor ZIP.
+- Añadida deduplicación automática local con análisis, plan persistente, dry-run y eliminación conservadora basada en contenido y estabilidad del nombre.
+- Mantiene ejecución desatendida, perfiles persistentes de Google Drive/rclone, locks, reprocesado y packaging multiplataforma.
+- CI ampliada a Python 3.11/3.12/3.13 con pytest, Ruff, compileall, `pip check` y `pip-audit`.
+- Packaging corregido para descubrir todos los subpaquetes `config.*` y `src.*`.
+
 ## Unreleased
 
 - Añadida la opción configurable `generate_webm` para omitir la salida secundaria WebM en ejecuciones, builds y tareas programadas; el valor por defecto sigue siendo `true`.

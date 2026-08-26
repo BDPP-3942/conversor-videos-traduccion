@@ -55,6 +55,7 @@ class ProviderRegistry:
 
     def remove_google(self, profile: str) -> None:
         import shutil
+
         if not _safe_profile(profile):
             raise ValueError("Invalid Google profile name")
         target = self.google_dir / profile

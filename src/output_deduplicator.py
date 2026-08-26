@@ -297,6 +297,7 @@ class OutputDeduplicator:
         manifests = self.root / "_manifests"
         if manifests.is_dir():
             from src.manifest import read_manifest, write_manifest
+
             for manifest_path in manifests.glob("*.json"):
                 data = read_manifest(manifest_path)
                 entries = data.get("entries", [])
@@ -308,15 +309,12 @@ class OutputDeduplicator:
                     if not (isinstance(entry, dict) and entry.get("output_folder") in deleted)
                 ]
                 removed_entries = [
-                    entry
-                    for entry in entries
-                    if isinstance(entry, dict) and entry.get("output_folder") in deleted
+                    entry for entry in entries if isinstance(entry, dict) and entry.get("output_folder") in deleted
                 ]
                 if removed_entries:
                     write_manifest(manifest_path, kept_entries, metadata=data.get("metadata", {}))
                     manifest_updates.extend(
-                        {"manifest": manifest_path.name, "entry": entry}
-                        for entry in removed_entries
+                        {"manifest": manifest_path.name, "entry": entry} for entry in removed_entries
                     )
         if removed_registry or manifest_updates:
             history_path.parent.mkdir(parents=True, exist_ok=True)

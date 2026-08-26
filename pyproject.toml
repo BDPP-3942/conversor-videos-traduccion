@@ -4,31 +4,21 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "video-translation-pipeline"
-version = "4.2.3"
+version = "5.0.0"
 description = "Local and pluggable video/audio transcription and translation pipeline"
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "faster-whisper>=1,<2",
-    "deep-translator>=1.11,<2",
     "webvtt-py>=0.4,<1",
     "imageio-ffmpeg>=0.6,<1",
     "python-dotenv>=1,<2",
 ]
 
 [project.optional-dependencies]
-google = [
-    "google-api-python-client>=2,<3",
-    "google-auth-httplib2>=0.2,<1",
-    "google-auth-oauthlib>=1,<2",
-]
+google = ["google-auth-oauthlib>=1,<2"]
 rclone = []
-dev = [
-    "pytest>=8,<9",
-    "ruff>=0.9,<0.17",
-]
-package = [
-    "pyinstaller>=6,<7",
-]
+dev = ["pytest>=9.0.3,<10", "ruff>=0.9,<0.17"]
+package = ["pyinstaller>=6,<7"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -42,9 +32,24 @@ line-length = 120
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+# pytest uses assert as its assertion primitive; production code is checked for S101.
+"tests/**/*.py" = ["S101"]
+# These calls are deliberate provider/process integrations and are validated at their boundaries.
+"src/auth/rclone_manager.py" = ["S603", "S310"]
+"src/media_identity.py" = ["S603"]
+"src/storage/rclone.py" = ["S603"]
+"src/translation_providers.py" = ["S310"]
+"tests/test_media_converter.py" = ["S603"]
+"tests/test_media_identity.py" = ["S603"]
+# Existing invariant assertions are currently covered by the surrounding validation flow.
+"src/reprocessor.py" = ["S101"]
+
 [tool.setuptools]
-packages = ["config", "src", "src.storage"]
 py-modules = ["main"]
+
+[tool.setuptools.packages.find]
+include = ["config*", "src*"]
 
 [project.scripts]
 video-translation-pipeline = "main:main"

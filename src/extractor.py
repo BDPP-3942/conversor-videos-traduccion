@@ -92,9 +92,7 @@ class ZipExtractor:
             if result.extracted_files > self.max_files:
                 raise ValueError(f"Maximum number of extracted files exceeded: {self.max_files}")
             if result.extracted_bytes > self.max_total_size:
-                raise ValueError(
-                    f"Maximum extracted ZIP size exceeded: {self.max_total_size} bytes"
-                )
+                raise ValueError(f"Maximum extracted ZIP size exceeded: {self.max_total_size} bytes")
 
     @staticmethod
     def _extract_members(archive: ZipFile, members, destination: Path) -> None:
@@ -116,11 +114,7 @@ class ZipExtractor:
     @staticmethod
     def _is_ignored_name(name: str) -> bool:
         normalized = name.replace("\\", "/")
-        return (
-            normalized.startswith("__MACOSX/")
-            or "/__MACOSX/" in normalized
-            or normalized.endswith(".DS_Store")
-        )
+        return normalized.startswith("__MACOSX/") or "/__MACOSX/" in normalized or normalized.endswith(".DS_Store")
 
     @staticmethod
     def _safe_directory_name(name: str) -> str:

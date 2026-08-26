@@ -13,9 +13,7 @@ class STTEngine:
         try:
             from faster_whisper import WhisperModel
         except ImportError as exc:
-            raise RuntimeError(
-                "STT support requires the faster-whisper package"
-            ) from exc
+            raise RuntimeError("STT support requires the faster-whisper package") from exc
 
         self.settings = settings
         threads = settings.whisper_cpu_threads if settings.whisper_cpu_threads > 0 else 4
@@ -52,9 +50,7 @@ class STTEngine:
             "temperature": 0,
             "condition_on_previous_text": self.settings.whisper_condition_on_previous_text,
             "vad_filter": self.settings.whisper_vad_filter,
-            "vad_parameters": {"min_silence_duration_ms": 2000}
-            if self.settings.whisper_vad_filter
-            else None,
+            "vad_parameters": {"min_silence_duration_ms": 2000} if self.settings.whisper_vad_filter else None,
             "word_timestamps": False,
         }
         prompt = self.settings.whisper_initial_prompt.strip()

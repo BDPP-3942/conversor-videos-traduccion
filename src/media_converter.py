@@ -10,7 +10,16 @@ from config.settings import AppSettings
 from src.ffmpeg_resolver import FFmpegResolver
 
 logger = logging.getLogger(__name__)
-MEDIA_EXTENSIONS = {".mp4", ".mp3", ".wmv", ".mov", ".mkv", ".avi"}
+MEDIA_EXTENSIONS = {
+    ".mp3",
+    ".mp4",
+    ".wmv",
+    ".mov",
+    ".mkv",
+    ".avi",
+    ".webm",
+    ".m4v",
+}
 
 
 @dataclass(frozen=True)
@@ -119,7 +128,7 @@ class MediaConverter:
             "-map",
             "0:v:0",
             "-map",
-            "0:a:0",
+            "0:a:0?",
             "-c:v",
             "libx264",
             "-preset",
@@ -170,10 +179,7 @@ class MediaConverter:
             if max_width > 0:
                 command += [
                     "-vf",
-                    (
-                        f"scale=w='min({max_width},iw)':h=-2:"
-                        "force_original_aspect_ratio=decrease"
-                    ),
+                    f"scale=w='min({max_width},iw)':h=-2:force_original_aspect_ratio=decrease",
                 ]
 
         if fps > 0:
@@ -207,26 +213,22 @@ class MediaConverter:
 
     def _run(self, command: list[str]) -> None:
         logger.debug("Running FFmpeg: %s", " ".join(command))
-        progress_command = (
-            command[:-1]
-            + ["-progress", "pipe:2", "-nostats", command[-1]]
-            if command
-            else command
-        )
+        progress_command = command[:-1] + ["-progress", "pipe:2", "-nostats", command[-1]] if command else command
         process = None
         last_progress_log = 0.0
         last_out_time_ms = None
         stderr_lines: list[str] = []
         started = time.monotonic()
         try:
-            process = subprocess.Popen(
+            process = subprocess.Popen(  # noqa: S603
                 progress_command,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
                 text=True,
                 bufsize=1,
             )
-            assert process.stderr is not None
+            if process.stderr is None:
+                raise RuntimeError("FFmpeg stderr stream was not created")
             for line in process.stderr:
                 line = line.strip()
                 if not line:
@@ -249,6 +251,7 @@ class MediaConverter:
                         speed_text,
                     )
                     last_progress_log = now
+            process.stderr.close()
             return_code = process.wait(timeout=self.settings.ffmpeg_timeout_seconds)
             if return_code != 0:
                 detail = next(
@@ -262,8 +265,7 @@ class MediaConverter:
                 raise RuntimeError(detail)
         except FileNotFoundError as exc:
             raise RuntimeError(
-                "FFmpeg no está disponible. Ejecuta `pip install -r requirements.txt` "
-                "o configura FFMPEG_BIN."
+                "FFmpeg no está disponible. Ejecuta `pip install -r requirements.txt` o configura FFMPEG_BIN."
             ) from exc
         except subprocess.TimeoutExpired as exc:
             if process is not None:
@@ -271,9 +273,12 @@ class MediaConverter:
                 process.wait()
             raise RuntimeError("FFmpeg conversion timed out") from exc
         finally:
-            if process is not None and process.poll() is None:
-                process.kill()
-                process.wait()
+            if process is not None:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait()
+                if process.stderr is not None and not process.stderr.closed:
+                    process.stderr.close()
 
 
 def _extract_progress_value(lines: list[str], key: str) -> str | None:
