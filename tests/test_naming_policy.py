@@ -4,14 +4,14 @@ from src.naming_policy import resolve
 
 
 def test_zip_number_becomes_course_and_video_number_becomes_lesson():
-    metadata = resolve(Path("07_Forma_del_Tigre.mp4"), Path("Curso_03"))
+    metadata = resolve(Path("Curso_03/07_Forma_del_Tigre.mp4"), Path("."))
     assert metadata.course == 3
     assert metadata.lesson == 7
     assert metadata.output_stem == "3x07_Forma_del_Tigre"
 
 
 def test_without_numbers_uses_container_text_as_code():
-    metadata = resolve(Path("Respiracion_y_movimiento.mp4"), Path("Taichi_Intermedio"))
+    metadata = resolve(Path("Taichi_Intermedio/Respiracion_y_movimiento.mp4"), Path("."))
     assert metadata.course is None
     assert metadata.lesson is None
     assert metadata.course_name == "Taichi_Intermedio"
@@ -27,8 +27,8 @@ def test_without_container_uses_video_title_only():
 
 def test_download_noise_does_not_become_course_number():
     metadata = resolve(
-        Path("07_Forma_del_Tigre.mp4"),
-        Path("wetransfer_20260826T120000Z_Curso_03"),
+        Path("wetransfer_20260826T120000Z_Curso_03/07_Forma_del_Tigre.mp4"),
+        Path("."),
     )
     assert metadata.course == 3
     assert metadata.lesson == 7
