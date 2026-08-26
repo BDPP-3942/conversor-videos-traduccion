@@ -249,6 +249,7 @@ class MediaConverter:
                         speed_text,
                     )
                     last_progress_log = now
+            process.stderr.close()
             return_code = process.wait(timeout=self.settings.ffmpeg_timeout_seconds)
             if return_code != 0:
                 detail = next(
@@ -271,9 +272,12 @@ class MediaConverter:
                 process.wait()
             raise RuntimeError("FFmpeg conversion timed out") from exc
         finally:
-            if process is not None and process.poll() is None:
-                process.kill()
-                process.wait()
+            if process is not None:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait()
+                if process.stderr is not None and not process.stderr.closed:
+                    process.stderr.close()
 
 
 def _extract_progress_value(lines: list[str], key: str) -> str | None:
