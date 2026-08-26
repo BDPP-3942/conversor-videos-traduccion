@@ -37,10 +37,12 @@ class _HttpBatchProvider:
         payload: object,
         method: str = "POST",
     ) -> object:
+        if urllib.parse.urlsplit(url).scheme != "https":
+            raise ValueError("Translation provider URL must use HTTPS")
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         request = urllib.request.Request(url, data=body, headers=headers, method=method)
         try:
-            with urllib.request.urlopen(request, timeout=30) as response:
+            with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
                 return json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
@@ -84,7 +86,9 @@ class GoogleCloudBatchProvider(_HttpBatchProvider):
         try:
             translations = result["data"]["translations"]
         except (KeyError, TypeError) as exc:
-            raise RuntimeError("Google Cloud returned an invalid translation response") from exc
+            raise RuntimeError(
+                "Google Cloud returned an invalid translation response"
+            ) from exc
         if len(translations) != len(texts):
             raise RuntimeError(
                 f"Google returned {len(translations)} translations for {len(texts)} inputs"
@@ -130,13 +134,18 @@ class MicrosoftBatchProvider(_HttpBatchProvider):
         super().__init__(source, target)
         self.api_key = api_key
         self.region = region.strip()
-        self.base_url = "https://api.cognitive.microsofttranslator.com/translate?api-version=3.0"
+        self.base_url = (
+            "https://api.cognitive.microsofttranslator.com/translate"
+            "?api-version=3.0"
+        )
 
     def translate_batch(self, texts: list[str]) -> list[str]:
         if not texts:
             return []
         if len(texts) > self.MAX_ITEMS or sum(len(text) for text in texts) > self.MAX_CHARS:
-            raise ValueError("Microsoft batch exceeds the 25-item/5000-character request limit")
+            raise ValueError(
+                "Microsoft batch exceeds the 25-item/5000-character request limit"
+            )
         params = urllib.parse.urlencode({"from": self.source, "to": self.target})
         headers = {
             "Ocp-Apim-Subscription-Key": self.api_key,
@@ -148,7 +157,9 @@ class MicrosoftBatchProvider(_HttpBatchProvider):
         result = self._request(f"{self.base_url}&{params}", headers, payload)
         if not isinstance(result, list) or len(result) != len(texts):
             count = len(result) if isinstance(result, list) else "invalid"
-            raise RuntimeError(f"Microsoft returned {count} translations for {len(texts)} inputs")
+            raise RuntimeError(
+                f"Microsoft returned {count} translations for {len(texts)} inputs"
+            )
         outputs: list[str] = []
         for item in result:
             translations = item.get("translations", [])
@@ -169,9 +180,12 @@ class MyMemoryBatchProvider(_HttpBatchProvider):
             query = urllib.parse.urlencode(
                 {"q": text, "langpair": f"{self.source}|{self.target}"}
             )
-            request = urllib.request.Request(f"{self.url}?{query}", method="GET")
+            url = f"{self.url}?{query}"
+            if urllib.parse.urlsplit(url).scheme != "https":
+                raise ValueError("Translation provider URL must use HTTPS")
+            request = urllib.request.Request(url, method="GET")
             try:
-                with urllib.request.urlopen(request, timeout=30) as response:
+                with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
                     result = json.loads(response.read().decode("utf-8"))
             except urllib.error.HTTPError as exc:
                 detail = exc.read().decode("utf-8", errors="replace")
@@ -183,8 +197,7 @@ class MyMemoryBatchProvider(_HttpBatchProvider):
             except (urllib.error.URLError, TimeoutError) as exc:
                 raise RuntimeError(f"MyMemory connection failed: {exc}") from exc
             response_data = result.get("responseData", {})
-            translated = str(response_data.get("translatedText", ""))
-            outputs.append(translated)
+            outputs.append(str(response_data.get("translatedText", "")))
         return outputs
 
 
