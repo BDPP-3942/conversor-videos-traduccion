@@ -39,9 +39,15 @@ class MediaConverter:
         if source.suffix.lower() == ".mp4" and self.settings.ffmpeg_avoid_reencode:
             try:
                 self._run(self._build_mp4_copy_command(source, mp4))
-                logger.info("MP4 already compatible with container copy path: %s", source.name)
+                logger.info(
+                    "MP4 already compatible with container copy path: %s",
+                    source.name,
+                )
             except RuntimeError:
-                logger.info("MP4 copy path failed; falling back to H.264/AAC transcode: %s", source.name)
+                logger.info(
+                    "MP4 copy path failed; falling back to H.264/AAC transcode: %s",
+                    source.name,
+                )
                 self._run(self._build_mp4_command(source, mp4))
         else:
             self._run(self._build_mp4_command(source, mp4))
@@ -219,14 +225,15 @@ class MediaConverter:
         stderr_lines: list[str] = []
         started = time.monotonic()
         try:
-            process = subprocess.Popen(
+            process = subprocess.Popen(  # noqa: S603
                 progress_command,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
                 text=True,
                 bufsize=1,
             )
-            assert process.stderr is not None
+            if process.stderr is None:
+                raise RuntimeError("FFmpeg stderr stream was not created")
             for line in process.stderr:
                 line = line.strip()
                 if not line:
