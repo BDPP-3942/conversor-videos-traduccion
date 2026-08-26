@@ -31,7 +31,7 @@ class AppSettings:
     translation_fallback_providers: tuple[str, ...] = ("deepl", "mymemory")
     translation_retries: int = 3
     translation_max_retries_per_provider: int = 3
-    translation_batch_size: int = 0
+    translation_batch_size: int = 25
     translation_retry_delay_seconds: float = 1.5
     translation_min_request_interval_seconds: float = 0.5
     translation_max_backoff_seconds: float = 16.0
@@ -161,9 +161,8 @@ class AppSettings:
             provider_profile_dir=Path(os.getenv("PROVIDER_PROFILE_DIR", cls.provider_profile_dir)),
             run_lock_file=Path(os.getenv("RUN_LOCK_FILE", cls.run_lock_file)),
             auto_bootstrap_rclone=os.getenv("AUTO_BOOTSTRAP_RCLONE", "true").lower() == "true",
-            auto_update_rclone=os.getenv("AUTO_UPDATE_RCLONE", "false").lower() == "false" if "AUTO_UPDATE_RCLONE" not in os.environ else os.getenv("AUTO_UPDATE_RCLONE", "false").lower() == "true",
+            auto_update_rclone=os.getenv("AUTO_UPDATE_RCLONE", "false").lower() == "false",
             auto_tune_resources=os.getenv("AUTO_TUNE_RESOURCES", "true").lower() == "true",
-            provider_profile_dir=Path(os.getenv("PROVIDER_PROFILE_DIR", cls.provider_profile_dir)),
         )
 
 
