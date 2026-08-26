@@ -1,10 +1,9 @@
-
 def test_google_preflight_refreshes_silently(monkeypatch, tmp_path):
     import src.auth.unattended as unattended
     from config.settings import AppSettings
 
     class FakeCredentials:
-        refresh_token = "refresh-token"
+        refresh_token = "test-refresh-token"
 
     class FakeGoogle:
         def __init__(self, credentials_file, token_file):
