@@ -45,11 +45,11 @@ jobs:
       - name: Verify dependency consistency
         run: python -m pip check
 
-      - name: Verify installed entry point
-        run: video-translation-pipeline --help
-
       - name: Run tests
         run: python -m pytest -q
+
+      - name: Verify installed entry point
+        run: video-translation-pipeline --help
 
       - name: Verify imports and unused imports
         run: ruff check . --select F401,I001
