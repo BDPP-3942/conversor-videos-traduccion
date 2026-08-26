@@ -28,7 +28,6 @@ profile_dir = "secrets/providers"
 auto_tune_resources = true
 run_lock_file = "storage/state/run.lock"
 auto_bootstrap_rclone = true
-# Keep scheduler deterministic by default. Enable only if automatic rclone binary updates are desired.
 auto_update_rclone = false
 
 [processing]
@@ -37,19 +36,21 @@ whisper_device = "cpu"
 whisper_compute_type = "int8"
 whisper_beam_size = 5
 whisper_condition_on_previous_text = true
-# Domain vocabulary helps Whisper recognize Chinese/Tai Chi terms when they are pronounced in Spanish.
 whisper_initial_prompt = "Tai Chi, taichi, Tai Chi Chuan, Taijiquan, T'ai Chi, qi, qigong, chi kung, yin yang, wuji, baguazhang, Xing Yi, Tui Shou, Qin Na, Chin Na, Lan Que Wei, Si Zheng Tui, Peng, Lu, Ji, An, Cai, Lie, Zhou, Kao, taiji, taijiquan, manos de seda, gran rueda, tambor chino, cielo, tierra"
 whisper_cpu_threads = 0
 whisper_vad_filter = true
-translation_provider = "google"
-# Google remains primary. MyMemory is the default no-key fallback supported by deep-translator.
-translation_fallback_providers = ["mymemory"]
-translation_retries = 5
-max_retries_per_provider = 5
+
+translation_provider = "mistral"
+translation_fallback_providers = ["deepl", "mymemory"]
+translation_retries = 3
+max_retries_per_provider = 3
 translation_retry_delay_seconds = 1.5
-translation_min_request_interval_seconds = 0.35
+translation_min_request_interval_seconds = 0.5
 translation_max_backoff_seconds = 16.0
-translation_batch_size = 0
+translation_batch_size = 25
+translation_max_parallel_requests = 2
+translation_provider_max_parallel_requests = 0
+
 max_zip_depth = 5
 max_extracted_files = 10000
 max_extracted_size_gb = 10.0
