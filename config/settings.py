@@ -161,7 +161,7 @@ class AppSettings:
             provider_profile_dir=Path(os.getenv("PROVIDER_PROFILE_DIR", cls.provider_profile_dir)),
             run_lock_file=Path(os.getenv("RUN_LOCK_FILE", cls.run_lock_file)),
             auto_bootstrap_rclone=os.getenv("AUTO_BOOTSTRAP_RCLONE", "true").lower() == "true",
-            auto_update_rclone=os.getenv("AUTO_UPDATE_RCLONE", "false").lower() == "false",
+            auto_update_rclone=os.getenv("AUTO_UPDATE_RCLONE", "false").lower() == "true",
             auto_tune_resources=os.getenv("AUTO_TUNE_RESOURCES", "true").lower() == "true",
         )
 
