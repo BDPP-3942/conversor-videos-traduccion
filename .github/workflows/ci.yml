@@ -45,6 +45,9 @@ jobs:
       - name: Run tests
         run: pytest -q
 
+      - name: Verify imports and unused imports
+        run: ruff check . --select F401,I001
+
       - name: Ruff lint
         run: ruff check .
 
