@@ -24,18 +24,36 @@ class RawVideoPipeline:
         self.translator = TextTranslator(settings)
 
     def run(self, source: str, target: str) -> dict[str, Any]:
-        files = [f for f in self.storage.list_children(source) if not f.is_directory and Path(f.name).suffix.lower() in VIDEO_EXTENSIONS]
+        files = [
+            file
+            for file in self.storage.list_children(source)
+            if not file.is_directory and Path(file.name).suffix.lower() in VIDEO_EXTENSIONS
+        ]
         results = []
         for source_file in files:
             try:
                 results.append(self._process(source_file, target))
             except Exception as exc:
-                results.append({"video": source_file.name, "status": "error", "error_type": type(exc).__name__, "error": str(exc)})
+                results.append(
+                    {
+                        "video": source_file.name,
+                        "status": "error",
+                        "error_type": type(exc).__name__,
+                        "error": str(exc),
+                    }
+                )
         failed = sum(item["status"] == "error" for item in results)
-        return {"status": "error" if failed and failed == len(results) else "success", "videos_found": len(files), "videos_processed": sum(item["status"] == "success" for item in results), "videos_partial": sum(item["status"] == "partial_translation" for item in results), "videos_failed": failed, "videos": results}
+        return {
+            "status": "error" if failed and failed == len(results) else "success",
+            "videos_found": len(files),
+            "videos_processed": sum(item["status"] == "success" for item in results),
+            "videos_partial": sum(item["status"] == "partial_translation" for item in results),
+            "videos_failed": failed,
+            "videos": results,
+        }
 
     def _process(self, source_file: StorageFile, target: str) -> dict[str, Any]:
-        metadata = resolve(None, source_file.name)
+        metadata = resolve(Path(source_file.name), Path("."))
         with tempfile.TemporaryDirectory(dir=local_storage_paths()["work"]) as temp:
             root = Path(temp)
             input_path = root / source_file.name
@@ -57,4 +75,16 @@ class RawVideoPipeline:
                 self.storage.upload_file(converted.secondary_video_path, output, "video/webm")
             self.storage.upload_file(translated_path, output, "text/vtt")
             self.storage.upload_file(original, original_target, "text/vtt")
-            return {"video": source_file.name, "status": "partial_translation" if failed else "success", "output_folder": metadata.output_stem, "segments": len(segments), "translation_failed_segments": failed, "name_metadata": {"course": metadata.course, "lesson": metadata.lesson, "description": metadata.description, "output_stem": metadata.output_stem}}
+            return {
+                "video": source_file.name,
+                "status": "partial_translation" if failed else "success",
+                "output_folder": metadata.output_stem,
+                "segments": len(segments),
+                "translation_failed_segments": failed,
+                "name_metadata": {
+                    "course": metadata.course,
+                    "lesson": metadata.lesson,
+                    "description": metadata.description,
+                    "output_stem": metadata.output_stem,
+                },
+            }
