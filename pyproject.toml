@@ -39,6 +39,16 @@ line-length = 120
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]
+"src/auth/rclone_manager.py" = ["S603", "S310"]
+"src/media_identity.py" = ["S603"]
+"src/storage/rclone.py" = ["S603"]
+"src/translation_providers.py" = ["S310"]
+"tests/test_media_converter.py" = ["S603"]
+"tests/test_media_identity.py" = ["S603"]
+"src/reprocessor.py" = ["S101"]
+
 [tool.setuptools]
 py-modules = ["main"]
 
