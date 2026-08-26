@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 from pathlib import Path
 
 from src.path_limits import _WINDOWS_RESERVED, fit_component
@@ -261,3 +262,72 @@ def clean_for_filename(value: str) -> str:
 def normalize_filename(filename: str) -> str:
     path = Path(filename)
     return f"{clean_for_filename(path.stem)}{path.suffix.lower()}"
+
+
+def normalize_component(value: str) -> str:
+    """Normalize one filesystem component using the shared filename policy."""
+    return _sanitize_text(value)
+
+
+def normalize_comparison_key(filename: str) -> str:
+    """Normalize a media title for duplicate-candidate matching."""
+    path = Path(filename)
+    value = FileNameFormatter._clean_context(path.stem)
+    value = re.sub(
+        r"(?:[_\- .]+)(?:20\d{2}[-_](?:0?[1-9]|1[0-2])[-_](?:0?[1-9]|[12]\d|3[01])[_-]\d{4,6})(?:[-_]\d+)?$",
+        "",
+        value,
+        flags=re.IGNORECASE,
+    )
+    value = FileNameFormatter._remove_generic_tokens(value)
+    value = re.sub(r"[^a-zA-Z0-9]+", " ", _sanitize_text(value)).lower().strip()
+    return re.sub(r"\s+", " ", value)
+
+
+def normalized_name_similarity(left: str, right: str) -> float:
+    """Return a combined character/token similarity score for two normalized names."""
+    left_tokens = set(left.split())
+    right_tokens = set(right.split())
+    if not left and not right:
+        return 1.0
+    if not left or not right:
+        return 0.0
+    sequence_score = SequenceMatcher(None, left, right).ratio()
+    union = left_tokens | right_tokens
+    token_score = len(left_tokens & right_tokens) / len(union) if union else 0.0
+    return 0.65 * sequence_score + 0.35 * token_score
+
+
+def fit_output_stem(
+    stem: str,
+    parent: Path,
+    unique_suffix: str | None = None,
+    reserve_suffixes: tuple[str, ...] = (),
+) -> str:
+    """Fit an output stem to the host filesystem, reserving artifact suffix space."""
+    suffix = f"__{unique_suffix}" if unique_suffix else ""
+    candidate = fit_component(stem, parent, suffix=suffix)
+    if not reserve_suffixes:
+        return candidate
+
+    from src.path_limits import get_filesystem_limits
+
+    limits = get_filesystem_limits(parent)
+    max_component = max(1, limits.max_component)
+    extra = max((len(item.encode("utf-8")) for item in reserve_suffixes), default=0)
+    current = candidate.encode("utf-8")
+    allowed = max(1, max_component - extra)
+    if len(current) <= allowed:
+        return candidate
+
+    raw = candidate.encode("utf-8")[:allowed]
+    while raw:
+        try:
+            prefix = raw.decode("utf-8").rstrip(" ._-")
+            if prefix:
+                return prefix
+        except UnicodeDecodeError:
+            raw = raw[:-1]
+            continue
+        raw = raw[:-1]
+    return "_"
