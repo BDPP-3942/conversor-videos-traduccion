@@ -10,31 +10,63 @@ _NOISE = re.compile(
     r"extract(?:ed)?|unzip(?:ped)?|descomprim(?:ido|ida|idos|idas))",
     re.IGNORECASE,
 )
-_TIMESTAMP = re.compile(r"\b\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?\b", re.IGNORECASE)
-_ORDINAL = re.compile(r"(?<!\d)(\d{1,4})(?:º|ª|\s*[oa])?(?!\d)", re.IGNORECASE)
+_TIMESTAMP = re.compile(
+    r"\b\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?\b",
+    re.IGNORECASE,
+)
+_ORDINAL = re.compile(
+    r"(?<!\d)(\d{1,4})(?:º|ª|\s*[oa])?(?!\d)",
+    re.IGNORECASE,
+)
 _NUMBER = re.compile(r"(?<!\d)(\d{1,4})(?!\d)")
 _LABEL = re.compile(
     r"(?:curso|course|lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)",
     re.IGNORECASE,
 )
 _GENERIC = {
-    "mp4", "wmv", "video", "videos", "audio", "media", "file", "files",
-    "archivo", "archivos", "download", "downloads", "descarga", "descargas",
-    "compressed", "compression", "archive", "zip", "rar", "7z",
+    "mp4",
+    "wmv",
+    "video",
+    "videos",
+    "audio",
+    "media",
+    "file",
+    "files",
+    "archivo",
+    "archivos",
+    "download",
+    "downloads",
+    "descarga",
+    "descargas",
+    "compressed",
+    "compression",
+    "archive",
+    "zip",
+    "rar",
+    "7z",
 }
 
 
 def _clean(value: str) -> str:
     value = Path(value).stem
     value = _TIMESTAMP.sub("_", value)
-    value = re.sub(r"\s*\((?:copy|copia|\d+)\)\s*$", "", value, flags=re.IGNORECASE)
+    value = re.sub(
+        r"\s*\((?:copy|copia|\d+)\)\s*$",
+        "",
+        value,
+        flags=re.IGNORECASE,
+    )
     value = _NOISE.sub("_", value)
     return re.sub(r"[_ .-]+", "_", value).strip("_ .-")
 
 
 def _is_noise(value: str) -> bool:
     cleaned = _clean(value).lower()
-    return not cleaned or cleaned in _GENERIC or not re.search(r"[a-záéíóúüñ]", cleaned)
+    return (
+        not cleaned
+        or cleaned in _GENERIC
+        or not re.search(r"[a-záéíóúüñ]", cleaned)
+    )
 
 
 def _number(value: str) -> int | None:
@@ -51,7 +83,11 @@ def _description(video_name: str, lesson: int | None) -> str:
         value = _ORDINAL.sub("_", value, count=1)
     value = _LABEL.sub("_", value)
     value = re.sub(r"_+", "_", value).strip("_")
-    tokens = [token for token in value.split("_") if token.lower() not in _GENERIC]
+    tokens = [
+        token
+        for token in value.split("_")
+        if token.lower() not in _GENERIC
+    ]
     return _sanitize_text("_".join(tokens)) if tokens else ""
 
 
@@ -62,8 +98,12 @@ def _course_code(context_values: list[str]) -> str | None:
             continue
         without_numbers = _NUMBER.sub("_", cleaned)
         without_labels = _LABEL.sub("_", without_numbers)
-        tokens = [token for token in re.split(r"_+", without_labels) if token]
-        tokens = [token for token in tokens if token.lower() not in _GENERIC]
+        tokens = [
+            token for token in re.split(r"_+", without_labels) if token
+        ]
+        tokens = [
+            token for token in tokens if token.lower() not in _GENERIC
+        ]
         if tokens:
             return _sanitize_text("_".join(tokens))
     return None
@@ -81,15 +121,8 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
     course_name = None if course is not None else _course_code(context)
     description = _description(source.name, lesson)
 
-    if course is not None:
-        prefix = str(course)
-    else:
-        prefix = course_name or ""
-
-    if lesson is not None:
-        lesson_part = f"{lesson:02d}"
-    else:
-        lesson_part = description
+    prefix = str(course) if course is not None else course_name or ""
+    lesson_part = f"{lesson:02d}" if lesson is not None else description
 
     if prefix and lesson_part:
         output_stem = f"{prefix}x{lesson_part}"
@@ -102,15 +135,21 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
     review_required = course is None or lesson is None
     reasons: list[str] = []
     if course is None:
-        reasons.append("course number not found; textual code inferred when possible")
+        reasons.append(
+            "course number not found; textual code inferred when possible"
+        )
     if lesson is None:
-        reasons.append("lesson number not found; no synthetic lesson number added")
+        reasons.append(
+            "lesson number not found; no synthetic lesson number added"
+        )
     return SourceNameMetadata(
         course=course,
         lesson=lesson,
         description=description or fallback,
         output_stem=output_stem or fallback,
-        confidence="high" if course is not None and lesson is not None else "medium",
+        confidence=(
+            "high" if course is not None and lesson is not None else "medium"
+        ),
         review_required=review_required,
         review_reason="; ".join(reasons),
         course_name=course_name,
