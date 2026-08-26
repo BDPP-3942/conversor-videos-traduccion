@@ -79,16 +79,16 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
     description = _description(source.name, lesson)
 
     if course is not None and lesson is not None:
-        output_stem = f"{course}x{lesson:02d}"
+        prefix = f"{course}x{lesson:02d}"
     elif course is not None:
-        output_stem = str(course)
+        prefix = str(course)
     elif course_name:
-        output_stem = course_name
+        prefix = f"{course_name}_{lesson:02d}" if lesson is not None else course_name
     else:
-        output_stem = ""
-    if description:
-        output_stem = f"{output_stem}_{description}" if output_stem else description
+        prefix = f"{lesson:02d}" if lesson is not None else ""
 
+    output_stem = f"{prefix}_{description}" if prefix and description else prefix or description
+    fallback = _sanitize_text(source.stem)
     review_required = course is None or lesson is None
     reasons: list[str] = []
     if course is None:
@@ -98,8 +98,8 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
     return SourceNameMetadata(
         course=course,
         lesson=lesson,
-        description=description or _sanitize_text(source.stem),
-        output_stem=output_stem or _sanitize_text(source.stem),
+        description=description or fallback,
+        output_stem=output_stem or fallback,
         confidence="high" if course is not None and lesson is not None else "medium",
         review_required=review_required,
         review_reason="; ".join(reasons),
