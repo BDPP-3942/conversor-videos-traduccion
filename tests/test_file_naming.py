@@ -3,8 +3,8 @@ from pathlib import Path
 from src.file_naming import FileNameFormatter, normalize_comparison_key
 
 
-def test_compression_download_noise_is_ignored() -> None:
-    root = Path("/tmp/extracted")
+def test_compression_download_noise_is_ignored(tmp_path: Path) -> None:
+    root = tmp_path / "extracted"
     source = (
         root
         / "drive-download-20260818T104028Z-1-002"
@@ -18,8 +18,8 @@ def test_compression_download_noise_is_ignored() -> None:
     assert metadata.output_stem.startswith("movilidad_articularx02_")
 
 
-def test_arbitrary_text_becomes_textual_course_code() -> None:
-    root = Path("/tmp/extracted")
+def test_arbitrary_text_becomes_textual_course_code(tmp_path: Path) -> None:
+    root = tmp_path / "extracted"
     source = root / "wetransfer_material-estudio" / "saludo-inicial.mp4"
     metadata = FileNameFormatter.resolve_source_metadata(source, root)
     assert metadata.course is None
