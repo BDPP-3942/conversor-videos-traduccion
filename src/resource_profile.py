@@ -43,10 +43,9 @@ def _memory_gb() -> float:
             if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
                 return status.total_phys / 1024**3
         elif system == "Darwin":
-            import subprocess
-
-            raw = subprocess.check_output(["sysctl", "-n", "hw.memsize"], text=True)
-            return int(raw.strip()) / 1024**3
+            page_size = int(os.sysconf("SC_PAGE_SIZE"))
+            physical_pages = int(os.sysconf("SC_PHYS_PAGES"))
+            return page_size * physical_pages / 1024**3
         elif system == "Linux":
             with open("/proc/meminfo", encoding="utf-8") as handle:
                 for line in handle:
@@ -82,15 +81,7 @@ def detect_profile(settings: AppSettings) -> ResourceProfile:
         parallel = 1
         batch = 6
 
-    return ResourceProfile(
-        name=name,
-        logical_cpus=cpus,
-        memory_gb=memory,
-        whisper_model=model,
-        whisper_threads=threads,
-        max_parallel_videos=parallel,
-        translation_batch_size=batch,
-    )
+    return ResourceProfile(name, cpus, memory, model, threads, parallel, batch)
 
 
 def apply_resource_profile(settings: AppSettings) -> AppSettings:
