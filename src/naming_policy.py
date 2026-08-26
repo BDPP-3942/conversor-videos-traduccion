@@ -12,6 +12,7 @@ _NOISE = re.compile(
 )
 _TIMESTAMP = re.compile(r"\b\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?\b", re.IGNORECASE)
 _NUMBER = re.compile(r"(?<!\d)(\d{1,4})(?!\d)")
+_ORDINAL = re.compile(r"(?<!\d)(\d{1,4})(?:º|ª|\s*[oa])?(?!\d)", re.IGNORECASE)
 _LABEL = re.compile(
     r"(?:curso|course|lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)",
     re.IGNORECASE,
@@ -40,14 +41,14 @@ def _number(value: str) -> int | None:
     cleaned = _clean(value)
     if not cleaned or _TIMESTAMP.search(value) or _is_noise(cleaned):
         return None
-    match = _NUMBER.search(cleaned)
+    match = _ORDINAL.search(cleaned)
     return int(match.group(1)) if match else None
 
 
 def _description(video_name: str, lesson: int | None) -> str:
     value = _clean(video_name)
     if lesson is not None:
-        value = _NUMBER.sub("_", value, count=1)
+        value = _ORDINAL.sub("_", value, count=1)
     value = _LABEL.sub("_", value)
     value = re.sub(r"_+", "_", value).strip("_")
     tokens = [token for token in value.split("_") if token.lower() not in _GENERIC]
@@ -89,7 +90,7 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
         output_stem = f"{output_stem}_{description}" if output_stem else description
 
     review_required = course is None or lesson is None
-    reasons = []
+    reasons: list[str] = []
     if course is None:
         reasons.append("course number not found; textual code inferred when possible")
     if lesson is None:
