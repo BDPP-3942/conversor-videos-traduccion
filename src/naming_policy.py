@@ -11,8 +11,8 @@ _NOISE = re.compile(
     re.IGNORECASE,
 )
 _TIMESTAMP = re.compile(r"\b\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?\b", re.IGNORECASE)
-_NUMBER = re.compile(r"(?<!\d)(\d{1,4})(?!\d)")
 _ORDINAL = re.compile(r"(?<!\d)(\d{1,4})(?:º|ª|\s*[oa])?(?!\d)", re.IGNORECASE)
+_NUMBER = re.compile(r"(?<!\d)(\d{1,4})(?!\d)")
 _LABEL = re.compile(
     r"(?:curso|course|lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)",
     re.IGNORECASE,
@@ -73,21 +73,31 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
     """Apply one naming policy to ZIP, raw-video and migration flows."""
     relative = source.relative_to(extract_root)
     context = list(relative.parts[:-1])
-    course = next((value for value in (_number(item) for item in context) if value is not None), None)
+    course = next(
+        (value for value in (_number(item) for item in context) if value is not None),
+        None,
+    )
     lesson = _number(source.name)
     course_name = None if course is not None else _course_code(context)
     description = _description(source.name, lesson)
 
-    if course is not None and lesson is not None:
-        prefix = f"{course}x{lesson:02d}"
-    elif course is not None:
+    if course is not None:
         prefix = str(course)
-    elif course_name:
-        prefix = f"{course_name}_{lesson:02d}" if lesson is not None else course_name
     else:
-        prefix = f"{lesson:02d}" if lesson is not None else ""
+        prefix = course_name or ""
 
-    output_stem = f"{prefix}_{description}" if prefix and description else prefix or description
+    if lesson is not None:
+        lesson_part = f"{lesson:02d}"
+    else:
+        lesson_part = description
+
+    if prefix and lesson_part:
+        output_stem = f"{prefix}x{lesson_part}"
+        if lesson is not None and description:
+            output_stem = f"{output_stem}_{description}"
+    else:
+        output_stem = prefix or lesson_part
+
     fallback = _sanitize_text(source.stem)
     review_required = course is None or lesson is None
     reasons: list[str] = []
