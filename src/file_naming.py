@@ -239,6 +239,13 @@ class FileNameFormatter:
     def _looks_like_download_artifact(cls, value: str) -> bool:
         return bool(cls.FILENAME_ARTIFACT_PATTERN.search(value))
 
+    @classmethod
+    def _remove_generic_tokens(cls, value: str) -> str:
+        """Remove generic transport/media tokens without removing meaningful identifiers."""
+        tokens = [token for token in re.split(r"[_ ]+", value) if token]
+        filtered = [token for token in tokens if token.lower() not in cls.GENERIC_TOKENS]
+        return "_".join(filtered)
+
     @staticmethod
     def _label_or_default(value: str | None, default: str) -> str:
         return value.strip() if value and value.strip() else default

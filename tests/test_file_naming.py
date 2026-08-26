@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from src.file_naming import FileNameFormatter
+from src.file_naming import FileNameFormatter, normalize_comparison_key
 
 
 def test_compression_download_noise_is_ignored() -> None:
@@ -26,3 +26,7 @@ def test_arbitrary_text_becomes_textual_course_code() -> None:
     assert metadata.course_name == "material_estudio"
     assert metadata.lesson is None
     assert metadata.output_stem == "material_estudioxsaludo_inicial"
+
+
+def test_normalize_comparison_key_removes_generic_tokens() -> None:
+    assert normalize_comparison_key("video_03_forma_del_tigre.mp4") == "03 forma del tigre"
