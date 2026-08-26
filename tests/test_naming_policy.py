@@ -15,7 +15,7 @@ def test_without_numbers_uses_container_text_as_code():
     assert metadata.course is None
     assert metadata.lesson is None
     assert metadata.course_name == "Taichi_Intermedio"
-    assert metadata.output_stem == "Taichi_Intermedio_Respiracion_y_movimiento"
+    assert metadata.output_stem == "Taichi_IntermedioxRespiracion_y_movimiento"
 
 
 def test_without_container_uses_video_title_only():
@@ -32,3 +32,17 @@ def test_download_noise_does_not_become_course_number():
     )
     assert metadata.course == 3
     assert metadata.lesson == 7
+
+
+def test_textual_course_and_numeric_lesson_use_x_separator():
+    metadata = resolve(Path("Taichi_Intermedio/02_Forma.mp4"), Path("."))
+    assert metadata.course_name == "Taichi_Intermedio"
+    assert metadata.lesson == 2
+    assert metadata.output_stem == "Taichi_Intermediox02_Forma"
+
+
+def test_numeric_course_and_textual_lesson_use_x_separator():
+    metadata = resolve(Path("Curso_03/Forma_del_Tigre.mp4"), Path("."))
+    assert metadata.course == 3
+    assert metadata.lesson is None
+    assert metadata.output_stem == "3_Forma_del_Tigre"
