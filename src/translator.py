@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import secrets
 import threading
 import time
@@ -30,7 +31,10 @@ class TextTranslator:
         self.settings = settings
         self._providers: dict[str, TranslationProvider] = {}
         self._failed_segments = 0
-        self._quota = TranslationQuotaGuard(local_storage_paths()["state"] / "translation_quotas.json")
+        self._quota = TranslationQuotaGuard(
+            local_storage_paths()["state"] / "translation_quotas.json",
+            mymemory_registered=bool(os.getenv("MYMEMORY_EMAIL", "").strip()),
+        )
         self._request_lock = threading.Lock()
         self._last_request_at: dict[str, float] = {}
         self._provider_limits: dict[str, threading.BoundedSemaphore] = {}
@@ -170,8 +174,7 @@ class TextTranslator:
                 for chunk in chunks
             }
             for future in as_completed(futures):
-                chunk_results = future.result()
-                results.extend(chunk_results)
+                results.extend(future.result())
         return results
 
     def _translate_provider_chunk(
