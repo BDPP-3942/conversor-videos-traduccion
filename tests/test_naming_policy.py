@@ -11,7 +11,10 @@ def test_zip_number_becomes_course_and_video_number_becomes_lesson():
 
 
 def test_without_numbers_uses_container_text_as_code():
-    metadata = resolve(Path("Taichi_Intermedio/Respiracion_y_movimiento.mp4"), Path("."))
+    metadata = resolve(
+        Path("Taichi_Intermedio/Respiracion_y_movimiento.mp4"),
+        Path("."),
+    )
     assert metadata.course is None
     assert metadata.lesson is None
     assert metadata.course_name == "Taichi_Intermedio"
