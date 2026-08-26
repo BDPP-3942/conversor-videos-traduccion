@@ -182,7 +182,7 @@ def _sanitize_text(value: str) -> str:
 
 
 def clean_for_filename(value: str) -> str:
-    """Sanitize text only; filesystem-dependent fitting belongs to fit_output_stem/fit_component."""
+    """Sanitize text only; filesystem-dependent fitting needs a real parent Path."""
     normalized = unicodedata.normalize("NFKD", value)
     normalized = "".join(char for char in normalized if not unicodedata.combining(char))
     normalized = re.sub(r"[<>:\"/\\|?*\x00-\x1f]", "_", normalized)
@@ -222,6 +222,7 @@ def normalized_name_similarity(left: str, right: str) -> float:
 
 
 def fit_output_stem(stem: str, parent: Path, unique_suffix: str | None = None, reserve_suffixes: tuple[str, ...] = ()) -> str:
+    """Fit an output stem to the host filesystem using the actual parent path."""
     suffix = f"__{unique_suffix}" if unique_suffix else ""
     candidate = fit_component(stem, parent, suffix=suffix)
     if not reserve_suffixes:
