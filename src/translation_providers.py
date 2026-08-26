@@ -22,6 +22,10 @@ class TranslationQuotaError(RuntimeError):
     """Provider reported that its remote quota or free allowance is exhausted."""
 
 
+class TranslationRateLimitError(RuntimeError):
+    """Provider temporarily rejected a request because of rate limiting."""
+
+
 class _HttpBatchProvider:
     def __init__(self, source: str, target: str) -> None:
         self.source = source
@@ -46,13 +50,73 @@ class _HttpBatchProvider:
                 return json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
-            if exc.code in {402, 403, 429, 456}:
+            if exc.code in {402, 403, 456}:
                 raise TranslationQuotaError(
                     f"translation provider quota/authorization response {exc.code}: {detail}"
+                ) from exc
+            if exc.code == 429:
+                raise TranslationRateLimitError(
+                    f"translation provider rate limit response 429: {detail}"
                 ) from exc
             raise RuntimeError(f"translation provider HTTP {exc.code}: {detail}") from exc
         except (urllib.error.URLError, TimeoutError) as exc:
             raise RuntimeError(f"translation provider connection failed: {exc}") from exc
+
+
+class MistralBatchProvider(_HttpBatchProvider):
+    """Mistral chat API provider using structured JSON output for segment batches."""
+
+    URL = "https://api.mistral.ai/v1/chat/completions"
+    DEFAULT_MODEL = "mistral-small-latest"
+    MAX_ITEMS = 50
+    MAX_CHARS = 20_000
+
+    def __init__(self, source: str, target: str, api_key: str, model: str = "") -> None:
+        super().__init__(source.lower(), target.lower())
+        self.api_key = api_key
+        self.model = model.strip() or self.DEFAULT_MODEL
+
+    def translate_batch(self, texts: list[str]) -> list[str]:
+        if not texts:
+            return []
+        if len(texts) > self.MAX_ITEMS or sum(len(text) for text in texts) > self.MAX_CHARS:
+            raise ValueError("Mistral batch exceeds the configured request size limit")
+        items = [{"id": index, "text": text} for index, text in enumerate(texts)]
+        payload = {
+            "model": self.model,
+            "temperature": 0,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        f"Translate each input from {self.source} to {self.target}. "
+                        "Return JSON only as an object with a 'translations' array. "
+                        "The array must contain exactly one string for every input, in the same order. "
+                        "Do not merge, split, omit, explain, or add commentary. Preserve names, numbers and formatting."
+                    ),
+                },
+                {"role": "user", "content": json.dumps(items, ensure_ascii=False)},
+            ],
+            "response_format": {"type": "json_object"},
+        }
+        result = self._request(
+            self.URL,
+            {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            payload,
+        )
+        try:
+            content = result["choices"][0]["message"]["content"]
+            parsed = json.loads(content) if isinstance(content, str) else content
+            translations = parsed["translations"]
+        except (KeyError, TypeError, ValueError, IndexError) as exc:
+            raise RuntimeError("Mistral returned an invalid structured translation response") from exc
+        if not isinstance(translations, list) or len(translations) != len(texts):
+            count = len(translations) if isinstance(translations, list) else "invalid"
+            raise RuntimeError(f"Mistral returned {count} translations for {len(texts)} inputs")
+        return [str(item) for item in translations]
 
 
 class GoogleCloudBatchProvider(_HttpBatchProvider):
@@ -72,17 +136,8 @@ class GoogleCloudBatchProvider(_HttpBatchProvider):
         if len(texts) > self.MAX_ITEMS or sum(len(text) for text in texts) > self.MAX_CHARS:
             raise ValueError("Google batch exceeds the configured request size limit")
         params = urllib.parse.urlencode({"key": self.api_key})
-        payload = {
-            "q": texts,
-            "source": self.source,
-            "target": self.target,
-            "format": "text",
-        }
-        result = self._request(
-            f"{self.url}?{params}",
-            {"Content-Type": "application/json"},
-            payload,
-        )
+        payload = {"q": texts, "source": self.source, "target": self.target, "format": "text"}
+        result = self._request(f"{self.url}?{params}", {"Content-Type": "application/json"}, payload)
         try:
             translations = result["data"]["translations"]
         except (KeyError, TypeError) as exc:
@@ -95,6 +150,9 @@ class GoogleCloudBatchProvider(_HttpBatchProvider):
 class DeepLBatchProvider(_HttpBatchProvider):
     """Direct DeepL API client using the official HTTP API."""
 
+    MAX_ITEMS = 50
+    MAX_CHARS = 30_000
+
     def __init__(self, source: str, target: str, api_key: str) -> None:
         super().__init__(source.upper(), target.upper())
         self.api_key = api_key
@@ -103,13 +161,12 @@ class DeepLBatchProvider(_HttpBatchProvider):
     def translate_batch(self, texts: list[str]) -> list[str]:
         if not texts:
             return []
+        if len(texts) > self.MAX_ITEMS or sum(len(text) for text in texts) > self.MAX_CHARS:
+            raise ValueError("DeepL batch exceeds the configured request size limit")
         payload = {"text": texts, "source_lang": self.source, "target_lang": self.target}
         result = self._request(
             f"{self.base_url}/translate",
-            {
-                "Authorization": f"DeepL-Auth-Key {self.api_key}",
-                "Content-Type": "application/json",
-            },
+            {"Authorization": f"DeepL-Auth-Key {self.api_key}", "Content-Type": "application/json"},
             payload,
         )
         translations = result.get("translations", []) if isinstance(result, dict) else []
@@ -119,7 +176,7 @@ class DeepLBatchProvider(_HttpBatchProvider):
 
 
 class MicrosoftBatchProvider(_HttpBatchProvider):
-    """Direct Azure Translator v3 client with real multi-text requests."""
+    """Direct Azure Translator v3 client retained for backwards compatibility."""
 
     MAX_ITEMS = 25
     MAX_CHARS = 5_000
@@ -136,14 +193,10 @@ class MicrosoftBatchProvider(_HttpBatchProvider):
         if len(texts) > self.MAX_ITEMS or sum(len(text) for text in texts) > self.MAX_CHARS:
             raise ValueError("Microsoft batch exceeds the 25-item/5000-character request limit")
         params = urllib.parse.urlencode({"from": self.source, "to": self.target})
-        headers = {
-            "Ocp-Apim-Subscription-Key": self.api_key,
-            "Content-Type": "application/json",
-        }
+        headers = {"Ocp-Apim-Subscription-Key": self.api_key, "Content-Type": "application/json"}
         if self.region:
             headers["Ocp-Apim-Subscription-Region"] = self.region
-        payload = [{"Text": text} for text in texts]
-        result = self._request(f"{self.base_url}&{params}", headers, payload)
+        result = self._request(f"{self.base_url}&{params}", headers, [{"Text": text} for text in texts])
         if not isinstance(result, list) or len(result) != len(texts):
             count = len(result) if isinstance(result, list) else "invalid"
             raise RuntimeError(f"Microsoft returned {count} translations for {len(texts)} inputs")
@@ -157,6 +210,8 @@ class MicrosoftBatchProvider(_HttpBatchProvider):
 class MyMemoryBatchProvider(_HttpBatchProvider):
     """Direct MyMemory client; kept as the lowest-priority free fallback."""
 
+    MAX_CHARS_PER_REQUEST = 5_000
+
     def __init__(self, source: str, target: str) -> None:
         super().__init__(source, target)
         self.url = "https://api.mymemory.translated.net/get"
@@ -164,18 +219,20 @@ class MyMemoryBatchProvider(_HttpBatchProvider):
     def translate_batch(self, texts: list[str]) -> list[str]:
         outputs: list[str] = []
         for text in texts:
+            if len(text) > self.MAX_CHARS_PER_REQUEST:
+                raise ValueError("MyMemory request text exceeds the configured 5000-character limit")
             query = urllib.parse.urlencode({"q": text, "langpair": f"{self.source}|{self.target}"})
             url = f"{self.url}?{query}"
-            if urllib.parse.urlsplit(url).scheme != "https":
-                raise ValueError("Translation provider URL must use HTTPS")
             request = urllib.request.Request(url, method="GET")
             try:
                 with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
                     result = json.loads(response.read().decode("utf-8"))
             except urllib.error.HTTPError as exc:
                 detail = exc.read().decode("utf-8", errors="replace")
-                if exc.code in {402, 403, 429}:
+                if exc.code in {402, 403, 456}:
                     raise TranslationQuotaError(f"MyMemory quota/authorization response {exc.code}: {detail}") from exc
+                if exc.code == 429:
+                    raise TranslationRateLimitError(f"MyMemory rate limit response 429: {detail}") from exc
                 raise RuntimeError(f"MyMemory HTTP {exc.code}: {detail}") from exc
             except (urllib.error.URLError, TimeoutError) as exc:
                 raise RuntimeError(f"MyMemory connection failed: {exc}") from exc
@@ -186,13 +243,7 @@ class MyMemoryBatchProvider(_HttpBatchProvider):
 
 def _language_code(language: str) -> str:
     normalized = language.strip().lower()
-    aliases = {
-        "spanish": "es",
-        "es-es": "es",
-        "english": "en",
-        "en-gb": "en",
-        "en-us": "en",
-    }
+    aliases = {"spanish": "es", "es-es": "es", "english": "en", "en-gb": "en", "en-us": "en"}
     return aliases.get(normalized, normalized.split("-", 1)[0])
 
 
@@ -201,7 +252,11 @@ def build_translation_provider(name: str, settings: AppSettings) -> TranslationP
     provider = name.strip().lower().replace("-", "_")
     source = _language_code(settings.source_lang)
     target = _language_code(settings.target_lang)
-
+    if provider == "mistral":
+        api_key = os.getenv("MISTRAL_API_KEY", "").strip()
+        if not api_key:
+            raise RuntimeError("Mistral provider requires MISTRAL_API_KEY")
+        return MistralBatchProvider(source, target, api_key, os.getenv("MISTRAL_MODEL", ""))
     if provider == "google":
         api_key = os.getenv("GOOGLE_TRANSLATE_API_KEY", "").strip()
         if not api_key:
@@ -216,12 +271,7 @@ def build_translation_provider(name: str, settings: AppSettings) -> TranslationP
         api_key = os.getenv("MICROSOFT_TRANSLATOR_API_KEY", "").strip()
         if not api_key:
             raise RuntimeError("Microsoft provider requires MICROSOFT_TRANSLATOR_API_KEY")
-        return MicrosoftBatchProvider(
-            source,
-            target,
-            api_key,
-            os.getenv("MICROSOFT_TRANSLATOR_REGION", ""),
-        )
+        return MicrosoftBatchProvider(source, target, api_key, os.getenv("MICROSOFT_TRANSLATOR_REGION", ""))
     if provider in {"mymemory", "my_memory"}:
         return MyMemoryBatchProvider(source, target)
     raise ValueError(f"Unsupported translation provider: {name}")
