@@ -8,8 +8,8 @@ from config.settings import AppSettings
 from src.translation_providers import (
     DeepLBatchProvider,
     GoogleCloudBatchProvider,
-    MyMemoryBatchProvider,
     MicrosoftBatchProvider,
+    MyMemoryBatchProvider,
     build_translation_provider,
 )
 
