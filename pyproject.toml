@@ -39,6 +39,9 @@ line-length = 120
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
 
+[tool.setuptools]
+py-modules = ["main"]
+
 [tool.setuptools.packages.find]
 include = ["config*", "src*"]
 
