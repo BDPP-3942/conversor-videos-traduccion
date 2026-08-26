@@ -35,12 +35,7 @@ class _HttpBatchProvider:
         return self.translate_batch([text])[0]
 
     @staticmethod
-    def _request(
-        url: str,
-        headers: dict[str, str],
-        payload: object,
-        method: str = "POST",
-    ) -> object:
+    def _request(url: str, headers: dict[str, str], payload: object, method: str = "POST") -> object:
         if urllib.parse.urlsplit(url).scheme != "https":
             raise ValueError("Translation provider URL must use HTTPS")
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -51,13 +46,9 @@ class _HttpBatchProvider:
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
             if exc.code in {402, 403, 456}:
-                raise TranslationQuotaError(
-                    f"translation provider quota/authorization response {exc.code}: {detail}"
-                ) from exc
+                raise TranslationQuotaError(f"translation provider quota/authorization response {exc.code}: {detail}") from exc
             if exc.code == 429:
-                raise TranslationRateLimitError(
-                    f"translation provider rate limit response 429: {detail}"
-                ) from exc
+                raise TranslationRateLimitError(f"translation provider rate limit response 429: {detail}") from exc
             raise RuntimeError(f"translation provider HTTP {exc.code}: {detail}") from exc
         except (urllib.error.URLError, TimeoutError) as exc:
             raise RuntimeError(f"translation provider connection failed: {exc}") from exc
@@ -101,10 +92,7 @@ class MistralBatchProvider(_HttpBatchProvider):
         }
         result = self._request(
             self.URL,
-            {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
+            {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
             payload,
         )
         try:
@@ -208,20 +196,24 @@ class MicrosoftBatchProvider(_HttpBatchProvider):
 
 
 class MyMemoryBatchProvider(_HttpBatchProvider):
-    """Direct MyMemory client; kept as the lowest-priority free fallback."""
+    """Direct MyMemory client; supports optional registered-email quota."""
 
-    MAX_CHARS_PER_REQUEST = 5_000
+    MAX_CHARS_PER_REQUEST = 500
 
-    def __init__(self, source: str, target: str) -> None:
+    def __init__(self, source: str, target: str, email: str = "") -> None:
         super().__init__(source, target)
         self.url = "https://api.mymemory.translated.net/get"
+        self.email = email.strip()
 
     def translate_batch(self, texts: list[str]) -> list[str]:
         outputs: list[str] = []
         for text in texts:
             if len(text) > self.MAX_CHARS_PER_REQUEST:
-                raise ValueError("MyMemory request text exceeds the configured 5000-character limit")
-            query = urllib.parse.urlencode({"q": text, "langpair": f"{self.source}|{self.target}"})
+                raise ValueError("MyMemory request text exceeds the configured 500-character limit")
+            params = {"q": text, "langpair": f"{self.source}|{self.target}"}
+            if self.email:
+                params["de"] = self.email
+            query = urllib.parse.urlencode(params)
             url = f"{self.url}?{query}"
             request = urllib.request.Request(url, method="GET")
             try:
@@ -236,8 +228,13 @@ class MyMemoryBatchProvider(_HttpBatchProvider):
                 raise RuntimeError(f"MyMemory HTTP {exc.code}: {detail}") from exc
             except (urllib.error.URLError, TimeoutError) as exc:
                 raise RuntimeError(f"MyMemory connection failed: {exc}") from exc
+            if result.get("quotaFinished"):
+                raise TranslationQuotaError("MyMemory reported that its free quota is exhausted")
             response_data = result.get("responseData", {})
-            outputs.append(str(response_data.get("translatedText", "")))
+            output = str(response_data.get("translatedText", ""))
+            if not output:
+                raise RuntimeError(f"MyMemory returned no translation: {result.get('responseDetails', '')}")
+            outputs.append(output)
         return outputs
 
 
@@ -273,5 +270,5 @@ def build_translation_provider(name: str, settings: AppSettings) -> TranslationP
             raise RuntimeError("Microsoft provider requires MICROSOFT_TRANSLATOR_API_KEY")
         return MicrosoftBatchProvider(source, target, api_key, os.getenv("MICROSOFT_TRANSLATOR_REGION", ""))
     if provider in {"mymemory", "my_memory"}:
-        return MyMemoryBatchProvider(source, target)
+        return MyMemoryBatchProvider(source, target, os.getenv("MYMEMORY_EMAIL", ""))
     raise ValueError(f"Unsupported translation provider: {name}")
