@@ -76,7 +76,11 @@ class GoogleCloudBatchProvider(_HttpBatchProvider):
             "target": self.target,
             "format": "text",
         }
-        result = self._request(f"{self.url}?{params}", {"Content-Type": "application/json"}, payload)
+        result = self._request(
+            f"{self.url}?{params}",
+            {"Content-Type": "application/json"},
+            payload,
+        )
         try:
             translations = result["data"]["translations"]
         except (KeyError, TypeError) as exc:
@@ -92,7 +96,7 @@ class DeepLBatchProvider(_HttpBatchProvider):
     """Direct DeepL API client using the official HTTP API."""
 
     def __init__(self, source: str, target: str, api_key: str) -> None:
-        super().__init__(source.upper(), target.upper(), api_key)
+        super().__init__(source.upper(), target.upper())
         self.api_key = api_key
         self.base_url = "https://api-free.deepl.com/v2"
 
