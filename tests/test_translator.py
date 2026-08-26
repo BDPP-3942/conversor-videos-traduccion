@@ -89,7 +89,8 @@ def test_first_provider_fails_and_second_works(monkeypatch, caplog):
     assert first.batch_calls == 2
     assert second.batch_calls == 1
     assert "Switching translation provider from 'google' to 'microsoft'" in caplog.text
-    assert "Starting translation provider 'microsoft'" in caplog.text
+    assert "Starting translation provider 'microsoft'" not in caplog.text
+    assert "starting batch attempt 1/2" in caplog.text
     assert "Translation batch succeeded with provider 'microsoft' on attempt 1/2" in caplog.text
 
 
