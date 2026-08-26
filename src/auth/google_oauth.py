@@ -17,8 +17,7 @@ class GoogleOAuthManager:
             from google_auth_oauthlib.flow import InstalledAppFlow
         except ImportError as exc:
             raise RuntimeError(
-                "Google OAuth requires google-api-python-client, google-auth-httplib2 "
-                "and google-auth-oauthlib"
+                "Google OAuth requires google-auth-oauthlib"
             ) from exc
 
         credentials = None
@@ -53,7 +52,7 @@ class GoogleOAuthManager:
             from google.oauth2.credentials import Credentials
         except ImportError as exc:
             raise RuntimeError(
-                "Google OAuth requires google-auth and google-auth-oauthlib"
+                "Google OAuth requires google-auth-oauthlib"
             ) from exc
 
         if not self.token_file.is_file():
