@@ -73,7 +73,7 @@ class TextTranslator:
             batch = pending[cursor : cursor + batch_size]
             indexes = [index for index, _ in batch]
             texts = [text for _, text in batch]
-            outputs, failures, provider_names, provider_errors = self._translate_batch_with_fallback(texts, indexes)
+            outputs, _, provider_names, provider_errors = self._translate_batch_with_fallback(texts, indexes)
             for index, text, output in zip(indexes, texts, outputs, strict=True):
                 if output:
                     translated_by_index[index] = output.strip()
@@ -128,7 +128,8 @@ class TextTranslator:
                 break
             if previous_provider is not None:
                 logger.info(
-                    "Switching translation provider from '%s' to '%s' for %d unresolved segment(s); starting batch attempt 1/%d",
+                    "Switching translation provider from '%s' to '%s' for %d unresolved segment(s); "
+                    "starting batch attempt 1/%d",
                     previous_provider,
                     provider_name,
                     len(unresolved),
@@ -166,7 +167,8 @@ class TextTranslator:
                 )
             except Exception as exc:
                 logger.error(
-                    "Provider '%s' exhausted %d batch attempt(s) for segments %s-%s; switching to next provider if available; original error: %s",
+                    "Provider '%s' exhausted %d batch attempt(s) for segments %s-%s; "
+                    "switching to next provider if available; original error: %s",
                     provider_name,
                     BATCH_MAX_ATTEMPTS,
                     active_indexes[0],
