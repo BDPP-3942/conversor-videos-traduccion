@@ -246,5 +246,6 @@ class TextTranslator:
                 )
                 if attempt < BATCH_MAX_ATTEMPTS:
                     self._backoff(attempt)
-        assert last_error is not None
+        if last_error is None:
+            raise RuntimeError("Translation batch failed without an exception")
         raise last_error
