@@ -3,7 +3,9 @@ def test_google_preflight_refreshes_silently(monkeypatch, tmp_path):
     from config.settings import AppSettings
 
     class FakeCredentials:
-        refresh_token = "test-refresh-token"
+        @property
+        def refresh_token(self):
+            return "fixture-value"
 
     class FakeGoogle:
         def __init__(self, credentials_file, token_file):
