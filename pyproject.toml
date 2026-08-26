@@ -9,7 +9,6 @@ description = "Local and pluggable video/audio transcription and translation pip
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "faster-whisper>=1,<2",
-    "deep-translator>=1.11,<2",
     "webvtt-py>=0.4,<1",
     "imageio-ffmpeg>=0.6,<1",
     "python-dotenv>=1,<2",
@@ -23,7 +22,7 @@ google = [
 ]
 rclone = []
 dev = [
-    "pytest>=8,<9",
+    "pytest>=9.0.3,<10",
     "ruff>=0.9,<0.17",
 ]
 package = [
