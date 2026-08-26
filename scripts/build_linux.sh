@@ -11,7 +11,6 @@ fi
     --noconfirm --clean --onedir --name VideoTranslationPipeline \
     --collect-all faster_whisper \
     --collect-all ctranslate2 \
-    --collect-all deep_translator \
     main.py
 mkdir -p dist/VideoTranslationPipeline/config dist/VideoTranslationPipeline/secrets dist/VideoTranslationPipeline/storage dist/VideoTranslationPipeline/tools
 cp config/app.toml dist/VideoTranslationPipeline/config/app.toml
