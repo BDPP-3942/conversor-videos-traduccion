@@ -43,12 +43,31 @@ def _fake_deep_translator(monkeypatch):
     return module
 
 
+def _fake_mymemory_constants(monkeypatch):
+    constants = types.ModuleType("deep_translator.constants")
+    constants.MY_MEMORY_LANGUAGES_TO_CODES = {
+        "spanish": "es-ES",
+        "english": "en-GB",
+    }
+    monkeypatch.setitem(sys.modules, "deep_translator.constants", constants)
+
+
 def test_mymemory_is_a_no_key_provider(monkeypatch):
     _fake_deep_translator(monkeypatch)
+    _fake_mymemory_constants(monkeypatch)
     provider = build_translation_provider("mymemory", AppSettings(source_lang="es", target_lang="en"))
 
-    assert provider.source == "es"
-    assert provider.target == "en"
+    assert provider.source == "es-ES"
+    assert provider.target == "en-GB"
+
+
+def test_mymemory_accepts_named_languages(monkeypatch):
+    _fake_deep_translator(monkeypatch)
+    _fake_mymemory_constants(monkeypatch)
+    provider = build_translation_provider("mymemory", AppSettings(source_lang="spanish", target_lang="english"))
+
+    assert provider.source == "es-ES"
+    assert provider.target == "en-GB"
 
 
 def test_microsoft_requires_an_api_key(monkeypatch):

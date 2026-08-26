@@ -28,7 +28,7 @@ class STTEngine:
         )
         logger.info(
             "Whisper ready: profile=%s cpu=%d ram=%.1fGB model=%s device=%s "
-            "compute=%s cpu_threads=%d beam=%d vad=%s condition_previous=%s",
+            "compute=%s cpu_threads=%d beam=%d vad=%s condition_previous=%s prompt=%s",
             settings.resource_profile,
             settings.detected_logical_cpus,
             settings.detected_memory_gb,
@@ -39,24 +39,28 @@ class STTEngine:
             settings.whisper_beam_size,
             settings.whisper_vad_filter,
             settings.whisper_condition_on_previous_text,
+            bool(settings.whisper_initial_prompt.strip()),
         )
 
     def transcribe(self, media_path: Path):
         logger.info("Transcribing: %s", media_path.name)
-        segments, _ = self.model.transcribe(
-            str(media_path),
-            language=self.settings.source_lang,
-            task="transcribe",
-            beam_size=max(1, self.settings.whisper_beam_size),
-            best_of=1,
-            temperature=0,
-            condition_on_previous_text=self.settings.whisper_condition_on_previous_text,
-            vad_filter=self.settings.whisper_vad_filter,
-            vad_parameters={"min_silence_duration_ms": 2000}
+        transcribe_kwargs = {
+            "language": self.settings.source_lang,
+            "task": "transcribe",
+            "beam_size": max(1, self.settings.whisper_beam_size),
+            "best_of": 1,
+            "temperature": 0,
+            "condition_on_previous_text": self.settings.whisper_condition_on_previous_text,
+            "vad_filter": self.settings.whisper_vad_filter,
+            "vad_parameters": {"min_silence_duration_ms": 2000}
             if self.settings.whisper_vad_filter
             else None,
-            word_timestamps=False,
-        )
+            "word_timestamps": False,
+        }
+        prompt = self.settings.whisper_initial_prompt.strip()
+        if prompt:
+            transcribe_kwargs["initial_prompt"] = prompt
+        segments, _ = self.model.transcribe(str(media_path), **transcribe_kwargs)
         result = []
         for segment in segments:
             text = segment.text.strip()
