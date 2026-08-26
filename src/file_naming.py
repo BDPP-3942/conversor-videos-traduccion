@@ -32,6 +32,7 @@ class SourceNameMetadata:
 
 class FileNameFormatter:
     """Infer course/lesson labels and build stable output names."""
+
     LANGUAGE_PATTERN = re.compile(r"(?P<separator>[_\-.])(?P<language>es|en|es-es|en-us)(?P<extension>\.[^.]+)$", re.IGNORECASE)
     COURSE_PATTERNS = (
         re.compile(r"(?:^|[_\- .])(?:curso|course)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)", re.IGNORECASE),
@@ -182,12 +183,12 @@ def _sanitize_text(value: str) -> str:
 
 
 def clean_for_filename(value: str) -> str:
-    """Sanitize text only; filesystem-dependent fitting needs a real parent Path."""
+    """Sanitize logical names with a stable cross-platform separator policy."""
     normalized = unicodedata.normalize("NFKD", value)
     normalized = "".join(char for char in normalized if not unicodedata.combining(char))
     normalized = re.sub(r"[<>:\"/\\|?*\x00-\x1f]", "_", normalized)
-    normalized = re.sub(r"\s+", "_", normalized)
-    return re.sub(r"[_ .-]+", "_", normalized).strip("_.-")
+    normalized = re.sub(r"[\s\-_.—–−‒―]+", "_", normalized)
+    return normalized.strip("_.-")
 
 
 def normalize_filename(filename: str) -> str:
