@@ -45,4 +45,4 @@ def test_numeric_course_and_textual_lesson_use_x_separator():
     metadata = resolve(Path("Curso_03/Forma_del_Tigre.mp4"), Path("."))
     assert metadata.course == 3
     assert metadata.lesson is None
-    assert metadata.output_stem == "3_Forma_del_Tigre"
+    assert metadata.output_stem == "3xForma_del_Tigre"
