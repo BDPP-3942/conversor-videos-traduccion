@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 import os
 import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -45,12 +48,9 @@ def _windows_limits(path: Path) -> FileSystemLimits:
         if ok and max_component_length.value:
             max_component = int(max_component_length.value)
             source = f"Windows volume {filesystem.value or 'unknown'}"
-    except Exception:
-        pass
+    except (AttributeError, OSError, TypeError, ValueError) as exc:
+        logger.debug("Unable to query Windows volume limits for %s: %s", path, exc)
 
-    # Python itself can use extended paths on modern Windows, but support also
-    # depends on the process manifest and system policy. We therefore stay
-    # conservative unless long paths are explicitly enabled in Windows policy.
     try:
         import winreg
 
@@ -62,8 +62,8 @@ def _windows_limits(path: Path) -> FileSystemLimits:
         if int(enabled) == 1:
             max_path = 32767
             source += "; LongPathsEnabled=1"
-    except Exception:
-        pass
+    except (AttributeError, OSError, TypeError, ValueError) as exc:
+        logger.debug("Unable to query Windows long-path policy: %s", exc)
 
     return FileSystemLimits(max_component, max_path, "windows", source)
 
@@ -107,12 +107,7 @@ def _truncate_by_utf8_bytes(value: str, max_bytes: int) -> str:
 
 
 def fit_component(name: str, parent: Path, *, suffix: str = "") -> str:
-    """Fit a filename/directory component to the actual host filesystem.
-
-    No fixed application-wide filename limit is used. The component limit is
-    queried from the filesystem hosting *parent*. A short SHA-like suffix can
-    be supplied to preserve uniqueness when truncation is necessary.
-    """
+    """Fit a filename/directory component to the actual host filesystem."""
     limits = get_filesystem_limits(parent)
     max_component = max(1, limits.max_component)
     requested = f"{name}_{suffix}" if suffix else name
@@ -127,8 +122,7 @@ def fit_component(name: str, parent: Path, *, suffix: str = "") -> str:
 
     if limits.max_path is not None:
         parent_len = len(str(parent.resolve()).encode("utf-8"))
-        separator_bytes = 1
-        available = limits.max_path - parent_len - separator_bytes
+        available = limits.max_path - parent_len - 1
         if available > 0 and len(candidate.encode("utf-8")) > available:
             suffix_bytes = len(suffix.encode("utf-8"))
             suffix_total = suffix_bytes + (1 if suffix else 0)
