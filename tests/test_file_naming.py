@@ -17,7 +17,7 @@ def test_course_and_lesson_are_inferred_from_tree() -> None:
     assert metadata.review_required is False
 
 
-def test_nested_drive_download_source_is_ambiguous() -> None:
+def test_nested_download_without_numbers_uses_textual_code() -> None:
     root = Path("/tmp/extracted")
     source = (
         root
@@ -28,7 +28,11 @@ def test_nested_drive_download_source_is_ambiguous() -> None:
     metadata = FileNameFormatter.resolve_source_metadata(source, root)
     assert metadata.course is None
     assert metadata.lesson is None
-    assert metadata.output_stem.startswith("SIN_CURSOxSIN_LECCION_")
+    assert metadata.course_name == "directo_estudio_prof_sobre_la_danza_del_arco_iris"
+    assert metadata.output_stem == (
+        "directo_estudio_prof_sobre_la_danza_del_arco_iris_"
+        "directo_estudio_prof_sobre_la_danza_del_arco_iris"
+    )
     assert metadata.review_required is True
 
 
@@ -54,15 +58,14 @@ def test_output_stem_reserves_room_for_vtt_suffix(tmp_path: Path) -> None:
     assert len((result + "_original.vtt").encode("utf-8")) <= limits.max_component
 
 
-def test_text_course_name_is_inferred_only_from_explicit_marker() -> None:
+def test_text_course_name_becomes_textual_code() -> None:
     root = Path("/tmp/extracted")
     source = root / "Curso posturas estiramientos" / "Lección saludo al sol.mp4"
     metadata = FileNameFormatter.resolve_source_metadata(source, root)
     assert metadata.course is None
-    assert metadata.course_name == "posturas estiramientos"
+    assert metadata.course_name == "posturas_estiramientos"
     assert metadata.lesson is None
-    assert metadata.lesson_name == "saludo al sol"
-    assert metadata.output_stem == "posturas_estiramientosxsaludo_al_sol"
+    assert metadata.output_stem == "posturas_estiramientos_saludo_al_sol"
     assert metadata.review_required is True
 
 
@@ -75,18 +78,17 @@ def test_compression_download_noise_is_ignored() -> None:
         / "2 - rotacion de hombros.mp4"
     )
     metadata = FileNameFormatter.resolve_source_metadata(source, root)
-    assert metadata.course_name == "movilidad articular"
+    assert metadata.course_name == "movilidad_articular"
     assert metadata.lesson == 2
     assert "drive" not in metadata.output_stem.lower()
-    assert metadata.output_stem.startswith("movilidad_articularx02_")
+    assert metadata.output_stem.startswith("movilidad_articular_02_")
 
 
-def test_arbitrary_text_is_not_guessed_as_course_or_lesson() -> None:
+def test_arbitrary_text_becomes_textual_course_code() -> None:
     root = Path("/tmp/extracted")
     source = root / "wetransfer_material-estudio" / "saludo-inicial.mp4"
     metadata = FileNameFormatter.resolve_source_metadata(source, root)
     assert metadata.course is None
-    assert metadata.course_name is None
+    assert metadata.course_name == "material_estudio"
     assert metadata.lesson is None
-    assert metadata.lesson_name is None
-    assert metadata.output_stem.startswith("SIN_CURSOxSIN_LECCION_")
+    assert metadata.output_stem == "material_estudio_saludo_inicial"
