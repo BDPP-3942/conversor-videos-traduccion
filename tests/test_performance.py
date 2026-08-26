@@ -9,7 +9,7 @@ def test_settings_default_to_performance_oriented_values():
     settings = AppSettings()
     assert settings.whisper_beam_size == 5
     assert settings.whisper_condition_on_previous_text is True
-    assert settings.translation_batch_size == 0
+    assert settings.translation_batch_size == 25
     assert settings.max_parallel_videos == 0
     assert settings.ffmpeg_avoid_reencode is True
     assert settings.generate_webm is True
