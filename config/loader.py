@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import tomllib
 from dataclasses import replace
 from pathlib import Path
@@ -12,8 +13,6 @@ def _load_dotenv() -> None:
         from dotenv import load_dotenv
     except ImportError:
         return
-    # A user .env has priority over the repository-safe defaults. Both use
-    # override=False so explicitly exported environment variables still win.
     load_dotenv(BASE_DIR / ".env", override=False)
     load_dotenv(BASE_DIR / ".env.default", override=False)
 
@@ -34,11 +33,10 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
         ffmpeg = data.get("ffmpeg", {})
         workflow = data.get("workflow", {})
         runtime_cfg = data.get("runtime", {})
-        translation_provider = processing.get("translation_provider", "google")
-        fallback_providers = processing.get("translation_fallback_providers", ["mymemory"])
+        translation_provider = processing.get("translation_provider", "mistral")
+        fallback_providers = processing.get("translation_fallback_providers", ["deepl", "mymemory"])
         if isinstance(fallback_providers, str):
             fallback_providers = [fallback_providers]
-
         settings = AppSettings(
             provider=str(app.get("provider", "local")),
             source=str(app.get("source", "local://storage/input")),
@@ -56,17 +54,15 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             whisper_cpu_threads=int(processing.get("whisper_cpu_threads", 0)),
             translation_provider=str(translation_provider),
             translation_fallback_providers=tuple(str(item) for item in fallback_providers if str(item).strip()),
-            translation_retries=int(processing.get("translation_retries", 5)),
-            translation_max_retries_per_provider=int(
-                processing.get("max_retries_per_provider", processing.get("translation_retries", 5))
-            ),
-            translation_batch_size=int(processing.get("translation_batch_size", 0)),
+            translation_retries=int(processing.get("translation_retries", 3)),
+            translation_max_retries_per_provider=int(processing.get("max_retries_per_provider", 3)),
+            translation_batch_size=int(processing.get("translation_batch_size", 25)),
             translation_retry_delay_seconds=float(processing.get("translation_retry_delay_seconds", 1.5)),
-            translation_min_request_interval_seconds=float(
-                processing.get("translation_min_request_interval_seconds", 0.35)
-            ),
+            translation_min_request_interval_seconds=float(processing.get("translation_min_request_interval_seconds", 0.5)),
             translation_max_backoff_seconds=float(processing.get("translation_max_backoff_seconds", 16.0)),
-            max_zip_depth=int(processing.get("max_zip_depth", 3)),
+            translation_max_parallel_requests=int(processing.get("translation_max_parallel_requests", 2)),
+            translation_provider_max_parallel_requests=int(processing.get("translation_provider_max_parallel_requests", 0)),
+            max_zip_depth=int(processing.get("max_zip_depth", 5)),
             max_extracted_files=int(processing.get("max_extracted_files", 10000)),
             max_extracted_size_gb=float(processing.get("max_extracted_size_gb", 10.0)),
             ffmpeg_bin=str(ffmpeg.get("bin", "")),
@@ -96,9 +92,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             duplicate_name_similarity_threshold=float(workflow.get("duplicate_name_similarity_threshold", 0.82)),
             duplicate_duration_tolerance_seconds=float(workflow.get("duplicate_duration_tolerance_seconds", 1.5)),
             duplicate_visual_similarity_threshold=float(workflow.get("duplicate_visual_similarity_threshold", 0.91)),
-            google_credentials_file=Path(
-                str(google.get("credentials_file", "secrets/providers/google/default/credentials.json"))
-            ),
+            google_credentials_file=Path(str(google.get("credentials_file", "secrets/providers/google/default/credentials.json"))),
             google_token_file=Path(str(google.get("token_file", "secrets/providers/google/default/token.json"))),
             rclone_config_file=Path(str(rclone.get("config_file", "secrets/rclone/rclone.conf"))),
             rclone_binary_file=Path(str(rclone.get("binary_file", "tools/rclone/rclone"))),
@@ -110,11 +104,9 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             auto_update_rclone=bool(runtime_cfg.get("auto_update_rclone", False)),
             auto_tune_resources=bool(runtime_cfg.get("auto_tune_resources", True)),
         )
-
     settings = _apply_runtime_provider(settings)
     settings = _apply_environment_overrides(settings)
     from src.resource_profile import apply_resource_profile
-
     return apply_resource_profile(settings)
 
 
@@ -122,69 +114,38 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
     env = AppSettings.from_environment()
     replacements = {}
     mapping = {
-        "STORAGE_PROVIDER": "provider",
-        "SOURCE_URI": "source",
-        "TARGET_URI": "target",
-        "SOURCE_LANG": "source_lang",
-        "TARGET_LANG": "target_lang",
-        "LOG_LEVEL": "log_level",
-        "WHISPER_MODEL": "whisper_model",
-        "WHISPER_DEVICE": "whisper_device",
-        "WHISPER_COMPUTE_TYPE": "whisper_compute_type",
-        "WHISPER_BEAM_SIZE": "whisper_beam_size",
-        "WHISPER_VAD_FILTER": "whisper_vad_filter",
-        "WHISPER_CONDITION_ON_PREVIOUS_TEXT": "whisper_condition_on_previous_text",
-        "WHISPER_INITIAL_PROMPT": "whisper_initial_prompt",
-        "WHISPER_CPU_THREADS": "whisper_cpu_threads",
-        "TRANSLATION_PROVIDER": "translation_provider",
-        "TRANSLATION_RETRIES": "translation_retries",
-        "TRANSLATION_MAX_RETRIES_PER_PROVIDER": "translation_max_retries_per_provider",
-        "TRANSLATION_BATCH_SIZE": "translation_batch_size",
-        "TRANSLATION_RETRY_DELAY_SECONDS": "translation_retry_delay_seconds",
-        "TRANSLATION_MIN_REQUEST_INTERVAL_SECONDS": "translation_min_request_interval_seconds",
-        "TRANSLATION_MAX_BACKOFF_SECONDS": "translation_max_backoff_seconds",
-        "MAX_ZIP_DEPTH": "max_zip_depth",
-        "MAX_EXTRACTED_FILES": "max_extracted_files",
-        "MAX_EXTRACTED_SIZE_GB": "max_extracted_size_gb",
-        "FFMPEG_BIN": "ffmpeg_bin",
-        "FFMPEG_PRESET": "ffmpeg_preset",
-        "FFMPEG_CRF": "ffmpeg_crf",
-        "FFMPEG_AUDIO_BITRATE": "ffmpeg_audio_bitrate",
-        "GENERATE_WEBM": "generate_webm",
-        "SECONDARY_VIDEO_EXTENSION": "secondary_video_extension",
-        "SECONDARY_VIDEO_CODEC": "secondary_video_codec",
-        "SECONDARY_VIDEO_CRF": "secondary_video_crf",
-        "SECONDARY_VIDEO_MAX_WIDTH": "secondary_video_max_width",
-        "SECONDARY_VIDEO_FPS": "secondary_video_fps",
-        "SECONDARY_VIDEO_AUDIO_CODEC": "secondary_video_audio_codec",
-        "SECONDARY_VIDEO_AUDIO_BITRATE": "secondary_video_audio_bitrate",
-        "SECONDARY_VIDEO_CPU_USED": "secondary_video_cpu_used",
-        "FFMPEG_TIMEOUT_SECONDS": "ffmpeg_timeout_seconds",
-        "GDRIVE_SOURCE_FOLDER_ID": "source_folder_id",
-        "GDRIVE_TARGET_FOLDER_ID": "target_folder_id",
-        "GDRIVE_ARCHIVE_FOLDER_ID": "archive_folder_id",
-        "ORIGINAL_TRANSCRIPT_SUBDIR": "original_transcript_subdir",
-        "GOOGLE_CREDENTIALS_FILE": "google_credentials_file",
-        "GOOGLE_TOKEN_FILE": "google_token_file",
-        "RCLONE_CONFIG_FILE": "rclone_config_file",
-        "RCLONE_BINARY_FILE": "rclone_binary_file",
-        "RCLONE_REMOTE": "rclone_remote",
-        "PROVIDER_PROFILE_DIR": "provider_profile_dir",
-        "RESUME_ENABLED": "resume_enabled",
-        "NORMALIZE_LEGACY_NAMES": "normalize_legacy_names",
-        "RENAME_PROCESSED_DUPLICATES": "rename_processed_duplicates",
-        "MAX_PARALLEL_VIDEOS": "max_parallel_videos",
-        "DUPLICATE_NAME_SIMILARITY_THRESHOLD": "duplicate_name_similarity_threshold",
+        "STORAGE_PROVIDER": "provider", "SOURCE_URI": "source", "TARGET_URI": "target",
+        "SOURCE_LANG": "source_lang", "TARGET_LANG": "target_lang", "LOG_LEVEL": "log_level",
+        "WHISPER_MODEL": "whisper_model", "WHISPER_DEVICE": "whisper_device",
+        "WHISPER_COMPUTE_TYPE": "whisper_compute_type", "WHISPER_BEAM_SIZE": "whisper_beam_size",
+        "WHISPER_VAD_FILTER": "whisper_vad_filter", "WHISPER_CONDITION_ON_PREVIOUS_TEXT": "whisper_condition_on_previous_text",
+        "WHISPER_INITIAL_PROMPT": "whisper_initial_prompt", "WHISPER_CPU_THREADS": "whisper_cpu_threads",
+        "TRANSLATION_PROVIDER": "translation_provider", "TRANSLATION_RETRIES": "translation_retries",
+        "TRANSLATION_MAX_RETRIES_PER_PROVIDER": "translation_max_retries_per_provider", "TRANSLATION_BATCH_SIZE": "translation_batch_size",
+        "TRANSLATION_RETRY_DELAY_SECONDS": "translation_retry_delay_seconds", "TRANSLATION_MIN_REQUEST_INTERVAL_SECONDS": "translation_min_request_interval_seconds",
+        "TRANSLATION_MAX_BACKOFF_SECONDS": "translation_max_backoff_seconds", "TRANSLATION_MAX_PARALLEL_REQUESTS": "translation_max_parallel_requests",
+        "TRANSLATION_PROVIDER_MAX_PARALLEL_REQUESTS": "translation_provider_max_parallel_requests",
+        "MAX_ZIP_DEPTH": "max_zip_depth", "MAX_EXTRACTED_FILES": "max_extracted_files", "MAX_EXTRACTED_SIZE_GB": "max_extracted_size_gb",
+        "FFMPEG_BIN": "ffmpeg_bin", "FFMPEG_PRESET": "ffmpeg_preset", "FFMPEG_CRF": "ffmpeg_crf",
+        "FFMPEG_AUDIO_BITRATE": "ffmpeg_audio_bitrate", "GENERATE_WEBM": "generate_webm",
+        "SECONDARY_VIDEO_EXTENSION": "secondary_video_extension", "SECONDARY_VIDEO_CODEC": "secondary_video_codec",
+        "SECONDARY_VIDEO_CRF": "secondary_video_crf", "SECONDARY_VIDEO_MAX_WIDTH": "secondary_video_max_width",
+        "SECONDARY_VIDEO_FPS": "secondary_video_fps", "SECONDARY_VIDEO_AUDIO_CODEC": "secondary_video_audio_codec",
+        "SECONDARY_VIDEO_AUDIO_BITRATE": "secondary_video_audio_bitrate", "SECONDARY_VIDEO_CPU_USED": "secondary_video_cpu_used",
+        "FFMPEG_TIMEOUT_SECONDS": "ffmpeg_timeout_seconds", "GDRIVE_SOURCE_FOLDER_ID": "source_folder_id",
+        "GDRIVE_TARGET_FOLDER_ID": "target_folder_id", "GDRIVE_ARCHIVE_FOLDER_ID": "archive_folder_id",
+        "ORIGINAL_TRANSCRIPT_SUBDIR": "original_transcript_subdir", "GOOGLE_CREDENTIALS_FILE": "google_credentials_file",
+        "GOOGLE_TOKEN_FILE": "google_token_file", "RCLONE_CONFIG_FILE": "rclone_config_file",
+        "RCLONE_BINARY_FILE": "rclone_binary_file", "RCLONE_REMOTE": "rclone_remote",
+        "PROVIDER_PROFILE_DIR": "provider_profile_dir", "RESUME_ENABLED": "resume_enabled",
+        "NORMALIZE_LEGACY_NAMES": "normalize_legacy_names", "RENAME_PROCESSED_DUPLICATES": "rename_processed_duplicates",
+        "MAX_PARALLEL_VIDEOS": "max_parallel_videos", "DUPLICATE_NAME_SIMILARITY_THRESHOLD": "duplicate_name_similarity_threshold",
         "DUPLICATE_DURATION_TOLERANCE_SECONDS": "duplicate_duration_tolerance_seconds",
         "DUPLICATE_VISUAL_SIMILARITY_THRESHOLD": "duplicate_visual_similarity_threshold",
-        "FFMPEG_AVOID_REENCODE": "ffmpeg_avoid_reencode",
-        "RUN_LOCK_FILE": "run_lock_file",
-        "AUTO_BOOTSTRAP_RCLONE": "auto_bootstrap_rclone",
-        "AUTO_UPDATE_RCLONE": "auto_update_rclone",
+        "FFMPEG_AVOID_REENCODE": "ffmpeg_avoid_reencode", "RUN_LOCK_FILE": "run_lock_file",
+        "AUTO_BOOTSTRAP_RCLONE": "auto_bootstrap_rclone", "AUTO_UPDATE_RCLONE": "auto_update_rclone",
         "AUTO_TUNE_RESOURCES": "auto_tune_resources",
     }
-    import os
-
     for env_name, field_name in mapping.items():
         if env_name in os.environ:
             replacements[field_name] = getattr(env, field_name)
