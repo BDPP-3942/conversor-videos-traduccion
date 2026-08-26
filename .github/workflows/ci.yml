@@ -78,4 +78,6 @@ jobs:
         run: python -m pip check
 
       - name: Audit dependencies
+        env:
+          PYTHONWARNINGS: default
         run: pip-audit --strict
