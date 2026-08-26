@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 import threading
-from datetime import datetime, timezone
+from collections.abc import Iterable
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterable
 
 
 class TranslationQuotaExceeded(RuntimeError):
@@ -48,7 +48,10 @@ class TranslationQuotaGuard:
 
     def _write(self, data: dict) -> None:
         temporary = self.state_path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
+        temporary.write_text(
+            json.dumps(data, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
         temporary.replace(self.state_path)
 
     def reserve(self, provider: str, texts: Iterable[str]) -> int:
@@ -59,7 +62,7 @@ class TranslationQuotaGuard:
         if provider not in {"deepl", "microsoft", "mymemory", "my_memory"}:
             return count
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         window, limit = self._window(provider, now)
         with self._lock:
             data = self._read()
@@ -74,7 +77,7 @@ class TranslationQuotaGuard:
     def record_quota_failure(self, provider: str) -> None:
         """Mark a provider exhausted for its current window after a remote quota error."""
         provider = provider.lower().replace("-", "_")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         window, limit = self._window(provider, now)
         if not limit:
             return
