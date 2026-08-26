@@ -10,6 +10,11 @@ from src.translation_providers import TranslationProvider, build_translation_pro
 
 logger = logging.getLogger(__name__)
 
+# Batch-capable providers get at most one retry. This is deliberately separate
+# from the general retry setting because a batch adapter may fan one call out
+# into multiple provider requests. After the transient retry, fallback moves on.
+BATCH_MAX_ATTEMPTS = 2
+
 
 class TextTranslator:
     """Resilient batched translation with sequential provider fallback."""
@@ -68,7 +73,7 @@ class TextTranslator:
             batch = pending[cursor : cursor + batch_size]
             indexes = [index for index, _ in batch]
             texts = [text for _, text in batch]
-            outputs, failures, provider_names, provider_errors = self._translate_batch_with_fallback(texts, indexes)
+            outputs, _, provider_names, provider_errors = self._translate_batch_with_fallback(texts, indexes)
             for index, text, output in zip(indexes, texts, outputs, strict=True):
                 if output:
                     translated_by_index[index] = output.strip()
@@ -78,8 +83,10 @@ class TextTranslator:
                     failed_by_index.add(index)
                     errors_by_index[index] = provider_errors.get(index, [])
             cursor += len(batch)
-            if failures and len(batch) > 1:
-                batch_size = max(1, len(batch) // 2)
+            # A failed batch is already exhausted across the configured provider
+            # chain. Do not shrink it and send the same unresolved text back to the
+            # primary provider: that would multiply provider requests and defeat the
+            # fallback policy. Failed segments are retained as partial results.
 
         translated = []
         for index, segment in enumerate(segments):
@@ -113,17 +120,27 @@ class TextTranslator:
         provider_by_index: dict[int, str] = {}
         errors_by_index: dict[int, list[str]] = {index: [] for index in indexes}
         unresolved = list(range(len(texts)))
+        provider_names = self._provider_names
         previous_provider: str | None = None
 
-        for provider_position, provider_name in enumerate(self._provider_names):
+        for provider_position, provider_name in enumerate(provider_names):
             if not unresolved:
                 break
             if previous_provider is not None:
                 logger.info(
-                    "Switching translation provider from '%s' to '%s' for %d unresolved segment(s)",
+                    "Switching translation provider from '%s' to '%s' for %d unresolved segment(s); "
+                    "starting batch attempt 1/%d",
                     previous_provider,
                     provider_name,
                     len(unresolved),
+                    BATCH_MAX_ATTEMPTS,
+                )
+            else:
+                logger.info(
+                    "Starting translation provider '%s' for %d segment(s); batch attempt 1/%d",
+                    provider_name,
+                    len(unresolved),
+                    BATCH_MAX_ATTEMPTS,
                 )
             previous_provider = provider_name
             try:
@@ -150,9 +167,10 @@ class TextTranslator:
                 )
             except Exception as exc:
                 logger.error(
-                    "Provider '%s' exhausted %d attempt(s) for batch segments %s-%s; original error: %s",
+                    "Provider '%s' exhausted %d batch attempt(s) for segments %s-%s; "
+                    "switching to next provider if available; original error: %s",
                     provider_name,
-                    self.settings.effective_translation_retries,
+                    BATCH_MAX_ATTEMPTS,
                     active_indexes[0],
                     active_indexes[-1],
                     exc,
@@ -171,13 +189,19 @@ class TextTranslator:
                     next_unresolved.append(position)
                     errors_by_index[index].append(f"{provider_name}: empty translation result")
 
-            if next_unresolved and provider_position < len(self._provider_names) - 1:
+            if next_unresolved and provider_position < len(provider_names) - 1:
                 logger.warning(
                     "Provider '%s' translated %d/%d segment(s); falling back only for %d unresolved segment(s)",
                     provider_name,
                     len(unresolved) - len(next_unresolved),
                     len(unresolved),
                     len(next_unresolved),
+                )
+            elif not next_unresolved:
+                logger.info(
+                    "Provider '%s' completed batch successfully for %d segment(s)",
+                    provider_name,
+                    len(active_indexes),
                 )
             unresolved = next_unresolved
 
@@ -186,7 +210,7 @@ class TextTranslator:
         self._failed_segments += len(unresolved)
         if failed:
             logger.error(
-                "All configured translation providers failed for segments %s",
+                "All configured translation providers failed for segments %s; original text will be retained",
                 ", ".join(str(index + 1) for index in (indexes[position] for position in unresolved)),
             )
         return final_outputs, failed, provider_by_index, errors_by_index
@@ -199,7 +223,16 @@ class TextTranslator:
         indexes: list[int],
     ) -> list[str]:
         last_error: Exception | None = None
-        for attempt in range(1, self.settings.effective_translation_retries + 1):
+        for attempt in range(1, BATCH_MAX_ATTEMPTS + 1):
+            if attempt > 1:
+                logger.info(
+                    "Retrying batch with provider '%s' for segments %s-%s (attempt %d/%d)",
+                    provider_name,
+                    indexes[0],
+                    indexes[-1],
+                    attempt,
+                    BATCH_MAX_ATTEMPTS,
+                )
             try:
                 self._wait_for_slot()
                 self._last_request_at = time.monotonic()
@@ -209,6 +242,14 @@ class TextTranslator:
                     raise RuntimeError(
                         f"Translator returned {output_count} items for {len(texts)} inputs"
                     )
+                logger.info(
+                    "Translation batch succeeded with provider '%s' on attempt %d/%d for segments %s-%s",
+                    provider_name,
+                    attempt,
+                    BATCH_MAX_ATTEMPTS,
+                    indexes[0],
+                    indexes[-1],
+                )
                 return [str(item or "") for item in outputs]
             except Exception as exc:
                 last_error = exc
@@ -218,10 +259,10 @@ class TextTranslator:
                     indexes[0],
                     indexes[-1],
                     attempt,
-                    self.settings.effective_translation_retries,
+                    BATCH_MAX_ATTEMPTS,
                     exc,
                 )
-                if attempt < self.settings.effective_translation_retries:
+                if attempt < BATCH_MAX_ATTEMPTS:
                     self._backoff(attempt)
         assert last_error is not None
         raise last_error

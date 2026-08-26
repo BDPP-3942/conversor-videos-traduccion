@@ -50,7 +50,7 @@ def test_primary_provider_works(monkeypatch):
     settings = AppSettings(
         translation_provider="google",
         translation_fallback_providers=("microsoft",),
-        translation_max_retries_per_provider=2,
+        translation_max_retries_per_provider=5,
         translation_batch_size=2,
         translation_min_request_interval_seconds=0,
         translation_retry_delay_seconds=0,
@@ -71,7 +71,7 @@ def test_first_provider_fails_and_second_works(monkeypatch, caplog):
     settings = AppSettings(
         translation_provider="google",
         translation_fallback_providers=("microsoft",),
-        translation_max_retries_per_provider=3,
+        translation_max_retries_per_provider=5,
         translation_batch_size=2,
         translation_min_request_interval_seconds=0,
         translation_retry_delay_seconds=0,
@@ -86,16 +86,48 @@ def test_first_provider_fails_and_second_works(monkeypatch, caplog):
 
     assert result[0]["text"] == "EN:uno"
     assert result[0]["translation_provider"] == "microsoft"
-    assert first.batch_calls == 3
+    assert first.batch_calls == 2
     assert second.batch_calls == 1
     assert "Switching translation provider from 'google' to 'microsoft'" in caplog.text
+    assert "Starting translation provider 'microsoft'" not in caplog.text
+    assert "starting batch attempt 1/2" in caplog.text
+    assert "Translation batch succeeded with provider 'microsoft' on attempt 1/2" in caplog.text
+
+
+def test_first_provider_failure_does_not_retry_primary_after_fallback_exhaustion(monkeypatch):
+    settings = AppSettings(
+        translation_provider="google",
+        translation_fallback_providers=("microsoft",),
+        translation_max_retries_per_provider=5,
+        translation_batch_size=4,
+        translation_min_request_interval_seconds=0,
+        translation_retry_delay_seconds=0,
+    )
+    first = AlwaysFailTranslator("google outage")
+    second = AlwaysFailTranslator("microsoft outage")
+    translator = _translator(settings, {"google": first, "microsoft": second})
+    monkeypatch.setattr(translator, "_get_provider", lambda name: translator._providers[name])
+
+    result = translator.translate_segments(
+        [
+            {"start": 0, "end": 1, "text": "uno"},
+            {"start": 1, "end": 2, "text": "dos"},
+            {"start": 2, "end": 3, "text": "tres"},
+            {"start": 3, "end": 4, "text": "cuatro"},
+        ]
+    )
+
+    assert [item["text"] for item in result] == ["uno", "dos", "tres", "cuatro"]
+    assert all(item["translation_failed"] is True for item in result)
+    assert first.batch_calls == 2
+    assert second.batch_calls == 2
 
 
 def test_first_provider_fails_partially_and_fallback_only_handles_failed_segments(monkeypatch):
     settings = AppSettings(
         translation_provider="google",
         translation_fallback_providers=("microsoft",),
-        translation_max_retries_per_provider=2,
+        translation_max_retries_per_provider=5,
         translation_batch_size=2,
         translation_min_request_interval_seconds=0,
         translation_retry_delay_seconds=0,
@@ -115,13 +147,14 @@ def test_first_provider_fails_partially_and_fallback_only_handles_failed_segment
     assert [item["text"] for item in result] == ["EN:uno", "EN:dos"]
     assert result[0]["translation_provider"] == "google"
     assert result[1]["translation_provider"] == "microsoft"
+    assert second.batch_calls == 1
 
 
 def test_fallback_preserves_successful_segments_when_all_providers_do_not_succeed(monkeypatch):
     settings = AppSettings(
         translation_provider="google",
         translation_fallback_providers=("microsoft",),
-        translation_max_retries_per_provider=1,
+        translation_max_retries_per_provider=5,
         translation_batch_size=2,
         translation_min_request_interval_seconds=0,
         translation_retry_delay_seconds=0,
@@ -151,7 +184,7 @@ def test_all_providers_fail_without_infinite_retry(monkeypatch):
     settings = AppSettings(
         translation_provider="google",
         translation_fallback_providers=("microsoft", "libretranslate"),
-        translation_max_retries_per_provider=2,
+        translation_max_retries_per_provider=5,
         translation_batch_size=1,
         translation_min_request_interval_seconds=0,
         translation_retry_delay_seconds=0,
@@ -171,10 +204,10 @@ def test_all_providers_fail_without_infinite_retry(monkeypatch):
     assert all(provider.batch_calls == 2 for provider in providers.values())
 
 
-def test_existing_translation_retry_setting_remains_compatible(monkeypatch):
+def test_batch_retry_cap_is_independent_from_general_retry_setting(monkeypatch):
     settings = AppSettings(
         translation_provider="google",
-        translation_retries=4,
+        translation_retries=5,
         translation_batch_size=1,
         translation_min_request_interval_seconds=0,
         translation_retry_delay_seconds=0,
@@ -186,4 +219,4 @@ def test_existing_translation_retry_setting_remains_compatible(monkeypatch):
     result = translator.translate_segments([{"start": 0, "end": 1, "text": "uno"}])
 
     assert result[0]["translation_failed"] is True
-    assert provider.batch_calls == 4
+    assert provider.batch_calls == 2
