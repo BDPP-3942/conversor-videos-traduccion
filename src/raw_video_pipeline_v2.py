@@ -12,7 +12,15 @@ from src.stt_engine import STTEngine
 from src.translator import TextTranslator
 from src.vtt_builder import VTTBuilder
 
-VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v", ".wmv"}
+VIDEO_EXTENSIONS = {
+    ".mp4",
+    ".mov",
+    ".mkv",
+    ".avi",
+    ".webm",
+    ".m4v",
+    ".wmv",
+}
 
 
 class RawVideoPipeline:
@@ -27,7 +35,8 @@ class RawVideoPipeline:
         files = [
             file
             for file in self.storage.list_children(source)
-            if not file.is_directory and Path(file.name).suffix.lower() in VIDEO_EXTENSIONS
+            if not file.is_directory
+            and Path(file.name).suffix.lower() in VIDEO_EXTENSIONS
         ]
         results = []
         for source_file in files:
@@ -46,8 +55,12 @@ class RawVideoPipeline:
         return {
             "status": "error" if failed and failed == len(results) else "success",
             "videos_found": len(files),
-            "videos_processed": sum(item["status"] == "success" for item in results),
-            "videos_partial": sum(item["status"] == "partial_translation" for item in results),
+            "videos_processed": sum(
+                item["status"] == "success" for item in results
+            ),
+            "videos_partial": sum(
+                item["status"] == "partial_translation" for item in results
+            ),
             "videos_failed": failed,
             "videos": results,
         }
@@ -58,21 +71,37 @@ class RawVideoPipeline:
             root = Path(temp)
             input_path = root / source_file.name
             self.storage.download_file(source_file, input_path)
-            converted = self.converter.convert(input_path, metadata.output_stem, root / "processed")
+            converted = self.converter.convert(
+                input_path,
+                metadata.output_stem,
+                root / "processed",
+            )
             segments = self.stt.transcribe(converted.mp4_path)
             if not segments:
-                raise RuntimeError(f"No STT segments generated for {source_file.name}")
+                raise RuntimeError(
+                    f"No STT segments generated for {source_file.name}"
+                )
             original = root / f"{metadata.output_stem}_original.vtt"
             VTTBuilder.generate_vtt(segments, original)
             translated = self.translator.translate_segments(segments)
             failed = sum(bool(item.get("translation_failed")) for item in translated)
-            translated_path = root / f"{metadata.output_stem}_{self.settings.target_lang.lower()}.vtt"
+            translated_path = (
+                root
+                / f"{metadata.output_stem}_{self.settings.target_lang.lower()}.vtt"
+            )
             VTTBuilder.generate_vtt(translated, translated_path)
             output = self.storage.ensure_folder(target, metadata.output_stem)
-            original_target = self.storage.ensure_folder(output, self.settings.original_transcript_subdir)
+            original_target = self.storage.ensure_folder(
+                output,
+                self.settings.original_transcript_subdir,
+            )
             self.storage.upload_file(converted.mp4_path, output, "video/mp4")
             if converted.secondary_video_path:
-                self.storage.upload_file(converted.secondary_video_path, output, "video/webm")
+                self.storage.upload_file(
+                    converted.secondary_video_path,
+                    output,
+                    "video/webm",
+                )
             self.storage.upload_file(translated_path, output, "text/vtt")
             self.storage.upload_file(original, original_target, "text/vtt")
             return {
