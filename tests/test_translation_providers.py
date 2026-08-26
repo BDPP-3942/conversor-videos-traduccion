@@ -9,9 +9,29 @@ from src.translation_providers import (
     DeepLBatchProvider,
     GoogleCloudBatchProvider,
     MicrosoftBatchProvider,
+    MistralBatchProvider,
     MyMemoryBatchProvider,
     build_translation_provider,
 )
+
+
+def test_mistral_requires_an_api_key(monkeypatch):
+    monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
+
+    with pytest.raises(RuntimeError, match="MISTRAL_API_KEY"):
+        build_translation_provider("mistral", AppSettings())
+
+
+def test_mistral_builds_direct_api_client(monkeypatch):
+    monkeypatch.setenv("MISTRAL_API_KEY", "test-key")
+    monkeypatch.setenv("MISTRAL_MODEL", "mistral-small-latest")
+    provider = build_translation_provider("mistral", AppSettings(source_lang="es", target_lang="en"))
+
+    assert isinstance(provider, MistralBatchProvider)
+    assert provider.source == "es"
+    assert provider.target == "en"
+    assert provider.api_key == "test-key"
+    assert provider.model == "mistral-small-latest"
 
 
 def test_google_requires_an_api_key(monkeypatch):
@@ -68,7 +88,7 @@ def test_microsoft_builds_direct_api_client(monkeypatch):
 
 
 def test_mymemory_requires_no_credentials(monkeypatch):
-    monkeypatch.delenv("LIBRETRANSLATE_API_KEY", raising=False)
+    monkeypatch.delenv("MYMEMORY_API_KEY", raising=False)
     provider = build_translation_provider("mymemory", AppSettings(source_lang="spanish", target_lang="english"))
 
     assert isinstance(provider, MyMemoryBatchProvider)
@@ -80,8 +100,10 @@ def test_direct_clients_do_not_depend_on_deep_translator(monkeypatch):
     monkeypatch.setitem(os.environ, "GOOGLE_TRANSLATE_API_KEY", "test-key")
     monkeypatch.setitem(os.environ, "DEEPL_API_KEY", "test-key")
     monkeypatch.setitem(os.environ, "MICROSOFT_TRANSLATOR_API_KEY", "test-key")
+    monkeypatch.setitem(os.environ, "MISTRAL_API_KEY", "test-key")
 
     for name, expected in (
+        ("mistral", MistralBatchProvider),
         ("google", GoogleCloudBatchProvider),
         ("deepl", DeepLBatchProvider),
         ("microsoft", MicrosoftBatchProvider),
