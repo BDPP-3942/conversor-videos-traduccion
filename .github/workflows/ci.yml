@@ -13,6 +13,10 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONWARNINGS: error
+
 jobs:
   test:
     strategy:
@@ -22,10 +26,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -44,6 +48,9 @@ jobs:
       - name: Ruff lint
         run: ruff check .
 
+      - name: Ruff security rules
+        run: ruff check . --select S
+
       - name: Ruff format check
         run: ruff format --check .
 
@@ -54,10 +61,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.13'
           cache: pip
@@ -67,5 +74,8 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt -r requirements-dev.txt pip-audit
 
+      - name: Verify dependency consistency
+        run: python -m pip check
+
       - name: Audit dependencies
-        run: pip-audit
+        run: pip-audit --strict
