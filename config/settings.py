@@ -5,9 +5,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-BASE_DIR = (
-    Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent.parent
-)
+BASE_DIR = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent.parent
 CONFIG_DIR = BASE_DIR / "config"
 SECRETS_DIR = BASE_DIR / "secrets"
 STORAGE_DIR = BASE_DIR / "storage"
@@ -29,14 +27,16 @@ class AppSettings:
     whisper_condition_on_previous_text: bool = True
     whisper_initial_prompt: str = ""
     whisper_cpu_threads: int = 0
-    translation_provider: str = "google"
-    translation_fallback_providers: tuple[str, ...] = ()
-    translation_retries: int = 5
-    translation_max_retries_per_provider: int = 0
+    translation_provider: str = "mistral"
+    translation_fallback_providers: tuple[str, ...] = ("deepl", "mymemory")
+    translation_retries: int = 3
+    translation_max_retries_per_provider: int = 3
     translation_batch_size: int = 0
     translation_retry_delay_seconds: float = 1.5
-    translation_min_request_interval_seconds: float = 0.35
+    translation_min_request_interval_seconds: float = 0.5
     translation_max_backoff_seconds: float = 16.0
+    translation_max_parallel_requests: int = 2
+    translation_provider_max_parallel_requests: int = 0
     max_zip_depth: int = 5
     max_extracted_files: int = 10_000
     max_extracted_size_gb: float = 10.0
@@ -94,7 +94,7 @@ class AppSettings:
 
     @classmethod
     def from_environment(cls) -> AppSettings:
-        fallback_raw = os.getenv("TRANSLATION_FALLBACK_PROVIDERS", "")
+        fallback_raw = os.getenv("TRANSLATION_FALLBACK_PROVIDERS", ",".join(cls.translation_fallback_providers))
         fallback = tuple(item.strip() for item in fallback_raw.split(",") if item.strip())
         return cls(
             provider=os.getenv("STORAGE_PROVIDER", cls.provider),
@@ -108,27 +108,19 @@ class AppSettings:
             whisper_compute_type=os.getenv("WHISPER_COMPUTE_TYPE", cls.whisper_compute_type),
             whisper_beam_size=int(os.getenv("WHISPER_BEAM_SIZE", cls.whisper_beam_size)),
             whisper_vad_filter=os.getenv("WHISPER_VAD_FILTER", "true").lower() == "true",
-            whisper_condition_on_previous_text=(
-                os.getenv("WHISPER_CONDITION_ON_PREVIOUS_TEXT", "false").lower() == "true"
-            ),
+            whisper_condition_on_previous_text=os.getenv("WHISPER_CONDITION_ON_PREVIOUS_TEXT", "true").lower() == "true",
             whisper_initial_prompt=os.getenv("WHISPER_INITIAL_PROMPT", cls.whisper_initial_prompt),
             whisper_cpu_threads=int(os.getenv("WHISPER_CPU_THREADS", cls.whisper_cpu_threads)),
             translation_provider=os.getenv("TRANSLATION_PROVIDER", cls.translation_provider),
             translation_fallback_providers=fallback,
             translation_retries=int(os.getenv("TRANSLATION_RETRIES", cls.translation_retries)),
-            translation_max_retries_per_provider=int(
-                os.getenv("TRANSLATION_MAX_RETRIES_PER_PROVIDER", cls.translation_max_retries_per_provider)
-            ),
+            translation_max_retries_per_provider=int(os.getenv("TRANSLATION_MAX_RETRIES_PER_PROVIDER", cls.translation_max_retries_per_provider)),
             translation_batch_size=int(os.getenv("TRANSLATION_BATCH_SIZE", cls.translation_batch_size)),
-            translation_retry_delay_seconds=float(
-                os.getenv("TRANSLATION_RETRY_DELAY_SECONDS", cls.translation_retry_delay_seconds)
-            ),
-            translation_min_request_interval_seconds=float(
-                os.getenv("TRANSLATION_MIN_REQUEST_INTERVAL_SECONDS", cls.translation_min_request_interval_seconds)
-            ),
-            translation_max_backoff_seconds=float(
-                os.getenv("TRANSLATION_MAX_BACKOFF_SECONDS", cls.translation_max_backoff_seconds)
-            ),
+            translation_retry_delay_seconds=float(os.getenv("TRANSLATION_RETRY_DELAY_SECONDS", cls.translation_retry_delay_seconds)),
+            translation_min_request_interval_seconds=float(os.getenv("TRANSLATION_MIN_REQUEST_INTERVAL_SECONDS", cls.translation_min_request_interval_seconds)),
+            translation_max_backoff_seconds=float(os.getenv("TRANSLATION_MAX_BACKOFF_SECONDS", cls.translation_max_backoff_seconds)),
+            translation_max_parallel_requests=int(os.getenv("TRANSLATION_MAX_PARALLEL_REQUESTS", cls.translation_max_parallel_requests)),
+            translation_provider_max_parallel_requests=int(os.getenv("TRANSLATION_PROVIDER_MAX_PARALLEL_REQUESTS", cls.translation_provider_max_parallel_requests)),
             max_zip_depth=int(os.getenv("MAX_ZIP_DEPTH", cls.max_zip_depth)),
             max_extracted_files=int(os.getenv("MAX_EXTRACTED_FILES", cls.max_extracted_files)),
             max_extracted_size_gb=float(os.getenv("MAX_EXTRACTED_SIZE_GB", cls.max_extracted_size_gb)),
@@ -156,15 +148,9 @@ class AppSettings:
             normalize_legacy_names=os.getenv("NORMALIZE_LEGACY_NAMES", "true").lower() == "true",
             rename_processed_duplicates=os.getenv("RENAME_PROCESSED_DUPLICATES", "true").lower() == "true",
             max_parallel_videos=int(os.getenv("MAX_PARALLEL_VIDEOS", cls.max_parallel_videos)),
-            duplicate_name_similarity_threshold=float(
-                os.getenv("DUPLICATE_NAME_SIMILARITY_THRESHOLD", cls.duplicate_name_similarity_threshold)
-            ),
-            duplicate_duration_tolerance_seconds=float(
-                os.getenv("DUPLICATE_DURATION_TOLERANCE_SECONDS", cls.duplicate_duration_tolerance_seconds)
-            ),
-            duplicate_visual_similarity_threshold=float(
-                os.getenv("DUPLICATE_VISUAL_SIMILARITY_THRESHOLD", cls.duplicate_visual_similarity_threshold)
-            ),
+            duplicate_name_similarity_threshold=float(os.getenv("DUPLICATE_NAME_SIMILARITY_THRESHOLD", cls.duplicate_name_similarity_threshold)),
+            duplicate_duration_tolerance_seconds=float(os.getenv("DUPLICATE_DURATION_TOLERANCE_SECONDS", cls.duplicate_duration_tolerance_seconds)),
+            duplicate_visual_similarity_threshold=float(os.getenv("DUPLICATE_VISUAL_SIMILARITY_THRESHOLD", cls.duplicate_visual_similarity_threshold)),
             ffmpeg_avoid_reencode=os.getenv("FFMPEG_AVOID_REENCODE", "true").lower() == "true",
             google_credentials_file=Path(os.getenv("GOOGLE_CREDENTIALS_FILE", cls.google_credentials_file)),
             google_token_file=Path(os.getenv("GOOGLE_TOKEN_FILE", cls.google_token_file)),
@@ -172,9 +158,10 @@ class AppSettings:
             rclone_config_file=Path(os.getenv("RCLONE_CONFIG_FILE", cls.rclone_config_file)),
             rclone_binary_file=Path(os.getenv("RCLONE_BINARY_FILE", cls.rclone_binary_file)),
             rclone_remote=os.getenv("RCLONE_REMOTE", cls.rclone_remote),
+            provider_profile_dir=Path(os.getenv("PROVIDER_PROFILE_DIR", cls.provider_profile_dir)),
             run_lock_file=Path(os.getenv("RUN_LOCK_FILE", cls.run_lock_file)),
             auto_bootstrap_rclone=os.getenv("AUTO_BOOTSTRAP_RCLONE", "true").lower() == "true",
-            auto_update_rclone=os.getenv("AUTO_UPDATE_RCLONE", "false").lower() == "true",
+            auto_update_rclone=os.getenv("AUTO_UPDATE_RCLONE", "false").lower() == "false" if "AUTO_UPDATE_RCLONE" not in os.environ else os.getenv("AUTO_UPDATE_RCLONE", "false").lower() == "true",
             auto_tune_resources=os.getenv("AUTO_TUNE_RESOURCES", "true").lower() == "true",
             provider_profile_dir=Path(os.getenv("PROVIDER_PROFILE_DIR", cls.provider_profile_dir)),
         )
