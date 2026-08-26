@@ -129,10 +129,18 @@ def test_delete_keeps_registry_and_manifests_consistent(tmp_path: Path):
         encoding="utf-8",
     )
     manifest = manifests / "input.json"
-    manifest.write_text(json.dumps({"metadata": {}, "entries": [
-        {"output_folder": "37x07_Bombeos", "source": "stable.zip/video.mp4"},
-        {"output_folder": "wetransfer_Bombeos_20260728", "source": "fragile.zip/video.mp4"},
-    ]}), encoding="utf-8")
+    manifest.write_text(
+        json.dumps(
+            {
+                "metadata": {},
+                "entries": [
+                    {"output_folder": "37x07_Bombeos", "source": "stable.zip/video.mp4"},
+                    {"output_folder": "wetransfer_Bombeos_20260728", "source": "fragile.zip/video.mp4"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
     dedup = OutputDeduplicator(output)
     dedup.scan_and_persist()
     dedup.analyze_and_persist()

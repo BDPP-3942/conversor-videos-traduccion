@@ -6,10 +6,7 @@ from src.file_naming import FileNameFormatter, normalize_comparison_key
 def test_compression_download_noise_is_ignored(tmp_path: Path) -> None:
     root = tmp_path / "extracted"
     source = (
-        root
-        / "drive-download-20260818T104028Z-1-002"
-        / "Curso movilidad articular"
-        / "2 - rotacion de hombros.mp4"
+        root / "drive-download-20260818T104028Z-1-002" / "Curso movilidad articular" / "2 - rotacion de hombros.mp4"
     )
     metadata = FileNameFormatter.resolve_source_metadata(source, root)
     assert metadata.course_name == "movilidad_articular"

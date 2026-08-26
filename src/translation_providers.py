@@ -86,13 +86,9 @@ class GoogleCloudBatchProvider(_HttpBatchProvider):
         try:
             translations = result["data"]["translations"]
         except (KeyError, TypeError) as exc:
-            raise RuntimeError(
-                "Google Cloud returned an invalid translation response"
-            ) from exc
+            raise RuntimeError("Google Cloud returned an invalid translation response") from exc
         if len(translations) != len(texts):
-            raise RuntimeError(
-                f"Google returned {len(translations)} translations for {len(texts)} inputs"
-            )
+            raise RuntimeError(f"Google returned {len(translations)} translations for {len(texts)} inputs")
         return [str(item.get("translatedText", "")) for item in translations]
 
 
@@ -118,9 +114,7 @@ class DeepLBatchProvider(_HttpBatchProvider):
         )
         translations = result.get("translations", []) if isinstance(result, dict) else []
         if len(translations) != len(texts):
-            raise RuntimeError(
-                f"DeepL returned {len(translations)} translations for {len(texts)} inputs"
-            )
+            raise RuntimeError(f"DeepL returned {len(translations)} translations for {len(texts)} inputs")
         return [str(item.get("text", "")) for item in translations]
 
 
@@ -134,18 +128,13 @@ class MicrosoftBatchProvider(_HttpBatchProvider):
         super().__init__(source, target)
         self.api_key = api_key
         self.region = region.strip()
-        self.base_url = (
-            "https://api.cognitive.microsofttranslator.com/translate"
-            "?api-version=3.0"
-        )
+        self.base_url = "https://api.cognitive.microsofttranslator.com/translate?api-version=3.0"
 
     def translate_batch(self, texts: list[str]) -> list[str]:
         if not texts:
             return []
         if len(texts) > self.MAX_ITEMS or sum(len(text) for text in texts) > self.MAX_CHARS:
-            raise ValueError(
-                "Microsoft batch exceeds the 25-item/5000-character request limit"
-            )
+            raise ValueError("Microsoft batch exceeds the 25-item/5000-character request limit")
         params = urllib.parse.urlencode({"from": self.source, "to": self.target})
         headers = {
             "Ocp-Apim-Subscription-Key": self.api_key,
@@ -157,9 +146,7 @@ class MicrosoftBatchProvider(_HttpBatchProvider):
         result = self._request(f"{self.base_url}&{params}", headers, payload)
         if not isinstance(result, list) or len(result) != len(texts):
             count = len(result) if isinstance(result, list) else "invalid"
-            raise RuntimeError(
-                f"Microsoft returned {count} translations for {len(texts)} inputs"
-            )
+            raise RuntimeError(f"Microsoft returned {count} translations for {len(texts)} inputs")
         outputs: list[str] = []
         for item in result:
             translations = item.get("translations", [])
@@ -177,9 +164,7 @@ class MyMemoryBatchProvider(_HttpBatchProvider):
     def translate_batch(self, texts: list[str]) -> list[str]:
         outputs: list[str] = []
         for text in texts:
-            query = urllib.parse.urlencode(
-                {"q": text, "langpair": f"{self.source}|{self.target}"}
-            )
+            query = urllib.parse.urlencode({"q": text, "langpair": f"{self.source}|{self.target}"})
             url = f"{self.url}?{query}"
             if urllib.parse.urlsplit(url).scheme != "https":
                 raise ValueError("Translation provider URL must use HTTPS")
@@ -190,9 +175,7 @@ class MyMemoryBatchProvider(_HttpBatchProvider):
             except urllib.error.HTTPError as exc:
                 detail = exc.read().decode("utf-8", errors="replace")
                 if exc.code in {402, 403, 429}:
-                    raise TranslationQuotaError(
-                        f"MyMemory quota/authorization response {exc.code}: {detail}"
-                    ) from exc
+                    raise TranslationQuotaError(f"MyMemory quota/authorization response {exc.code}: {detail}") from exc
                 raise RuntimeError(f"MyMemory HTTP {exc.code}: {detail}") from exc
             except (urllib.error.URLError, TimeoutError) as exc:
                 raise RuntimeError(f"MyMemory connection failed: {exc}") from exc

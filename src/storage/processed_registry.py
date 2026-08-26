@@ -32,9 +32,7 @@ class ProcessedRegistry:
 
     def contains_success(self, source_name: str, sha256: str) -> bool:
         return any(
-            item.get("source_name") == source_name
-            and item.get("sha256") == sha256
-            and item.get("status") == "success"
+            item.get("source_name") == source_name and item.get("sha256") == sha256 and item.get("status") == "success"
             for item in self.entries()
         )
 

@@ -35,8 +35,7 @@ class RawVideoPipeline:
         files = [
             file
             for file in self.storage.list_children(source)
-            if not file.is_directory
-            and Path(file.name).suffix.lower() in VIDEO_EXTENSIONS
+            if not file.is_directory and Path(file.name).suffix.lower() in VIDEO_EXTENSIONS
         ]
         results = []
         for source_file in files:
@@ -55,12 +54,8 @@ class RawVideoPipeline:
         return {
             "status": "error" if failed and failed == len(results) else "success",
             "videos_found": len(files),
-            "videos_processed": sum(
-                item["status"] == "success" for item in results
-            ),
-            "videos_partial": sum(
-                item["status"] == "partial_translation" for item in results
-            ),
+            "videos_processed": sum(item["status"] == "success" for item in results),
+            "videos_partial": sum(item["status"] == "partial_translation" for item in results),
             "videos_failed": failed,
             "videos": results,
         }
@@ -78,17 +73,12 @@ class RawVideoPipeline:
             )
             segments = self.stt.transcribe(converted.mp4_path)
             if not segments:
-                raise RuntimeError(
-                    f"No STT segments generated for {source_file.name}"
-                )
+                raise RuntimeError(f"No STT segments generated for {source_file.name}")
             original = root / f"{metadata.output_stem}_original.vtt"
             VTTBuilder.generate_vtt(segments, original)
             translated = self.translator.translate_segments(segments)
             failed = sum(bool(item.get("translation_failed")) for item in translated)
-            translated_path = (
-                root
-                / f"{metadata.output_stem}_{self.settings.target_lang.lower()}.vtt"
-            )
+            translated_path = root / f"{metadata.output_stem}_{self.settings.target_lang.lower()}.vtt"
             VTTBuilder.generate_vtt(translated, translated_path)
             output = self.storage.ensure_folder(target, metadata.output_stem)
             original_target = self.storage.ensure_folder(

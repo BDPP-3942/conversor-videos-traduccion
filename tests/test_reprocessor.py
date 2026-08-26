@@ -87,10 +87,7 @@ class FakeTranslator:
 
     def translate_segments(self, segments):
         type(self).calls += 1
-        return [
-            {"start": item["start"], "end": item["end"], "text": f"EN:{item['text']}"}
-            for item in segments
-        ]
+        return [{"start": item["start"], "end": item["end"], "text": f"EN:{item['text']}"} for item in segments]
 
 
 def _fixture(tmp_path: Path):
@@ -100,9 +97,7 @@ def _fixture(tmp_path: Path):
     original_dir.mkdir(parents=True)
     (folder / "37x02_Tema.mp4").write_bytes(b"mp4")
     (folder / "37x02_Tema.webm").write_bytes(b"webm")
-    (folder / "37x02_Tema_en.vtt").write_text(
-        "WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nOLD\n", encoding="utf-8"
-    )
+    (folder / "37x02_Tema_en.vtt").write_text("WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nOLD\n", encoding="utf-8")
     VTTBuilder.generate_vtt(
         [
             {"start": 0, "end": 1, "text": "antiguo"},

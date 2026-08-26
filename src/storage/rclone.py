@@ -136,7 +136,7 @@ class RcloneStorageProvider(StorageProvider):
         path = Path(old_name)
         stem = path.stem
         if stem.startswith(old_stem):
-            stem = new_stem + stem[len(old_stem):]
+            stem = new_stem + stem[len(old_stem) :]
         else:
             stem = normalize_component(stem)
         return f"{stem}{path.suffix.lower()}"
@@ -159,11 +159,13 @@ class RcloneStorageProvider(StorageProvider):
                     continue
                 normalized = normalize_filename(child["Name"])
                 if normalized != child["Name"] and not self.file_exists(folder_path, normalized):
-                    self._run([
-                        "moveto",
-                        f"{self.remote}:{folder_path}/{child['Name']}",
-                        f"{self.remote}:{folder_path}/{normalized}",
-                    ])
+                    self._run(
+                        [
+                            "moveto",
+                            f"{self.remote}:{folder_path}/{child['Name']}",
+                            f"{self.remote}:{folder_path}/{normalized}",
+                        ]
+                    )
         return renamed
 
     def ensure_folder(self, parent: str, name: str) -> str:

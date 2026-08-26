@@ -11,9 +11,7 @@ def test_deepl_batch(monkeypatch):
         "_request",
         staticmethod(fake_request),
     )
-    result = DeepLBatchProvider("es", "en", "key").translate_batch(
-        ["uno", "dos"]
-    )
+    result = DeepLBatchProvider("es", "en", "key").translate_batch(["uno", "dos"])
     assert result == ["one", "two"]
 
 
@@ -31,7 +29,5 @@ def test_microsoft_batch(monkeypatch):
         "_request",
         staticmethod(fake_request),
     )
-    result = MicrosoftBatchProvider(
-        "es", "en", "key", "westeurope"
-    ).translate_batch(["uno", "dos"])
+    result = MicrosoftBatchProvider("es", "en", "key", "westeurope").translate_batch(["uno", "dos"])
     assert result == ["one", "two"]

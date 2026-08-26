@@ -15,9 +15,7 @@ class TranslationQuotaExceeded(RuntimeError):
         self.used = used
         self.limit = limit
         self.window = window
-        super().__init__(
-            f"{provider} free quota exhausted: {used}/{limit} characters in {window} window"
-        )
+        super().__init__(f"{provider} free quota exhausted: {used}/{limit} characters in {window} window")
 
 
 class TranslationQuotaGuard:

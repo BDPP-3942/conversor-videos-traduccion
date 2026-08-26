@@ -25,9 +25,7 @@ class TextTranslator:
         self._last_request_at = 0.0
         self._providers: dict[str, TranslationProvider] = {}
         self._failed_segments = 0
-        self._quota = TranslationQuotaGuard(
-            local_storage_paths()["state"] / "translation_quotas.json"
-        )
+        self._quota = TranslationQuotaGuard(local_storage_paths()["state"] / "translation_quotas.json")
 
     @property
     def _provider_names(self) -> list[str]:
@@ -128,8 +126,7 @@ class TextTranslator:
             active_indexes = [indexes[index] for index in unresolved]
             if previous:
                 logger.info(
-                    "Switching translation provider from '%s' to '%s' "
-                    "for %d unresolved segment(s)",
+                    "Switching translation provider from '%s' to '%s' for %d unresolved segment(s)",
                     previous,
                     name,
                     len(active_indexes),
@@ -152,8 +149,7 @@ class TextTranslator:
                 )
             except TranslationQuotaExceeded as exc:
                 logger.warning(
-                    "Provider '%s' local quota exhausted (%d/%d); "
-                    "switching provider",
+                    "Provider '%s' local quota exhausted (%d/%d); switching provider",
                     name,
                     exc.used,
                     exc.limit,
@@ -179,9 +175,7 @@ class TextTranslator:
                     exc,
                 )
                 for index in active_indexes:
-                    errors[index].append(
-                        f"{name}: {type(exc).__name__}: {exc}"
-                    )
+                    errors[index].append(f"{name}: {type(exc).__name__}: {exc}")
                 continue
 
             next_unresolved: list[int] = []
@@ -196,9 +190,7 @@ class TextTranslator:
             unresolved = next_unresolved
 
         self._failed_segments += len(unresolved)
-        return [
-            outputs.get(index, "") for index in range(len(texts))
-        ], provider_map, errors
+        return [outputs.get(index, "") for index in range(len(texts))], provider_map, errors
 
     def _retry_batch(
         self,
@@ -223,12 +215,9 @@ class TextTranslator:
                 result = provider.translate_batch(texts)
                 if not isinstance(result, list) or len(result) != len(texts):
                     count = len(result) if isinstance(result, list) else "invalid"
-                    raise RuntimeError(
-                        f"Translator returned {count} items for {len(texts)} inputs"
-                    )
+                    raise RuntimeError(f"Translator returned {count} items for {len(texts)} inputs")
                 logger.info(
-                    "Translation batch succeeded with provider '%s' on attempt "
-                    "%d/%d",
+                    "Translation batch succeeded with provider '%s' on attempt %d/%d",
                     name,
                     attempt,
                     BATCH_MAX_ATTEMPTS,
@@ -237,8 +226,7 @@ class TextTranslator:
             except Exception as exc:
                 last_error = exc
                 logger.warning(
-                    "Batch translation failed with provider '%s' on attempt "
-                    "%d/%d: %s",
+                    "Batch translation failed with provider '%s' on attempt %d/%d: %s",
                     name,
                     attempt,
                     BATCH_MAX_ATTEMPTS,

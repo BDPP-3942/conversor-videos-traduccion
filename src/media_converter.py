@@ -213,9 +213,7 @@ class MediaConverter:
 
     def _run(self, command: list[str]) -> None:
         logger.debug("Running FFmpeg: %s", " ".join(command))
-        progress_command = (
-            command[:-1] + ["-progress", "pipe:2", "-nostats", command[-1]] if command else command
-        )
+        progress_command = command[:-1] + ["-progress", "pipe:2", "-nostats", command[-1]] if command else command
         process = None
         last_progress_log = 0.0
         last_out_time_ms = None

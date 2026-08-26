@@ -18,9 +18,9 @@ class RunLock:
     def __enter__(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
-            'pid': os.getpid(),
-            'host': socket.gethostname(),
-            'started_at': int(time.time()),
+            "pid": os.getpid(),
+            "host": socket.gethostname(),
+            "started_at": int(time.time()),
         }
         try:
             fd = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
@@ -29,10 +29,8 @@ class RunLock:
                 self.path.unlink(missing_ok=True)
                 fd = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             else:
-                raise RuntimeError(
-                    f"Another pipeline execution is already running: {self.path}"
-                ) from None
-        with os.fdopen(fd, 'w', encoding='utf-8') as handle:
+                raise RuntimeError(f"Another pipeline execution is already running: {self.path}") from None
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
             json.dump(payload, handle)
             handle.flush()
             os.fsync(handle.fileno())

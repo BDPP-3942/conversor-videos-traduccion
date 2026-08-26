@@ -111,7 +111,7 @@ class LocalStorageProvider(StorageProvider):
                     continue
                 stem = child.stem
                 if stem.startswith(old_name):
-                    desired_stem = new_name + stem[len(old_name):]
+                    desired_stem = new_name + stem[len(old_name) :]
                 else:
                     desired_stem = normalize_component(stem)
                 desired = f"{fit_component(desired_stem, new)}{child.suffix.lower()}"

@@ -1,10 +1,10 @@
-
 from src.providers.runtime import load_runtime, save_runtime
 from src.runtime_lock import RunLock
 
 
 def test_runtime_keeps_active_cloud_locations(tmp_path, monkeypatch):
     import src.providers.runtime as runtime
+
     monkeypatch.setattr(runtime, "RUNTIME_FILE", tmp_path / "runtime.toml")
     save_runtime(
         provider="google_drive",

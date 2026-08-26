@@ -23,9 +23,7 @@ def test_google_requires_an_api_key(monkeypatch):
 
 def test_google_builds_official_api_client(monkeypatch):
     monkeypatch.setenv("GOOGLE_TRANSLATE_API_KEY", "test-key")
-    provider = build_translation_provider(
-        "google", AppSettings(source_lang="es", target_lang="en")
-    )
+    provider = build_translation_provider("google", AppSettings(source_lang="es", target_lang="en"))
 
     assert isinstance(provider, GoogleCloudBatchProvider)
     assert provider.source == "es"
@@ -71,9 +69,7 @@ def test_microsoft_builds_direct_api_client(monkeypatch):
 
 def test_mymemory_requires_no_credentials(monkeypatch):
     monkeypatch.delenv("LIBRETRANSLATE_API_KEY", raising=False)
-    provider = build_translation_provider(
-        "mymemory", AppSettings(source_lang="spanish", target_lang="english")
-    )
+    provider = build_translation_provider("mymemory", AppSettings(source_lang="spanish", target_lang="english"))
 
     assert isinstance(provider, MyMemoryBatchProvider)
     assert provider.source == "es"

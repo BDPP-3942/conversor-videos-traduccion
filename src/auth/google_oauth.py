@@ -16,9 +16,7 @@ class GoogleOAuthManager:
             from google.oauth2.credentials import Credentials
             from google_auth_oauthlib.flow import InstalledAppFlow
         except ImportError as exc:
-            raise RuntimeError(
-                "Google OAuth requires google-auth-oauthlib"
-            ) from exc
+            raise RuntimeError("Google OAuth requires google-auth-oauthlib") from exc
 
         credentials = None
         if self.token_file.is_file():
@@ -31,9 +29,7 @@ class GoogleOAuthManager:
             return credentials
 
         if not self.credentials_file.is_file():
-            raise FileNotFoundError(
-                f"Google OAuth client credentials not found: {self.credentials_file}"
-            )
+            raise FileNotFoundError(f"Google OAuth client credentials not found: {self.credentials_file}")
         self.token_file.parent.mkdir(parents=True, exist_ok=True)
         flow = InstalledAppFlow.from_client_secrets_file(str(self.credentials_file), SCOPES)
         credentials = flow.run_local_server(port=0, open_browser=open_browser)
@@ -51,9 +47,7 @@ class GoogleOAuthManager:
             from google.auth.transport.requests import Request
             from google.oauth2.credentials import Credentials
         except ImportError as exc:
-            raise RuntimeError(
-                "Google OAuth requires google-auth-oauthlib"
-            ) from exc
+            raise RuntimeError("Google OAuth requires google-auth-oauthlib") from exc
 
         if not self.token_file.is_file():
             raise RuntimeError("Google token.json is missing; run the one-time interactive setup.")
@@ -77,6 +71,7 @@ class GoogleOAuthManager:
             return {"authorized": False, "token_file": str(self.token_file)}
         try:
             from google.oauth2.credentials import Credentials
+
             credentials = Credentials.from_authorized_user_file(str(self.token_file), SCOPES)
             return {
                 "authorized": bool(credentials.valid or credentials.refresh_token),

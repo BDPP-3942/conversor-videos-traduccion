@@ -52,9 +52,7 @@ class StorageProvider(ABC):
         """Rename an already processed output folder and its generated artifact stems."""
         return {}
 
-    def normalize_existing_output_names(
-        self, target: str, original_transcript_subdir: str
-    ) -> dict[str, str]:
+    def normalize_existing_output_names(self, target: str, original_transcript_subdir: str) -> dict[str, str]:
         """Best-effort migration hook for output names created by older versions."""
         return {}
 
@@ -62,9 +60,7 @@ class StorageProvider(ABC):
         """Optional source identity used to make resume decisions safer."""
         return {"id": file.id, "name": file.name}
 
-    def finalize_source(
-        self, file: StorageFile, status: str, output_folders: list[str] | None = None
-    ) -> None:
+    def finalize_source(self, file: StorageFile, status: str, output_folders: list[str] | None = None) -> None:
         """Hook opcional para retirar fuentes procesadas del buzón de entrada."""
         return None
 

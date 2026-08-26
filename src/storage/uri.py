@@ -23,7 +23,4 @@ def parse_storage_uri(value: str) -> StorageUri:
         raw = value[len("local://") :]
         return StorageUri("local", unquote(raw))
 
-    raise ValueError(
-        "Storage URI must use local://, gdrive:// or rclone:// "
-        f"(received: {value!r})"
-    )
+    raise ValueError(f"Storage URI must use local://, gdrive:// or rclone:// (received: {value!r})")

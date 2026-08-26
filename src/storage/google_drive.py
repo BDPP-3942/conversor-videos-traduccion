@@ -22,8 +22,7 @@ class GoogleDriveStorageProvider(StorageProvider):
             from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
         except ImportError as exc:
             raise RuntimeError(
-                "Google Drive support requires google-api-python-client, "
-                "google-auth-httplib2 and google-auth-oauthlib"
+                "Google Drive support requires google-api-python-client, google-auth-httplib2 and google-auth-oauthlib"
             ) from exc
 
         self._Request = Request
@@ -41,9 +40,7 @@ class GoogleDriveStorageProvider(StorageProvider):
         scopes = ["https://www.googleapis.com/auth/drive"]
         credentials = None
         if self._token_file.is_file():
-            credentials = self._Credentials.from_authorized_user_file(
-                str(self._token_file), scopes
-            )
+            credentials = self._Credentials.from_authorized_user_file(str(self._token_file), scopes)
         if credentials and credentials.valid:
             return credentials
         if credentials and credentials.expired and credentials.refresh_token:
@@ -57,12 +54,8 @@ class GoogleDriveStorageProvider(StorageProvider):
                 "and keep the generated token.json available to the scheduled task account."
             )
         if not self._credentials_file.is_file():
-            raise FileNotFoundError(
-                f"Google OAuth credentials not found: {self._credentials_file}"
-            )
-        flow = self._InstalledAppFlow.from_client_secrets_file(
-            str(self._credentials_file), scopes
-        )
+            raise FileNotFoundError(f"Google OAuth credentials not found: {self._credentials_file}")
+        flow = self._InstalledAppFlow.from_client_secrets_file(str(self._credentials_file), scopes)
         credentials = flow.run_local_server(port=0)
         self._save_token(credentials)
         return credentials
@@ -76,10 +69,7 @@ class GoogleDriveStorageProvider(StorageProvider):
             pass
 
     def list_zip_files(self, location: str) -> list[StorageFile]:
-        query = (
-            f"'{location}' in parents and trashed = false "
-            "and mimeType = 'application/zip'"
-        )
+        query = f"'{location}' in parents and trashed = false and mimeType = 'application/zip'"
         files: list[StorageFile] = []
         page_token = None
         while True:
@@ -94,10 +84,7 @@ class GoogleDriveStorageProvider(StorageProvider):
                 )
                 .execute()
             )
-            files.extend(
-                StorageFile(id=item["id"], name=item["name"])
-                for item in response.get("files", [])
-            )
+            files.extend(StorageFile(id=item["id"], name=item["name"]) for item in response.get("files", []))
             page_token = response.get("nextPageToken")
             if not page_token:
                 return sorted(files, key=lambda item: item.name.lower())
@@ -121,24 +108,21 @@ class GoogleDriveStorageProvider(StorageProvider):
             raise FileNotFoundError(f"Local output not found: {local_path}")
         query = (
             f"'{location}' in parents and trashed = false "
-            f"and name = '{local_path.name.replace(chr(39), chr(92)+chr(39))}'"
+            f"and name = '{local_path.name.replace(chr(39), chr(92) + chr(39))}'"
         )
-        found = self._service.files().list(
-            q=query, spaces="drive", fields="files(id,name)", pageSize=10
-        ).execute().get("files", [])
-        media = self._MediaFileUpload(
-            str(local_path), mime_type=mime_type, resumable=True
+        found = (
+            self._service.files()
+            .list(q=query, spaces="drive", fields="files(id,name)", pageSize=10)
+            .execute()
+            .get("files", [])
         )
+        media = self._MediaFileUpload(str(local_path), mime_type=mime_type, resumable=True)
         if found:
             file_id = found[0]["id"]
-            result = self._service.files().update(
-                fileId=file_id, media_body=media, fields="id,name"
-            ).execute()
+            result = self._service.files().update(fileId=file_id, media_body=media, fields="id,name").execute()
         else:
             metadata = {"name": local_path.name, "parents": [location]}
-            result = self._service.files().create(
-                body=metadata, media_body=media, fields="id,name"
-            ).execute()
+            result = self._service.files().create(body=metadata, media_body=media, fields="id,name").execute()
         return StorageFile(id=result["id"], name=result["name"])
 
     def folder_exists(self, parent: str, name: str) -> bool:
@@ -148,9 +132,7 @@ class GoogleDriveStorageProvider(StorageProvider):
             "and mimeType = 'application/vnd.google-apps.folder' "
             f"and name = '{escaped}'"
         )
-        result = self._service.files().list(
-            q=query, spaces="drive", fields="files(id)", pageSize=1
-        ).execute()
+        result = self._service.files().list(q=query, spaces="drive", fields="files(id)", pageSize=1).execute()
         return bool(result.get("files"))
 
     def ensure_folder(self, parent: str, name: str) -> str:
@@ -160,9 +142,7 @@ class GoogleDriveStorageProvider(StorageProvider):
             "and mimeType = 'application/vnd.google-apps.folder' "
             f"and name = '{escaped}'"
         )
-        result = self._service.files().list(
-            q=query, spaces="drive", fields="files(id)", pageSize=10
-        ).execute()
+        result = self._service.files().list(q=query, spaces="drive", fields="files(id)", pageSize=10).execute()
         if result.get("files"):
             return result["files"][0]["id"]
         metadata = {
@@ -173,7 +153,6 @@ class GoogleDriveStorageProvider(StorageProvider):
         created = self._service.files().create(body=metadata, fields="id").execute()
         return created["id"]
 
-
     def file_exists(self, parent: str, name: str) -> bool:
         escaped = name.replace("'", "\\'")
         query = (
@@ -181,9 +160,7 @@ class GoogleDriveStorageProvider(StorageProvider):
             "and mimeType != 'application/vnd.google-apps.folder' "
             f"and name = '{escaped}'"
         )
-        result = self._service.files().list(
-            q=query, spaces="drive", fields="files(id)", pageSize=1
-        ).execute()
+        result = self._service.files().list(q=query, spaces="drive", fields="files(id)", pageSize=1).execute()
         return bool(result.get("files"))
 
     def list_children(self, parent: str) -> list[StorageFile]:
@@ -202,11 +179,15 @@ class GoogleDriveStorageProvider(StorageProvider):
         page_token = None
         while True:
             response = (
-                self._service.files().list(
-                    q=query, spaces="drive",
+                self._service.files()
+                .list(
+                    q=query,
+                    spaces="drive",
                     fields="nextPageToken, files(id,name,mimeType)",
-                    pageSize=1000, pageToken=page_token,
-                ).execute()
+                    pageSize=1000,
+                    pageToken=page_token,
+                )
+                .execute()
             )
             files.extend(response.get("files", []))
             page_token = response.get("nextPageToken")
@@ -250,14 +231,12 @@ class GoogleDriveStorageProvider(StorageProvider):
         path = Path(old_name)
         stem = path.stem
         if stem.startswith(old_stem):
-            stem = new_stem + stem[len(old_stem):]
+            stem = new_stem + stem[len(old_stem) :]
         else:
             stem = normalize_component(stem)
         return f"{stem}{path.suffix.lower()}"
 
-    def normalize_existing_output_names(
-        self, target: str, original_transcript_subdir: str
-    ) -> dict[str, str]:
+    def normalize_existing_output_names(self, target: str, original_transcript_subdir: str) -> dict[str, str]:
         renamed: dict[str, str] = {}
         for item in self._list_children(target):
             if item["mimeType"] != "application/vnd.google-apps.folder":
@@ -268,9 +247,7 @@ class GoogleDriveStorageProvider(StorageProvider):
             if new != old:
                 # Only rename when the normalized name is not already occupied.
                 if not self.folder_exists(target, new):
-                    self._service.files().update(
-                        fileId=folder_id, body={"name": new}, fields="id,name"
-                    ).execute()
+                    self._service.files().update(fileId=folder_id, body={"name": new}, fields="id,name").execute()
                     renamed[old] = new
                     old = new
             for child in self._list_children(folder_id):
@@ -288,9 +265,8 @@ class GoogleDriveStorageProvider(StorageProvider):
                         if nested["mimeType"] == "application/vnd.google-apps.folder":
                             continue
                         normalized_nested = normalize_filename(nested["name"])
-                        if (
-                            normalized_nested != nested["name"]
-                            and not self.file_exists(child_folder_id, normalized_nested)
+                        if normalized_nested != nested["name"] and not self.file_exists(
+                            child_folder_id, normalized_nested
                         ):
                             self._service.files().update(
                                 fileId=nested["id"], body={"name": normalized_nested}, fields="id,name"

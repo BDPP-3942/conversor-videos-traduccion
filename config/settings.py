@@ -6,9 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 BASE_DIR = (
-    Path(sys.executable).resolve().parent
-    if getattr(sys, "frozen", False)
-    else Path(__file__).resolve().parent.parent
+    Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent.parent
 )
 CONFIG_DIR = BASE_DIR / "config"
 SECRETS_DIR = BASE_DIR / "secrets"

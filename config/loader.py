@@ -114,6 +114,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
     settings = _apply_runtime_provider(settings)
     settings = _apply_environment_overrides(settings)
     from src.resource_profile import apply_resource_profile
+
     return apply_resource_profile(settings)
 
 

@@ -53,7 +53,7 @@ class RcloneManager:
         an expired access token and persist the refreshed token in rclone.conf.
         """
         self.ensure_binary()
-        target = f"{remote}:{location.strip('/')}" if location.strip('/') else f"{remote}:"
+        target = f"{remote}:{location.strip('/')}" if location.strip("/") else f"{remote}:"
         result = self._run(["lsjson", target, "--max-depth", "1"], check=False, timeout=120)
         if result.returncode != 0:
             detail = (result.stderr or result.stdout or "rclone remote healthcheck failed").strip()
@@ -87,9 +87,7 @@ class RcloneManager:
             args += ["create", name, backend]
         subprocess.run(self._base_command(args), check=True)
 
-    def config_create_non_interactive(
-        self, name: str, backend: str, options: dict[str, str] | None = None
-    ) -> dict:
+    def config_create_non_interactive(self, name: str, backend: str, options: dict[str, str] | None = None) -> dict:
         """Create a remote using rclone's machine-friendly question/continue protocol."""
         self.ensure_binary()
         options = options or {}
@@ -172,8 +170,7 @@ class RcloneManager:
                 raise RuntimeError("rclone download checksum verification failed")
             with zipfile.ZipFile(archive) as handle:
                 matches = [
-                    name for name in handle.namelist()
-                    if name.endswith("/rclone") or name.endswith("/rclone.exe")
+                    name for name in handle.namelist() if name.endswith("/rclone") or name.endswith("/rclone.exe")
                 ]
                 if len(matches) != 1:
                     raise RuntimeError("Unexpected rclone archive contents")

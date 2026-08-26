@@ -62,11 +62,7 @@ def _clean(value: str) -> str:
 
 def _is_noise(value: str) -> bool:
     cleaned = _clean(value).lower()
-    return (
-        not cleaned
-        or cleaned in _GENERIC
-        or not re.search(r"[a-záéíóúüñ]", cleaned)
-    )
+    return not cleaned or cleaned in _GENERIC or not re.search(r"[a-záéíóúüñ]", cleaned)
 
 
 def _number(value: str) -> int | None:
@@ -83,11 +79,7 @@ def _description(video_name: str, lesson: int | None) -> str:
         value = _ORDINAL.sub("_", value, count=1)
     value = _LABEL.sub("_", value)
     value = re.sub(r"_+", "_", value).strip("_")
-    tokens = [
-        token
-        for token in value.split("_")
-        if token.lower() not in _GENERIC
-    ]
+    tokens = [token for token in value.split("_") if token.lower() not in _GENERIC]
     return _sanitize_text("_".join(tokens)) if tokens else ""
 
 
@@ -98,12 +90,8 @@ def _course_code(context_values: list[str]) -> str | None:
             continue
         without_numbers = _NUMBER.sub("_", cleaned)
         without_labels = _LABEL.sub("_", without_numbers)
-        tokens = [
-            token for token in re.split(r"_+", without_labels) if token
-        ]
-        tokens = [
-            token for token in tokens if token.lower() not in _GENERIC
-        ]
+        tokens = [token for token in re.split(r"_+", without_labels) if token]
+        tokens = [token for token in tokens if token.lower() not in _GENERIC]
         if tokens:
             return _sanitize_text("_".join(tokens))
     return None
@@ -135,21 +123,15 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
     review_required = course is None or lesson is None
     reasons: list[str] = []
     if course is None:
-        reasons.append(
-            "course number not found; textual code inferred when possible"
-        )
+        reasons.append("course number not found; textual code inferred when possible")
     if lesson is None:
-        reasons.append(
-            "lesson number not found; no synthetic lesson number added"
-        )
+        reasons.append("lesson number not found; no synthetic lesson number added")
     return SourceNameMetadata(
         course=course,
         lesson=lesson,
         description=description or fallback,
         output_stem=output_stem or fallback,
-        confidence=(
-            "high" if course is not None and lesson is not None else "medium"
-        ),
+        confidence=("high" if course is not None and lesson is not None else "medium"),
         review_required=review_required,
         review_reason="; ".join(reasons),
         course_name=course_name,
