@@ -221,9 +221,18 @@ class TextTranslator:
     ) -> list[str]:
         last_error: Exception | None = None
         provider_limit = self._provider_semaphore(name)
+        configured_attempts = max(1, int(self.settings.translation_max_retries_per_provider))
+        max_attempts = min(BATCH_MAX_ATTEMPTS, configured_attempts)
         with self._global_limit, provider_limit:
-            for attempt in range(1, BATCH_MAX_ATTEMPTS + 1):
-                logger.info("Provider '%s' batch attempt %d/%d for segments %s-%s", name, attempt, BATCH_MAX_ATTEMPTS, indexes[0], indexes[-1])
+            for attempt in range(1, max_attempts + 1):
+                logger.info(
+                    "Provider '%s' batch attempt %d/%d for segments %s-%s",
+                    name,
+                    attempt,
+                    max_attempts,
+                    indexes[0],
+                    indexes[-1],
+                )
                 try:
                     self._wait_for_rate_limit(name)
                     result = provider.translate_batch(texts)
@@ -237,7 +246,7 @@ class TextTranslator:
                     last_error = exc
                 except Exception as exc:
                     last_error = exc
-                if attempt < BATCH_MAX_ATTEMPTS:
+                if attempt < max_attempts:
                     self._backoff(attempt)
         if last_error is None:
             raise RuntimeError("Translation batch failed without an exception")
