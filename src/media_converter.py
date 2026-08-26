@@ -10,7 +10,16 @@ from config.settings import AppSettings
 from src.ffmpeg_resolver import FFmpegResolver
 
 logger = logging.getLogger(__name__)
-MEDIA_EXTENSIONS = {".mp4", ".mp3", ".wmv", ".mov", ".mkv", ".avi"}
+MEDIA_EXTENSIONS = {
+    ".mp3",
+    ".mp4",
+    ".wmv",
+    ".mov",
+    ".mkv",
+    ".avi",
+    ".webm",
+    ".m4v",
+}
 
 
 @dataclass(frozen=True)
@@ -39,15 +48,9 @@ class MediaConverter:
         if source.suffix.lower() == ".mp4" and self.settings.ffmpeg_avoid_reencode:
             try:
                 self._run(self._build_mp4_copy_command(source, mp4))
-                logger.info(
-                    "MP4 already compatible with container copy path: %s",
-                    source.name,
-                )
+                logger.info("MP4 already compatible with container copy path: %s", source.name)
             except RuntimeError:
-                logger.info(
-                    "MP4 copy path failed; falling back to H.264/AAC transcode: %s",
-                    source.name,
-                )
+                logger.info("MP4 copy path failed; falling back to H.264/AAC transcode: %s", source.name)
                 self._run(self._build_mp4_command(source, mp4))
         else:
             self._run(self._build_mp4_command(source, mp4))
@@ -125,7 +128,7 @@ class MediaConverter:
             "-map",
             "0:v:0",
             "-map",
-            "0:a:0",
+            "0:a:0?",
             "-c:v",
             "libx264",
             "-preset",
@@ -176,10 +179,7 @@ class MediaConverter:
             if max_width > 0:
                 command += [
                     "-vf",
-                    (
-                        f"scale=w='min({max_width},iw)':h=-2:"
-                        "force_original_aspect_ratio=decrease"
-                    ),
+                    f"scale=w='min({max_width},iw)':h=-2:force_original_aspect_ratio=decrease",
                 ]
 
         if fps > 0:
@@ -214,10 +214,7 @@ class MediaConverter:
     def _run(self, command: list[str]) -> None:
         logger.debug("Running FFmpeg: %s", " ".join(command))
         progress_command = (
-            command[:-1]
-            + ["-progress", "pipe:2", "-nostats", command[-1]]
-            if command
-            else command
+            command[:-1] + ["-progress", "pipe:2", "-nostats", command[-1]] if command else command
         )
         process = None
         last_progress_log = 0.0
@@ -270,8 +267,7 @@ class MediaConverter:
                 raise RuntimeError(detail)
         except FileNotFoundError as exc:
             raise RuntimeError(
-                "FFmpeg no está disponible. Ejecuta `pip install -r requirements.txt` "
-                "o configura FFMPEG_BIN."
+                "FFmpeg no está disponible. Ejecuta `pip install -r requirements.txt` o configura FFMPEG_BIN."
             ) from exc
         except subprocess.TimeoutExpired as exc:
             if process is not None:
