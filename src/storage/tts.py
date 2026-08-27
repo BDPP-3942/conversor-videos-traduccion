@@ -13,16 +13,11 @@ logger = logging.getLogger(__name__)
 
 
 class TTSAwareStorageProvider(StorageProvider):
-    """Storage decorator that adds TTS after the translated VTT is available.
-
-    Keeping this as a decorator means CLI, run_local, packaged executables,
-    scheduled jobs and cloud providers continue to use the same MediaPipeline.
-    """
+    """Storage decorator that adds TTS without creating a second pipeline."""
 
     def __init__(self, wrapped: StorageProvider, settings: AppSettings) -> None:
         self.wrapped = wrapped
         self.settings = settings
-        self._targets: set[str] = set()
         self._output_folders: set[tuple[str, str]] = set()
 
     def list_zip_files(self, location: str) -> list[StorageFile]:
@@ -34,13 +29,12 @@ class TTSAwareStorageProvider(StorageProvider):
     def upload_file(self, local_path: Path, location: str, mime_type: str | None = None) -> StorageFile:
         result = self.wrapped.upload_file(local_path, location, mime_type)
         if self.settings.tts_enabled and _is_output_vtt(local_path):
-            self._output_folders.add((self._parent_target(location), location))
+            self._track_folder(location)
         return result
 
     def ensure_folder(self, parent: str, name: str) -> str:
         result = self.wrapped.ensure_folder(parent, name)
         if self.settings.tts_enabled:
-            self._targets.add(parent)
             self._output_folders.add((parent, result))
         return result
 
@@ -69,21 +63,29 @@ class TTSAwareStorageProvider(StorageProvider):
         return bool(method(file)) if method else False
 
     def finalize_source(self, file: StorageFile, status: str, output_folders: list[str] | None = None) -> None:
+        if self.settings.tts_enabled and status == "success":
+            try:
+                self._process_pending_folders()
+            except Exception:
+                logger.exception("TTS failed before source finalization")
+                if self.settings.tts_required:
+                    raise
         self.wrapped.finalize_source(file, status, output_folders)
 
     def close(self) -> None:
-        tts_error: Exception | None = None
-        if self.settings.tts_enabled:
-            try:
-                self._process_pending_folders()
-            except Exception as exc:
-                tts_error = exc
-                logger.exception("TTS post-processing failed")
         try:
-            self.wrapped.close()
+            if self.settings.tts_enabled:
+                self._process_pending_folders()
         finally:
-            if tts_error is not None and self.settings.tts_required:
-                raise tts_error
+            self.wrapped.close()
+
+    def _track_folder(self, location: str) -> None:
+        # The translated VTT is uploaded directly into the output folder.
+        # The target root is recovered for local paths; cloud providers keep
+        # their native folder identifier and use the same folder as its target.
+        path = Path(location)
+        parent = str(path.parent) if path.parent != Path(".") else location
+        self._output_folders.add((parent, location))
 
     def _process_pending_folders(self) -> None:
         for target, folder in sorted(self._output_folders):
@@ -92,19 +94,26 @@ class TTSAwareStorageProvider(StorageProvider):
     def _process_folder(self, target: str, folder: str) -> None:
         children = self.wrapped.list_children(folder)
         files = {child.name: child for child in children if not child.is_directory}
-        vtt = next((item for name, item in files.items() if _is_output_vtt_name(name)), None)
-        video = next((item for name, item in files.items() if name.lower().endswith(".mp4") and "_tts" not in name.lower()), None)
-        webm = next((item for name, item in files.items() if name.lower().endswith(".webm") and "_tts" not in name.lower()), None)
+        vtt = next((item for item in files.values() if _is_output_vtt_name(item.name)), None)
+        video = next(
+            (item for item in files.values() if item.name.lower().endswith(".mp4") and "_tts" not in item.name.lower()),
+            None,
+        )
+        webm = next(
+            (item for item in files.values() if item.name.lower().endswith(".webm") and "_tts" not in item.name.lower()),
+            None,
+        )
         if not vtt or not video:
             return
 
         stem = Path(video.name).stem
         expected_mp4 = f"{stem}_tts.mp4"
         expected_webm = f"{stem}_tts.webm"
+        webm_required = self.settings.tts_generate_webm and self.settings.generate_webm
         if self.wrapped.file_exists(folder, expected_mp4) and (
-            not self.settings.tts_generate_webm or not self.settings.generate_webm or self.wrapped.file_exists(folder, expected_webm)
+            not webm_required or self.wrapped.file_exists(folder, expected_webm)
         ):
-            self._update_manifest(target, Path(folder).name, expected_mp4, expected_webm if webm else "")
+            self._update_manifest(target, Path(folder).name, expected_mp4, expected_webm if webm_required else "")
             return
 
         with tempfile.TemporaryDirectory(prefix=f"tts_{stem}_") as temp_dir:
@@ -139,6 +148,7 @@ class TTSAwareStorageProvider(StorageProvider):
                 )
             except (TTSProviderError, RuntimeError, ValueError, OSError) as exc:
                 logger.error("TTS failed for output folder %s: %s", folder, exc)
+                self._update_manifest_status(target, Path(folder).name, "failed", str(exc))
                 if self.settings.tts_required:
                     raise
 
@@ -152,18 +162,41 @@ class TTSAwareStorageProvider(StorageProvider):
         cue_count: int | None = None,
         adjusted_cues: int | None = None,
     ) -> None:
+        self._update_manifest_status(
+            target,
+            folder_name,
+            "completed",
+            "",
+            mp4_name=mp4_name,
+            webm_name=webm_name,
+            cue_count=cue_count,
+            adjusted_cues=adjusted_cues,
+        )
+
+    def _update_manifest_status(
+        self,
+        target: str,
+        folder_name: str,
+        status: str,
+        error: str,
+        *,
+        mp4_name: str = "",
+        webm_name: str = "",
+        cue_count: int | None = None,
+        adjusted_cues: int | None = None,
+    ) -> None:
         manifest_dir = local_storage_paths()["manifests"]
         if not manifest_dir.is_dir():
             return
         from src.manifest import read_manifest, write_manifest
 
-        changed = False
         for manifest_path in manifest_dir.glob("*.json"):
             data = read_manifest(manifest_path)
+            changed = False
             for entry in data.get("entries", []):
                 if not isinstance(entry, dict) or str(entry.get("output_folder", "")) != folder_name:
                     continue
-                if entry.get("tts_mp4") != mp4_name:
+                if mp4_name and entry.get("tts_mp4") != mp4_name:
                     entry["tts_mp4"] = mp4_name
                     changed = True
                 if webm_name and entry.get("tts_webm") != webm_name:
@@ -175,19 +208,18 @@ class TTSAwareStorageProvider(StorageProvider):
                 if adjusted_cues is not None and entry.get("tts_adjusted_cues") != adjusted_cues:
                     entry["tts_adjusted_cues"] = adjusted_cues
                     changed = True
-                entry["tts_status"] = "completed"
-                changed = True
+                if entry.get("tts_status") != status:
+                    entry["tts_status"] = status
+                    changed = True
+                if error and entry.get("tts_error") != error:
+                    entry["tts_error"] = error
+                    changed = True
             if changed:
                 write_manifest(manifest_path, data.get("entries", []), metadata=data.get("metadata", {}))
                 try:
                     self.wrapped.upload_file(manifest_path, target, "application/json")
                 except (OSError, RuntimeError) as exc:
                     logger.warning("Could not upload updated TTS manifest %s: %s", manifest_path, exc)
-
-    @staticmethod
-    def _parent_target(location: str) -> str:
-        path = Path(location)
-        return str(path.parent) if path.parent != Path(".") else location
 
 
 def _is_output_vtt(path: Path) -> bool:
