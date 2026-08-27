@@ -9,7 +9,9 @@ if not exist ".venv\Scripts\python.exe" (
 )
 ".venv\Scripts\python.exe" -m pip install -r requirements-dev.txt
 if errorlevel 1 exit /b 1
-".venv\Scripts\python.exe" -m PyInstaller --noconfirm --clean --onedir --name VideoTranslationPipeline --collect-all faster_whisper --collect-all ctranslate2 main.py
+".venv\Scripts\python.exe" -m pip install ".[tts]"
+if errorlevel 1 exit /b 1
+".venv\Scripts\python.exe" -m PyInstaller --noconfirm --clean --onedir --name VideoTranslationPipeline --collect-all faster_whisper --collect-all ctranslate2 --collect-all kokoro_onnx --collect-all onnxruntime main.py
 if errorlevel 1 exit /b 1
 if not exist "dist\VideoTranslationPipeline\config" mkdir "dist\VideoTranslationPipeline\config"
 if not exist "dist\VideoTranslationPipeline\secrets" mkdir "dist\VideoTranslationPipeline\secrets"
@@ -27,6 +29,6 @@ if "%NO_WEBM%"=="1" echo [INFO] WebM secundario desactivado en la configuracion 
 echo [OK] Aplicacion portable creada en dist\VideoTranslationPipeline\
 echo [INFO] Diagnostico: dist\VideoTranslationPipeline\VideoTranslationPipeline.exe doctor
 echo [INFO] Precarga: scripts\prefetch_whisper.bat
-echo [INFO] El modelo Whisper no se incluye en el EXE; se descarga en la cache del usuario.
+echo [INFO] Los modelos Whisper/TTS permanecen externos y no se embeben en el EXE.
 echo [INFO] Task Scheduler: scripts\install_task_scheduler.ps1
 endlocal
