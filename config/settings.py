@@ -5,11 +5,14 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-BASE_DIR = (
-    Path(sys.executable).resolve().parent
-    if getattr(sys, "frozen", False)
-    else Path(__file__).resolve().parent.parent
-)
+
+def _resolve_base_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent.parent
+
+
+BASE_DIR = _resolve_base_dir()
 CONFIG_DIR = BASE_DIR / "config"
 SECRETS_DIR = BASE_DIR / "secrets"
 STORAGE_DIR = BASE_DIR / "storage"
@@ -98,13 +101,11 @@ class AppSettings:
 
     @classmethod
     def from_environment(cls) -> AppSettings:
-        fallback_raw = os.getenv(
-            "TRANSLATION_FALLBACK_PROVIDERS", ",".join(cls.translation_fallback_providers)
-        )
+        fallback_default = ",".join(cls.translation_fallback_providers)
+        fallback_raw = os.getenv("TRANSLATION_FALLBACK_PROVIDERS", fallback_default)
         fallback = tuple(item.strip() for item in fallback_raw.split(",") if item.strip())
-        condition_on_previous_text = (
-            os.getenv("WHISPER_CONDITION_ON_PREVIOUS_TEXT", "true").lower() == "true"
-        )
+        condition_env = os.getenv("WHISPER_CONDITION_ON_PREVIOUS_TEXT", "true")
+        condition_on_previous_text = condition_env.lower() == "true"
         return cls(
             provider=os.getenv("STORAGE_PROVIDER", cls.provider),
             source=os.getenv("SOURCE_URI", cls.source),
