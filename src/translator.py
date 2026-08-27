@@ -170,7 +170,13 @@ class TextTranslator:
         results: list[tuple[int, str, str]] = []
         with ThreadPoolExecutor(max_workers=self._provider_concurrency(name)) as executor:
             futures = {
-                executor.submit(self._translate_provider_chunk, name, texts, indexes, chunk): chunk
+                executor.submit(
+                    self._translate_provider_chunk,
+                    name,
+                    texts,
+                    indexes,
+                    chunk,
+                ): chunk
                 for chunk in chunks
             }
             for future in as_completed(futures):

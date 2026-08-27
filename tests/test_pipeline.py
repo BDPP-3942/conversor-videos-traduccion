@@ -148,7 +148,7 @@ def test_translation_fallback_reuses_existing_stt_and_media_artifacts(tmp_path):
     work_root.mkdir()
 
     settings = AppSettings(
-        translation_provider="google",
+        translation_provider="mistral",
         translation_fallback_providers=("mymemory",),
         translation_max_retries_per_provider=2,
         translation_batch_size=2,
@@ -158,7 +158,7 @@ def test_translation_fallback_reuses_existing_stt_and_media_artifacts(tmp_path):
     first = _AlwaysFailProvider()
     second = _WorkingProvider()
     translator = TextTranslator(settings)
-    translator._providers = {"google": first, "mymemory": second}
+    translator._providers = {"mistral": first, "mymemory": second}
     translator._get_provider = lambda name: translator._providers[name]
 
     stt = _CountingSTT()
@@ -197,5 +197,5 @@ def test_translation_fallback_reuses_existing_stt_and_media_artifacts(tmp_path):
     assert converter.calls == 1
     assert stt.calls == 1
     assert first.calls == 2
-    assert second.calls == 1
+    assert second.calls == 2
     assert len(storage.uploads) == 3
