@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from config.settings import AppSettings
 from src.tts_pipeline import TTSCue, _read_cues, _render_timeline
@@ -51,7 +52,7 @@ def test_render_timeline_keeps_silence_between_cues(tmp_path: Path) -> None:
 
 
 def test_render_timeline_retries_with_higher_speed_when_cue_is_too_long(tmp_path: Path) -> None:
-    provider = FakeProvider([2.0, 0.9])
+    provider = FakeProvider([1.2, 0.9])
     settings = AppSettings(tts_sample_rate=1000, tts_speed=1.0, tts_max_speed=1.35)
     output = tmp_path / "tts.wav"
 
@@ -71,8 +72,6 @@ def test_render_timeline_rejects_overlong_audio_when_max_speed_is_insufficient(t
     provider = FakeProvider([2.0, 2.0])
     settings = AppSettings(tts_sample_rate=1000, tts_speed=1.0, tts_max_speed=1.1)
     output = tmp_path / "tts.wav"
-
-    import pytest
 
     with pytest.raises(RuntimeError, match="cannot fit"):
         _render_timeline([TTSCue(0.0, 1.0, "Texto")], provider, settings, output)
