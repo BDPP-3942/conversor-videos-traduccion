@@ -94,6 +94,9 @@ class AppSettings:
     auto_bootstrap_rclone: bool = True
     auto_update_rclone: bool = False
     auto_tune_resources: bool = True
+    resource_profile: str = "auto"
+    detected_logical_cpus: int = 0
+    detected_memory_gb: float = 0.0
 
     @classmethod
     def from_environment(cls) -> "AppSettings":
@@ -251,6 +254,9 @@ class AppSettings:
             auto_bootstrap_rclone=os.getenv("AUTO_BOOTSTRAP_RCLONE", "true").lower() == "true",
             auto_update_rclone=os.getenv("AUTO_UPDATE_RCLONE", "false").lower() == "true",
             auto_tune_resources=os.getenv("AUTO_TUNE_RESOURCES", "true").lower() == "true",
+            resource_profile=os.getenv("RESOURCE_PROFILE", cls.resource_profile),
+            detected_logical_cpus=int(os.getenv("DETECTED_LOGICAL_CPUS", cls.detected_logical_cpus)),
+            detected_memory_gb=float(os.getenv("DETECTED_MEMORY_GB", cls.detected_memory_gb)),
         )
 
 
