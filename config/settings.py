@@ -31,7 +31,7 @@ class AppSettings:
     whisper_compute_type: str = "int8"
     whisper_beam_size: int = 5
     whisper_vad_filter: bool = True
-    whisper_min_silence_duration_ms: int = 750
+    whisper_min_silence_duration_ms: int = 1500
     whisper_condition_on_previous_text: bool = True
     whisper_initial_prompt: str = ""
     whisper_cpu_threads: int = 0
