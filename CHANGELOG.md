@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.1] — Documentación de instalación y mantenimiento
+
+**Tipo:** PATCH — corrección compatible de documentación y navegación del proyecto.
+
+### Fixed
+
+- Añadida la guía de instalación que ya era referenciada desde `README.md`.
+- Corregidos los enlaces del índice de documentación del README para no apuntar a documentos inexistentes.
+- Aclarados los requisitos de Python, dependencias opcionales, FFmpeg, TTS, modelos externos, proveedores de traducción, almacenamiento cloud, ejecución programada y empaquetado.
+- Documentado el procedimiento de actualización y la validación de una instalación existente.
+
+### Documentation
+
+- Nueva `docs/INSTALLATION.md`.
+- El índice del README refleja únicamente la documentación que existe actualmente en el repositorio.
+- Se mantienen las guías especializadas existentes para TTS, traducción, almacenamiento, ejecución desatendida, deduplicación, seguridad, auditoría y releases.
+
 ## [1.0.0] — Primera release estable
 
 **Tipo:** MAJOR — primera release estable de esta línea de producto.
