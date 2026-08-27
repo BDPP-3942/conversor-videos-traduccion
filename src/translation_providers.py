@@ -51,17 +51,12 @@ class _HttpBatchProvider:
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
             if exc.code in {402, 403, 456}:
-                message = (
-                    "translation provider quota/authorization response "
-                    f"{exc.code}: {detail}"
-                )
+                message = f"translation provider quota/authorization response {exc.code}: {detail}"
                 raise TranslationQuotaError(message) from exc
             if exc.code == 429:
                 message = f"translation provider rate limit response 429: {detail}"
                 raise TranslationRateLimitError(message) from exc
-            raise RuntimeError(
-                f"translation provider HTTP {exc.code}: {detail}"
-            ) from exc
+            raise RuntimeError(f"translation provider HTTP {exc.code}: {detail}") from exc
         except (urllib.error.URLError, TimeoutError) as exc:
             raise RuntimeError(f"translation provider connection failed: {exc}") from exc
 
@@ -116,14 +111,10 @@ class MistralBatchProvider(_HttpBatchProvider):
             parsed = json.loads(content) if isinstance(content, str) else content
             translations = parsed["translations"]
         except (KeyError, TypeError, ValueError, IndexError) as exc:
-            raise RuntimeError(
-                "Mistral returned an invalid structured translation response"
-            ) from exc
+            raise RuntimeError("Mistral returned an invalid structured translation response") from exc
         if not isinstance(translations, list) or len(translations) != len(texts):
             count = len(translations) if isinstance(translations, list) else "invalid"
-            raise RuntimeError(
-                f"Mistral returned {count} translations for {len(texts)} inputs"
-            )
+            raise RuntimeError(f"Mistral returned {count} translations for {len(texts)} inputs")
         return [str(item) for item in translations]
 
 
