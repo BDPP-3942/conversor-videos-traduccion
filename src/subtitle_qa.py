@@ -82,6 +82,26 @@ def _post_json(url: str, payload: object, timeout: float = 60.0) -> object:
         raise SubtitleQAError(f"QA service connection failed: {exc}") from exc
 
 
+def _post_form(url: str, payload: dict[str, str], timeout: float = 60.0) -> object:
+    parsed = urllib.parse.urlsplit(url)
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError("QA service URL must use HTTP or HTTPS")
+    request = urllib.request.Request(
+        url,
+        data=urllib.parse.urlencode(payload).encode("utf-8"),
+        headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise SubtitleQAError(f"QA service HTTP {exc.code}: {detail}") from exc
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise SubtitleQAError(f"QA service connection failed: {exc}") from exc
+
+
 class LanguageToolProvider:
     name = "languagetool"
 
@@ -117,14 +137,9 @@ class LanguageToolProvider:
         for cue in cues:
             if not cue.text:
                 continue
-            result = _post_json(
+            result = _post_form(
                 self.url,
-                {
-                    "text": cue.text,
-                    "language": self.language,
-                    "enabledOnly": False,
-                    "level": "picky",
-                },
+                {"text": cue.text, "language": self.language, "enabledOnly": "false", "level": "picky"},
             )
             matches = result.get("matches", []) if isinstance(result, dict) else []
             if not isinstance(matches, list):
@@ -148,10 +163,7 @@ class LanguageToolProvider:
                 )
             if auto_correct and matches:
                 result_cues[cue.index - 1] = SubtitleCue(
-                    cue.index,
-                    cue.start,
-                    cue.end,
-                    self._apply(cue.text, [m for m in matches if isinstance(m, dict)]),
+                    cue.index, cue.start, cue.end, self._apply(cue.text, [m for m in matches if isinstance(m, dict)])
                 )
         return result_cues, issues
 
@@ -184,8 +196,8 @@ class OllamaProvider:
                         "role": "system",
                         "content": (
                             "You are a meticulous English subtitle QA editor. Preserve meaning. Never alter timing, "
-                            "merge/split cues, invent facts or dialogue. Return JSON only with changed, "
-                            "corrected_text, issues, confidence."
+                            "merge/split cues, invent facts or dialogue. Return JSON only with changed, corrected_text, "
+                            "issues, confidence."
                         ),
                     },
                     {
@@ -196,7 +208,10 @@ class OllamaProvider:
                                 "translated": cue.text,
                                 "previous": cues[pos - 1].text if pos else "",
                                 "next": cues[pos + 1].text if pos + 1 < len(cues) else "",
-                                "task": "Check spelling, grammar, punctuation, natural English, contextual meaning, inappropriate wording and terminology. Correct only when justified.",
+                                "task": (
+                                    "Check spelling, grammar, punctuation, natural English, contextual meaning, "
+                                    "inappropriate wording and terminology. Correct only when justified."
+                                ),
                             },
                             ensure_ascii=False,
                         ),
