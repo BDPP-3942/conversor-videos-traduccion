@@ -11,7 +11,7 @@ from typing import Protocol
 
 import webvtt
 
-from config.settings import AppSettings, local_storage_paths, resolve_project_path
+from config.settings import AppSettings, resolve_project_path
 
 logger = logging.getLogger(__name__)
 
@@ -233,14 +233,34 @@ def _mux_video(source: Path, audio: Path, output: Path, settings: AppSettings, *
         "0:v:0",
         "-map",
         "1:a:0",
-        "-c:v",
-        "copy",
         "-shortest",
     ]
-    if webm:
-        command += ["-c:a", "libopus", "-b:a", settings.tts_webm_audio_bitrate]
+    if webm and source.suffix.lower() == ".webm":
+        command += ["-c:v", "copy", "-c:a", "libopus", "-b:a", settings.tts_webm_audio_bitrate]
+    elif webm:
+        command += [
+            "-c:v",
+            "libvpx-vp9",
+            "-crf",
+            "32",
+            "-b:v",
+            "0",
+            "-c:a",
+            "libopus",
+            "-b:a",
+            settings.tts_webm_audio_bitrate,
+        ]
     else:
-        command += ["-c:a", "aac", "-b:a", settings.tts_audio_bitrate, "-movflags", "+faststart"]
+        command += [
+            "-c:v",
+            "copy",
+            "-c:a",
+            "aac",
+            "-b:a",
+            settings.tts_audio_bitrate,
+            "-movflags",
+            "+faststart",
+        ]
     command.append(str(output))
     _run_ffmpeg(command, settings.ffmpeg_timeout_seconds)
 
