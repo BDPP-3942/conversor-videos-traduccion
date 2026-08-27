@@ -5,18 +5,28 @@ La generación TTS es opcional y está desactivada por defecto. Cuando se activa
 ## Flujo
 
 ```text
-VTT traducido/corregido
-        ↓
-cue individual
-        ↓
-TTS local
-        ↓
+Audio
+  ↓
+Whisper + timestamps de palabra
+  ↓
+separación de pausas largas
+  ↓
+VTT original
+  ↓
+traducción conservando timestamps
+  ↓
+QA/corrección sin cambiar timing
+  ↓
+TTS por cue
+  ↓
 audio colocado en su timestamp
-        ↓
+  ↓
 WAV completo con silencios
-        ↓
+  ↓
 MP4 TTS + WebM TTS
 ```
+
+Whisper utiliza `word_timestamps=true` para detectar pausas internas. Por defecto una separación de al menos `1500 ms` crea cues independientes. Esto evita mantener visible la última frase durante una pausa larga. El umbral se configura con `whisper_min_silence_duration_ms` o `WHISPER_MIN_SILENCE_DURATION_MS`.
 
 No se genera un único audio continuo a partir de todo el texto. Cada cue conserva `start/end`; los silencios entre cues se mantienen y los solapamientos del VTT se rechazan.
 
@@ -37,8 +47,6 @@ tools/tts/kokoro-v1.0.onnx
 tools/tts/voices-v1.0.bin
 ```
 
-La documentación upstream de `kokoro-onnx` indica que los modelos v1.0 se distribuyen por separado y que el runtime es compatible con Python 3.13. La configuración del proyecto no descarga pesos silenciosamente ni los embebe en el ejecutable.
-
 ## Configuración
 
 En `config/app.toml`:
@@ -48,7 +56,7 @@ En `config/app.toml`:
 enabled = true
 required = false
 provider = "kokoro"
-voice = "ef_dora"
+voice = "af_sarah"
 model_path = "tools/tts/kokoro-v1.0.onnx"
 voices_path = "tools/tts/voices-v1.0.bin"
 speed = 1.0
@@ -86,7 +94,7 @@ El MP4 conserva el vídeo existente y codifica la narración como AAC. Para WebM
 
 ## Resume e idempotencia
 
-El decorador de storage se ejecuta en el mismo núcleo de almacenamiento que usa el pipeline. Al cerrar una ejecución revisa las carpetas que han sido utilizadas y también puede completar artefactos TTS ausentes en ejecuciones reanudadas. Un artefacto TTS ya válido no se vuelve a sintetizar.
+El decorador de storage se ejecuta en el mismo núcleo de almacenamiento que usa el pipeline. Un artefacto TTS ya válido no se vuelve a sintetizar. Los fallos se registran en el manifest y un fallo obligatorio impide finalizar la fuente.
 
 El manifest registra, cuando existe, `tts_mp4`, `tts_webm`, `tts_cue_count`, `tts_adjusted_cues` y `tts_status`.
 
@@ -98,31 +106,24 @@ La fuente no se elimina por la capa TTS. La eliminación/archivo de fuentes cont
 
 ## Ejecutable y tareas programadas
 
-Los pesos no se incluyen automáticamente en PyInstaller. Deben estar en `tools/tts/` de la distribución portable o en rutas externas configuradas con `TTS_MODEL_PATH` y `TTS_VOICES_PATH`. Esto evita crear un binario de cientos de MB innecesariamente y permite actualizar pesos sin recompilar.
+Los pesos no se incluyen automáticamente en PyInstaller. Deben estar en `tools/tts/` de la distribución portable o en rutas externas configuradas con `TTS_MODEL_PATH` y `TTS_VOICES_PATH`. Esto evita crear un binario innecesariamente grande y permite actualizar pesos sin recompilar.
 
-`run_local`, Task Scheduler y `launchd` continúan invocando el mismo `main.py`/ejecutable y, por tanto, el mismo decorador de storage.
+`run_local`, Task Scheduler y `launchd` continúan invocando el mismo `main.py`/ejecutable y, por tanto, el mismo pipeline.
 
 ## Licencias
-
-La revisión realizada para esta PR confirma:
 
 | Componente | Licencia/restricción relevante |
 |---|---|
 | `kokoro-onnx` | MIT |
 | Modelo Kokoro-82M | Apache-2.0 |
-| Voces Kokoro v1.0 | Parte del modelo/voices distribution; conservar sus avisos y condiciones upstream |
 | `onnxruntime` | MIT |
 | `numpy` | BSD-3-Clause |
-| Misaki / G2P | Apache-2.0 en el proyecto upstream |
 
-Hay una consideración importante para distribución: `kokoro-onnx` declara dependencias de `espeakng-loader` y `phonemizer-fork`. Esas piezas pueden introducir obligaciones GPL en determinadas rutas de empaquetado, especialmente cuando se redistribuyen binarios o un ejecutable portable. Por ello esta PR **no afirma que el ejecutable TTS sea automáticamente compatible con una distribución propietaria cerrada**. Antes de distribuir un binario comercial con TTS debe hacerse una revisión legal de todas las dependencias efectivamente incluidas y conservar sus avisos/licencias.
+La cadena TTS debe revisarse completa antes de redistribuir un ejecutable comercial. En particular, las dependencias transitivas de fonemización y sus datos/voces deben conservar sus avisos y condiciones. Esta PR no afirma compatibilidad legal automática con una distribución propietaria cerrada.
 
-El modelo Kokoro-82M está publicado bajo Apache-2.0 y ofrece voces españolas como `ef_dora`, `em_alex` y `em_santa`. Las condiciones concretas de los pesos/voces utilizados deben conservarse junto con la distribución.
-
-## Limitaciones verificadas
+## Limitaciones
 
 - No se incluyen pesos del modelo en Git.
-- La prueba CI no necesita Internet ni un modelo TTS.
-- La prueba de generación real con Kokoro requiere instalar el extra `[tts]` y disponer de ambos pesos.
-- La calidad lingüística depende del idioma/voz elegidos y no se considera una validación semántica del VTT.
-- Para distribución comercial cerrada, la cadena de dependencias TTS debe revisarse antes de empaquetar GPL en el ejecutable.
+- La generación real con Kokoro requiere instalar `[tts]` y disponer de ambos pesos.
+- La calidad lingüística depende del idioma/voz elegidos.
+- Para distribución comercial cerrada, la cadena de dependencias TTS debe revisarse antes de empaquetar el ejecutable.
