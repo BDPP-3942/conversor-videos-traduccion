@@ -1,232 +1,159 @@
-# Video Translation Pipeline v5
+# Video Translation Pipeline
 
-Pipeline multiplataforma para procesar ZIP con vídeo/audio, normalizar medios con FFmpeg, transcribir con Whisper y generar subtítulos traducidos. El origen/destino puede ser local, Google Drive o cualquier backend soportado por rclone.
+Pipeline multiplataforma para automatizar la localización de vídeos: ingesta, normalización audiovisual, transcripción, traducción, subtítulos, narración TTS sincronizada y entrega local o cloud.
 
-## Objetivo de operación
-
-El sistema está diseñado para que la autenticación sea administrativa y la ejecución cotidiana sea desatendida.
+## Qué resuelve
 
 ```text
-                    ┌──────────────────────┐
-                    │  SETUP ADMINISTRATIVO│
-                    ├──────────────────────┤
-                    │ Google OAuth          │
-                    │ rclone OAuth          │
-                    │ carpetas / perfiles   │
-                    └──────────┬───────────┘
-                               │ persiste
-             ┌─────────────────┼──────────────────┐
-             ▼                 ▼                  ▼
-         token.json        rclone.conf       runtime.toml
-             │                 │                  │
-             └─────────────────┼──────────────────┘
-                               ▼
-                    ┌──────────────────────┐
-                    │ RUN --SCHEDULED      │
-                    │ sin interacción      │
-                    └──────────┬───────────┘
-                               ▼
-                    preflight + refresh
-                               ▼
-                          procesamiento
+Vídeo / ZIP
+   ↓
+FFmpeg + validación
+   ↓
+Whisper / VAD
+   ↓
+VTT original
+   ↓
+Traducción
+   ↓
+VTT final
+   ├────────→ subtítulos
+   ├────────→ vídeo normal
+   └────────→ TTS opcional
+                 ↓
+             audio por cue
+                 ↓
+             MP4 / WebM
 ```
 
-## Uso diario
+Los timestamps del VTT final son la fuente de verdad. Los silencios relevantes se conservan desde STT hasta traducción y TTS.
 
-### Local
+## Alcance
 
-Coloca los ZIP en:
+- Procesamiento por lotes de vídeos y ZIP.
+- Entrada/salida local, Google Drive y backends de rclone.
+- Normalización y generación audiovisual con FFmpeg.
+- STT con Whisper/faster-whisper y segmentación basada en silencios.
+- Traducción con proveedores configurables y fallback.
+- VTT, validación y reprocesado selectivo/general.
+- TTS opcional sincronizado con el VTT traducido/corregido.
+- MP4 TTS y WebM TTS opcional.
+- Manifests, resume e idempotencia.
+- Deduplicación conservadora.
+- CLI, wrappers, ejecutable y ejecución programada.
+- CI, auditoría de seguridad y auditoría de dependencias.
 
-```text
-storage/input/
+No es un editor audiovisual interactivo ni sustituye la revisión humana de traducciones o locuciones.
+
+## Objetivos
+
+1. Automatizar procesamiento repetitivo y por lotes.
+2. Mantener sincronización temporal fiable, incluidos silencios largos.
+3. Separar lógica de negocio de proveedores externos.
+4. Reanudar sin repetir etapas válidas.
+5. Validar resultados antes de marcarlos como completos.
+6. Permitir operación desatendida y multiplataforma.
+7. Mantener una base de código mantenible y auditable.
+
+## Inicio rápido
+
+### Entorno local
+
+Instala las dependencias según [`docs/INSTALLATION.md`](docs/INSTALLATION.md), configura `config/app.toml` y coloca las entradas en `storage/input/`.
+
+```bash
+python main.py doctor
+python main.py --help
+python main.py run
 ```
 
-Arranca:
+Para operación desatendida:
 
 ```bash
 python main.py run --scheduled
 ```
 
-O abre el ejecutable sin argumentos.
-
-### Google Drive
-
-Los ZIP se depositan en la carpeta de entrada configurada en Google Drive. El pipeline conserva el `token.json` y en cada ejecución intenta renovar silenciosamente el access token cuando está caducado y existe refresh token.
-
-### rclone
-
-Los ZIP se depositan en la ruta `source` configurada del remoto activo. El proyecto contiene su propio binario de rclone y su `rclone.conf`. No se exige instalación global.
-
-El preflight hace una lectura de la carpeta de entrada para validar el remoto y dar a rclone la oportunidad de refrescar OAuth cuando el backend lo permite.
-
-## Cambio de proveedor
-
-Los perfiles son persistentes. Puedes configurar varios:
+### Reprocesado
 
 ```bash
-python main.py provider setup-rclone dropbox_main dropbox --source input --target output
-python main.py provider setup-rclone onedrive_main onedrive --source input --target output
+python main.py reprocess-subtitles --all --stt-only
+python main.py reprocess-subtitles --all --translate-only
+python main.py reprocess-subtitles --all
 ```
 
-Cambiar el activo no borra ninguno:
+## TTS
+
+TTS está desactivado por defecto para conservar el comportamiento histórico. Cuando se habilita, usa el VTT traducido y corregido como entrada, genera audio por cue y lo coloca dentro de sus intervalos temporales. Los huecos entre cues permanecen como silencio.
+
+Consulta [`docs/TTS.md`](docs/TTS.md) para configuración, proveedores, sincronización, modelos y licencias.
+
+## Almacenamiento
+
+El núcleo de procesamiento es común a todos los modos:
+
+```text
+CLI / wrapper / ejecutable / scheduler
+                  ↓
+             pipeline común
+                  ↓
+        adapter de almacenamiento
+          ↙                    ↘
+       local             Google Drive/rclone
+```
+
+La autenticación cloud se configura administrativamente y no debe requerir interacción durante una ejecución programada.
+
+## Reanudación
+
+El manifest diferencia etapas y artefactos. Un archivo existente se reutiliza solo después de validarlo. Un fallo recuperable afecta a la etapa correspondiente y permite reintentarla.
+
+TTS puede ser opcional o obligatorio. En modo opcional, un fallo de TTS no invalida los resultados tradicionales; en modo obligatorio, el trabajo permanece incompleto hasta generar los artefactos requeridos.
+
+## Ejecución programada y ejecutable
+
+El proyecto contempla Windows Task Scheduler, macOS launchd, cron cuando esté configurado y builds PyInstaller. Las tareas deben usar un directorio de trabajo determinista y no depender de una terminal o virtualenv interactivo.
+
+## Calidad
+
+La CI comprueba tests, lint, formato, seguridad, compilación, packaging y dependencias. Localmente:
 
 ```bash
-python main.py provider use rclone --profile onedrive_main --source rclone://input --target rclone://output
+pytest
+ruff check .
+ruff format --check .
+python -m compileall .
 ```
-
-## Comandos administrativos
-
-```bash
-python main.py doctor
-python main.py provider list
-python main.py provider verify google_drive --profile default
-python main.py provider verify rclone --profile dropbox_main --location input
-python main.py provider update-rclone --force
-```
-
-## Compilación
-
-Windows:
-
-```bat
-scripts\build_windows.bat
-```
-
-Linux:
-
-```bash
-scripts/build_linux.sh
-```
-
-El paquete compilado usa el directorio del ejecutable como raíz operativa, por lo que `config/`, `secrets/`, `storage/` y `tools/` viven junto al ejecutable.
-
-## Scheduler de Windows
-
-Se puede crear la tarea mediante:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/install_task_scheduler.ps1
-```
-
-La tarea ejecuta `VideoTranslationPipeline.exe run --scheduled` con el directorio de trabajo de la aplicación.
 
 ## Documentación
 
-- `docs/AUDIT.md`: problemas detectados en el proyecto original.
-- `docs/SECURITY.md`: secretos, permisos y amenazas relevantes.
-- `docs/UNATTENDED.md`: configuración completa del modo desatendido.
-- `docs/VERSIONING.md`: estrategia Git y Semantic Versioning.
+| Documento | Propósito |
+|---|---|
+| [`docs/PROJECT_GUIDE.md`](docs/PROJECT_GUIDE.md) | Alcance, casos de uso y funcionamiento completo |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Arquitectura y flujo interno |
+| [`docs/INSTALLATION.md`](docs/INSTALLATION.md) | Instalación y preparación |
+| [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) | Configuración |
+| [`docs/CLI.md`](docs/CLI.md) | CLI y entrypoints |
+| [`docs/STT_AND_SUBTITLES.md`](docs/STT_AND_SUBTITLES.md) | STT, silencios y VTT |
+| [`docs/TTS.md`](docs/TTS.md) | TTS, sincronización y licencias |
+| [`docs/TRANSLATION_PROVIDERS.md`](docs/TRANSLATION_PROVIDERS.md) | Traducción y fallback |
+| [`docs/STORAGE.md`](docs/STORAGE.md) | Local, Google Drive y rclone |
+| [`docs/UNATTENDED.md`](docs/UNATTENDED.md) | Scheduler y ejecución sin interacción |
+| [`docs/DEDUPLICATION.md`](docs/DEDUPLICATION.md) | Deduplicación |
+| [`docs/SECURITY.md`](docs/SECURITY.md) | Seguridad |
+| [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Desarrollo, tests y CI |
+| [`docs/AUDIT.md`](docs/AUDIT.md) | Auditorías técnicas |
+| [`docs/RELEASES.md`](docs/RELEASES.md) | Versionado e histórico |
+| [`CHANGELOG.md`](CHANGELOG.md) | Changelog de usuario |
 
-## Versión de rclone
+## Versionado
 
-La release estable de referencia del proyecto es rclone `v1.75.0`, publicada el 31 de julio de 2026.
+Se usa Semantic Versioning:
 
-## Salidas y migración de resultados históricos
+- `MAJOR`: incompatibilidades.
+- `MINOR`: funcionalidad nueva compatible.
+- `PATCH`: correcciones, seguridad, documentación y mantenimiento.
 
-Cada vídeo nuevo genera `MP4 + WebM + VTT traducido` por defecto, y la transcripción original se guarda en `original_transcriptions/`. El WebM es una copia ligera orientada a servidores con menos recursos. La generación del WebM puede desactivarse con `--no-webm` en `run` o con `generate_webm = false` en `[ffmpeg]`.
+La línea de releases de producto comienza en **1.0.0**. El historial previo del paquete Python en `5.x` queda explicado en [`docs/RELEASES.md`](docs/RELEASES.md) para evitar confundir versión interna con release de producto.
 
-### Reprocesado selectivo y general de subtítulos
+## Seguridad y licencias
 
-El comando `reprocess-subtitles` trabaja exclusivamente sobre resultados que ya existen y no entra en la lógica normal de deduplicación/renombrado. No crea carpetas `_01`, hashes ni variantes derivadas por colisión.
-
-Hay dos ámbitos: **concreto** y **general**.
-
-Para reprocesar un resultado concreto, indica una carpeta, un vídeo o un `source` de manifest:
-
-```bash
-# Solo transcripción / STT
-python main.py reprocess-subtitles --output-folder 37x02_Tema --stt-only
-
-# Solo traducción
-python main.py reprocess-subtitles --output-folder 37x02_Tema --translate-only
-
-# Ambas: STT + traducción
-python main.py reprocess-subtitles --output-folder 37x02_Tema
-
-# También puede localizarse por vídeo o source
-python main.py reprocess-subtitles --video 37x02_Tema.mp4 --stt-only
-python main.py reprocess-subtitles --source "curso/carpeta/video.mp4" --translate-only
-```
-
-Para reprocesar **todas las salidas existentes elegibles**, puedes usar explícitamente `--all` o simplemente no indicar `--output-folder`, `--video` ni `--source`:
-
-```bash
-# Todas las salidas: solo STT
-python main.py reprocess-subtitles --all --stt-only
-
-# Todas las salidas: solo traducción
-python main.py reprocess-subtitles --all --translate-only
-
-# Todas las salidas: STT + traducción
-python main.py reprocess-subtitles --all
-
-# Equivalente al caso general anterior
-python main.py reprocess-subtitles
-```
-
-El modo se determina así:
-
-- `--stt-only`: vuelve a generar la transcripción/timestamps y no ejecuta traducción.
-- `--translate-only`: reutiliza la transcripción existente y no ejecuta Whisper ni FFmpeg.
-- sin ninguno: reprocesa ambas fases.
-
-En el ámbito general, cada carpeta se procesa de forma independiente. Si una falla o una traducción queda parcial, se registra en el resumen y se continúa con las demás.
-
-Antes de sustituir una transcripción o un VTT se validan existencia, tamaño, sintaxis, cantidad de segmentos y timestamps. La versión anterior queda conservada con un backup versionado (`.bak.<UTC timestamp>`), sin sobrescribir backups previos. Cada operación genera además un registro JSON en `reprocess_history/`.
-
-El diagnóstico de reprocesado compara huecos y solapamientos de timestamps. La traducción conserva los mismos `start/end` que recibe del STT, por lo que un desfase que ya esté presente en esos timestamps apunta al tramo Whisper/VAD/segmentación y no a la traducción.
-
-Los ZIP que ya estaban procesados no vuelven a pasar por conversión, Whisper ni traducción. Con `workflow.rename_processed_duplicates = true`, volver a introducir el ZIP permite ejecutar un flujo de solo renombrado: se extrae temporalmente el contenido, se vuelve a inferir curso/lección/descripción con las reglas actuales y se renombran la carpeta y los artefactos existentes. Esto permite migrar resultados generados antes de incorporar la nueva inferencia de nombres sin rehacer el procesamiento.
-
-La salida WebM se configura con `SECONDARY_VIDEO_*` o con la sección `[ffmpeg]` de `config/app.toml`. Las salidas MP3 antiguas se conservan para compatibilidad con `resume`; no se generan MP3 nuevos.
-
-## Rendimiento
-
-El perfil CPU por defecto usa Whisper `small` + `int8`, `beam_size=1`, sin `condition_on_previous_text`, VAD activo y dos trabajadores locales. FFmpeg usa `medium` por defecto y evita el reencode cuando un MP4 ya puede pasar por `-c copy`. La detección de duplicados exactos utiliza SHA-256 y evita el sondeo visual/audio con FFmpeg; la comparación probabilística más cara solo se usa para candidatos de nombre similares que no coinciden por hash.
-
-### Limpieza automática de duplicados de salida
-
-La ejecución normal del pipeline en proveedor local (`run` y `scripts/run_local.sh`) realiza automáticamente una limpieza de `storage/output` después del procesamiento. No es necesario pasar un parámetro de borrado.
-
-También existe el comando independiente `dedupe-output`, que por defecto aplica la misma política automática:
-
-```bash
-python main.py dedupe-output --target "/ruta/absoluta/storage/output"
-```
-
-Para inspeccionar decisiones sin borrar nada, se puede usar únicamente cuando se necesite comprobar el comportamiento:
-
-```bash
-python main.py dedupe-output --target "/ruta/absoluta/storage/output" --dry-run
-```
-
-La identidad del duplicado se calcula mediante SHA-256 de todos los recursos generados de la carpeta. Los nombres no determinan que dos resultados sean duplicados. Una carpeta solo se elimina automáticamente cuando existe otra carpeta con contenido idéntico y una puntuación de nombre estrictamente superior. Si no existe un referente claramente más estable, ambas se conservan.
-
-Las entradas eliminadas del registro `storage/state/media_registry.jsonl` se retiran y quedan auditadas en `storage/state/dedupe_history.jsonl`. Un fallo de la limpieza automática no borra resultados de forma adicional ni convierte un procesamiento correcto en `error`: se registra y el lote queda como `partial`.
-
-
-### Perfiles automáticos de CPU y RAM
-
-La configuración `whisper_model = "auto"` activa un perfil de recursos en función de CPU y RAM. Como referencia, un equipo de 24+ GB y 12+ hilos lógicos usa `medium` con `int8` y un único vídeo simultáneo; un equipo Apple Silicon con ~16 GB puede usar también `medium` pero manteniendo un único vídeo; equipos de 8 GB usan `small`. Se evita descargar el modelo de una máquina cuando no es necesario.
-
-El modelo no se incluye dentro del repositorio. `faster-whisper` descarga el modelo al primer uso; puedes forzar esa descarga durante la preparación con `scripts/setup_env.bat --prefetch-whisper` o `./scripts/setup_env.sh --prefetch-whisper`. En CPU, `int8` está soportado por faster-whisper/CTranslate2.
-
-El perfil automático está diseñado para priorizar estabilidad y evitar saturación por ejecutar varios modelos Whisper grandes simultáneamente. `max_parallel_videos = 0` significa automático.
-
-### Control de generación del WebM
-
-El comportamiento por defecto mantiene la generación del WebM. Para una ejecución concreta:
-
-```bash
-python main.py run --no-webm
-python main.py run --generate-webm
-```
-
-También puede fijarse en `config/app.toml`:
-
-```toml
-[ffmpeg]
-generate_webm = false
-```
-
-El valor también admite la variable de entorno `GENERATE_WEBM=false`. Los wrappers `run_local`, `run_scheduled` y `run_unattended` propagan estos argumentos. Al compilar, `scripts/build_windows.bat --no-webm` o `scripts/build_linux.sh --no-webm` empaquetan `config/app.toml` con el WebM desactivado.
+No versionar secretos, tokens ni claves. Los modelos, pesos y voces TTS pueden tener licencias diferentes de las librerías que los ejecutan. Antes de redistribuir el ejecutable o usarlo comercialmente debe revisarse la licencia concreta de cada componente.
