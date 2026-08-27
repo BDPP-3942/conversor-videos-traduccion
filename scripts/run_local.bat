@@ -5,7 +5,10 @@ if not exist ".venv\Scripts\python.exe" (
   echo [ERROR] Ejecuta scripts\setup_env.bat
   exit /b 1
 )
-if /I "%~1"=="reprocess-subtitles" (
+if /I "%~1"=="tts" (
+  shift
+  ".venv\Scripts\python.exe" -m src.tts_cli %*
+) else if /I "%~1"=="reprocess-subtitles" (
   ".venv\Scripts\python.exe" main.py %*
 ) else if /I "%~1"=="duplicates" (
   ".venv\Scripts\python.exe" main.py %*
