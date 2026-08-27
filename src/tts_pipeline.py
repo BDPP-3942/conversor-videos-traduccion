@@ -212,23 +212,32 @@ def _render_timeline(
     return adjusted
 
 
-def _mux_video(source: Path, audio: Path, output: Path, settings: AppSettings, *, webm: bool) -> None:
-    ffmpeg = str(settings.ffmpeg_bin) if settings.ffmpeg_bin else None
-    if not ffmpeg:
-        from src.ffmpeg_resolver import FFmpegResolver
+def _resolve_ffmpeg(settings: AppSettings) -> Path:
+    from src.ffmpeg_resolver import FFmpegResolver
 
-        ffmpeg = str(FFmpegResolver.resolve(settings))
+    configured = str(settings.ffmpeg_bin).strip()
+    executable = Path(configured).expanduser() if configured else FFmpegResolver.resolve(settings)
+    if not executable.is_absolute():
+        executable = resolve_project_path(executable)
+    executable = executable.resolve()
+    if not executable.is_file():
+        raise RuntimeError(f"FFmpeg executable not found: {executable}")
+    return executable
+
+
+def _mux_video(source: Path, audio: Path, output: Path, settings: AppSettings, *, webm: bool) -> None:
+    ffmpeg = _resolve_ffmpeg(settings)
     output.parent.mkdir(parents=True, exist_ok=True)
     command = [
-        ffmpeg,
+        str(ffmpeg),
         "-hide_banner",
         "-loglevel",
         "error",
         "-y",
         "-i",
-        str(source),
+        str(source.resolve()),
         "-i",
-        str(audio),
+        str(audio.resolve()),
         "-map",
         "0:v:0",
         "-map",
@@ -261,7 +270,7 @@ def _mux_video(source: Path, audio: Path, output: Path, settings: AppSettings, *
             "-movflags",
             "+faststart",
         ]
-    command.append(str(output))
+    command.append(str(output.resolve()))
     _run_ffmpeg(command, settings.ffmpeg_timeout_seconds)
 
 
@@ -275,12 +284,17 @@ def _validate_media(
 ) -> None:
     if not path.is_file() or path.stat().st_size <= 0:
         raise RuntimeError(f"Media artifact is missing or empty: {path}")
-    from src.ffmpeg_resolver import FFmpegResolver
-
-    ffmpeg = str(settings.ffmpeg_bin) if settings.ffmpeg_bin else str(FFmpegResolver.resolve(settings))
-    command = [ffmpeg, "-hide_banner", "-i", str(path)]
+    ffmpeg = _resolve_ffmpeg(settings)
+    command = [str(ffmpeg), "-hide_banner", "-i", str(path.resolve())]
     try:
-        result = subprocess.run(command, capture_output=True, text=True, timeout=60, check=False)
+        result = subprocess.run(  # noqa: S603 -- shell=False and the argv list contain only resolved local paths/constants
+            command,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+            shell=False,
+        )
     except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
         raise RuntimeError(f"Could not validate media artifact: {path}") from exc
     stderr = result.stderr or ""
@@ -297,7 +311,14 @@ def _validate_media(
 def _run_ffmpeg(command: list[str], timeout: int) -> None:
     logger.debug("Running TTS FFmpeg command: %s", " ".join(command))
     try:
-        result = subprocess.run(command, capture_output=True, text=True, timeout=max(30, timeout), check=False)
+        result = subprocess.run(  # noqa: S603 -- shell=False; executable/paths are resolved and arguments are an argv list
+            command,
+            capture_output=True,
+            text=True,
+            timeout=max(30, timeout),
+            check=False,
+            shell=False,
+        )
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError("TTS FFmpeg operation timed out") from exc
     if result.returncode != 0:
