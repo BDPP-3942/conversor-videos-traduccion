@@ -59,10 +59,14 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             translation_max_retries_per_provider=int(processing.get("max_retries_per_provider", 3)),
             translation_batch_size=int(processing.get("translation_batch_size", 25)),
             translation_retry_delay_seconds=float(processing.get("translation_retry_delay_seconds", 1.5)),
-            translation_min_request_interval_seconds=float(processing.get("translation_min_request_interval_seconds", 0.5)),
+            translation_min_request_interval_seconds=float(
+                processing.get("translation_min_request_interval_seconds", 0.5)
+            ),
             translation_max_backoff_seconds=float(processing.get("translation_max_backoff_seconds", 16.0)),
             translation_max_parallel_requests=int(processing.get("translation_max_parallel_requests", 2)),
-            translation_provider_max_parallel_requests=int(processing.get("translation_provider_max_parallel_requests", 0)),
+            translation_provider_max_parallel_requests=int(
+                processing.get("translation_provider_max_parallel_requests", 0)
+            ),
             max_zip_depth=int(processing.get("max_zip_depth", 5)),
             max_extracted_files=int(processing.get("max_extracted_files", 10000)),
             max_extracted_size_gb=float(processing.get("max_extracted_size_gb", 10.0)),
@@ -107,8 +111,12 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             tts_audio_bitrate=str(tts.get("audio_bitrate", "192k")),
             tts_webm_audio_bitrate=str(tts.get("webm_audio_bitrate", "192k")),
             tts_generate_webm=bool(tts.get("generate_webm", True)),
-            google_credentials_file=Path(str(google.get("credentials_file", "secrets/providers/google/default/credentials.json"))),
-            google_token_file=Path(str(google.get("token_file", "secrets/providers/google/default/token.json"))),
+            google_credentials_file=Path(
+                str(google.get("credentials_file", "secrets/providers/google/default/credentials.json"))
+            ),
+            google_token_file=Path(
+                str(google.get("token_file", "secrets/providers/google/default/token.json"))
+            ),
             rclone_config_file=Path(str(rclone.get("config_file", "secrets/rclone/rclone.conf"))),
             rclone_binary_file=Path(str(rclone.get("binary_file", "tools/rclone/rclone"))),
             rclone_remote=str(rclone.get("remote", "remote_drive")),
