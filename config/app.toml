@@ -39,7 +39,7 @@ whisper_condition_on_previous_text = true
 whisper_initial_prompt = "Tai Chi, taichi, Tai Chi Chuan, Taijiquan, T'ai Chi, qi, qigong, chi kung, yin yang, wuji, baguazhang, Xing Yi, Tui Shou, Qin Na, Chin Na, Lan Que Wei, Si Zheng Tui, Peng, Lu, Ji, An, Cai, Lie, Zhou, Kao, taiji, taijiquan, manos de seda, gran rueda, tambor chino, cielo, tierra"
 whisper_cpu_threads = 0
 whisper_vad_filter = true
-
+whisper_min_silence_duration_ms = 1500
 translation_provider = "mistral"
 translation_fallback_providers = ["deepl", "mymemory"]
 translation_retries = 3
@@ -50,7 +50,6 @@ translation_max_backoff_seconds = 16.0
 translation_batch_size = 25
 translation_max_parallel_requests = 2
 translation_provider_max_parallel_requests = 0
-
 max_zip_depth = 5
 max_extracted_files = 10000
 max_extracted_size_gb = 10.0
@@ -59,6 +58,7 @@ max_extracted_size_gb = 10.0
 resume_enabled = true
 normalize_legacy_names = true
 rename_processed_duplicates = true
+automatic_output_deduplication = false
 max_parallel_videos = 0
 duplicate_name_similarity_threshold = 0.82
 duplicate_duration_tolerance_seconds = 1.5
@@ -80,3 +80,19 @@ secondary_video_audio_bitrate = "256k"
 secondary_video_cpu_used = 5
 timeout_seconds = 7200
 avoid_reencode = true
+
+[tts]
+# Disabled by default: existing processing remains unchanged until explicitly enabled.
+enabled = false
+required = false
+provider = "kokoro"
+voice = "af_sarah"
+model_path = "tools/tts/kokoro-v1.0.onnx"
+voices_path = "tools/tts/voices-v1.0.bin"
+speed = 1.0
+max_speed = 1.35
+duration_tolerance = 0.02
+sample_rate = 24000
+audio_bitrate = "192k"
+webm_audio_bitrate = "192k"
+generate_webm = true

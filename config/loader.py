@@ -31,12 +31,15 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
         providers = data.get("providers", {})
         processing = data.get("processing", {})
         ffmpeg = data.get("ffmpeg", {})
+        tts = data.get("tts", {})
         workflow = data.get("workflow", {})
         runtime_cfg = data.get("runtime", {})
+
         translation_provider = processing.get("translation_provider", "mistral")
         fallback_providers = processing.get("translation_fallback_providers", ["deepl", "mymemory"])
         if isinstance(fallback_providers, str):
             fallback_providers = [fallback_providers]
+
         settings = AppSettings(
             provider=str(app.get("provider", "local")),
             source=str(app.get("source", "local://storage/input")),
@@ -49,6 +52,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             whisper_compute_type=str(processing.get("whisper_compute_type", "int8")),
             whisper_beam_size=int(processing.get("whisper_beam_size", 5)),
             whisper_vad_filter=bool(processing.get("whisper_vad_filter", True)),
+            whisper_min_silence_duration_ms=int(processing.get("whisper_min_silence_duration_ms", 1500)),
             whisper_condition_on_previous_text=bool(processing.get("whisper_condition_on_previous_text", True)),
             whisper_initial_prompt=str(processing.get("whisper_initial_prompt", "")),
             whisper_cpu_threads=int(processing.get("whisper_cpu_threads", 0)),
@@ -92,10 +96,25 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             resume_enabled=bool(workflow.get("resume_enabled", True)),
             normalize_legacy_names=bool(workflow.get("normalize_legacy_names", True)),
             rename_processed_duplicates=bool(workflow.get("rename_processed_duplicates", True)),
+            automatic_output_deduplication=bool(workflow.get("automatic_output_deduplication", False)),
             max_parallel_videos=int(workflow.get("max_parallel_videos", 0)),
             duplicate_name_similarity_threshold=float(workflow.get("duplicate_name_similarity_threshold", 0.82)),
             duplicate_duration_tolerance_seconds=float(workflow.get("duplicate_duration_tolerance_seconds", 1.5)),
             duplicate_visual_similarity_threshold=float(workflow.get("duplicate_visual_similarity_threshold", 0.91)),
+            ffmpeg_avoid_reencode=bool(ffmpeg.get("avoid_reencode", True)),
+            tts_enabled=bool(tts.get("enabled", False)),
+            tts_required=bool(tts.get("required", False)),
+            tts_provider=str(tts.get("provider", "kokoro")),
+            tts_voice=str(tts.get("voice", "af_sarah")),
+            tts_model_path=Path(str(tts.get("model_path", "tools/tts/kokoro-v1.0.onnx"))),
+            tts_voices_path=Path(str(tts.get("voices_path", "tools/tts/voices-v1.0.bin"))),
+            tts_speed=float(tts.get("speed", 1.0)),
+            tts_max_speed=float(tts.get("max_speed", 1.35)),
+            tts_duration_tolerance=float(tts.get("duration_tolerance", 0.02)),
+            tts_sample_rate=int(tts.get("sample_rate", 24000)),
+            tts_audio_bitrate=str(tts.get("audio_bitrate", "192k")),
+            tts_webm_audio_bitrate=str(tts.get("webm_audio_bitrate", "192k")),
+            tts_generate_webm=bool(tts.get("generate_webm", True)),
             google_credentials_file=Path(
                 str(
                     google.get(
@@ -109,14 +128,15 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             rclone_binary_file=Path(str(rclone.get("binary_file", "tools/rclone/rclone"))),
             rclone_remote=str(rclone.get("remote", "remote_drive")),
             provider_profile_dir=Path(str(providers.get("profile_dir", "secrets/providers"))),
-            ffmpeg_avoid_reencode=bool(ffmpeg.get("avoid_reencode", True)),
             run_lock_file=Path(str(runtime_cfg.get("run_lock_file", "storage/state/run.lock"))),
             auto_bootstrap_rclone=bool(runtime_cfg.get("auto_bootstrap_rclone", True)),
             auto_update_rclone=bool(runtime_cfg.get("auto_update_rclone", False)),
             auto_tune_resources=bool(runtime_cfg.get("auto_tune_resources", True)),
         )
+
     settings = _apply_runtime_provider(settings)
     settings = _apply_environment_overrides(settings)
+
     from src.resource_profile import apply_resource_profile
 
     return apply_resource_profile(settings)
@@ -137,6 +157,7 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
         "WHISPER_COMPUTE_TYPE": "whisper_compute_type",
         "WHISPER_BEAM_SIZE": "whisper_beam_size",
         "WHISPER_VAD_FILTER": "whisper_vad_filter",
+        "WHISPER_MIN_SILENCE_DURATION_MS": "whisper_min_silence_duration_ms",
         "WHISPER_CONDITION_ON_PREVIOUS_TEXT": "whisper_condition_on_previous_text",
         "WHISPER_INITIAL_PROMPT": "whisper_initial_prompt",
         "WHISPER_CPU_THREADS": "whisper_cpu_threads",
@@ -179,11 +200,25 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
         "RESUME_ENABLED": "resume_enabled",
         "NORMALIZE_LEGACY_NAMES": "normalize_legacy_names",
         "RENAME_PROCESSED_DUPLICATES": "rename_processed_duplicates",
+        "AUTOMATIC_OUTPUT_DEDUPLICATION": "automatic_output_deduplication",
         "MAX_PARALLEL_VIDEOS": "max_parallel_videos",
         "DUPLICATE_NAME_SIMILARITY_THRESHOLD": "duplicate_name_similarity_threshold",
         "DUPLICATE_DURATION_TOLERANCE_SECONDS": "duplicate_duration_tolerance_seconds",
         "DUPLICATE_VISUAL_SIMILARITY_THRESHOLD": "duplicate_visual_similarity_threshold",
         "FFMPEG_AVOID_REENCODE": "ffmpeg_avoid_reencode",
+        "TTS_ENABLED": "tts_enabled",
+        "TTS_REQUIRED": "tts_required",
+        "TTS_PROVIDER": "tts_provider",
+        "TTS_VOICE": "tts_voice",
+        "TTS_MODEL_PATH": "tts_model_path",
+        "TTS_VOICES_PATH": "tts_voices_path",
+        "TTS_SPEED": "tts_speed",
+        "TTS_MAX_SPEED": "tts_max_speed",
+        "TTS_DURATION_TOLERANCE": "tts_duration_tolerance",
+        "TTS_SAMPLE_RATE": "tts_sample_rate",
+        "TTS_AUDIO_BITRATE": "tts_audio_bitrate",
+        "TTS_WEBM_AUDIO_BITRATE": "tts_webm_audio_bitrate",
+        "TTS_GENERATE_WEBM": "tts_generate_webm",
         "RUN_LOCK_FILE": "run_lock_file",
         "AUTO_BOOTSTRAP_RCLONE": "auto_bootstrap_rclone",
         "AUTO_UPDATE_RCLONE": "auto_update_rclone",

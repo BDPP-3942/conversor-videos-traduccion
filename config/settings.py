@@ -31,6 +31,7 @@ class AppSettings:
     whisper_compute_type: str = "int8"
     whisper_beam_size: int = 5
     whisper_vad_filter: bool = True
+    whisper_min_silence_duration_ms: int = 1500
     whisper_condition_on_previous_text: bool = True
     whisper_initial_prompt: str = ""
     whisper_cpu_threads: int = 0
@@ -70,11 +71,25 @@ class AppSettings:
     resume_enabled: bool = True
     normalize_legacy_names: bool = True
     rename_processed_duplicates: bool = True
+    automatic_output_deduplication: bool = False
     max_parallel_videos: int = 0
     duplicate_name_similarity_threshold: float = 0.82
     duplicate_duration_tolerance_seconds: float = 1.5
     duplicate_visual_similarity_threshold: float = 0.91
     ffmpeg_avoid_reencode: bool = True
+    tts_enabled: bool = False
+    tts_required: bool = False
+    tts_provider: str = "kokoro"
+    tts_voice: str = "af_sarah"
+    tts_model_path: Path = BASE_DIR / "tools" / "tts" / "kokoro-v1.0.onnx"
+    tts_voices_path: Path = BASE_DIR / "tools" / "tts" / "voices-v1.0.bin"
+    tts_speed: float = 1.0
+    tts_max_speed: float = 1.35
+    tts_duration_tolerance: float = 0.02
+    tts_sample_rate: int = 24000
+    tts_audio_bitrate: str = "192k"
+    tts_webm_audio_bitrate: str = "192k"
+    tts_generate_webm: bool = True
     google_credentials_file: Path = SECRETS_DIR / "providers" / "google" / "default" / "credentials.json"
     google_token_file: Path = SECRETS_DIR / "providers" / "google" / "default" / "token.json"
     google_profile: str = "default"
@@ -118,6 +133,9 @@ class AppSettings:
             whisper_compute_type=os.getenv("WHISPER_COMPUTE_TYPE", cls.whisper_compute_type),
             whisper_beam_size=int(os.getenv("WHISPER_BEAM_SIZE", cls.whisper_beam_size)),
             whisper_vad_filter=os.getenv("WHISPER_VAD_FILTER", "true").lower() == "true",
+            whisper_min_silence_duration_ms=int(
+                os.getenv("WHISPER_MIN_SILENCE_DURATION_MS", cls.whisper_min_silence_duration_ms)
+            ),
             whisper_condition_on_previous_text=condition_on_previous_text,
             whisper_initial_prompt=os.getenv("WHISPER_INITIAL_PROMPT", cls.whisper_initial_prompt),
             whisper_cpu_threads=int(os.getenv("WHISPER_CPU_THREADS", cls.whisper_cpu_threads)),
@@ -172,6 +190,7 @@ class AppSettings:
             resume_enabled=os.getenv("RESUME_ENABLED", "true").lower() == "true",
             normalize_legacy_names=os.getenv("NORMALIZE_LEGACY_NAMES", "true").lower() == "true",
             rename_processed_duplicates=os.getenv("RENAME_PROCESSED_DUPLICATES", "true").lower() == "true",
+            automatic_output_deduplication=os.getenv("AUTOMATIC_OUTPUT_DEDUPLICATION", "false").lower() == "true",
             max_parallel_videos=int(os.getenv("MAX_PARALLEL_VIDEOS", cls.max_parallel_videos)),
             duplicate_name_similarity_threshold=float(
                 os.getenv("DUPLICATE_NAME_SIMILARITY_THRESHOLD", cls.duplicate_name_similarity_threshold)
@@ -183,6 +202,19 @@ class AppSettings:
                 os.getenv("DUPLICATE_VISUAL_SIMILARITY_THRESHOLD", cls.duplicate_visual_similarity_threshold)
             ),
             ffmpeg_avoid_reencode=os.getenv("FFMPEG_AVOID_REENCODE", "true").lower() == "true",
+            tts_enabled=os.getenv("TTS_ENABLED", "false").lower() == "true",
+            tts_required=os.getenv("TTS_REQUIRED", "false").lower() == "true",
+            tts_provider=os.getenv("TTS_PROVIDER", cls.tts_provider),
+            tts_voice=os.getenv("TTS_VOICE", cls.tts_voice),
+            tts_model_path=Path(os.getenv("TTS_MODEL_PATH", cls.tts_model_path)),
+            tts_voices_path=Path(os.getenv("TTS_VOICES_PATH", cls.tts_voices_path)),
+            tts_speed=float(os.getenv("TTS_SPEED", cls.tts_speed)),
+            tts_max_speed=float(os.getenv("TTS_MAX_SPEED", cls.tts_max_speed)),
+            tts_duration_tolerance=float(os.getenv("TTS_DURATION_TOLERANCE", cls.tts_duration_tolerance)),
+            tts_sample_rate=int(os.getenv("TTS_SAMPLE_RATE", cls.tts_sample_rate)),
+            tts_audio_bitrate=os.getenv("TTS_AUDIO_BITRATE", cls.tts_audio_bitrate),
+            tts_webm_audio_bitrate=os.getenv("TTS_WEBM_AUDIO_BITRATE", cls.tts_webm_audio_bitrate),
+            tts_generate_webm=os.getenv("TTS_GENERATE_WEBM", "true").lower() == "true",
             google_credentials_file=Path(os.getenv("GOOGLE_CREDENTIALS_FILE", cls.google_credentials_file)),
             google_token_file=Path(os.getenv("GOOGLE_TOKEN_FILE", cls.google_token_file)),
             google_profile=os.getenv("GOOGLE_PROFILE", cls.google_profile),
@@ -194,6 +226,9 @@ class AppSettings:
             auto_bootstrap_rclone=os.getenv("AUTO_BOOTSTRAP_RCLONE", "true").lower() == "true",
             auto_update_rclone=os.getenv("AUTO_UPDATE_RCLONE", "false").lower() == "true",
             auto_tune_resources=os.getenv("AUTO_TUNE_RESOURCES", "true").lower() == "true",
+            resource_profile=os.getenv("RESOURCE_PROFILE", cls.resource_profile),
+            detected_logical_cpus=int(os.getenv("DETECTED_LOGICAL_CPUS", cls.detected_logical_cpus)),
+            detected_memory_gb=float(os.getenv("DETECTED_MEMORY_GB", cls.detected_memory_gb)),
         )
 
 

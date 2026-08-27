@@ -1,54 +1,66 @@
-# Auditoría del proyecto original
+# Auditoría integral del proyecto
 
-Fecha de revisión: 2026-08-21
+Fecha de revisión: 2026-08-27
 
-## Hallazgos principales
+## Alcance
 
-### Estructura y repositorio
+Se revisaron el pipeline principal, STT/VTT, traducción, QA de subtítulos, FFmpeg, deduplicación, manifests/resume, almacenamiento local, Google Drive, rclone, autenticación, configuración, CLI, scripts `run_local`/unattended, packaging, tareas programadas, tests y GitHub Actions.
 
-1. El ZIP incluía `.venv`, `build`, `dist`, `egg-info` y bytecode. No son código fuente y generan ruido, conflictos y revisiones de cambios aparentes.
-2. El ZIP no incluía `.git`, por lo que no es posible recuperar el historial real ni determinar qué cambios fueron commits independientes. El `CHANGELOG.md` muestra saltos funcionales, pero no sustituye el historial Git.
-3. `config/rclone.conf` estaba planteado como configuración operativa dentro de `config/`, aunque puede contener tokens. Se mueve a `secrets/rclone/rclone.conf`.
+## Arquitectura verificada
 
-### Google OAuth
+Los entrypoints deben converger en `main.py` y `MediaPipeline`. Local, Google Drive y rclone implementan `StorageProvider`; TTS se integra como decorator (`TTSAwareStorageProvider`) y no como un segundo pipeline.
 
-El comportamiento original ya guardaba el OAuth después de la primera autorización: `GoogleDriveStorageProvider._save_token()` escribía `credentials.to_json()` en `token.json`, y también lo reescribía tras un refresh. Por tanto, la parte “guardar automáticamente el OAuth de Google” ya estaba contemplada.
+## Hallazgos corregidos en esta PR
 
-La mejora aplicada es separar perfiles y trasladar el token a `secrets/providers/google/<perfil>/token.json`, permitiendo varias cuentas sin sobreescrituras.
+### STT y silencios
 
-### rclone
+Whisper se ejecutaba anteriormente con segmentos completos como timestamps de VTT. Un segmento podía atravesar una pausa interna larga y mantener el subtítulo visible durante el silencio. Ahora se solicitan `word_timestamps` y se divide un segmento cuando existe una pausa interna igual o superior a `whisper_min_silence_duration_ms` (1.5 s por defecto). El VTT traducido conserva esos timestamps.
 
-El comportamiento original NO automatizaba la instalación ni la creación del remoto:
+### TTS
 
-- `scripts/setup_rclone.*` comprobaba `where rclone` / `command -v rclone`.
-- `RcloneStorageProvider` invocaba literalmente `rclone` desde el `PATH`.
-- El proyecto esperaba un `rclone.conf` preexistente.
-- No había gestión de perfiles ni selección activa desde la aplicación.
+El TTS utiliza el VTT traducido/corregido como fuente de verdad, genera audio por cue, conserva silencios, reintenta con mayor velocidad cuando el audio no cabe y rechaza solapamientos. Genera MP4 TTS y WebM TTS cuando corresponda.
 
-La versión nueva elimina esa dependencia manual: descarga un binario gestionado, conserva la configuración en secretos y añade comandos de bootstrap/list/use/remove/auth.
+### Seguridad Ruff S603
 
-### Seguridad
+Las llamadas FFmpeg del módulo TTS se construyen como argv, sin shell, con el ejecutable resuelto a una ruta absoluta existente y con entradas de vídeo/audio también resueltas. Ruff S603 es una regla heurística que no puede demostrar esas garantías; se conserva un `noqa: S603` local y documentado únicamente en esas dos llamadas.
 
-Aspectos positivos ya presentes:
+No se usa `shell=True`.
 
-- comandos externos con listas de argumentos;
-- sin `shell=True`;
-- límites de extracción ZIP;
-- prevención de path traversal;
-- rechazo de symlinks dentro de ZIP;
-- secretos excluidos de Git;
-- refresh token de Google persistido para ejecución desatendida.
+### Deduplicación
 
-Mejoras aplicadas:
+Se detectó una inconsistencia de configuración: `main.py` podía activar la deduplicación automática local mediante `getattr(..., True)` aunque no existiera un campo equivalente en `AppSettings`. Ahora `automatic_output_deduplication` existe explícitamente y su valor predeterminado es `false`, preservando el comportamiento anterior y evitando eliminaciones automáticas inesperadas.
 
-- configuración rclone fuera de `config/`;
-- token Google por perfil;
-- rclone ejecutado mediante ruta controlada por configuración;
-- timeout en llamadas rclone;
-- descarga de rclone verificada contra SHA-256 oficial;
-- perfiles antiguos se conservan y solo se eliminan explícitamente;
-- `runtime.toml` no se versiona.
+### TTS CLI
+
+`--output-folder` se limita a un único nombre de carpeta relativo bajo `storage/output`. Se rechazan rutas absolutas y componentes `..`.
+
+### CI/CD
+
+CI comprueba ahora los tres entrypoints instalados, incluyendo `video-translation-tts`, y existe un job independiente que instala el extra `[tts]` y ejecuta `pip-audit --strict` sobre esa dependencia opcional.
+
+## Seguridad revisada
+
+- ZIP path traversal: protegido mediante `Path.resolve()` + `is_relative_to()`.
+- ZIP symlinks: rechazados.
+- límites de archivos/tamaño/profundidad: aplicados.
+- subprocess: argv sin shell y timeouts en FFmpeg/rclone.
+- rclone descargado: SHA-256 verificado antes de instalarlo.
+- Google token: almacenado fuera del árbol de configuración pública y con permisos 0600 cuando el sistema los soporta.
+- APIs HTTP: proveedores de traducción fuerzan HTTPS; QA local acepta HTTP únicamente para servicios explícitamente configurables/locales.
+- secretos: no se almacenan en el repositorio.
+- CLI TTS: restringido al árbol de resultados local.
+
+## Riesgos/limitaciones que requieren validación operativa
+
+1. Google Drive y rclone requieren credenciales reales para probar una subida completa.
+2. La generación TTS real requiere pesos Kokoro y no debe ejecutarse en CI estándar.
+3. El ejecutable comercial debe revisarse junto con todas las licencias transitivas efectivamente empaquetadas por PyInstaller.
+4. No se debe afirmar que el flujo cloud ha sido validado sin ejecutar una transferencia real con una cuenta de prueba.
+
+## Política de estados
+
+Un fallo TTS no invalida los resultados tradicionales cuando `tts_required=false`. Cuando `tts_required=true`, la fuente no se finaliza hasta que TTS haya terminado correctamente. Los manifiestos registran el estado TTS y los artefactos generados.
 
 ## Conclusión
 
-El proyecto original tenía una base funcional razonable, pero la gestión de proveedores estaba acoplada al pipeline y rclone se trataba como una instalación externa. La nueva arquitectura convierte autenticación/proveedor en una capa independiente y deja el pipeline de vídeo ajeno al detalle de OAuth.
+La revisión no se limita a lint. Se han auditado las fronteras entre entrada, extracción, STT, traducción, QA, generación multimedia, almacenamiento, estado, autenticación y ejecución desatendida. Los cambios se mantienen centrados en problemas funcionales o de seguridad verificables y no realizan una reescritura cosmética del proyecto.
