@@ -13,7 +13,9 @@ logger = logging.getLogger(__name__)
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Generate synchronized TTS media from translated VTT outputs")
+    parser = argparse.ArgumentParser(
+        description="Generate synchronized TTS media from translated VTT outputs"
+    )
     parser.add_argument("--config", type=Path, default=BASE_DIR / "config" / "app.toml")
     parser.add_argument("--output-folder", default=None, help="Existing output folder to process")
     parser.add_argument("--all", action="store_true", help="Process all eligible local output folders")
@@ -32,11 +34,14 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("Indica --output-folder o --all")
 
     root = resolve_project_path("storage/output")
-    folders = [root / args.output_folder] if args.output_folder else sorted(p for p in root.iterdir() if p.is_dir() and p.name != "_manifests")
+    if args.output_folder:
+        folders = [root / args.output_folder]
+    else:
+        folders = sorted(p for p in root.iterdir() if p.is_dir() and p.name != "_manifests")
+
     results: list[dict[str, object]] = []
     for folder in folders:
-        result = _process_folder(folder, settings)
-        results.append(result)
+        results.append(_process_folder(folder, settings))
     print(json.dumps({"status": "success", "results": results}, ensure_ascii=False, indent=2))
     return 0 if all(item["status"] == "success" for item in results) else 2
 
@@ -48,7 +53,11 @@ def _process_folder(folder: Path, settings) -> dict[str, object]:
     vtt = next((p for p in folder.glob("*.vtt") if "_original" not in p.name.lower()), None)
     webm = next((p for p in folder.glob("*.webm") if "_tts" not in p.stem.lower()), None)
     if not video or not vtt:
-        return {"folder": str(folder), "status": "skipped", "reason": "MP4 or translated VTT not found"}
+        return {
+            "folder": str(folder),
+            "status": "skipped",
+            "reason": "MP4 or translated VTT not found",
+        }
     try:
         result = generate_tts_media(
             video,
