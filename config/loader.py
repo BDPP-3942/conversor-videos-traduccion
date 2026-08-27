@@ -53,26 +53,16 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             whisper_initial_prompt=str(processing.get("whisper_initial_prompt", "")),
             whisper_cpu_threads=int(processing.get("whisper_cpu_threads", 0)),
             translation_provider=str(translation_provider),
-            translation_fallback_providers=tuple(
-                str(item) for item in fallback_providers if str(item).strip()
-            ),
+            translation_fallback_providers=tuple(str(item) for item in fallback_providers if str(item).strip()),
             translation_retries=int(processing.get("translation_retries", 3)),
-            translation_max_retries_per_provider=int(
-                processing.get("max_retries_per_provider", 3)
-            ),
+            translation_max_retries_per_provider=int(processing.get("max_retries_per_provider", 3)),
             translation_batch_size=int(processing.get("translation_batch_size", 25)),
-            translation_retry_delay_seconds=float(
-                processing.get("translation_retry_delay_seconds", 1.5)
-            ),
+            translation_retry_delay_seconds=float(processing.get("translation_retry_delay_seconds", 1.5)),
             translation_min_request_interval_seconds=float(
                 processing.get("translation_min_request_interval_seconds", 0.5)
             ),
-            translation_max_backoff_seconds=float(
-                processing.get("translation_max_backoff_seconds", 16.0)
-            ),
-            translation_max_parallel_requests=int(
-                processing.get("translation_max_parallel_requests", 2)
-            ),
+            translation_max_backoff_seconds=float(processing.get("translation_max_backoff_seconds", 16.0)),
+            translation_max_parallel_requests=int(processing.get("translation_max_parallel_requests", 2)),
             translation_provider_max_parallel_requests=int(
                 processing.get("translation_provider_max_parallel_requests", 0)
             ),
@@ -98,22 +88,14 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             source_folder_id=str(google.get("source_folder_id", "")),
             target_folder_id=str(google.get("target_folder_id", "")),
             archive_folder_id=str(google.get("archive_folder_id", "")),
-            original_transcript_subdir=str(
-                google.get("original_transcript_subdir", "original_transcriptions")
-            ),
+            original_transcript_subdir=str(google.get("original_transcript_subdir", "original_transcriptions")),
             resume_enabled=bool(workflow.get("resume_enabled", True)),
             normalize_legacy_names=bool(workflow.get("normalize_legacy_names", True)),
             rename_processed_duplicates=bool(workflow.get("rename_processed_duplicates", True)),
             max_parallel_videos=int(workflow.get("max_parallel_videos", 0)),
-            duplicate_name_similarity_threshold=float(
-                workflow.get("duplicate_name_similarity_threshold", 0.82)
-            ),
-            duplicate_duration_tolerance_seconds=float(
-                workflow.get("duplicate_duration_tolerance_seconds", 1.5)
-            ),
-            duplicate_visual_similarity_threshold=float(
-                workflow.get("duplicate_visual_similarity_threshold", 0.91)
-            ),
+            duplicate_name_similarity_threshold=float(workflow.get("duplicate_name_similarity_threshold", 0.82)),
+            duplicate_duration_tolerance_seconds=float(workflow.get("duplicate_duration_tolerance_seconds", 1.5)),
+            duplicate_visual_similarity_threshold=float(workflow.get("duplicate_visual_similarity_threshold", 0.91)),
             google_credentials_file=Path(
                 str(
                     google.get(
@@ -122,9 +104,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
                     )
                 )
             ),
-            google_token_file=Path(
-                str(google.get("token_file", "secrets/providers/google/default/token.json"))
-            ),
+            google_token_file=Path(str(google.get("token_file", "secrets/providers/google/default/token.json"))),
             rclone_config_file=Path(str(rclone.get("config_file", "secrets/rclone/rclone.conf"))),
             rclone_binary_file=Path(str(rclone.get("binary_file", "tools/rclone/rclone"))),
             rclone_remote=str(rclone.get("remote", "remote_drive")),
@@ -138,6 +118,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
     settings = _apply_runtime_provider(settings)
     settings = _apply_environment_overrides(settings)
     from src.resource_profile import apply_resource_profile
+
     return apply_resource_profile(settings)
 
 
@@ -239,12 +220,8 @@ def _apply_runtime_provider(settings: AppSettings) -> AppSettings:
     if runtime.get("profile") or runtime.get("provider") in {"google_drive", "gdrive"}:
         profile = str(runtime.get("profile", settings.google_profile or "default"))
         values["google_profile"] = profile
-        values["google_credentials_file"] = (
-            settings.provider_profile_dir / "google" / profile / "credentials.json"
-        )
-        values["google_token_file"] = (
-            settings.provider_profile_dir / "google" / profile / "token.json"
-        )
+        values["google_credentials_file"] = settings.provider_profile_dir / "google" / profile / "credentials.json"
+        values["google_token_file"] = settings.provider_profile_dir / "google" / profile / "token.json"
         if "archive" in runtime:
             values["archive_folder_id"] = str(runtime.get("archive", ""))
     return replace(settings, **values) if values else settings
