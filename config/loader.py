@@ -31,6 +31,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
         providers = data.get("providers", {})
         processing = data.get("processing", {})
         ffmpeg = data.get("ffmpeg", {})
+        tts = data.get("tts", {})
         workflow = data.get("workflow", {})
         runtime_cfg = data.get("runtime", {})
         translation_provider = processing.get("translation_provider", "mistral")
@@ -58,14 +59,10 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             translation_max_retries_per_provider=int(processing.get("max_retries_per_provider", 3)),
             translation_batch_size=int(processing.get("translation_batch_size", 25)),
             translation_retry_delay_seconds=float(processing.get("translation_retry_delay_seconds", 1.5)),
-            translation_min_request_interval_seconds=float(
-                processing.get("translation_min_request_interval_seconds", 0.5)
-            ),
+            translation_min_request_interval_seconds=float(processing.get("translation_min_request_interval_seconds", 0.5)),
             translation_max_backoff_seconds=float(processing.get("translation_max_backoff_seconds", 16.0)),
             translation_max_parallel_requests=int(processing.get("translation_max_parallel_requests", 2)),
-            translation_provider_max_parallel_requests=int(
-                processing.get("translation_provider_max_parallel_requests", 0)
-            ),
+            translation_provider_max_parallel_requests=int(processing.get("translation_provider_max_parallel_requests", 0)),
             max_zip_depth=int(processing.get("max_zip_depth", 5)),
             max_extracted_files=int(processing.get("max_extracted_files", 10000)),
             max_extracted_size_gb=float(processing.get("max_extracted_size_gb", 10.0)),
@@ -96,20 +93,26 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             duplicate_name_similarity_threshold=float(workflow.get("duplicate_name_similarity_threshold", 0.82)),
             duplicate_duration_tolerance_seconds=float(workflow.get("duplicate_duration_tolerance_seconds", 1.5)),
             duplicate_visual_similarity_threshold=float(workflow.get("duplicate_visual_similarity_threshold", 0.91)),
-            google_credentials_file=Path(
-                str(
-                    google.get(
-                        "credentials_file",
-                        "secrets/providers/google/default/credentials.json",
-                    )
-                )
-            ),
+            ffmpeg_avoid_reencode=bool(ffmpeg.get("avoid_reencode", True)),
+            tts_enabled=bool(tts.get("enabled", False)),
+            tts_required=bool(tts.get("required", False)),
+            tts_provider=str(tts.get("provider", "kokoro")),
+            tts_voice=str(tts.get("voice", "ef_dora")),
+            tts_model_path=Path(str(tts.get("model_path", "tools/tts/kokoro-v1.0.onnx"))),
+            tts_voices_path=Path(str(tts.get("voices_path", "tools/tts/voices-v1.0.bin"))),
+            tts_speed=float(tts.get("speed", 1.0)),
+            tts_max_speed=float(tts.get("max_speed", 1.35)),
+            tts_duration_tolerance=float(tts.get("duration_tolerance", 0.02)),
+            tts_sample_rate=int(tts.get("sample_rate", 24000)),
+            tts_audio_bitrate=str(tts.get("audio_bitrate", "192k")),
+            tts_webm_audio_bitrate=str(tts.get("webm_audio_bitrate", "192k")),
+            tts_generate_webm=bool(tts.get("generate_webm", True)),
+            google_credentials_file=Path(str(google.get("credentials_file", "secrets/providers/google/default/credentials.json"))),
             google_token_file=Path(str(google.get("token_file", "secrets/providers/google/default/token.json"))),
             rclone_config_file=Path(str(rclone.get("config_file", "secrets/rclone/rclone.conf"))),
             rclone_binary_file=Path(str(rclone.get("binary_file", "tools/rclone/rclone"))),
             rclone_remote=str(rclone.get("remote", "remote_drive")),
             provider_profile_dir=Path(str(providers.get("profile_dir", "secrets/providers"))),
-            ffmpeg_avoid_reencode=bool(ffmpeg.get("avoid_reencode", True)),
             run_lock_file=Path(str(runtime_cfg.get("run_lock_file", "storage/state/run.lock"))),
             auto_bootstrap_rclone=bool(runtime_cfg.get("auto_bootstrap_rclone", True)),
             auto_update_rclone=bool(runtime_cfg.get("auto_update_rclone", False)),
@@ -184,6 +187,19 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
         "DUPLICATE_DURATION_TOLERANCE_SECONDS": "duplicate_duration_tolerance_seconds",
         "DUPLICATE_VISUAL_SIMILARITY_THRESHOLD": "duplicate_visual_similarity_threshold",
         "FFMPEG_AVOID_REENCODE": "ffmpeg_avoid_reencode",
+        "TTS_ENABLED": "tts_enabled",
+        "TTS_REQUIRED": "tts_required",
+        "TTS_PROVIDER": "tts_provider",
+        "TTS_VOICE": "tts_voice",
+        "TTS_MODEL_PATH": "tts_model_path",
+        "TTS_VOICES_PATH": "tts_voices_path",
+        "TTS_SPEED": "tts_speed",
+        "TTS_MAX_SPEED": "tts_max_speed",
+        "TTS_DURATION_TOLERANCE": "tts_duration_tolerance",
+        "TTS_SAMPLE_RATE": "tts_sample_rate",
+        "TTS_AUDIO_BITRATE": "tts_audio_bitrate",
+        "TTS_WEBM_AUDIO_BITRATE": "tts_webm_audio_bitrate",
+        "TTS_GENERATE_WEBM": "tts_generate_webm",
         "RUN_LOCK_FILE": "run_lock_file",
         "AUTO_BOOTSTRAP_RCLONE": "auto_bootstrap_rclone",
         "AUTO_UPDATE_RCLONE": "auto_update_rclone",
