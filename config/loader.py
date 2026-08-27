@@ -36,9 +36,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
         runtime_cfg = data.get("runtime", {})
 
         translation_provider = processing.get("translation_provider", "mistral")
-        fallback_providers = processing.get(
-            "translation_fallback_providers", ["deepl", "mymemory"]
-        )
+        fallback_providers = processing.get("translation_fallback_providers", ["deepl", "mymemory"])
         if isinstance(fallback_providers, str):
             fallback_providers = [fallback_providers]
 
@@ -54,65 +52,39 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             whisper_compute_type=str(processing.get("whisper_compute_type", "int8")),
             whisper_beam_size=int(processing.get("whisper_beam_size", 5)),
             whisper_vad_filter=bool(processing.get("whisper_vad_filter", True)),
-            whisper_min_silence_duration_ms=int(
-                processing.get("whisper_min_silence_duration_ms", 1500)
-            ),
-            whisper_condition_on_previous_text=bool(
-                processing.get("whisper_condition_on_previous_text", True)
-            ),
+            whisper_min_silence_duration_ms=int(processing.get("whisper_min_silence_duration_ms", 1500)),
+            whisper_condition_on_previous_text=bool(processing.get("whisper_condition_on_previous_text", True)),
             whisper_initial_prompt=str(processing.get("whisper_initial_prompt", "")),
             whisper_cpu_threads=int(processing.get("whisper_cpu_threads", 0)),
             translation_provider=str(translation_provider),
-            translation_fallback_providers=tuple(
-                str(item) for item in fallback_providers if str(item).strip()
-            ),
+            translation_fallback_providers=tuple(str(item) for item in fallback_providers if str(item).strip()),
             translation_retries=int(processing.get("translation_retries", 3)),
-            translation_max_retries_per_provider=int(
-                processing.get("max_retries_per_provider", 3)
-            ),
+            translation_max_retries_per_provider=int(processing.get("max_retries_per_provider", 3)),
             translation_batch_size=int(processing.get("translation_batch_size", 25)),
-            translation_retry_delay_seconds=float(
-                processing.get("translation_retry_delay_seconds", 1.5)
-            ),
+            translation_retry_delay_seconds=float(processing.get("translation_retry_delay_seconds", 1.5)),
             translation_min_request_interval_seconds=float(
                 processing.get("translation_min_request_interval_seconds", 0.5)
             ),
-            translation_max_backoff_seconds=float(
-                processing.get("translation_max_backoff_seconds", 16.0)
-            ),
-            translation_max_parallel_requests=int(
-                processing.get("translation_max_parallel_requests", 2)
-            ),
+            translation_max_backoff_seconds=float(processing.get("translation_max_backoff_seconds", 16.0)),
+            translation_max_parallel_requests=int(processing.get("translation_max_parallel_requests", 2)),
             translation_provider_max_parallel_requests=int(
                 processing.get("translation_provider_max_parallel_requests", 0)
             ),
             max_zip_depth=int(processing.get("max_zip_depth", 5)),
             max_extracted_files=int(processing.get("max_extracted_files", 10000)),
-            max_extracted_size_gb=float(
-                processing.get("max_extracted_size_gb", 10.0)
-            ),
+            max_extracted_size_gb=float(processing.get("max_extracted_size_gb", 10.0)),
             ffmpeg_bin=str(ffmpeg.get("bin", "")),
             ffmpeg_preset=str(ffmpeg.get("preset", "medium")),
             ffmpeg_crf=int(ffmpeg.get("crf", 23)),
             ffmpeg_audio_bitrate=str(ffmpeg.get("audio_bitrate", "256k")),
             generate_webm=bool(ffmpeg.get("generate_webm", True)),
-            secondary_video_extension=str(
-                ffmpeg.get("secondary_video_extension", "webm")
-            ),
-            secondary_video_codec=str(
-                ffmpeg.get("secondary_video_codec", "libvpx-vp9")
-            ),
+            secondary_video_extension=str(ffmpeg.get("secondary_video_extension", "webm")),
+            secondary_video_codec=str(ffmpeg.get("secondary_video_codec", "libvpx-vp9")),
             secondary_video_crf=int(ffmpeg.get("secondary_video_crf", 0)),
-            secondary_video_max_width=int(
-                ffmpeg.get("secondary_video_max_width", 0)
-            ),
+            secondary_video_max_width=int(ffmpeg.get("secondary_video_max_width", 0)),
             secondary_video_fps=int(ffmpeg.get("secondary_video_fps", 0)),
-            secondary_video_audio_codec=str(
-                ffmpeg.get("secondary_video_audio_codec", "libopus")
-            ),
-            secondary_video_audio_bitrate=str(
-                ffmpeg.get("secondary_video_audio_bitrate", "256k")
-            ),
+            secondary_video_audio_codec=str(ffmpeg.get("secondary_video_audio_codec", "libopus")),
+            secondary_video_audio_bitrate=str(ffmpeg.get("secondary_video_audio_bitrate", "256k")),
             secondary_video_cpu_used=int(ffmpeg.get("secondary_video_cpu_used", 5)),
             ffmpeg_timeout_seconds=int(ffmpeg.get("timeout_seconds", 7200)),
             local_retain_sources=bool(local.get("retain_sources", True)),
@@ -120,40 +92,22 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             source_folder_id=str(google.get("source_folder_id", "")),
             target_folder_id=str(google.get("target_folder_id", "")),
             archive_folder_id=str(google.get("archive_folder_id", "")),
-            original_transcript_subdir=str(
-                google.get("original_transcript_subdir", "original_transcriptions")
-            ),
+            original_transcript_subdir=str(google.get("original_transcript_subdir", "original_transcriptions")),
             resume_enabled=bool(workflow.get("resume_enabled", True)),
-            normalize_legacy_names=bool(
-                workflow.get("normalize_legacy_names", True)
-            ),
-            rename_processed_duplicates=bool(
-                workflow.get("rename_processed_duplicates", True)
-            ),
-            automatic_output_deduplication=bool(
-                workflow.get("automatic_output_deduplication", False)
-            ),
+            normalize_legacy_names=bool(workflow.get("normalize_legacy_names", True)),
+            rename_processed_duplicates=bool(workflow.get("rename_processed_duplicates", True)),
+            automatic_output_deduplication=bool(workflow.get("automatic_output_deduplication", False)),
             max_parallel_videos=int(workflow.get("max_parallel_videos", 0)),
-            duplicate_name_similarity_threshold=float(
-                workflow.get("duplicate_name_similarity_threshold", 0.82)
-            ),
-            duplicate_duration_tolerance_seconds=float(
-                workflow.get("duplicate_duration_tolerance_seconds", 1.5)
-            ),
-            duplicate_visual_similarity_threshold=float(
-                workflow.get("duplicate_visual_similarity_threshold", 0.91)
-            ),
+            duplicate_name_similarity_threshold=float(workflow.get("duplicate_name_similarity_threshold", 0.82)),
+            duplicate_duration_tolerance_seconds=float(workflow.get("duplicate_duration_tolerance_seconds", 1.5)),
+            duplicate_visual_similarity_threshold=float(workflow.get("duplicate_visual_similarity_threshold", 0.91)),
             ffmpeg_avoid_reencode=bool(ffmpeg.get("avoid_reencode", True)),
             tts_enabled=bool(tts.get("enabled", False)),
             tts_required=bool(tts.get("required", False)),
             tts_provider=str(tts.get("provider", "kokoro")),
             tts_voice=str(tts.get("voice", "af_sarah")),
-            tts_model_path=Path(
-                str(tts.get("model_path", "tools/tts/kokoro-v1.0.onnx"))
-            ),
-            tts_voices_path=Path(
-                str(tts.get("voices_path", "tools/tts/voices-v1.0.bin"))
-            ),
+            tts_model_path=Path(str(tts.get("model_path", "tools/tts/kokoro-v1.0.onnx"))),
+            tts_voices_path=Path(str(tts.get("voices_path", "tools/tts/voices-v1.0.bin"))),
             tts_speed=float(tts.get("speed", 1.0)),
             tts_max_speed=float(tts.get("max_speed", 1.35)),
             tts_duration_tolerance=float(tts.get("duration_tolerance", 0.02)),
@@ -169,29 +123,13 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
                     )
                 )
             ),
-            google_token_file=Path(
-                str(
-                    google.get(
-                        "token_file", "secrets/providers/google/default/token.json"
-                    )
-                )
-            ),
-            rclone_config_file=Path(
-                str(rclone.get("config_file", "secrets/rclone/rclone.conf"))
-            ),
-            rclone_binary_file=Path(
-                str(rclone.get("binary_file", "tools/rclone/rclone"))
-            ),
+            google_token_file=Path(str(google.get("token_file", "secrets/providers/google/default/token.json"))),
+            rclone_config_file=Path(str(rclone.get("config_file", "secrets/rclone/rclone.conf"))),
+            rclone_binary_file=Path(str(rclone.get("binary_file", "tools/rclone/rclone"))),
             rclone_remote=str(rclone.get("remote", "remote_drive")),
-            provider_profile_dir=Path(
-                str(providers.get("profile_dir", "secrets/providers"))
-            ),
-            run_lock_file=Path(
-                str(runtime_cfg.get("run_lock_file", "storage/state/run.lock"))
-            ),
-            auto_bootstrap_rclone=bool(
-                runtime_cfg.get("auto_bootstrap_rclone", True)
-            ),
+            provider_profile_dir=Path(str(providers.get("profile_dir", "secrets/providers"))),
+            run_lock_file=Path(str(runtime_cfg.get("run_lock_file", "storage/state/run.lock"))),
+            auto_bootstrap_rclone=bool(runtime_cfg.get("auto_bootstrap_rclone", True)),
             auto_update_rclone=bool(runtime_cfg.get("auto_update_rclone", False)),
             auto_tune_resources=bool(runtime_cfg.get("auto_tune_resources", True)),
         )
@@ -317,12 +255,8 @@ def _apply_runtime_provider(settings: AppSettings) -> AppSettings:
     if runtime.get("profile") or runtime.get("provider") in {"google_drive", "gdrive"}:
         profile = str(runtime.get("profile", settings.google_profile or "default"))
         values["google_profile"] = profile
-        values["google_credentials_file"] = (
-            settings.provider_profile_dir / "google" / profile / "credentials.json"
-        )
-        values["google_token_file"] = (
-            settings.provider_profile_dir / "google" / profile / "token.json"
-        )
+        values["google_credentials_file"] = settings.provider_profile_dir / "google" / profile / "credentials.json"
+        values["google_token_file"] = settings.provider_profile_dir / "google" / profile / "token.json"
         if "archive" in runtime:
             values["archive_folder_id"] = str(runtime.get("archive", ""))
     return replace(settings, **values) if values else settings

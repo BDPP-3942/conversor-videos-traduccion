@@ -26,9 +26,7 @@ class TTSAwareStorageProvider(StorageProvider):
     def download_file(self, file: StorageFile, destination: Path) -> None:
         self.wrapped.download_file(file, destination)
 
-    def upload_file(
-        self, local_path: Path, location: str, mime_type: str | None = None
-    ) -> StorageFile:
+    def upload_file(self, local_path: Path, location: str, mime_type: str | None = None) -> StorageFile:
         return self.wrapped.upload_file(local_path, location, mime_type)
 
     def ensure_folder(self, parent: str, name: str) -> str:
@@ -49,16 +47,10 @@ class TTSAwareStorageProvider(StorageProvider):
     def rename_output_folder(
         self, target: str, old_name: str, new_name: str, original_transcript_subdir: str
     ) -> dict[str, str]:
-        return self.wrapped.rename_output_folder(
-            target, old_name, new_name, original_transcript_subdir
-        )
+        return self.wrapped.rename_output_folder(target, old_name, new_name, original_transcript_subdir)
 
-    def normalize_existing_output_names(
-        self, target: str, original_transcript_subdir: str
-    ) -> dict[str, str]:
-        return self.wrapped.normalize_existing_output_names(
-            target, original_transcript_subdir
-        )
+    def normalize_existing_output_names(self, target: str, original_transcript_subdir: str) -> dict[str, str]:
+        return self.wrapped.normalize_existing_output_names(target, original_transcript_subdir)
 
     def source_fingerprint(self, file: StorageFile) -> dict[str, Any]:
         return self.wrapped.source_fingerprint(file)
@@ -67,9 +59,7 @@ class TTSAwareStorageProvider(StorageProvider):
         method = getattr(self.wrapped, "is_processed", None)
         return bool(method(file)) if method else False
 
-    def finalize_source(
-        self, file: StorageFile, status: str, output_folders: list[str] | None = None
-    ) -> None:
+    def finalize_source(self, file: StorageFile, status: str, output_folders: list[str] | None = None) -> None:
         if self.settings.tts_enabled and status == "success":
             try:
                 self._process_pending_folders()
@@ -93,24 +83,16 @@ class TTSAwareStorageProvider(StorageProvider):
     def _process_folder(self, target: str, folder: str, folder_name: str) -> None:
         children = self.wrapped.list_children(folder)
         files = {child.name: child for child in children if not child.is_directory}
-        vtt = next(
-            (item for item in files.values() if _is_output_vtt_name(item.name)), None
-        )
+        vtt = next((item for item in files.values() if _is_output_vtt_name(item.name)), None)
         video = next(
-            (
-                item
-                for item in files.values()
-                if item.name.lower().endswith(".mp4")
-                and "_tts" not in item.name.lower()
-            ),
+            (item for item in files.values() if item.name.lower().endswith(".mp4") and "_tts" not in item.name.lower()),
             None,
         )
         webm = next(
             (
                 item
                 for item in files.values()
-                if item.name.lower().endswith(".webm")
-                and "_tts" not in item.name.lower()
+                if item.name.lower().endswith(".webm") and "_tts" not in item.name.lower()
             ),
             None,
         )
@@ -152,9 +134,7 @@ class TTSAwareStorageProvider(StorageProvider):
                 )
                 self.wrapped.upload_file(result.mp4_path, folder, "video/mp4")
                 if result.webm_path is not None:
-                    self.wrapped.upload_file(
-                        result.webm_path, folder, "video/webm"
-                    )
+                    self.wrapped.upload_file(result.webm_path, folder, "video/webm")
                 self.wrapped.upload_file(result.audio_path, folder, "audio/wav")
                 self._update_manifest(
                     target,
@@ -165,12 +145,8 @@ class TTSAwareStorageProvider(StorageProvider):
                     adjusted_cues=result.adjusted_cues,
                 )
             except (TTSProviderError, RuntimeError, ValueError, OSError) as exc:
-                logger.error(
-                    "TTS failed for output folder %s: %s", folder_name, exc
-                )
-                self._update_manifest_status(
-                    target, folder_name, "failed", str(exc)
-                )
+                logger.error("TTS failed for output folder %s: %s", folder_name, exc)
+                self._update_manifest_status(target, folder_name, "failed", str(exc))
                 if self.settings.tts_required:
                     raise
 
@@ -216,10 +192,7 @@ class TTSAwareStorageProvider(StorageProvider):
             data = read_manifest(manifest_path)
             changed = False
             for entry in data.get("entries", []):
-                if (
-                    not isinstance(entry, dict)
-                    or str(entry.get("output_folder", "")) != folder_name
-                ):
+                if not isinstance(entry, dict) or str(entry.get("output_folder", "")) != folder_name:
                     continue
                 for key, value in (
                     ("tts_mp4", mp4_name),

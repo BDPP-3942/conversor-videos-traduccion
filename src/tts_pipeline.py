@@ -196,8 +196,7 @@ def _render_timeline(
         if len(audio) > target_samples:
             if len(audio) > target_samples * (1.0 + settings.tts_duration_tolerance):
                 raise TTSProviderError(
-                    f"Cue {cue_index} cannot fit in {cue.duration:.3f}s at max TTS speed "
-                    f"{settings.tts_max_speed:.2f}"
+                    f"Cue {cue_index} cannot fit in {cue.duration:.3f}s at max TTS speed {settings.tts_max_speed:.2f}"
                 )
             audio = audio[:target_samples]
         start_samples = round(cue.start * sample_rate)
