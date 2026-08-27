@@ -82,6 +82,26 @@ def _post_json(url: str, payload: object, timeout: float = 60.0) -> object:
         raise SubtitleQAError(f"QA service connection failed: {exc}") from exc
 
 
+def _post_form(url: str, payload: dict[str, str], timeout: float = 60.0) -> object:
+    parsed = urllib.parse.urlsplit(url)
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError("QA service URL must use HTTP or HTTPS")
+    request = urllib.request.Request(
+        url,
+        data=urllib.parse.urlencode(payload).encode("utf-8"),
+        headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise SubtitleQAError(f"QA service HTTP {exc.code}: {detail}") from exc
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise SubtitleQAError(f"QA service connection failed: {exc}") from exc
+
+
 class LanguageToolProvider:
     name = "languagetool"
 
@@ -117,7 +137,10 @@ class LanguageToolProvider:
         for cue in cues:
             if not cue.text:
                 continue
-            result = _post_json(self.url, {"text": cue.text, "language": self.language, "enabledOnly": False, "level": "picky"})
+            result = _post_form(
+                self.url,
+                {"text": cue.text, "language": self.language, "enabledOnly": "false", "level": "picky"},
+            )
             matches = result.get("matches", []) if isinstance(result, dict) else []
             if not isinstance(matches, list):
                 raise SubtitleQAError("LanguageTool returned an invalid matches array")
@@ -127,9 +150,21 @@ class LanguageToolProvider:
                 values = match.get("replacements", [])
                 suggestion = str(values[0].get("value", "")) if values and isinstance(values[0], dict) else ""
                 rule = match.get("rule", {})
-                issues.append(QAIssue(self.name, cue.index, str(rule.get("issueType", "unknown")), str(match.get("message", "")), cue.text, suggestion, 1.0 if suggestion else 0.0))
+                issues.append(
+                    QAIssue(
+                        self.name,
+                        cue.index,
+                        str(rule.get("issueType", "unknown")),
+                        str(match.get("message", "")),
+                        cue.text,
+                        suggestion,
+                        1.0 if suggestion else 0.0,
+                    )
+                )
             if auto_correct and matches:
-                result_cues[cue.index - 1] = SubtitleCue(cue.index, cue.start, cue.end, self._apply(cue.text, [m for m in matches if isinstance(m, dict)]))
+                result_cues[cue.index - 1] = SubtitleCue(
+                    cue.index, cue.start, cue.end, self._apply(cue.text, [m for m in matches if isinstance(m, dict)])
+                )
         return result_cues, issues
 
 
@@ -140,7 +175,13 @@ class OllamaProvider:
         self.url = url
         self.model = model
 
-    def review(self, cues: list[SubtitleCue], *, source: list[SubtitleCue] | None, auto_correct: bool) -> tuple[list[SubtitleCue], list[QAIssue]]:
+    def review(
+        self,
+        cues: list[SubtitleCue],
+        *,
+        source: list[SubtitleCue] | None,
+        auto_correct: bool,
+    ) -> tuple[list[SubtitleCue], list[QAIssue]]:
         result_cues = list(cues)
         source_by_index = {cue.index: cue.text for cue in source or []}
         issues: list[QAIssue] = []
@@ -151,14 +192,28 @@ class OllamaProvider:
                 "format": "json",
                 "options": {"temperature": 0},
                 "messages": [
-                    {"role": "system", "content": "You are a meticulous English subtitle QA editor. Preserve meaning. Never alter timing, merge/split cues, invent facts or dialogue. Return JSON only with changed, corrected_text, issues, confidence."},
-                    {"role": "user", "content": json.dumps({
-                        "source": source_by_index.get(cue.index, ""),
-                        "translated": cue.text,
-                        "previous": cues[pos - 1].text if pos else "",
-                        "next": cues[pos + 1].text if pos + 1 < len(cues) else "",
-                        "task": "Check spelling, grammar, punctuation, natural English, contextual meaning, inappropriate wording and terminology. Correct only when justified.",
-                    }, ensure_ascii=False)},
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a meticulous English subtitle QA editor. Preserve meaning. Never alter timing, "
+                            "merge/split cues, invent facts or dialogue. Return JSON only with changed, corrected_text, "
+                            "issues, confidence."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": json.dumps(
+                            {
+                                "source": source_by_index.get(cue.index, ""),
+                                "translated": cue.text,
+                                "previous": cues[pos - 1].text if pos else "",
+                                "next": cues[pos + 1].text if pos + 1 < len(cues) else "",
+                                "task": "Check spelling, grammar, punctuation, natural English, contextual meaning, "
+                                "inappropriate wording and terminology. Correct only when justified.",
+                            },
+                            ensure_ascii=False,
+                        ),
+                    },
                 ],
             }
             response = _post_json(self.url, payload)
@@ -172,13 +227,35 @@ class OllamaProvider:
             except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 raise SubtitleQAError(f"Ollama returned invalid QA JSON for cue {cue.index}") from exc
             if changed and corrected.strip() and corrected != cue.text:
-                issues.append(QAIssue(self.name, cue.index, "contextual", issue_text or "LLM correction", cue.text, corrected, confidence))
+                issues.append(
+                    QAIssue(
+                        self.name,
+                        cue.index,
+                        "contextual",
+                        issue_text or "LLM correction",
+                        cue.text,
+                        corrected,
+                        confidence,
+                    )
+                )
                 if auto_correct:
                     result_cues[cue.index - 1] = SubtitleCue(cue.index, cue.start, cue.end, corrected)
         return result_cues, issues
 
 
-def run_subtitle_qa(vtt_path: Path, *, engine: str, source_vtt: Path | None = None, output_path: Path | None = None, report_path: Path | None = None, auto_correct: bool = False, languagetool_url: str = "http://127.0.0.1:8081/v2/check", languagetool_language: str = "en-US", ollama_url: str = "http://127.0.0.1:11434/api/chat", ollama_model: str = "qwen3:8b") -> dict[str, Any]:
+def run_subtitle_qa(
+    vtt_path: Path,
+    *,
+    engine: str,
+    source_vtt: Path | None = None,
+    output_path: Path | None = None,
+    report_path: Path | None = None,
+    auto_correct: bool = False,
+    languagetool_url: str = "http://127.0.0.1:8081/v2/check",
+    languagetool_language: str = "en-US",
+    ollama_url: str = "http://127.0.0.1:11434/api/chat",
+    ollama_model: str = "qwen3:8b",
+) -> dict[str, Any]:
     original = read_vtt(vtt_path)
     source = read_vtt(source_vtt) if source_vtt else None
     validate_alignment(original, source)
