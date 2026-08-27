@@ -196,8 +196,8 @@ class OllamaProvider:
                         "role": "system",
                         "content": (
                             "You are a meticulous English subtitle QA editor. Preserve meaning. Never alter timing, "
-                            "merge/split cues, invent facts or dialogue. Return JSON only with changed, corrected_text, "
-                            "issues, confidence."
+                            "merge/split cues, invent facts or dialogue. Return JSON only with changed, "
+                            "corrected_text, issues, confidence."
                         ),
                     },
                     {
