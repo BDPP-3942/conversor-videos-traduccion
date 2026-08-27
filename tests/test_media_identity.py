@@ -36,6 +36,12 @@ def _make_video(path: Path, color: str = "blue") -> None:
     )
 
 
+def test_identity_resolver_uses_integrated_ffmpeg_by_default() -> None:
+    resolver = MediaIdentityResolver()
+
+    assert resolver.ffmpeg_bin == FFmpegResolver.resolve(AppSettings())
+
+
 def test_exact_duplicate_is_detected_after_name_candidate(tmp_path: Path) -> None:
     first = tmp_path / "07º Opt Taich Bombeos.mp4"
     second = tmp_path / "7º OPT TAICH BOMBEOS.mp4"
