@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "video-translation-pipeline"
-version = "5.0.0"
-description = "Local and pluggable video/audio transcription and translation pipeline"
+version = "5.1.0"
+description = "Local and pluggable video/audio transcription, translation and synchronized TTS pipeline"
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "faster-whisper>=1,<2",
@@ -17,6 +17,7 @@ dependencies = [
 [project.optional-dependencies]
 google = ["google-auth-oauthlib>=1,<2"]
 rclone = []
+tts = ["kokoro-onnx>=0.6.1,<0.7"]
 dev = ["pytest>=9.0.3,<10", "ruff>=0.9,<0.17"]
 package = ["pyinstaller>=6,<7"]
 
