@@ -31,6 +31,7 @@ class AppSettings:
     whisper_compute_type: str = "int8"
     whisper_beam_size: int = 5
     whisper_vad_filter: bool = True
+    whisper_min_silence_duration_ms: int = 750
     whisper_condition_on_previous_text: bool = True
     whisper_initial_prompt: str = ""
     whisper_cpu_threads: int = 0
@@ -131,6 +132,9 @@ class AppSettings:
             whisper_compute_type=os.getenv("WHISPER_COMPUTE_TYPE", cls.whisper_compute_type),
             whisper_beam_size=int(os.getenv("WHISPER_BEAM_SIZE", cls.whisper_beam_size)),
             whisper_vad_filter=os.getenv("WHISPER_VAD_FILTER", "true").lower() == "true",
+            whisper_min_silence_duration_ms=int(
+                os.getenv("WHISPER_MIN_SILENCE_DURATION_MS", cls.whisper_min_silence_duration_ms)
+            ),
             whisper_condition_on_previous_text=condition_on_previous_text,
             whisper_initial_prompt=os.getenv("WHISPER_INITIAL_PROMPT", cls.whisper_initial_prompt),
             whisper_cpu_threads=int(os.getenv("WHISPER_CPU_THREADS", cls.whisper_cpu_threads)),
