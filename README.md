@@ -127,22 +127,18 @@ python -m compileall .
 
 | Documento | Propósito |
 |---|---|
-| [`docs/PROJECT_GUIDE.md`](docs/PROJECT_GUIDE.md) | Alcance, casos de uso y funcionamiento completo |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Arquitectura y flujo interno |
-| [`docs/INSTALLATION.md`](docs/INSTALLATION.md) | Instalación y preparación |
-| [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) | Configuración |
-| [`docs/CLI.md`](docs/CLI.md) | CLI y entrypoints |
-| [`docs/STT_AND_SUBTITLES.md`](docs/STT_AND_SUBTITLES.md) | STT, silencios y VTT |
-| [`docs/TTS.md`](docs/TTS.md) | TTS, sincronización y licencias |
-| [`docs/TRANSLATION_PROVIDERS.md`](docs/TRANSLATION_PROVIDERS.md) | Traducción y fallback |
-| [`docs/STORAGE.md`](docs/STORAGE.md) | Local, Google Drive y rclone |
+| [`docs/INSTALLATION.md`](docs/INSTALLATION.md) | Instalación, dependencias, entorno y puesta en marcha |
+| [`docs/PROJECT_GUIDE.md`](docs/PROJECT_GUIDE.md) | Alcance funcional y funcionamiento completo |
+| [`docs/TTS.md`](docs/TTS.md) | TTS, sincronización, artefactos y licencias |
+| [`docs/TRANSLATION_PROVIDERS.md`](docs/TRANSLATION_PROVIDERS.md) | Proveedores de traducción y fallback |
 | [`docs/UNATTENDED.md`](docs/UNATTENDED.md) | Scheduler y ejecución sin interacción |
-| [`docs/DEDUPLICATION.md`](docs/DEDUPLICATION.md) | Deduplicación |
-| [`docs/SECURITY.md`](docs/SECURITY.md) | Seguridad |
-| [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Desarrollo, tests y CI |
-| [`docs/AUDIT.md`](docs/AUDIT.md) | Auditorías técnicas |
-| [`docs/RELEASES.md`](docs/RELEASES.md) | Versionado e histórico |
-| [`CHANGELOG.md`](CHANGELOG.md) | Changelog de usuario |
+| [`docs/DEDUPLICATION.md`](docs/DEDUPLICATION.md) | Deduplicación y limpieza segura |
+| [`docs/SECURITY.md`](docs/SECURITY.md) | Seguridad y gestión de secretos |
+| [`docs/AUDIT.md`](docs/AUDIT.md) | Auditoría técnica y riesgos conocidos |
+| [`docs/RELEASES.md`](docs/RELEASES.md) | Política e histórico de releases |
+| [`CHANGELOG.md`](CHANGELOG.md) | Cambios orientados al usuario |
+
+Los detalles de configuración y CLI se documentan actualmente junto al funcionamiento y los comandos en `README.md`, `PROJECT_GUIDE.md`, `INSTALLATION.md` y las guías especializadas. No se mantienen enlaces a documentos inexistentes.
 
 ## Versionado
 
