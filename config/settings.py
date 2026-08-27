@@ -75,6 +75,19 @@ class AppSettings:
     duplicate_duration_tolerance_seconds: float = 1.5
     duplicate_visual_similarity_threshold: float = 0.91
     ffmpeg_avoid_reencode: bool = True
+    tts_enabled: bool = False
+    tts_required: bool = False
+    tts_provider: str = "kokoro"
+    tts_voice: str = "ef_dora"
+    tts_model_path: Path = BASE_DIR / "tools" / "tts" / "kokoro-v1.0.onnx"
+    tts_voices_path: Path = BASE_DIR / "tools" / "tts" / "voices-v1.0.bin"
+    tts_speed: float = 1.0
+    tts_max_speed: float = 1.35
+    tts_duration_tolerance: float = 0.02
+    tts_sample_rate: int = 24000
+    tts_audio_bitrate: str = "192k"
+    tts_webm_audio_bitrate: str = "192k"
+    tts_generate_webm: bool = True
     google_credentials_file: Path = SECRETS_DIR / "providers" / "google" / "default" / "credentials.json"
     google_token_file: Path = SECRETS_DIR / "providers" / "google" / "default" / "token.json"
     google_profile: str = "default"
@@ -183,6 +196,19 @@ class AppSettings:
                 os.getenv("DUPLICATE_VISUAL_SIMILARITY_THRESHOLD", cls.duplicate_visual_similarity_threshold)
             ),
             ffmpeg_avoid_reencode=os.getenv("FFMPEG_AVOID_REENCODE", "true").lower() == "true",
+            tts_enabled=os.getenv("TTS_ENABLED", "false").lower() == "true",
+            tts_required=os.getenv("TTS_REQUIRED", "false").lower() == "true",
+            tts_provider=os.getenv("TTS_PROVIDER", cls.tts_provider),
+            tts_voice=os.getenv("TTS_VOICE", cls.tts_voice),
+            tts_model_path=Path(os.getenv("TTS_MODEL_PATH", cls.tts_model_path)),
+            tts_voices_path=Path(os.getenv("TTS_VOICES_PATH", cls.tts_voices_path)),
+            tts_speed=float(os.getenv("TTS_SPEED", cls.tts_speed)),
+            tts_max_speed=float(os.getenv("TTS_MAX_SPEED", cls.tts_max_speed)),
+            tts_duration_tolerance=float(os.getenv("TTS_DURATION_TOLERANCE", cls.tts_duration_tolerance)),
+            tts_sample_rate=int(os.getenv("TTS_SAMPLE_RATE", cls.tts_sample_rate)),
+            tts_audio_bitrate=os.getenv("TTS_AUDIO_BITRATE", cls.tts_audio_bitrate),
+            tts_webm_audio_bitrate=os.getenv("TTS_WEBM_AUDIO_BITRATE", cls.tts_webm_audio_bitrate),
+            tts_generate_webm=os.getenv("TTS_GENERATE_WEBM", "true").lower() == "true",
             google_credentials_file=Path(os.getenv("GOOGLE_CREDENTIALS_FILE", cls.google_credentials_file)),
             google_token_file=Path(os.getenv("GOOGLE_TOKEN_FILE", cls.google_token_file)),
             google_profile=os.getenv("GOOGLE_PROFILE", cls.google_profile),
