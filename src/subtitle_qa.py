@@ -196,8 +196,8 @@ class OllamaProvider:
                         "role": "system",
                         "content": (
                             "You are a meticulous English subtitle QA editor. Preserve meaning. Never alter timing, "
-                            "merge/split cues, invent facts or dialogue. Return JSON only with changed, corrected_text, "
-                            "issues, confidence."
+                            "merge/split cues, invent facts or dialogue. Return JSON only with changed, "
+                            "corrected_text, issues, confidence."
                         ),
                     },
                     {
@@ -208,8 +208,10 @@ class OllamaProvider:
                                 "translated": cue.text,
                                 "previous": cues[pos - 1].text if pos else "",
                                 "next": cues[pos + 1].text if pos + 1 < len(cues) else "",
-                                "task": "Check spelling, grammar, punctuation, natural English, contextual meaning, "
-                                "inappropriate wording and terminology. Correct only when justified.",
+                                "task": (
+                                    "Check spelling, grammar, punctuation, natural English, contextual meaning, "
+                                    "inappropriate wording and terminology. Correct only when justified."
+                                ),
                             },
                             ensure_ascii=False,
                         ),
