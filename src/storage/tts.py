@@ -27,10 +27,7 @@ class TTSAwareStorageProvider(StorageProvider):
         self.wrapped.download_file(file, destination)
 
     def upload_file(self, local_path: Path, location: str, mime_type: str | None = None) -> StorageFile:
-        result = self.wrapped.upload_file(local_path, location, mime_type)
-        if self.settings.tts_enabled and _is_output_vtt(local_path):
-            self._track_folder(location)
-        return result
+        return self.wrapped.upload_file(local_path, location, mime_type)
 
     def ensure_folder(self, parent: str, name: str) -> str:
         result = self.wrapped.ensure_folder(parent, name)
@@ -78,14 +75,6 @@ class TTSAwareStorageProvider(StorageProvider):
                 self._process_pending_folders()
         finally:
             self.wrapped.close()
-
-    def _track_folder(self, location: str) -> None:
-        # The translated VTT is uploaded directly into the output folder.
-        # The target root is recovered for local paths; cloud providers keep
-        # their native folder identifier and use the same folder as its target.
-        path = Path(location)
-        parent = str(path.parent) if path.parent != Path(".") else location
-        self._output_folders.add((parent, location))
 
     def _process_pending_folders(self) -> None:
         for target, folder in sorted(self._output_folders):
@@ -220,10 +209,6 @@ class TTSAwareStorageProvider(StorageProvider):
                     self.wrapped.upload_file(manifest_path, target, "application/json")
                 except (OSError, RuntimeError) as exc:
                     logger.warning("Could not upload updated TTS manifest %s: %s", manifest_path, exc)
-
-
-def _is_output_vtt(path: Path) -> bool:
-    return _is_output_vtt_name(path.name)
 
 
 def _is_output_vtt_name(name: str) -> bool:
