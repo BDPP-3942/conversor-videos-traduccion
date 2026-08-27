@@ -43,40 +43,42 @@ class STTEngine:
             bool(settings.whisper_initial_prompt.strip()),
         )
 
-    @staticmethod
-    def _segment_from_whisper(segment: Any) -> dict[str, Any]:
-        return {
-            "start": max(0.0, float(segment.start)),
-            "end": max(0.0, float(segment.end)),
-            "text": str(segment.text or "").strip(),
-        }
+    def _split_segment_on_silence(self, segment: Any) -> list[dict[str, Any]]:
+        """Split one Whisper segment when word timestamps contain a real pause."""
+        words = list(getattr(segment, "words", None) or [])
+        if not words:
+            text = str(segment.text or "").strip()
+            return [{"start": float(segment.start), "end": float(segment.end), "text": text}] if text else []
 
-    @classmethod
-    def _preserve_silence_boundaries(cls, segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Keep each cue inside the voiced region reported by Whisper.
-
-        Whisper's segment boundaries may span a long pause even when VAD detects
-        that the middle of the segment is silent.  A segment must therefore not
-        be allowed to carry its subtitle across a later segment's start.  The
-        next non-empty segment is the authoritative boundary for the preceding
-        cue, while its own start remains the beginning of the next spoken cue.
-        """
-        result: list[dict[str, Any]] = []
-        for index, segment in enumerate(segments):
-            start = float(segment["start"])
-            end = float(segment["end"])
-            if index + 1 < len(segments):
-                next_start = float(segments[index + 1]["start"])
-                if next_start > start and next_start < end:
-                    end = next_start
+        threshold = max(0.1, self.settings.whisper_min_silence_duration_ms / 1000.0)
+        groups: list[list[Any]] = []
+        current: list[Any] = []
+        previous_end: float | None = None
+        for word in words:
+            start = float(word.start)
+            end = float(word.end)
             if end <= start:
-                logger.warning(
-                    "Discarding invalid STT cue after silence-boundary correction: %.3f -> %.3f",
-                    start,
-                    end,
-                )
                 continue
-            result.append({**segment, "start": start, "end": end})
+            if current and previous_end is not None and start - previous_end >= threshold:
+                groups.append(current)
+                current = []
+            current.append(word)
+            previous_end = end
+        if current:
+            groups.append(current)
+
+        result: list[dict[str, Any]] = []
+        for group in groups:
+            text = "".join(str(word.word or "") for word in group).strip()
+            if not text:
+                continue
+            result.append(
+                {
+                    "start": float(group[0].start),
+                    "end": float(group[-1].end),
+                    "text": text,
+                }
+            )
         return result
 
     def transcribe(self, media_path: Path):
@@ -95,18 +97,27 @@ class STTEngine:
             "condition_on_previous_text": self.settings.whisper_condition_on_previous_text,
             "vad_filter": self.settings.whisper_vad_filter,
             "vad_parameters": vad_parameters,
-            "word_timestamps": False,
+            "word_timestamps": True,
         }
         prompt = self.settings.whisper_initial_prompt.strip()
         if prompt:
             transcribe_kwargs["initial_prompt"] = prompt
         segments, _ = self.model.transcribe(str(media_path), **transcribe_kwargs)
-        raw_segments = [self._segment_from_whisper(segment) for segment in segments]
-        non_empty = [segment for segment in raw_segments if segment["text"]]
-        result = self._preserve_silence_boundaries(non_empty)
+        result: list[dict[str, Any]] = []
+        raw_count = 0
+        split_count = 0
+        for segment in segments:
+            raw_count += 1
+            split_segments = self._split_segment_on_silence(segment)
+            if len(split_segments) > 1:
+                split_count += len(split_segments) - 1
+            result.extend(split_segments)
+
+        result.sort(key=lambda item: (float(item["start"]), float(item["end"])))
         logger.info(
-            "STT completed: %d segments (%d raw non-empty); subtitle gaps are preserved",
+            "STT completed: %d subtitle segments from %d Whisper segments; split %d internal silence gaps",
             len(result),
-            len(non_empty),
+            raw_count,
+            split_count,
         )
         return result
