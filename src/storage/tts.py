@@ -18,7 +18,7 @@ class TTSAwareStorageProvider(StorageProvider):
     def __init__(self, wrapped: StorageProvider, settings: AppSettings) -> None:
         self.wrapped = wrapped
         self.settings = settings
-        self._output_folders: set[tuple[str, str]] = set()
+        self._output_folders: set[tuple[str, str, str]] = set()
 
     def list_zip_files(self, location: str) -> list[StorageFile]:
         return self.wrapped.list_zip_files(location)
@@ -32,7 +32,7 @@ class TTSAwareStorageProvider(StorageProvider):
     def ensure_folder(self, parent: str, name: str) -> str:
         result = self.wrapped.ensure_folder(parent, name)
         if self.settings.tts_enabled:
-            self._output_folders.add((parent, result))
+            self._output_folders.add((parent, result, name))
         return result
 
     def folder_exists(self, parent: str, name: str) -> bool:
@@ -44,9 +44,7 @@ class TTSAwareStorageProvider(StorageProvider):
     def list_children(self, parent: str) -> list[StorageFile]:
         return self.wrapped.list_children(parent)
 
-    def rename_output_folder(
-        self, target: str, old_name: str, new_name: str, original_transcript_subdir: str
-    ) -> dict[str, str]:
+    def rename_output_folder(self, target: str, old_name: str, new_name: str, original_transcript_subdir: str) -> dict[str, str]:
         return self.wrapped.rename_output_folder(target, old_name, new_name, original_transcript_subdir)
 
     def normalize_existing_output_names(self, target: str, original_transcript_subdir: str) -> dict[str, str]:
@@ -77,29 +75,15 @@ class TTSAwareStorageProvider(StorageProvider):
             self.wrapped.close()
 
     def _process_pending_folders(self) -> None:
-        for target, folder in sorted(self._output_folders):
-            self._process_folder(target, folder)
+        for target, folder, folder_name in sorted(self._output_folders):
+            self._process_folder(target, folder, folder_name)
 
-    def _process_folder(self, target: str, folder: str) -> None:
+    def _process_folder(self, target: str, folder: str, folder_name: str) -> None:
         children = self.wrapped.list_children(folder)
         files = {child.name: child for child in children if not child.is_directory}
         vtt = next((item for item in files.values() if _is_output_vtt_name(item.name)), None)
-        video = next(
-            (
-                item
-                for item in files.values()
-                if item.name.lower().endswith(".mp4") and "_tts" not in item.name.lower()
-            ),
-            None,
-        )
-        webm = next(
-            (
-                item
-                for item in files.values()
-                if item.name.lower().endswith(".webm") and "_tts" not in item.name.lower()
-            ),
-            None,
-        )
+        video = next((item for item in files.values() if item.name.lower().endswith(".mp4") and "_tts" not in item.name.lower()), None)
+        webm = next((item for item in files.values() if item.name.lower().endswith(".webm") and "_tts" not in item.name.lower()), None)
         if not vtt or not video:
             return
 
@@ -107,10 +91,8 @@ class TTSAwareStorageProvider(StorageProvider):
         expected_mp4 = f"{stem}_tts.mp4"
         expected_webm = f"{stem}_tts.webm"
         webm_required = self.settings.tts_generate_webm and self.settings.generate_webm
-        if self.wrapped.file_exists(folder, expected_mp4) and (
-            not webm_required or self.wrapped.file_exists(folder, expected_webm)
-        ):
-            self._update_manifest(target, Path(folder).name, expected_mp4, expected_webm if webm_required else "")
+        if self.wrapped.file_exists(folder, expected_mp4) and (not webm_required or self.wrapped.file_exists(folder, expected_webm)):
+            self._update_manifest(target, folder_name, expected_mp4, expected_webm if webm_required else "")
             return
 
         with tempfile.TemporaryDirectory(prefix=f"tts_{stem}_") as temp_dir:
@@ -123,65 +105,22 @@ class TTSAwareStorageProvider(StorageProvider):
             if webm:
                 self.wrapped.download_file(webm, webm_path)
             try:
-                result = generate_tts_media(
-                    video_path,
-                    vtt_path,
-                    root,
-                    stem,
-                    self.settings,
-                    webm_video_path=webm_path,
-                )
+                result = generate_tts_media(video_path, vtt_path, root, stem, self.settings, webm_video_path=webm_path)
                 self.wrapped.upload_file(result.mp4_path, folder, "video/mp4")
                 if result.webm_path is not None:
                     self.wrapped.upload_file(result.webm_path, folder, "video/webm")
                 self.wrapped.upload_file(result.audio_path, folder, "audio/wav")
-                self._update_manifest(
-                    target,
-                    Path(folder).name,
-                    result.mp4_path.name,
-                    result.webm_path.name if result.webm_path else "",
-                    cue_count=result.cue_count,
-                    adjusted_cues=result.adjusted_cues,
-                )
+                self._update_manifest(target, folder_name, result.mp4_path.name, result.webm_path.name if result.webm_path else "", cue_count=result.cue_count, adjusted_cues=result.adjusted_cues)
             except (TTSProviderError, RuntimeError, ValueError, OSError) as exc:
-                logger.error("TTS failed for output folder %s: %s", folder, exc)
-                self._update_manifest_status(target, Path(folder).name, "failed", str(exc))
+                logger.error("TTS failed for output folder %s: %s", folder_name, exc)
+                self._update_manifest_status(target, folder_name, "failed", str(exc))
                 if self.settings.tts_required:
                     raise
 
-    def _update_manifest(
-        self,
-        target: str,
-        folder_name: str,
-        mp4_name: str,
-        webm_name: str,
-        *,
-        cue_count: int | None = None,
-        adjusted_cues: int | None = None,
-    ) -> None:
-        self._update_manifest_status(
-            target,
-            folder_name,
-            "completed",
-            "",
-            mp4_name=mp4_name,
-            webm_name=webm_name,
-            cue_count=cue_count,
-            adjusted_cues=adjusted_cues,
-        )
+    def _update_manifest(self, target: str, folder_name: str, mp4_name: str, webm_name: str, *, cue_count: int | None = None, adjusted_cues: int | None = None) -> None:
+        self._update_manifest_status(target, folder_name, "completed", "", mp4_name=mp4_name, webm_name=webm_name, cue_count=cue_count, adjusted_cues=adjusted_cues)
 
-    def _update_manifest_status(
-        self,
-        target: str,
-        folder_name: str,
-        status: str,
-        error: str,
-        *,
-        mp4_name: str = "",
-        webm_name: str = "",
-        cue_count: int | None = None,
-        adjusted_cues: int | None = None,
-    ) -> None:
+    def _update_manifest_status(self, target: str, folder_name: str, status: str, error: str, *, mp4_name: str = "", webm_name: str = "", cue_count: int | None = None, adjusted_cues: int | None = None) -> None:
         manifest_dir = local_storage_paths()["manifests"]
         if not manifest_dir.is_dir():
             return
@@ -193,18 +132,14 @@ class TTSAwareStorageProvider(StorageProvider):
             for entry in data.get("entries", []):
                 if not isinstance(entry, dict) or str(entry.get("output_folder", "")) != folder_name:
                     continue
-                if mp4_name and entry.get("tts_mp4") != mp4_name:
-                    entry["tts_mp4"] = mp4_name
-                    changed = True
-                if webm_name and entry.get("tts_webm") != webm_name:
-                    entry["tts_webm"] = webm_name
-                    changed = True
-                if cue_count is not None and entry.get("tts_cue_count") != cue_count:
-                    entry["tts_cue_count"] = cue_count
-                    changed = True
-                if adjusted_cues is not None and entry.get("tts_adjusted_cues") != adjusted_cues:
-                    entry["tts_adjusted_cues"] = adjusted_cues
-                    changed = True
+                for key, value in (("tts_mp4", mp4_name), ("tts_webm", webm_name)):
+                    if value and entry.get(key) != value:
+                        entry[key] = value
+                        changed = True
+                for key, value in (("tts_cue_count", cue_count), ("tts_adjusted_cues", adjusted_cues)):
+                    if value is not None and entry.get(key) != value:
+                        entry[key] = value
+                        changed = True
                 if entry.get("tts_status") != status:
                     entry["tts_status"] = status
                     changed = True
