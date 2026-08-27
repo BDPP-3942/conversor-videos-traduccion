@@ -142,6 +142,9 @@ jobs:
       - name: Verify dependency consistency
         run: python -m pip check
 
+      - name: Remove local project before PyPI vulnerability audit
+        run: python -m pip uninstall -y video-translation-pipeline
+
       - name: Audit TTS dependency graph
         env:
           PYTHONWARNINGS: default
