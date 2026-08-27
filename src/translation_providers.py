@@ -35,7 +35,12 @@ class _HttpBatchProvider:
         return self.translate_batch([text])[0]
 
     @staticmethod
-    def _request(url: str, headers: dict[str, str], payload: object, method: str = "POST") -> object:
+    def _request(
+        url: str,
+        headers: dict[str, str],
+        payload: object,
+        method: str = "POST",
+    ) -> object:
         if urllib.parse.urlsplit(url).scheme != "https":
             raise ValueError("Translation provider URL must use HTTPS")
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -46,10 +51,17 @@ class _HttpBatchProvider:
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
             if exc.code in {402, 403, 456}:
-                raise TranslationQuotaError(f"translation provider quota/authorization response {exc.code}: {detail}") from exc
+                message = (
+                    "translation provider quota/authorization response "
+                    f"{exc.code}: {detail}"
+                )
+                raise TranslationQuotaError(message) from exc
             if exc.code == 429:
-                raise TranslationRateLimitError(f"translation provider rate limit response 429: {detail}") from exc
-            raise RuntimeError(f"translation provider HTTP {exc.code}: {detail}") from exc
+                message = f"translation provider rate limit response 429: {detail}"
+                raise TranslationRateLimitError(message) from exc
+            raise RuntimeError(
+                f"translation provider HTTP {exc.code}: {detail}"
+            ) from exc
         except (urllib.error.URLError, TimeoutError) as exc:
             raise RuntimeError(f"translation provider connection failed: {exc}") from exc
 
@@ -82,8 +94,9 @@ class MistralBatchProvider(_HttpBatchProvider):
                     "content": (
                         f"Translate each input from {self.source} to {self.target}. "
                         "Return JSON only as an object with a 'translations' array. "
-                        "The array must contain exactly one string for every input, in the same order. "
-                        "Do not merge, split, omit, explain, or add commentary. Preserve names, numbers and formatting."
+                        "The array must contain exactly one string for every input, "
+                        "in the same order. Do not merge, split, omit, explain, or "
+                        "add commentary. Preserve names, numbers and formatting."
                     ),
                 },
                 {"role": "user", "content": json.dumps(items, ensure_ascii=False)},
@@ -92,7 +105,10 @@ class MistralBatchProvider(_HttpBatchProvider):
         }
         result = self._request(
             self.URL,
-            {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+            {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
             payload,
         )
         try:
@@ -100,10 +116,14 @@ class MistralBatchProvider(_HttpBatchProvider):
             parsed = json.loads(content) if isinstance(content, str) else content
             translations = parsed["translations"]
         except (KeyError, TypeError, ValueError, IndexError) as exc:
-            raise RuntimeError("Mistral returned an invalid structured translation response") from exc
+            raise RuntimeError(
+                "Mistral returned an invalid structured translation response"
+            ) from exc
         if not isinstance(translations, list) or len(translations) != len(texts):
             count = len(translations) if isinstance(translations, list) else "invalid"
-            raise RuntimeError(f"Mistral returned {count} translations for {len(texts)} inputs")
+            raise RuntimeError(
+                f"Mistral returned {count} translations for {len(texts)} inputs"
+            )
         return [str(item) for item in translations]
 
 
@@ -154,7 +174,10 @@ class DeepLBatchProvider(_HttpBatchProvider):
         payload = {"text": texts, "source_lang": self.source, "target_lang": self.target}
         result = self._request(
             f"{self.base_url}/translate",
-            {"Authorization": f"DeepL-Auth-Key {self.api_key}", "Content-Type": "application/json"},
+            {
+                "Authorization": f"DeepL-Auth-Key {self.api_key}",
+                "Content-Type": "application/json",
+            },
             payload,
         )
         translations = result.get("translations", []) if isinstance(result, dict) else []
