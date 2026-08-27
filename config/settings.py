@@ -102,6 +102,9 @@ class AppSettings:
             "TRANSLATION_FALLBACK_PROVIDERS", ",".join(cls.translation_fallback_providers)
         )
         fallback = tuple(item.strip() for item in fallback_raw.split(",") if item.strip())
+        condition_on_previous_text = (
+            os.getenv("WHISPER_CONDITION_ON_PREVIOUS_TEXT", "true").lower() == "true"
+        )
         return cls(
             provider=os.getenv("STORAGE_PROVIDER", cls.provider),
             source=os.getenv("SOURCE_URI", cls.source),
@@ -114,10 +117,7 @@ class AppSettings:
             whisper_compute_type=os.getenv("WHISPER_COMPUTE_TYPE", cls.whisper_compute_type),
             whisper_beam_size=int(os.getenv("WHISPER_BEAM_SIZE", cls.whisper_beam_size)),
             whisper_vad_filter=os.getenv("WHISPER_VAD_FILTER", "true").lower() == "true",
-            whisper_condition_on_previous_text=os.getenv(
-                "WHISPER_CONDITION_ON_PREVIOUS_TEXT", "true"
-            ).lower()
-            == "true",
+            whisper_condition_on_previous_text=condition_on_previous_text,
             whisper_initial_prompt=os.getenv("WHISPER_INITIAL_PROMPT", cls.whisper_initial_prompt),
             whisper_cpu_threads=int(os.getenv("WHISPER_CPU_THREADS", cls.whisper_cpu_threads)),
             translation_provider=os.getenv("TRANSLATION_PROVIDER", cls.translation_provider),
