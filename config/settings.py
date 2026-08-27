@@ -78,7 +78,7 @@ class AppSettings:
     tts_enabled: bool = False
     tts_required: bool = False
     tts_provider: str = "kokoro"
-    tts_voice: str = "ef_dora"
+    tts_voice: str = "af_sarah"
     tts_model_path: Path = BASE_DIR / "tools" / "tts" / "kokoro-v1.0.onnx"
     tts_voices_path: Path = BASE_DIR / "tools" / "tts" / "voices-v1.0.bin"
     tts_speed: float = 1.0
