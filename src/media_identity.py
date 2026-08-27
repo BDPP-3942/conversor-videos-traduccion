@@ -7,9 +7,10 @@ import struct
 import subprocess
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from shutil import which
 from typing import Any
 
+from config.settings import AppSettings
+from src.ffmpeg_resolver import FFmpegResolver
 from src.file_naming import normalize_comparison_key, normalized_name_similarity
 
 logger = logging.getLogger(__name__)
@@ -59,7 +60,7 @@ class MediaIdentityResolver:
         duration_tolerance_seconds: float = DURATION_TOLERANCE_SECONDS,
         visual_threshold: float = VISUAL_THRESHOLD,
     ) -> None:
-        self.ffmpeg_bin = ffmpeg_bin or which("ffmpeg") or "ffmpeg"
+        self.ffmpeg_bin = ffmpeg_bin or FFmpegResolver.resolve(AppSettings())
         self.timeout_seconds = max(15, int(timeout_seconds))
         self.name_threshold = max(0.0, min(1.0, float(name_threshold)))
         self.duration_tolerance_seconds = max(0.1, float(duration_tolerance_seconds))
