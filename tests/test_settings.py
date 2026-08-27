@@ -18,6 +18,11 @@ def test_auto_resources_are_applied_from_config():
     assert settings.max_parallel_videos == 1
 
 
+def test_automatic_output_deduplication_is_disabled_by_default():
+    settings = load_settings(Path("config/app.toml"))
+    assert settings.automatic_output_deduplication is False
+
+
 def test_generate_webm_can_be_disabled_by_environment(monkeypatch):
     from config.settings import AppSettings
 
