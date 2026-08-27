@@ -21,7 +21,7 @@ def test_write_and_read_vtt_preserves_timing(tmp_path: Path) -> None:
 
 
 def test_languagetool_can_report_and_apply_safe_suggestion(monkeypatch: pytest.MonkeyPatch) -> None:
-    def fake_request(_url: str, _payload: object, timeout: float = 60.0) -> object:
+    def fake_request(_url: str, _payload: dict[str, str], timeout: float = 60.0) -> object:
         assert timeout == 60.0
         return {
             "matches": [
@@ -35,7 +35,7 @@ def test_languagetool_can_report_and_apply_safe_suggestion(monkeypatch: pytest.M
             ]
         }
 
-    monkeypatch.setattr(subtitle_qa, "_post_json", fake_request)
+    monkeypatch.setattr(subtitle_qa, "_post_form", fake_request)
     provider = subtitle_qa.LanguageToolProvider("http://localhost:8081/v2/check", "en-US")
     cues = [SubtitleCue(1, "00:00:01.000", "00:00:02.000", "Hi")]
     corrected, issues = provider.review(cues, auto_correct=True)
@@ -51,14 +51,18 @@ def test_ollama_reviewer_preserves_timing(monkeypatch: pytest.MonkeyPatch) -> No
         assert isinstance(payload, dict)
         return {
             "message": {
-                "content": '{"changed": true, "corrected_text": "We need to leave.", "issues": ["grammar"], "confidence": 0.98}'
+                "content": (
+                    '{"changed": true, "corrected_text": "We need to leave.", '
+                    '"issues": ["grammar"], "confidence": 0.98}'
+                )
             }
         }
 
     monkeypatch.setattr(subtitle_qa, "_post_json", fake_request)
     provider = subtitle_qa.OllamaProvider("http://localhost:11434/api/chat", "qwen3:8b")
     cues = [SubtitleCue(1, "00:00:01.000", "00:00:03.000", "We need leave.")]
-    corrected, issues = provider.review(cues, source=[SubtitleCue(1, cues[0].start, cues[0].end, "We need to leave.")], auto_correct=True)
+    source = [SubtitleCue(1, cues[0].start, cues[0].end, "We need to leave.")]
+    corrected, issues = provider.review(cues, source=source, auto_correct=True)
     assert corrected[0].text == "We need to leave."
     assert corrected[0].start == cues[0].start
     assert corrected[0].end == cues[0].end
