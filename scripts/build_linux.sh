@@ -7,10 +7,13 @@ if [[ "${1:-}" == "--no-webm" ]]; then
 fi
 [[ -x ".venv/bin/python" ]] || { echo "[ERROR] Ejecuta scripts/setup_env.sh"; exit 1; }
 ".venv/bin/python" -m pip install -r requirements-dev.txt
+".venv/bin/python" -m pip install ".[tts]"
 ".venv/bin/python" -m PyInstaller \
     --noconfirm --clean --onedir --name VideoTranslationPipeline \
     --collect-all faster_whisper \
     --collect-all ctranslate2 \
+    --collect-all kokoro_onnx \
+    --collect-all onnxruntime \
     main.py
 mkdir -p dist/VideoTranslationPipeline/config dist/VideoTranslationPipeline/secrets dist/VideoTranslationPipeline/storage dist/VideoTranslationPipeline/tools
 cp config/app.toml dist/VideoTranslationPipeline/config/app.toml
@@ -26,4 +29,4 @@ if $NO_WEBM; then printf '%s\n' '[INFO] WebM secundario desactivado en la config
 printf '%s\n' '[OK] Aplicacion portable creada en dist/VideoTranslationPipeline/'
 printf '%s\n' '[INFO] Ejecuta: dist/VideoTranslationPipeline/VideoTranslationPipeline doctor'
 printf '%s\n' '[INFO] Primera precarga: ./scripts/prefetch_whisper.sh'
-printf '%s\n' '[INFO] El modelo Whisper permanece en la cache del usuario y no se incluye en el ejecutable.'
+printf '%s\n' '[INFO] Los modelos Whisper/TTS permanecen externos y no se embeben en el ejecutable.'
