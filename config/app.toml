@@ -58,6 +58,7 @@ max_extracted_size_gb = 10.0
 resume_enabled = true
 normalize_legacy_names = true
 rename_processed_duplicates = true
+automatic_output_deduplication = false
 max_parallel_videos = 0
 duplicate_name_similarity_threshold = 0.82
 duplicate_duration_tolerance_seconds = 1.5
