@@ -49,17 +49,18 @@ def _download(url: str, destination: Path) -> None:
     _validate_download_url(url)
     print(f"[INFO] Downloading TTS asset: {url}")
     request = Request(url, headers={"User-Agent": "video-translation-pipeline/setup"})  # noqa: S310
-    with tempfile.NamedTemporaryFile(prefix=f".{destination.name}.", dir=destination.parent, delete=False) as temp:
-        temporary = Path(temp.name)
-        try:
+    fd, temp_name = tempfile.mkstemp(prefix=f".{destination.name}.", dir=destination.parent)
+    temporary = Path(temp_name)
+    try:
+        with os.fdopen(fd, "wb") as temp:
             with urlopen(request, timeout=60) as response:  # noqa: S310
                 while chunk := response.read(1024 * 1024):
                     temp.write(chunk)
-            if temporary.stat().st_size <= 0:
-                raise RuntimeError(f"Downloaded empty TTS asset: {url}")
-            temporary.replace(destination)
-        finally:
-            temporary.unlink(missing_ok=True)
+        if temporary.stat().st_size <= 0:
+            raise RuntimeError(f"Downloaded empty TTS asset: {url}")
+        temporary.replace(destination)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def main() -> int:
