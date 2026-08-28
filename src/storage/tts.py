@@ -132,12 +132,7 @@ class TTSAwareStorageProvider(StorageProvider):
         children = self.wrapped.list_children(folder)
         files = {child.name: child for child in children if not child.is_directory}
         video = next(
-            (
-                item
-                for item in files.values()
-                if item.name.lower().endswith(".mp4")
-                and "_tts" not in item.name.lower()
-            ),
+            (item for item in files.values() if item.name.lower().endswith(".mp4") and "_tts" not in item.name.lower()),
             None,
         )
         if video is None:
@@ -301,7 +296,7 @@ class TTSAwareStorageProvider(StorageProvider):
                     )
                 except (OSError, RuntimeError) as exc:
                     logger.warning(
-                        "Could not upload updated TTS manifest %s: %s",
+                        "Could not upload updated TTS manifest %s",
                         manifest_path,
                         exc,
                     )
