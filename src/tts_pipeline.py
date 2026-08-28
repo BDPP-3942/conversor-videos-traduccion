@@ -196,11 +196,18 @@ def _render_timeline(
         if len(audio) > target_samples:
             if len(audio) > target_samples * (1.0 + settings.tts_duration_tolerance):
                 logger.warning(
-                    "Cue %d exceeds its VTT duration at max TTS speed %.2fx; applying pitch-preserving time stretch",
+                    "Cue %d exceeds its VTT duration at max TTS speed %.2fx; "
+                    "applying pitch-preserving time stretch",
                     cue_index,
                     settings.tts_max_speed,
                 )
-                audio = _time_stretch_to_fit(audio, target_samples, sample_rate, settings, output.parent)
+                audio = _time_stretch_to_fit(
+                    audio,
+                    target_samples,
+                    sample_rate,
+                    settings,
+                    output.parent,
+                )
                 adjusted += 1
             if len(audio) > target_samples:
                 audio = audio[:target_samples]
@@ -216,7 +223,13 @@ def _render_timeline(
     return adjusted
 
 
-def _time_stretch_to_fit(samples, target_samples: int, sample_rate: int, settings: AppSettings, temp_dir: Path):
+def _time_stretch_to_fit(
+    samples,
+    target_samples: int,
+    sample_rate: int,
+    settings: AppSettings,
+    temp_dir: Path,
+):
     import numpy as np
 
     if len(samples) <= target_samples:
@@ -253,7 +266,9 @@ def _time_stretch_to_fit(samples, target_samples: int, sample_rate: int, setting
             with wave.open(str(stretched), "rb") as handle:
                 if handle.getnchannels() != 1 or handle.getframerate() != sample_rate:
                     raise TTSProviderError("TTS time-stretch produced an incompatible audio format")
-                audio = np.frombuffer(handle.readframes(handle.getnframes()), dtype=np.int16).astype(np.float32) / 32767.0
+                audio = (
+                    np.frombuffer(handle.readframes(handle.getnframes()), dtype=np.int16).astype(np.float32) / 32767.0
+                )
         except (OSError, EOFError) as exc:
             raise TTSProviderError("TTS time-stretch produced an invalid WAV file") from exc
     if len(audio) > target_samples:
@@ -407,27 +422,25 @@ def _write_wav(path: Path, samples, sample_rate: int) -> None:
 
 def _timestamp(value: str) -> float:
     parts = value.replace(",", ".").split(":")
-    if len(parts) == 3:
-        hours, minutes, seconds = parts
-    elif len(parts) == 2:
-        hours = "0"
-        minutes, seconds = parts
-    else:
+    if len(parts) != 3:
         raise ValueError(f"Invalid VTT timestamp: {value}")
+    hours, minutes, seconds = parts
     return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
 
 
 def _kokoro_language(language: str) -> str:
-    normalized = language.lower().replace("_", "-")
+    normalized = language.lower().replace("_", "-").strip()
     return {
-        "en": "en-us",
         "en-us": "en-us",
-        "en-gb": "en-gb",
-        "es": "es",
+        "en": "en-us",
         "es-es": "es",
+        "es": "es",
+        "fr-fr": "fr-fr",
         "fr": "fr-fr",
+        "de-de": "de",
+        "de": "de",
+        "it-it": "it",
         "it": "it",
-        "pt": "pt-br",
         "pt-br": "pt-br",
         "ja": "ja",
         "zh": "zh",
