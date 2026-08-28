@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -13,6 +14,7 @@ DEFAULT_MODEL = BASE_DIR / "tools" / "tts" / "kokoro-v1.0.onnx"
 DEFAULT_VOICES = BASE_DIR / "tools" / "tts" / "voices-v1.0.bin"
 MODEL_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx"
 VOICES_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin"
+ALLOWED_HOST = "github.com"
 
 
 def _env_values() -> dict[str, str]:
@@ -33,17 +35,23 @@ def _resolve_configured_path(value: str, default: Path) -> Path:
     return path if path.is_absolute() else BASE_DIR / path
 
 
+def _validate_download_url(url: str) -> None:
+    parsed = urlsplit(url)
+    if parsed.scheme != "https" or parsed.hostname != ALLOWED_HOST:
+        raise ValueError(f"Refusing TTS download from untrusted URL: {url}")
+
+
 def _download(url: str, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.is_file() and destination.stat().st_size > 0:
         print(f"[OK] TTS asset already exists: {destination}")
         return
+    _validate_download_url(url)
     print(f"[INFO] Downloading TTS asset: {url}")
-    request = Request(url, headers={"User-Agent": "video-translation-pipeline/setup"})
+    request = Request(url, headers={"User-Agent": "video-translation-pipeline/setup"})  # noqa: S310
     with tempfile.NamedTemporaryFile(prefix=f".{destination.name}.", dir=destination.parent, delete=False) as temp:
         temporary = Path(temp.name)
         try:
-            # Fixed GitHub release asset URL; shell execution is not involved.
             with urlopen(request, timeout=60) as response:  # noqa: S310
                 while chunk := response.read(1024 * 1024):
                     temp.write(chunk)
