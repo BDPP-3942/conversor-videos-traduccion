@@ -63,7 +63,12 @@ def check_unattended(settings: AppSettings, *, ensure_rclone_binary: bool = True
     if provider == "local":
         checks["local_input"] = Path(source.value).exists()
         checks["local_output"] = Path(target.value).exists()
-        return Readiness(not errors and all(v is True for key, v in checks.items() if key.startswith("local_")), provider, checks, errors)
+        return Readiness(
+            not errors and all(v is True for key, v in checks.items() if key.startswith("local_")),
+            provider,
+            checks,
+            errors,
+        )
 
     if provider in {"google_drive", "gdrive"}:
         manager = GoogleOAuthManager(settings.google_credentials_file, settings.google_token_file)
