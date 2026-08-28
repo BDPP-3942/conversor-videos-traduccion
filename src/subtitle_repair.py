@@ -57,11 +57,7 @@ def _valid_segments(segments: list[dict[str, Any]]) -> bool:
 
 def _pick(files: list[StorageFile], *, original: bool) -> StorageFile | None:
     vtts = [
-        item
-        for item in files
-        if not item.is_directory
-        and Path(item.name).suffix.lower() == ".vtt"
-        and ".bak." not in item.name.lower()
+        item for item in files if not item.is_directory and Path(item.name).suffix.lower() == ".vtt" and ".bak." not in item.name.lower()
     ]
     if original:
         preferred = [item for item in vtts if "_original" in item.name.lower()]
@@ -125,12 +121,7 @@ def repair_output_subtitles(
     """
     children = [item for item in storage.list_children(output_folder) if not item.is_directory]
     video = next(
-        (
-            item
-            for item in children
-            if Path(item.name).suffix.lower() == ".mp4"
-            and "_tts" not in item.name.lower()
-        ),
+        (item for item in children if Path(item.name).suffix.lower() == ".mp4" and "_tts" not in item.name.lower()),
         None,
     )
     if video is None:
