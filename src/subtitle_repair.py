@@ -133,8 +133,7 @@ def repair_output_subtitles(
             (
                 item
                 for item in children
-                if Path(item.name).suffix.lower() in VIDEO_EXTENSIONS
-                and "_tts" not in item.name.lower()
+                if Path(item.name).suffix.lower() in VIDEO_EXTENSIONS and "_tts" not in item.name.lower()
             ),
             None,
         )
