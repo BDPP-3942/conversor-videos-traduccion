@@ -35,9 +35,7 @@ def validate_vtt_file(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
         if start < 0:
             errors.append(f"cue {index}: negative start")
         if end <= start:
-            errors.append(
-                f"cue {index}: end ({end:.3f}) must be greater than start ({start:.3f})"
-            )
+            errors.append(f"cue {index}: end ({end:.3f}) must be greater than start ({start:.3f})")
         if start + TIMESTAMP_EPSILON < previous_start:
             errors.append(f"cue {index}: timestamps are not ordered")
         previous_start = start
@@ -59,20 +57,20 @@ def _valid_segments(segments: list[dict[str, Any]]) -> bool:
 
 def _pick(files: list[StorageFile], *, original: bool) -> StorageFile | None:
     vtts = [
-        item
-        for item in files
-        if not item.is_directory
-        and Path(item.name).suffix.lower() == ".vtt"
-        and ".bak." not in item.name.lower()
+        item for item in files if not item.is_directory and Path(item.name).suffix.lower() == ".vtt" and ".bak." not in item.name.lower()
     ]
     if original:
         preferred = [item for item in vtts if "_original" in item.name.lower()]
     else:
         preferred = [item for item in vtts if "_original" not in item.name.lower()]
-    return sorted(
-        preferred or vtts,
-        key=lambda item: item.name.lower(),
-    )[0] if (preferred or vtts) else None
+    return (
+        sorted(
+            preferred or vtts,
+            key=lambda item: item.name.lower(),
+        )[0]
+        if (preferred or vtts)
+        else None
+    )
 
 
 def _next_backup(storage: StorageProvider, parent: str, name: str) -> str:
@@ -148,9 +146,7 @@ def repair_output_subtitles(
         output_folder,
         settings.original_transcript_subdir,
     )
-    original_files = [
-        item for item in storage.list_children(original_dir) if not item.is_directory
-    ]
+    original_files = [item for item in storage.list_children(original_dir) if not item.is_directory]
     original = _pick(original_files, original=True)
     translated = _pick(children, original=False)
 
@@ -204,25 +200,17 @@ def repair_output_subtitles(
 
         if translated_repaired:
             if not _valid_segments(original_segments):
-                raise ValueError(
-                    "Cannot repair translated VTT without a valid original transcription"
-                )
+                raise ValueError("Cannot repair translated VTT without a valid original transcription")
             logger.warning(
                 "Repairing translated VTT for %s: %s",
                 output_folder,
-                "; ".join(translated_errors)
-                if translated_errors
-                else "original VTT was regenerated",
+                "; ".join(translated_errors) if translated_errors else "original VTT was regenerated",
             )
             from src.translator import TextTranslator
 
-            translated_segments = TextTranslator(settings).translate_segments(
-                original_segments
-            )
+            translated_segments = TextTranslator(settings).translate_segments(original_segments)
             if not _valid_segments(translated_segments):
-                raise ValueError(
-                    "Translation produced invalid subtitle timestamps during repair"
-                )
+                raise ValueError("Translation produced invalid subtitle timestamps during repair")
             target_name = (
                 translated.name
                 if translated is not None
