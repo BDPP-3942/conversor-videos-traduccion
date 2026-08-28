@@ -51,7 +51,10 @@ class FakeStorage(StorageProvider):
         path = Path(parent) if Path(parent).is_absolute() else self._path(parent)
         if not path.is_dir():
             return []
-        return [StorageFile(id=str(item), name=item.name, is_directory=item.is_dir()) for item in path.iterdir()]
+        return [
+            StorageFile(id=str(item), name=item.name, is_directory=item.is_dir())
+            for item in path.iterdir()
+        ]
 
 
 def _settings() -> AppSettings:
@@ -74,52 +77,93 @@ def _fixture(tmp_path: Path, invalid_original: bool, invalid_translation: bool):
     original_dir.mkdir(parents=True)
     (folder / "37x02_Tema.mp4").write_bytes(b"mp4")
     if invalid_original:
-        (original_dir / "37x02_Tema_original.vtt").write_text("WEBVTT\n\n00:00:00.000 --> 00:00:00.000\nhola\n", encoding="utf-8")
+        (original_dir / "37x02_Tema_original.vtt").write_text(
+            "WEBVTT\n\n00:00:00.000 --> 00:00:00.000\nhola\n",
+            encoding="utf-8",
+        )
     else:
-        VTTBuilder.generate_vtt([{ "start": 0, "end": 1, "text": "hola" }], original_dir / "37x02_Tema_original.vtt")
+        VTTBuilder.generate_vtt(
+            [{"start": 0, "end": 1, "text": "hola"}],
+            original_dir / "37x02_Tema_original.vtt",
+        )
     if invalid_translation:
-        (folder / "37x02_Tema_en.vtt").write_text("WEBVTT\n\n00:00:05.000 --> 00:00:02.000\nhello\n", encoding="utf-8")
+        (folder / "37x02_Tema_en.vtt").write_text(
+            "WEBVTT\n\n00:00:05.000 --> 00:00:02.000\nhello\n",
+            encoding="utf-8",
+        )
     else:
-        VTTBuilder.generate_vtt([{ "start": 0, "end": 1, "text": "hello" }], folder / "37x02_Tema_en.vtt")
+        VTTBuilder.generate_vtt(
+            [{"start": 0, "end": 1, "text": "hello"}],
+            folder / "37x02_Tema_en.vtt",
+        )
     return FakeStorage(tmp_path), folder
 
 
 class FakeSTT:
     def transcribe(self, media_path: Path):
-        return [{"start": 0, "end": 1, "text": "hola"}, {"start": 2, "end": 3, "text": "mundo"}]
+        return [
+            {"start": 0, "end": 1, "text": "hola"},
+            {"start": 2, "end": 3, "text": "mundo"},
+        ]
 
 
 class FakeTranslator:
     def translate_segments(self, segments):
-        return [{"start": item["start"], "end": item["end"], "text": f"EN:{item['text']}"} for item in segments]
+        return [
+            {
+                "start": item["start"],
+                "end": item["end"],
+                "text": f"EN:{item['text']}",
+            }
+            for item in segments
+        ]
 
 
 def test_both_invalid_rebuilds_stt_and_translation(tmp_path: Path, monkeypatch):
     storage, folder = _fixture(tmp_path, True, True)
     monkeypatch.setattr("src.stt_engine.STTEngine", lambda settings: FakeSTT())
     monkeypatch.setattr("src.translator.TextTranslator", lambda settings: FakeTranslator())
+
     result = repair_output_subtitles(storage, _settings(), str(folder))
+
     assert result["status"] == "repaired"
     assert result["original_repaired"] is True
     assert result["translated_repaired"] is True
     assert result["stt_regenerated"] is True
+    assert result["backups"]
+    assert list((folder / "original_transcriptions").glob("*.bak*"))
+    assert list(folder.glob("*.bak*"))
 
 
 def test_translation_invalid_reuses_original_timestamps(tmp_path: Path, monkeypatch):
     storage, folder = _fixture(tmp_path, False, True)
     monkeypatch.setattr("src.translator.TextTranslator", lambda settings: FakeTranslator())
-    monkeypatch.setattr("src.stt_engine.STTEngine", lambda settings: (_ for _ in ()).throw(AssertionError("STT must not run")))
+    monkeypatch.setattr(
+        "src.stt_engine.STTEngine",
+        lambda settings: (_ for _ in ()).throw(AssertionError("STT must not run")),
+    )
+
     result = repair_output_subtitles(storage, _settings(), str(folder))
+
     assert result["original_repaired"] is False
     assert result["translated_repaired"] is True
     assert result["stt_regenerated"] is False
+    assert result["backups"]
 
 
 def test_valid_subtitles_are_not_regenerated(tmp_path: Path, monkeypatch):
     storage, folder = _fixture(tmp_path, False, False)
-    monkeypatch.setattr("src.stt_engine.STTEngine", lambda settings: (_ for _ in ()).throw(AssertionError("STT must not run")))
-    monkeypatch.setattr("src.translator.TextTranslator", lambda settings: (_ for _ in ()).throw(AssertionError("translation must not run")))
+    monkeypatch.setattr(
+        "src.stt_engine.STTEngine",
+        lambda settings: (_ for _ in ()).throw(AssertionError("STT must not run")),
+    )
+    monkeypatch.setattr(
+        "src.translator.TextTranslator",
+        lambda settings: (_ for _ in ()).throw(AssertionError("translation must not run")),
+    )
+
     result = repair_output_subtitles(storage, _settings(), str(folder))
+
     assert result["status"] == "valid"
     assert result["original_repaired"] is False
     assert result["translated_repaired"] is False
