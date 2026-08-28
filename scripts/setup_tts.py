@@ -15,15 +15,22 @@ MODEL_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model
 VOICES_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin"
 
 
-def _env_enabled() -> bool:
-    value = os.getenv("TTS_ENABLED", "").strip().lower()
+def _env_values() -> dict[str, str]:
+    values = {"TTS_ENABLED": os.getenv("TTS_ENABLED", "")}
     env_file = BASE_DIR / ".env"
     if env_file.is_file():
         for line in env_file.read_text(encoding="utf-8").splitlines():
             key, separator, raw = line.partition("=")
-            if separator and key.strip() == "TTS_ENABLED":
-                value = raw.strip().strip('"').strip("'").lower()
-    return value == "true"
+            if separator and key.strip() in {"TTS_ENABLED", "TTS_MODEL_PATH", "TTS_VOICES_PATH"}:
+                values[key.strip()] = raw.strip().strip('"').strip("'")
+    return values
+
+
+def _resolve_configured_path(value: str, default: Path) -> Path:
+    if not value:
+        return default
+    path = Path(value).expanduser()
+    return path if path.is_absolute() else BASE_DIR / path
 
 
 def _download(url: str, destination: Path) -> None:
@@ -51,13 +58,18 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Install the optional Kokoro TTS dependency and model files.")
     parser.add_argument("--enable", action="store_true", help="Install/bootstrap TTS even when TTS_ENABLED is not true.")
     parser.add_argument("--force", action="store_true", help="Replace existing model files.")
-    parser.add_argument("--model-path", type=Path, default=DEFAULT_MODEL)
-    parser.add_argument("--voices-path", type=Path, default=DEFAULT_VOICES)
+    parser.add_argument("--model-path", type=Path, default=None)
+    parser.add_argument("--voices-path", type=Path, default=None)
     args = parser.parse_args()
 
-    if not args.enable and not _env_enabled():
+    env = _env_values()
+    enabled = args.enable or env.get("TTS_ENABLED", "").lower() == "true"
+    if not enabled:
         print("[INFO] TTS is disabled; skipping Kokoro installation.")
         return 0
+
+    model_path = args.model_path or _resolve_configured_path(env.get("TTS_MODEL_PATH", ""), DEFAULT_MODEL)
+    voices_path = args.voices_path or _resolve_configured_path(env.get("TTS_VOICES_PATH", ""), DEFAULT_VOICES)
 
     print("[INFO] Installing optional Kokoro TTS dependency...")
     subprocess.run(  # noqa: S603 -- executable is the active Python interpreter and arguments are fixed.
@@ -67,12 +79,12 @@ def main() -> int:
     )
 
     if args.force:
-        args.model_path.unlink(missing_ok=True)
-        args.voices_path.unlink(missing_ok=True)
+        model_path.unlink(missing_ok=True)
+        voices_path.unlink(missing_ok=True)
 
-    _download(MODEL_URL, args.model_path)
-    _download(VOICES_URL, args.voices_path)
-    print(f"[OK] Kokoro TTS ready: {args.model_path} / {args.voices_path}")
+    _download(MODEL_URL, model_path)
+    _download(VOICES_URL, voices_path)
+    print(f"[OK] Kokoro TTS ready: {model_path} / {voices_path}")
     return 0
 
 
