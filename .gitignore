@@ -25,6 +25,8 @@ tools/rclone/*
 !tools/rclone/.gitkeep
 tools/ffmpeg/bin/*
 !tools/ffmpeg/bin/.gitkeep
+tools/tts/*
+!tools/tts/.gitkeep
 build/
 dist/
 *.spec

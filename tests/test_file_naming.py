@@ -3,16 +3,28 @@ from pathlib import Path
 from src.file_naming import FileNameFormatter, normalize_comparison_key
 
 
-def test_compression_download_noise_is_ignored(tmp_path: Path) -> None:
+def test_course_number_and_description_are_preserved(tmp_path: Path) -> None:
     root = tmp_path / "extracted"
-    source = (
-        root / "drive-download-20260818T104028Z-1-002" / "Curso movilidad articular" / "2 - rotacion de hombros.mp4"
-    )
+    source = root / "Curso 12 movilidad articular" / "Leccion 3 rotacion de hombros.mp4"
     metadata = FileNameFormatter.resolve_source_metadata(source, root)
+
+    assert metadata.course == 12
+    assert metadata.course_name == "movilidad_articular"
+    assert metadata.lesson == 3
+    assert metadata.lesson_name == "rotacion_de_hombros"
+    assert metadata.output_stem == "12_movilidad_articularx03_rotacion_de_hombros"
+
+
+def test_course_description_is_preserved_without_course_number(tmp_path: Path) -> None:
+    root = tmp_path / "extracted"
+    source = root / "Curso movilidad articular" / "2 - rotacion de hombros.mp4"
+    metadata = FileNameFormatter.resolve_source_metadata(source, root)
+
+    assert metadata.course is None
     assert metadata.course_name == "movilidad_articular"
     assert metadata.lesson == 2
-    assert "drive" not in metadata.output_stem.lower()
-    assert metadata.output_stem.startswith("movilidad_articularx02_")
+    assert metadata.lesson_name == "rotacion_de_hombros"
+    assert metadata.output_stem == "movilidad_articularx02_rotacion_de_hombros"
 
 
 def test_arbitrary_text_becomes_textual_course_code(tmp_path: Path) -> None:
