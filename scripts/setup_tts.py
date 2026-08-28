@@ -36,7 +36,8 @@ def _download(url: str, destination: Path) -> None:
     with tempfile.NamedTemporaryFile(prefix=f".{destination.name}.", dir=destination.parent, delete=False) as temp:
         temporary = Path(temp.name)
         try:
-            with urlopen(request, timeout=60) as response:
+            # Fixed GitHub release asset URL; shell execution is not involved.
+            with urlopen(request, timeout=60) as response:  # noqa: S310
                 while chunk := response.read(1024 * 1024):
                     temp.write(chunk)
             if temporary.stat().st_size <= 0:
@@ -59,7 +60,11 @@ def main() -> int:
         return 0
 
     print("[INFO] Installing optional Kokoro TTS dependency...")
-    subprocess.run([sys.executable, "-m", "pip", "install", "-e", ".[tts]"], cwd=BASE_DIR, check=True)
+    subprocess.run(  # noqa: S603 -- executable is the active Python interpreter and arguments are fixed.
+        [sys.executable, "-m", "pip", "install", "-e", ".[tts]"],
+        cwd=BASE_DIR,
+        check=True,
+    )
 
     if args.force:
         args.model_path.unlink(missing_ok=True)
