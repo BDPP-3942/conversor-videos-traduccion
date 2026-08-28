@@ -20,7 +20,7 @@ _COURSE_NUMBER = re.compile(
     re.IGNORECASE,
 )
 _LESSON_NUMBER = re.compile(
-    r"(?:^|[_\- .])(?:cap[ií]tulo|lecci[oó]n|lesson|chapter|clase|tema|unidad)\s*[_\-.:#]*\s*(\d{1,4})\b|"
+    r"(?:^|[_\- .])(?:cap[ií]tulo|lecci[oó]n|lesson|chapter|clase|tema|unidad)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|"
     r"^\s*(\d{1,4})\s*(?:º|°|[._-])\s*",
     re.IGNORECASE,
 )
