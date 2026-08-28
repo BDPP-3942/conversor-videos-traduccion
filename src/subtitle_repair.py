@@ -59,9 +59,7 @@ def _pick(files: list[StorageFile], *, original: bool) -> StorageFile | None:
     vtts = [
         item
         for item in files
-        if not item.is_directory
-        and Path(item.name).suffix.lower() == ".vtt"
-        and ".bak." not in item.name.lower()
+        if not item.is_directory and Path(item.name).suffix.lower() == ".vtt" and ".bak." not in item.name.lower()
     ]
     if original:
         preferred = [item for item in vtts if "_original" in item.name.lower()]
