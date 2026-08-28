@@ -1,129 +1,127 @@
 # TTS sincronizado
 
-La generación TTS es opcional y está desactivada por defecto. Cuando se activa, el pipeline utiliza el VTT traducido que exista en la carpeta de salida como fuente de verdad. Si ese archivo ha sido corregido previamente por el flujo de QA, el TTS utiliza directamente esa versión corregida.
+La generación TTS es opcional y está desactivada por defecto. Cuando `TTS_ENABLED=true`, el flujo común de almacenamiento ejecuta el TTS después de disponer de un vídeo normal y un VTT traducido válido. Antes de sintetizar se comprueban y, cuando es posible, se reparan los VTT.
 
 ## Flujo
 
 ```text
-Audio
-  ↓
+Vídeo / ZIP
+   ↓
 Whisper + timestamps de palabra
-  ↓
-separación de pausas largas
-  ↓
-VTT original
-  ↓
+   ↓
+segmentación de pausas largas
+   ↓
+VTT original validado
+   ↓
 traducción conservando timestamps
-  ↓
-QA/corrección sin cambiar timing
-  ↓
+   ↓
+VTT traducido validado
+   ↓
+reparación si un VTT existente no es válido
+   ↓
 TTS por cue
-  ↓
-audio colocado en su timestamp
-  ↓
-WAV completo con silencios
-  ↓
-MP4 TTS + WebM TTS
+   ↓
+WAV con silencios entre cues
+   ↓
+MP4 TTS + WebM TTS opcional
 ```
 
-Whisper utiliza `word_timestamps=true` para detectar pausas internas. Por defecto una separación de al menos `1500 ms` crea cues independientes. Esto evita mantener visible la última frase durante una pausa larga. El umbral se configura con `whisper_min_silence_duration_ms` o `WHISPER_MIN_SILENCE_DURATION_MS`.
+El VTT original es la fuente de verdad temporal. La traducción no debe modificar `start` ni `end`. TTS rechaza cualquier cue con `start < 0`, `end <= start`, timestamps desordenados o sintaxis WebVTT inválida.
 
-No se genera un único audio continuo a partir de todo el texto. Cada cue conserva `start/end`; los silencios entre cues se mantienen y los solapamientos del VTT se rechazan.
+## Recuperación de VTT
+
+Los resultados históricos pueden contener cues inválidos, especialmente `start >= end`. Un VTT inválido no se utiliza para reproducción ni para TTS.
+
+La recuperación contempla tres casos:
+
+1. **Original/STT inválido o ausente:** se reutiliza el vídeo normal existente, se ejecuta STT y después se traduce.
+2. **Original válido y traducción inválida o ausente:** se reutilizan los timestamps originales y solo se vuelve a traducir.
+3. **Ambos inválidos:** se ejecuta STT una vez y, tras validarlo, se reconstruye la traducción.
+
+Los artefactos sustituidos se respaldan antes de aplicar el nuevo VTT. El vídeo normal no se regenera durante esta recuperación.
+
+Consulta [`VTT_REPAIR.md`](VTT_REPAIR.md).
 
 ## Proveedor local
 
-La implementación inicial usa **Kokoro-82M mediante `kokoro-onnx`**. El paquete se carga de forma diferida, por lo que una instalación sin el extra `tts` continúa funcionando como antes.
-
-Instalación:
+La implementación inicial utiliza Kokoro mediante `kokoro-onnx`.
 
 ```bash
-python -m pip install ".[tts]"
+python -m pip install -e ".[tts]"
 ```
 
-Hay que colocar fuera del repositorio los pesos configurados en:
+Los pesos no están incluidos en Git. Deben existir los ficheros configurados, por defecto:
 
 ```text
 tools/tts/kokoro-v1.0.onnx
 tools/tts/voices-v1.0.bin
 ```
 
+o se pueden especificar rutas externas mediante `TTS_MODEL_PATH` y `TTS_VOICES_PATH`.
+
 ## Configuración
 
-En `config/app.toml`:
+Los parámetros relevantes pueden establecerse en `config/app.toml` o mediante las variables `TTS_*` para ejecución desatendida:
 
-```toml
-[tts]
-enabled = true
-required = false
-provider = "kokoro"
-voice = "af_sarah"
-model_path = "tools/tts/kokoro-v1.0.onnx"
-voices_path = "tools/tts/voices-v1.0.bin"
-speed = 1.0
-max_speed = 1.35
-duration_tolerance = 0.02
-sample_rate = 24000
-audio_bitrate = "192k"
-webm_audio_bitrate = "192k"
-generate_webm = true
+```dotenv
+TTS_ENABLED=true
+TTS_REQUIRED=false
+TTS_PROVIDER=kokoro
+TTS_VOICE=af_sarah
+TTS_MODEL_PATH=tools/tts/kokoro-v1.0.onnx
+TTS_VOICES_PATH=tools/tts/voices-v1.0.bin
+TTS_SPEED=1.0
+TTS_MAX_SPEED=1.35
+TTS_DURATION_TOLERANCE=0.02
+TTS_SAMPLE_RATE=24000
+TTS_AUDIO_BITRATE=192k
+TTS_WEBM_AUDIO_BITRATE=192k
+TTS_GENERATE_WEBM=true
 ```
 
-`required = false` significa que un fallo de TTS no invalida los resultados tradicionales. Para una ejecución en la que el doblaje sea obligatorio se puede cambiar a `true`.
-
-También existen equivalentes mediante variables `TTS_*` para instalaciones desatendidas.
+`TTS_ENABLED=true` activa el postprocesado desde el pipeline común; no descarga modelos ni pesos.
 
 ## Sincronización
 
-Si un cue ocupa `10.000 → 14.500`, su audio se coloca en ese intervalo. Cuando el TTS supera el espacio disponible se intenta una segunda síntesis con velocidad superior, limitada por `max_speed`. Si aun así no cabe dentro de la tolerancia configurada, el cue falla en lugar de solapar el siguiente.
+Cada cue se sintetiza dentro de su intervalo temporal. Si la duración inicial no cabe, el generador intenta aumentar la velocidad hasta `max_speed`. Si sigue sin caber dentro de la tolerancia configurada, el cue falla en lugar de solaparse con el siguiente.
 
-Los timestamps inválidos, cues vacíos y solapamientos se tratan explícitamente. Los cues vacíos producen silencio.
+Los huecos entre cues permanecen como silencio. No se genera un único audio continuo que ignore los timestamps.
 
 ## Artefactos
 
-La nomenclatura mantiene el stem normalizado existente y añade el sufijo TTS:
-
 ```text
+<stem>_tts.wav
 <stem>_tts.mp4
 <stem>_tts.webm
-<stem>_tts.wav
 ```
 
-El WAV es un artefacto auxiliar útil para inspección y remezcla. Los resultados de vídeo son los artefactos destinados al consumo normal.
+El MP4 conserva el vídeo normal y sustituye/añade la pista de audio TTS. Para WebM se utiliza el WebM normal cuando está disponible; si no, se genera un WebM compatible según la configuración.
 
-El MP4 conserva el vídeo existente y codifica la narración como AAC. Para WebM se reutiliza el WebM normal existente cuando está disponible y se codifica el audio como Opus. Así se evita recodificar innecesariamente el vídeo.
+## Primera ejecución y resultados existentes
 
-## Resume e idempotencia
+En una primera ejecución, el TTS se procesa después de la creación del vídeo normal y del VTT traducido.
 
-El decorador de storage se ejecuta en el mismo núcleo de almacenamiento que usa el pipeline. Un artefacto TTS ya válido no se vuelve a sintetizar. Los fallos se registran en el manifest y un fallo obligatorio impide finalizar la fuente.
+En resultados ya procesados, no es necesario volver a colocar los vídeos originales en `storage/input` si el vídeo normal sigue disponible en la carpeta de salida. La reparación puede regenerar STT sobre ese vídeo cuando el VTT original no sea fiable.
 
-El manifest registra, cuando existe, `tts_mp4`, `tts_webm`, `tts_cue_count`, `tts_adjusted_cues` y `tts_status`.
+Un TTS ya existente se reutiliza si los subtítulos siguen siendo válidos. Si la reparación cambia el VTT, el TTS se vuelve a generar para mantener la correspondencia temporal y textual.
 
 ## Cloud y rclone
 
-No se generan implementaciones independientes para Google Drive, rclone y almacenamiento local. El decorador descarga temporalmente el vídeo/VTT desde el backend, ejecuta el mismo generador TTS y vuelve a subir los artefactos al mismo directorio.
+No existe un pipeline TTS independiente por proveedor. El mismo decorador de almacenamiento funciona con local, Google Drive y rclone: descarga temporalmente los artefactos necesarios, ejecuta la síntesis y sube los resultados al mismo destino.
 
-La fuente no se elimina por la capa TTS. La eliminación/archivo de fuentes continúa siendo responsabilidad del proveedor de almacenamiento existente, por lo que un fallo de subida TTS no borra el vídeo de origen.
+Un fallo de TTS no elimina el vídeo normal ni los VTT válidos.
 
-## Ejecutable y tareas programadas
+## Ejecución programada y ejecutable
 
-Los pesos no se incluyen automáticamente en PyInstaller. Deben estar en `tools/tts/` de la distribución portable o en rutas externas configuradas con `TTS_MODEL_PATH` y `TTS_VOICES_PATH`. Esto evita crear un binario innecesariamente grande y permite actualizar pesos sin recompilar.
-
-`run_local`, Task Scheduler y `launchd` continúan invocando el mismo `main.py`/ejecutable y, por tanto, el mismo pipeline.
+`run_local`, `main.py run --scheduled`, Task Scheduler, launchd, cron y el ejecutable deben utilizar el mismo directorio de trabajo, configuración, credenciales y pesos. No se requiere interacción durante TTS.
 
 ## Licencias
 
-| Componente | Licencia/restricción relevante |
-|---|---|
-| `kokoro-onnx` | MIT |
-| Modelo Kokoro-82M | Apache-2.0 |
-| `onnxruntime` | MIT |
-| `numpy` | BSD-3-Clause |
-
-La cadena TTS debe revisarse completa antes de redistribuir un ejecutable comercial. En particular, las dependencias transitivas de fonemización y sus datos/voces deben conservar sus avisos y condiciones. Esta PR no afirma compatibilidad legal automática con una distribución propietaria cerrada.
+La licencia de `kokoro-onnx` o de cualquier otra librería no determina por sí sola las condiciones de los modelos, voces, datos de fonemización o dependencias transitivas. Antes de redistribuir un ejecutable o utilizar el resultado comercialmente debe revisarse la cadena completa de licencias.
 
 ## Limitaciones
 
-- No se incluyen pesos del modelo en Git.
-- La generación real con Kokoro requiere instalar `[tts]` y disponer de ambos pesos.
-- La calidad lingüística depende del idioma/voz elegidos.
-- Para distribución comercial cerrada, la cadena de dependencias TTS debe revisarse antes de empaquetar el ejecutable.
+- Los pesos no se incluyen en Git.
+- La generación local requiere instalar `[tts]` y disponer de los pesos configurados.
+- La calidad depende del idioma y la voz disponibles.
+- Un fallo TTS puede dejar el resultado tradicional válido pero impedir que el trabajo se marque como completo cuando `TTS_REQUIRED=true`.
