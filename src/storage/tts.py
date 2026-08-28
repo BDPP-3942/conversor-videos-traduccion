@@ -82,6 +82,15 @@ class TTSAwareStorageProvider(StorageProvider):
             self._process_folder(target, folder, folder_name)
 
     def _process_folder(self, target: str, folder: str, folder_name: str) -> None:
+        children = self.wrapped.list_children(folder)
+        files = {child.name: child for child in children if not child.is_directory}
+        video = next(
+            (item for item in files.values() if item.name.lower().endswith(".mp4") and "_tts" not in item.name.lower()),
+            None,
+        )
+        if video is None:
+            return
+
         repair_result = repair_output_subtitles(self.wrapped, self.settings, folder)
         if repair_result.get("status") == "repaired":
             logger.info(
@@ -94,10 +103,6 @@ class TTSAwareStorageProvider(StorageProvider):
         children = self.wrapped.list_children(folder)
         files = {child.name: child for child in children if not child.is_directory}
         vtt = next((item for item in files.values() if _is_output_vtt_name(item.name)), None)
-        video = next(
-            (item for item in files.values() if item.name.lower().endswith(".mp4") and "_tts" not in item.name.lower()),
-            None,
-        )
         webm = next(
             (
                 item
@@ -106,8 +111,8 @@ class TTSAwareStorageProvider(StorageProvider):
             ),
             None,
         )
-        if not vtt or not video:
-            logger.warning("Skipping TTS for %s: reusable video or translated VTT is missing", folder_name)
+        if not vtt:
+            logger.warning("Skipping TTS for %s: translated VTT is missing", folder_name)
             return
 
         stem = Path(video.name).stem
