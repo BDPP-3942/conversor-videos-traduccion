@@ -7,9 +7,9 @@ from typing import Any
 
 from config.settings import AppSettings, local_storage_paths
 from src.storage.base import StorageFile, StorageProvider
+from src.storage.uri import parse_storage_uri
 from src.subtitle_repair import repair_output_subtitles
 from src.tts_pipeline import TTSProviderError, generate_tts_media
-from src.storage.uri import parse_storage_uri
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,12 @@ class TTSAwareStorageProvider(StorageProvider):
     def download_file(self, file: StorageFile, destination: Path) -> None:
         self.wrapped.download_file(file, destination)
 
-    def upload_file(self, local_path: Path, location: str, mime_type: str | None = None) -> StorageFile:
+    def upload_file(
+        self,
+        local_path: Path,
+        location: str,
+        mime_type: str | None = None,
+    ) -> StorageFile:
         return self.wrapped.upload_file(local_path, location, mime_type)
 
     def ensure_folder(self, parent: str, name: str) -> str:
@@ -47,12 +52,28 @@ class TTSAwareStorageProvider(StorageProvider):
         return self.wrapped.list_children(parent)
 
     def rename_output_folder(
-        self, target: str, old_name: str, new_name: str, original_transcript_subdir: str
+        self,
+        target: str,
+        old_name: str,
+        new_name: str,
+        original_transcript_subdir: str,
     ) -> dict[str, str]:
-        return self.wrapped.rename_output_folder(target, old_name, new_name, original_transcript_subdir)
+        return self.wrapped.rename_output_folder(
+            target,
+            old_name,
+            new_name,
+            original_transcript_subdir,
+        )
 
-    def normalize_existing_output_names(self, target: str, original_transcript_subdir: str) -> dict[str, str]:
-        return self.wrapped.normalize_existing_output_names(target, original_transcript_subdir)
+    def normalize_existing_output_names(
+        self,
+        target: str,
+        original_transcript_subdir: str,
+    ) -> dict[str, str]:
+        return self.wrapped.normalize_existing_output_names(
+            target,
+            original_transcript_subdir,
+        )
 
     def source_fingerprint(self, file: StorageFile) -> dict[str, Any]:
         return self.wrapped.source_fingerprint(file)
@@ -89,7 +110,7 @@ class TTSAwareStorageProvider(StorageProvider):
             self._process_folder(target, folder, folder_name)
 
     def _process_existing_output_folders(self) -> None:
-        """Recover and TTS existing output folders even when no new ZIP was ingested."""
+        """Recover and TTS existing output folders even without new ZIPs."""
         try:
             target_uri = parse_storage_uri(self.settings.target)
             target = target_uri.value
@@ -114,14 +135,19 @@ class TTSAwareStorageProvider(StorageProvider):
             (
                 item
                 for item in files.values()
-                if item.name.lower().endswith(".mp4") and "_tts" not in item.name.lower()
+                if item.name.lower().endswith(".mp4")
+                and "_tts" not in item.name.lower()
             ),
             None,
         )
         if video is None:
             return
 
-        repair_result = repair_output_subtitles(self.wrapped, self.settings, folder)
+        repair_result = repair_output_subtitles(
+            self.wrapped,
+            self.settings,
+            folder,
+        )
         if repair_result.get("status") == "repaired":
             logger.info(
                 "Subtitle repair completed before TTS for %s: original=%s translated=%s",
@@ -132,12 +158,16 @@ class TTSAwareStorageProvider(StorageProvider):
 
         children = self.wrapped.list_children(folder)
         files = {child.name: child for child in children if not child.is_directory}
-        vtt = next((item for item in files.values() if _is_output_vtt_name(item.name)), None)
+        vtt = next(
+            (item for item in files.values() if _is_output_vtt_name(item.name)),
+            None,
+        )
         webm = next(
             (
                 item
                 for item in files.values()
-                if item.name.lower().endswith(".webm") and "_tts" not in item.name.lower()
+                if item.name.lower().endswith(".webm")
+                and "_tts" not in item.name.lower()
             ),
             None,
         )
@@ -244,7 +274,10 @@ class TTSAwareStorageProvider(StorageProvider):
                     if value and entry.get(key) != value:
                         entry[key] = value
                         changed = True
-                for key, value in (("tts_cue_count", cue_count), ("tts_adjusted_cues", adjusted_cues)):
+                for key, value in (
+                    ("tts_cue_count", cue_count),
+                    ("tts_adjusted_cues", adjusted_cues),
+                ):
                     if value is not None and entry.get(key) != value:
                         entry[key] = value
                         changed = True
@@ -255,11 +288,23 @@ class TTSAwareStorageProvider(StorageProvider):
                     entry["tts_error"] = error
                     changed = True
             if changed:
-                write_manifest(manifest_path, data.get("entries", []), metadata=data.get("metadata", {}))
+                write_manifest(
+                    manifest_path,
+                    data.get("entries", []),
+                    metadata=data.get("metadata", {}),
+                )
                 try:
-                    self.wrapped.upload_file(manifest_path, target, "application/json")
+                    self.wrapped.upload_file(
+                        manifest_path,
+                        target,
+                        "application/json",
+                    )
                 except (OSError, RuntimeError) as exc:
-                    logger.warning("Could not upload updated TTS manifest %s: %s", manifest_path, exc)
+                    logger.warning(
+                        "Could not upload updated TTS manifest %s: %s",
+                        manifest_path,
+                        exc,
+                    )
 
 
 def _is_output_vtt_name(name: str) -> bool:
