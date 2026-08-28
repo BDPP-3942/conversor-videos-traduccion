@@ -59,7 +59,7 @@ def _match_number(value: str, pattern: re.Pattern[str]) -> int | None:
 def _remove_number(value: str, number: int | None) -> str:
     if number is None:
         return value
-    return re.sub(rf"(?<!\d){number}(?!\d)", "_", value, count=1)
+    return re.sub(rf"(?<!\d)0*{number}(?!\d)", "_", value, count=1)
 
 
 def _description(value: str, number: int | None, label_pattern: re.Pattern[str]) -> str:
@@ -87,7 +87,7 @@ def _course_context(context_values: list[str]) -> tuple[int | None, str | None]:
     for value in context_values:
         cleaned = _clean(value)
         if not _is_noise(cleaned):
-            return None, _sanitize_text(cleaned)
+            return None, _description(cleaned, None, _COURSE_LABEL)
     return None, None
 
 
@@ -107,7 +107,7 @@ def _lesson_context(source: Path, context_values: list[str]) -> tuple[int | None
 
 
 def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
-    """Build stable names such as ``12_movilidadx03_hombros``."""
+    """Build stable names such as ``12_movilidad_articularx03_rotacion_hombros``."""
     relative = source.relative_to(extract_root)
     context = list(relative.parts[:-1])
     course, course_name = _course_context(context)
@@ -117,11 +117,9 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
     if course is not None and course_name:
         course_part = f"{course}_{course_name}"
 
-    lesson_part = str(lesson) if lesson is not None else ""
-    if lesson is not None and lesson_name:
-        lesson_part = f"{lesson:02d}_{lesson_name}"
-    elif lesson is None:
-        lesson_part = lesson_name
+    lesson_part = f"{lesson:02d}" if lesson is not None else ""
+    if lesson_name:
+        lesson_part = f"{lesson_part + '_' if lesson_part else ''}{lesson_name}"
 
     output_stem = "x".join(part for part in (course_part, lesson_part) if part)
     fallback = _sanitize_text(source.stem)
