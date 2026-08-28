@@ -35,7 +35,9 @@ def validate_vtt_file(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
         if start < 0:
             errors.append(f"cue {index}: negative start")
         if end <= start:
-            errors.append(f"cue {index}: end ({end:.3f}) must be greater than start ({start:.3f})")
+            errors.append(
+                f"cue {index}: end ({end:.3f}) must be greater than start ({start:.3f})"
+            )
         if start + TIMESTAMP_EPSILON < previous_start:
             errors.append(f"cue {index}: timestamps are not ordered")
         previous_start = start
@@ -67,7 +69,10 @@ def _pick(files: list[StorageFile], *, original: bool) -> StorageFile | None:
         preferred = [item for item in vtts if "_original" in item.name.lower()]
     else:
         preferred = [item for item in vtts if "_original" not in item.name.lower()]
-    return sorted(preferred or vtts, key=lambda item: item.name.lower())[0] if (preferred or vtts) else None
+    return sorted(
+        preferred or vtts,
+        key=lambda item: item.name.lower(),
+    )[0] if (preferred or vtts) else None
 
 
 def _next_backup(storage: StorageProvider, parent: str, name: str) -> str:
@@ -92,8 +97,9 @@ def _backup_replace(
             backup_path = Path(temp_dir) / current.name
             storage.download_file(current, backup_path)
             backup_name = _next_backup(storage, parent, current.name)
-            backup_path = backup_path.with_name(backup_name)
-            storage.upload_file(backup_path, parent, "text/vtt")
+            backup_target = backup_path.with_name(backup_name)
+            backup_target.write_bytes(backup_path.read_bytes())
+            storage.upload_file(backup_target, parent, "text/vtt")
     target_name = current.name if current else replacement.name
     named = replacement.with_name(target_name)
     storage.upload_file(named, parent, "text/vtt")
@@ -117,19 +123,34 @@ def repair_output_subtitles(
     """
     children = [item for item in storage.list_children(output_folder) if not item.is_directory]
     video = next(
-        (item for item in children if Path(item.name).suffix.lower() == ".mp4" and "_tts" not in item.name.lower()),
+        (
+            item
+            for item in children
+            if Path(item.name).suffix.lower() == ".mp4"
+            and "_tts" not in item.name.lower()
+        ),
         None,
     )
     if video is None:
         video = next(
-            (item for item in children if Path(item.name).suffix.lower() in VIDEO_EXTENSIONS and "_tts" not in item.name.lower()),
+            (
+                item
+                for item in children
+                if Path(item.name).suffix.lower() in VIDEO_EXTENSIONS
+                and "_tts" not in item.name.lower()
+            ),
             None,
         )
     if video is None:
         return {"status": "skipped", "reason": "no reusable source video"}
 
-    original_dir = storage.ensure_folder(output_folder, settings.original_transcript_subdir)
-    original_files = [item for item in storage.list_children(original_dir) if not item.is_directory]
+    original_dir = storage.ensure_folder(
+        output_folder,
+        settings.original_transcript_subdir,
+    )
+    original_files = [
+        item for item in storage.list_children(original_dir) if not item.is_directory
+    ]
     original = _pick(original_files, original=True)
     translated = _pick(children, original=False)
 
@@ -169,23 +190,39 @@ def repair_output_subtitles(
                 raise ValueError("STT produced invalid subtitle timestamps during repair")
             repaired_original = root / f"{Path(video.name).stem}_original.vtt"
             VTTBuilder.generate_vtt(segments, repaired_original)
-            backups.append(_backup_replace(storage, original, original_dir, repaired_original) or "")
+            backups.append(
+                _backup_replace(
+                    storage,
+                    original,
+                    original_dir,
+                    repaired_original,
+                )
+                or ""
+            )
             original_segments = segments
             translated_repaired = True
 
         if translated_repaired:
             if not _valid_segments(original_segments):
-                raise ValueError("Cannot repair translated VTT without a valid original transcription")
+                raise ValueError(
+                    "Cannot repair translated VTT without a valid original transcription"
+                )
             logger.warning(
                 "Repairing translated VTT for %s: %s",
                 output_folder,
-                "; ".join(translated_errors) if translated_errors else "original VTT was regenerated",
+                "; ".join(translated_errors)
+                if translated_errors
+                else "original VTT was regenerated",
             )
             from src.translator import TextTranslator
 
-            translated_segments = TextTranslator(settings).translate_segments(original_segments)
+            translated_segments = TextTranslator(settings).translate_segments(
+                original_segments
+            )
             if not _valid_segments(translated_segments):
-                raise ValueError("Translation produced invalid subtitle timestamps during repair")
+                raise ValueError(
+                    "Translation produced invalid subtitle timestamps during repair"
+                )
             target_name = (
                 translated.name
                 if translated is not None
@@ -193,13 +230,17 @@ def repair_output_subtitles(
             )
             repaired_translated = root / target_name
             VTTBuilder.generate_vtt(translated_segments, repaired_translated)
-            backups.append(_backup_replace(storage, translated, output_folder, repaired_translated) or "")
+            backups.append(
+                _backup_replace(
+                    storage,
+                    translated,
+                    output_folder,
+                    repaired_translated,
+                )
+                or ""
+            )
 
-        if original_repaired or translated_repaired:
-            status = "repaired"
-        else:
-            status = "valid"
-
+        status = "repaired" if original_repaired or translated_repaired else "valid"
         return {
             "status": status,
             "output_folder": output_folder,
