@@ -1,4 +1,4 @@
-from __future__ import annotations
+from __future__
 
 import argparse
 import os
@@ -56,7 +56,11 @@ def _download(url: str, destination: Path) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Install the optional Kokoro TTS dependency and model files.")
-    parser.add_argument("--enable", action="store_true", help="Install/bootstrap TTS even when TTS_ENABLED is not true.")
+    parser.add_argument(
+        "--enable",
+        action="store_true",
+        help="Install/bootstrap TTS even when TTS_ENABLED is not true.",
+    )
     parser.add_argument("--force", action="store_true", help="Replace existing model files.")
     parser.add_argument("--model-path", type=Path, default=None)
     parser.add_argument("--voices-path", type=Path, default=None)
