@@ -82,7 +82,7 @@ def _course_context(context_values: list[str]) -> tuple[int | None, str | None]:
             return number, _description(value, number, _COURSE_LABEL)
     for value in context_values:
         number = _match_number(value, _NUMBER)
-        if number is not None and re.search(r"curso|course", value, re.IGNORECASE):
+        if number is not None and not _LESSON_LABEL.search(value):
             return number, _description(value, number, _COURSE_LABEL)
     for value in context_values:
         cleaned = _clean(value)
