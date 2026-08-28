@@ -7,13 +7,15 @@ from typing import Any
 
 from config.settings import AppSettings, local_storage_paths
 from src.storage.base import StorageFile, StorageProvider
+from src.storage.uri import parse_storage_uri
+from src.subtitle_repair import repair_output_subtitles
 from src.tts_pipeline import TTSProviderError, generate_tts_media
 
 logger = logging.getLogger(__name__)
 
 
 class TTSAwareStorageProvider(StorageProvider):
-    """Storage decorator that adds TTS without creating a second pipeline."""
+    """Storage decorator that adds VTT recovery and TTS to the common pipeline."""
 
     def __init__(self, wrapped: StorageProvider, settings: AppSettings) -> None:
         self.wrapped = wrapped
@@ -26,7 +28,12 @@ class TTSAwareStorageProvider(StorageProvider):
     def download_file(self, file: StorageFile, destination: Path) -> None:
         self.wrapped.download_file(file, destination)
 
-    def upload_file(self, local_path: Path, location: str, mime_type: str | None = None) -> StorageFile:
+    def upload_file(
+        self,
+        local_path: Path,
+        location: str,
+        mime_type: str | None = None,
+    ) -> StorageFile:
         return self.wrapped.upload_file(local_path, location, mime_type)
 
     def ensure_folder(self, parent: str, name: str) -> str:
@@ -45,12 +52,28 @@ class TTSAwareStorageProvider(StorageProvider):
         return self.wrapped.list_children(parent)
 
     def rename_output_folder(
-        self, target: str, old_name: str, new_name: str, original_transcript_subdir: str
+        self,
+        target: str,
+        old_name: str,
+        new_name: str,
+        original_transcript_subdir: str,
     ) -> dict[str, str]:
-        return self.wrapped.rename_output_folder(target, old_name, new_name, original_transcript_subdir)
+        return self.wrapped.rename_output_folder(
+            target,
+            old_name,
+            new_name,
+            original_transcript_subdir,
+        )
 
-    def normalize_existing_output_names(self, target: str, original_transcript_subdir: str) -> dict[str, str]:
-        return self.wrapped.normalize_existing_output_names(target, original_transcript_subdir)
+    def normalize_existing_output_names(
+        self,
+        target: str,
+        original_transcript_subdir: str,
+    ) -> dict[str, str]:
+        return self.wrapped.normalize_existing_output_names(
+            target,
+            original_transcript_subdir,
+        )
 
     def source_fingerprint(self, file: StorageFile) -> dict[str, Any]:
         return self.wrapped.source_fingerprint(file)
@@ -59,7 +82,12 @@ class TTSAwareStorageProvider(StorageProvider):
         method = getattr(self.wrapped, "is_processed", None)
         return bool(method(file)) if method else False
 
-    def finalize_source(self, file: StorageFile, status: str, output_folders: list[str] | None = None) -> None:
+    def finalize_source(
+        self,
+        file: StorageFile,
+        status: str,
+        output_folders: list[str] | None = None,
+    ) -> None:
         if self.settings.tts_enabled and status == "success":
             try:
                 self._process_pending_folders()
@@ -73,6 +101,7 @@ class TTSAwareStorageProvider(StorageProvider):
         try:
             if self.settings.tts_enabled:
                 self._process_pending_folders()
+                self._process_existing_output_folders()
         finally:
             self.wrapped.close()
 
@@ -80,12 +109,52 @@ class TTSAwareStorageProvider(StorageProvider):
         for target, folder, folder_name in sorted(self._output_folders):
             self._process_folder(target, folder, folder_name)
 
+    def _process_existing_output_folders(self) -> None:
+        """Recover and TTS existing output folders even without new ZIPs."""
+        try:
+            target_uri = parse_storage_uri(self.settings.target)
+            target = target_uri.value
+        except (AttributeError, ValueError):
+            target = self.settings.target
+
+        try:
+            children = self.wrapped.list_children(target)
+        except (OSError, RuntimeError) as exc:
+            logger.warning("Could not inspect existing TTS output folders: %s", exc)
+            return
+
+        for item in sorted(children, key=lambda child: child.name.lower()):
+            if not item.is_directory or item.name == "_manifests":
+                continue
+            self._process_folder(target, item.id, item.name)
+
     def _process_folder(self, target: str, folder: str, folder_name: str) -> None:
         children = self.wrapped.list_children(folder)
         files = {child.name: child for child in children if not child.is_directory}
-        vtt = next((item for item in files.values() if _is_output_vtt_name(item.name)), None)
         video = next(
             (item for item in files.values() if item.name.lower().endswith(".mp4") and "_tts" not in item.name.lower()),
+            None,
+        )
+        if video is None:
+            return
+
+        repair_result = repair_output_subtitles(
+            self.wrapped,
+            self.settings,
+            folder,
+        )
+        if repair_result.get("status") == "repaired":
+            logger.info(
+                "Subtitle repair completed before TTS for %s: original=%s translated=%s",
+                folder_name,
+                repair_result.get("original_repaired"),
+                repair_result.get("translated_repaired"),
+            )
+
+        children = self.wrapped.list_children(folder)
+        files = {child.name: child for child in children if not child.is_directory}
+        vtt = next(
+            (item for item in files.values() if _is_output_vtt_name(item.name)),
             None,
         )
         webm = next(
@@ -96,7 +165,8 @@ class TTSAwareStorageProvider(StorageProvider):
             ),
             None,
         )
-        if not vtt or not video:
+        if not vtt:
+            logger.warning("Skipping TTS for %s: translated VTT is missing", folder_name)
             return
 
         stem = Path(video.name).stem
@@ -194,10 +264,7 @@ class TTSAwareStorageProvider(StorageProvider):
             for entry in data.get("entries", []):
                 if not isinstance(entry, dict) or str(entry.get("output_folder", "")) != folder_name:
                     continue
-                for key, value in (
-                    ("tts_mp4", mp4_name),
-                    ("tts_webm", webm_name),
-                ):
+                for key, value in (("tts_mp4", mp4_name), ("tts_webm", webm_name)):
                     if value and entry.get(key) != value:
                         entry[key] = value
                         changed = True
