@@ -7,6 +7,7 @@ from typing import Any
 from config.settings import AppSettings
 
 logger = logging.getLogger(__name__)
+TIMESTAMP_EPSILON = 0.001
 
 
 class STTEngine:
@@ -48,7 +49,11 @@ class STTEngine:
         words = list(getattr(segment, "words", None) or [])
         if not words:
             text = str(segment.text or "").strip()
-            return [{"start": float(segment.start), "end": float(segment.end), "text": text}] if text else []
+            if not text:
+                return []
+            start = float(segment.start)
+            end = float(segment.end)
+            return [{"start": start, "end": end, "text": text}] if end > start else []
 
         threshold = max(0.1, self.settings.whisper_min_silence_duration_ms / 1000.0)
         groups: list[list[Any]] = []
@@ -70,16 +75,42 @@ class STTEngine:
         result: list[dict[str, Any]] = []
         for group in groups:
             text = "".join(str(word.word or "") for word in group).strip()
+            start = float(group[0].start)
+            end = float(group[-1].end)
+            if text and end > start:
+                result.append({"start": start, "end": end, "text": text})
+        return result
+
+    @staticmethod
+    def _validate_final_segments(segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Return only usable cues and fail if the resulting timeline is inconsistent."""
+        cleaned: list[dict[str, Any]] = []
+        for index, segment in enumerate(segments, 1):
+            try:
+                start = float(segment["start"])
+                end = float(segment["end"])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError(f"STT segment {index} has non-numeric timestamps") from exc
+            if start < 0 or end <= start:
+                logger.warning("Discarding invalid STT segment %d: %.3f --> %.3f", index, start, end)
+                continue
+            text = str(segment.get("text", "")).strip()
             if not text:
                 continue
-            result.append(
-                {
-                    "start": float(group[0].start),
-                    "end": float(group[-1].end),
-                    "text": text,
-                }
-            )
-        return result
+            cleaned.append({"start": start, "end": end, "text": text})
+
+        cleaned.sort(key=lambda item: (item["start"], item["end"]))
+        previous_end = -1.0
+        for index, segment in enumerate(cleaned, 1):
+            if segment["start"] + TIMESTAMP_EPSILON < previous_end:
+                raise ValueError(
+                    f"STT produced overlapping timeline at segment {index}: "
+                    f"{segment['start']:.3f} < previous end {previous_end:.3f}"
+                )
+            previous_end = segment["end"]
+        if not cleaned:
+            raise ValueError("STT produced no valid subtitle segments")
+        return cleaned
 
     def transcribe(self, media_path: Path):
         logger.info("Transcribing: %s", media_path.name)
@@ -113,7 +144,7 @@ class STTEngine:
                 split_count += len(split_segments) - 1
             result.extend(split_segments)
 
-        result.sort(key=lambda item: (float(item["start"]), float(item["end"])))
+        result = self._validate_final_segments(result)
         logger.info(
             "STT completed: %d subtitle segments from %d Whisper segments; split %d internal silence gaps",
             len(result),
