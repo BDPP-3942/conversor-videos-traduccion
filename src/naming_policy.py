@@ -10,7 +10,14 @@ _NOISE = re.compile(
     r"extract(?:ed)?|unzip(?:ped)?|descomprim(?:ido|ida|idos|idas))",
     re.IGNORECASE,
 )
-_TIMESTAMP = re.compile(r"\b\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?\b", re.IGNORECASE)
+_TIMESTAMP = re.compile(
+    r"(?:\b\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?\b|"
+    r"\b\d{8}[_ -]?\d{6}\b|"
+    r"\b\d{4}[_ -]\d{2}[_ -]\d{2}(?:[_ -]\d{2}[_ -]\d{2}[_ -]\d{2})?\b|"
+    r"\b\d{4}-\d{2}-\d{2}(?:[ _-]\d{2}[-:]\d{2}[-:]\d{2})?\b|"
+    r"\b\d{4}/\d{2}/\d{2}(?:[ _-]\d{2}[-:]\d{2}[-:]\d{2})?\b)",
+    re.IGNORECASE,
+)
 _NUMBER = re.compile(r"(?<!\d)(\d{1,4})(?!\d)")
 _COURSE_LABEL = re.compile(r"(?:curso|course)", re.IGNORECASE)
 _LESSON_LABEL = re.compile(r"(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)", re.IGNORECASE)
