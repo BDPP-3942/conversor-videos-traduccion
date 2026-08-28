@@ -9,12 +9,13 @@ from config.settings import AppSettings, local_storage_paths
 from src.storage.base import StorageFile, StorageProvider
 from src.subtitle_repair import repair_output_subtitles
 from src.tts_pipeline import TTSProviderError, generate_tts_media
+from src.storage.uri import parse_storage_uri
 
 logger = logging.getLogger(__name__)
 
 
 class TTSAwareStorageProvider(StorageProvider):
-    """Storage decorator that adds TTS without creating a second pipeline."""
+    """Storage decorator that adds VTT recovery and TTS to the common pipeline."""
 
     def __init__(self, wrapped: StorageProvider, settings: AppSettings) -> None:
         self.wrapped = wrapped
@@ -60,7 +61,12 @@ class TTSAwareStorageProvider(StorageProvider):
         method = getattr(self.wrapped, "is_processed", None)
         return bool(method(file)) if method else False
 
-    def finalize_source(self, file: StorageFile, status: str, output_folders: list[str] | None = None) -> None:
+    def finalize_source(
+        self,
+        file: StorageFile,
+        status: str,
+        output_folders: list[str] | None = None,
+    ) -> None:
         if self.settings.tts_enabled and status == "success":
             try:
                 self._process_pending_folders()
@@ -74,6 +80,7 @@ class TTSAwareStorageProvider(StorageProvider):
         try:
             if self.settings.tts_enabled:
                 self._process_pending_folders()
+                self._process_existing_output_folders()
         finally:
             self.wrapped.close()
 
@@ -81,11 +88,34 @@ class TTSAwareStorageProvider(StorageProvider):
         for target, folder, folder_name in sorted(self._output_folders):
             self._process_folder(target, folder, folder_name)
 
+    def _process_existing_output_folders(self) -> None:
+        """Recover and TTS existing output folders even when no new ZIP was ingested."""
+        try:
+            target_uri = parse_storage_uri(self.settings.target)
+            target = target_uri.value
+        except (AttributeError, ValueError):
+            target = self.settings.target
+
+        try:
+            children = self.wrapped.list_children(target)
+        except (OSError, RuntimeError) as exc:
+            logger.warning("Could not inspect existing TTS output folders: %s", exc)
+            return
+
+        for item in sorted(children, key=lambda child: child.name.lower()):
+            if not item.is_directory or item.name == "_manifests":
+                continue
+            self._process_folder(target, item.id, item.name)
+
     def _process_folder(self, target: str, folder: str, folder_name: str) -> None:
         children = self.wrapped.list_children(folder)
         files = {child.name: child for child in children if not child.is_directory}
         video = next(
-            (item for item in files.values() if item.name.lower().endswith(".mp4") and "_tts" not in item.name.lower()),
+            (
+                item
+                for item in files.values()
+                if item.name.lower().endswith(".mp4") and "_tts" not in item.name.lower()
+            ),
             None,
         )
         if video is None:
@@ -122,7 +152,12 @@ class TTSAwareStorageProvider(StorageProvider):
         if self.wrapped.file_exists(folder, expected_mp4) and (
             not webm_required or self.wrapped.file_exists(folder, expected_webm)
         ):
-            self._update_manifest(target, folder_name, expected_mp4, expected_webm if webm_required else "")
+            self._update_manifest(
+                target,
+                folder_name,
+                expected_mp4,
+                expected_webm if webm_required else "",
+            )
             return
 
         with tempfile.TemporaryDirectory(prefix=f"tts_{stem}_") as temp_dir:
