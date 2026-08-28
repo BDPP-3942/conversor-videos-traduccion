@@ -51,10 +51,7 @@ class FakeStorage(StorageProvider):
         path = Path(parent) if Path(parent).is_absolute() else self._path(parent)
         if not path.is_dir():
             return []
-        return [
-            StorageFile(id=str(item), name=item.name, is_directory=item.is_dir())
-            for item in path.iterdir()
-        ]
+        return [StorageFile(id=str(item), name=item.name, is_directory=item.is_dir()) for item in path.iterdir()]
 
 
 def _settings() -> AppSettings:
