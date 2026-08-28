@@ -25,8 +25,26 @@ _LESSON_NUMBER = re.compile(
     re.IGNORECASE,
 )
 _GENERIC = {
-    "mp4", "wmv", "video", "videos", "audio", "media", "file", "files", "archivo", "archivos",
-    "download", "downloads", "descarga", "descargas", "compressed", "compression", "archive", "zip", "rar", "7z",
+    "mp4",
+    "wmv",
+    "video",
+    "videos",
+    "audio",
+    "media",
+    "file",
+    "files",
+    "archivo",
+    "archivos",
+    "download",
+    "downloads",
+    "descarga",
+    "descargas",
+    "compressed",
+    "compression",
+    "archive",
+    "zip",
+    "rar",
+    "7z",
 }
 
 
