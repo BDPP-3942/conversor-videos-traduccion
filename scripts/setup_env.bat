@@ -4,6 +4,7 @@ cd /d "%~dp0.."
 
 set "INSTALL_CLOUD=false"
 set "INSTALL_RCLONE=false"
+set "INSTALL_TTS=false"
 set "PREFETCH_WHISPER=false"
 
 :parse_args
@@ -12,6 +13,8 @@ if /I "%~1"=="--cloud" (
     set "INSTALL_CLOUD=true"
 ) else if /I "%~1"=="--rclone" (
     set "INSTALL_RCLONE=true"
+) else if /I "%~1"=="--tts" (
+    set "INSTALL_TTS=true"
 ) else if /I "%~1"=="--prefetch-whisper" (
     set "PREFETCH_WHISPER=true"
 ) else (
@@ -93,6 +96,11 @@ if "%INSTALL_RCLONE%"=="true" (
         exit /b 1
     )
 )
+
+"%VENV_PY%" scripts\setup_tts.py
+if errorlevel 1 exit /b 1
+if "%INSTALL_TTS%"=="true" "%VENV_PY%" scripts\setup_tts.py --enable
+if errorlevel 1 exit /b 1
 
 "%VENV_PY%" main.py doctor
 if errorlevel 1 exit /b 1

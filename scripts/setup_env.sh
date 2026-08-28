@@ -6,11 +6,13 @@ cd "$PROJECT_DIR"
 
 INSTALL_CLOUD=false
 INSTALL_RCLONE=false
+INSTALL_TTS=false
 PREFETCH_WHISPER=false
 for arg in "$@"; do
     case "$arg" in
         --cloud) INSTALL_CLOUD=true ;;
         --rclone) INSTALL_RCLONE=true ;;
+        --tts) INSTALL_TTS=true ;;
         --prefetch-whisper) PREFETCH_WHISPER=true ;;
         *) echo "[ERROR] Opción desconocida: $arg"; exit 2 ;;
     esac
@@ -72,6 +74,10 @@ $INSTALL_RCLONE && "$VENV_PYTHON" -m pip install -r requirements-rclone.txt
 if $INSTALL_RCLONE; then
     command -v rclone >/dev/null 2>&1 || { echo "[ERROR] rclone no está instalado. Ejecuta scripts/setup_rclone.sh"; exit 1; }
 fi
+
+"$VENV_PYTHON" scripts/setup_tts.py
+$INSTALL_TTS && "$VENV_PYTHON" scripts/setup_tts.py --enable
+
 "$VENV_PYTHON" main.py doctor
 if $PREFETCH_WHISPER; then
     echo "[INFO] Precargando el modelo Whisper seleccionado automáticamente..."

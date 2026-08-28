@@ -46,18 +46,28 @@ Consulta [`VTT_REPAIR.md`](VTT_REPAIR.md).
 
 La implementación inicial utiliza Kokoro mediante `kokoro-onnx`.
 
+La instalación recomendada es:
+
 ```bash
-python -m pip install -e ".[tts]"
+./scripts/setup_env.sh --tts
 ```
 
-Los pesos no están incluidos en Git. Deben existir los ficheros configurados, por defecto:
+en macOS/Linux, o:
+
+```bat
+scripts\setup_env.bat --tts
+```
+
+o bien ejecutar los instaladores normales con `TTS_ENABLED=true` en `.env`. En ese caso el instalador detecta la configuración, instala el extra `[tts]`, crea `tools/tts/` y descarga automáticamente los dos artefactos Kokoro de la release oficial de `kokoro-onnx`.
+
+Los pesos no están incluidos en Git y se guardan por defecto en:
 
 ```text
 tools/tts/kokoro-v1.0.onnx
 tools/tts/voices-v1.0.bin
 ```
 
-o se pueden especificar rutas externas mediante `TTS_MODEL_PATH` y `TTS_VOICES_PATH`.
+También se pueden especificar rutas externas mediante `TTS_MODEL_PATH` y `TTS_VOICES_PATH`.
 
 ## Configuración
 
@@ -79,7 +89,9 @@ TTS_WEBM_AUDIO_BITRATE=192k
 TTS_GENERATE_WEBM=true
 ```
 
-`TTS_ENABLED=true` activa el postprocesado desde el pipeline común; no descarga modelos ni pesos.
+`TTS_ENABLED=true` activa el postprocesado desde el pipeline común. El instalador prepara automáticamente la dependencia y los pesos cuando utiliza las rutas predeterminadas.
+
+El comando `python main.py doctor` valida que, si TTS está habilitado, existan tanto `kokoro-onnx` como el modelo y el fichero de voces antes de iniciar el procesamiento.
 
 ## Sincronización
 
