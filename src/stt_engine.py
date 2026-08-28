@@ -120,7 +120,8 @@ class STTEngine:
 
         result.sort(key=lambda item: (float(item["start"]), float(item["end"])))
         logger.info(
-            "STT completed: %d subtitle segments from %d Whisper segments; split %d internal silence gaps; discarded %d invalid segments",
+            "STT completed: %d subtitle segments from %d Whisper segments; "
+            "split %d internal silence gaps; discarded %d invalid segments",
             len(result),
             raw_count,
             split_count,
