@@ -161,8 +161,7 @@ class TTSAwareStorageProvider(StorageProvider):
             (
                 item
                 for item in files.values()
-                if item.name.lower().endswith(".webm")
-                and "_tts" not in item.name.lower()
+                if item.name.lower().endswith(".webm") and "_tts" not in item.name.lower()
             ),
             None,
         )
