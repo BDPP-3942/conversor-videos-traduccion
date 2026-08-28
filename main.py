@@ -109,10 +109,10 @@ def build_parser() -> argparse.ArgumentParser:
     remove.add_argument("name")
     provider_sub.add_parser("clear", help="Return to config/app.toml as active provider")
 
-    reprocess = sub.add_parser("reprocess-subtitles", help="Repair/reprocess STT and/or translation inside an existing output folder without regenerating media")
+    reprocess = sub.add_parser("reprocess-subtitles", help="Reprocess STT and/or translation inside an existing output folder without regenerating media")
     mode = reprocess.add_mutually_exclusive_group()
     mode.add_argument("--stt-only", action="store_true", help="Regenerate only the original transcription")
-    mode.add_argument("--translate-only", action="store_true", help="Regenerate only the translated VTT; invalid original VTTs are recovered from the existing video")
+    mode.add_argument("--translate-only", action="store_true", help="Regenerate only the translated VTT")
     reprocess.add_argument("--output-folder", default=None)
     reprocess.add_argument("--all", dest="reprocess_all", action="store_true")
     reprocess.add_argument("--video", dest="video_name", default=None)
@@ -189,13 +189,10 @@ def command_run(args) -> int:
             logger.warning("Automatic rclone update skipped: %s", exc)
     readiness = check_unattended(settings, ensure_rclone_binary=(provider == "rclone" and settings.auto_bootstrap_rclone))
     if not readiness.ready:
-        print(json.dumps({"status": "not_ready", "provider": provider, "checks": readiness.checks, "errors": readiness.errors}, ensure_ascii=False, indent=2))
-        return 3
+        print(json.dumps({"status": "not_ready", "provider": provider, "checks": readiness.checks, "errors": readiness.errors}, ensure_ascii=False, indent=2)); return 3
     if args.dry_run:
-        print(json.dumps({"status": "ready", "provider": provider, "checks": readiness.checks}, ensure_ascii=False, indent=2))
-        return 0
+        print(json.dumps({"status": "ready", "provider": provider, "checks": readiness.checks}, ensure_ascii=False, indent=2)); return 0
     from src.pipeline import MediaPipeline
-
     with RunLock(resolve_project_path(settings.run_lock_file)):
         storage = create_storage_provider(provider, settings)
         try:
@@ -204,7 +201,7 @@ def command_run(args) -> int:
             if postprocessing is not None:
                 result["tts_postprocessing"] = postprocessing
                 if postprocessing.get("failed", 0):
-                    result["status"] = "partial" if result.get("status") == "success" else result["status"]
+                    result["status"] = "error" if settings.tts_required else "partial"
             automatic_deduplication = _run_automatic_deduplication(settings, parsed_target.value)
             if automatic_deduplication is not None:
                 result["automatic_deduplication"] = automatic_deduplication
@@ -222,16 +219,10 @@ def command_duplicates(args) -> int:
     from src.output_deduplicator import OutputDeduplicator
     deduplicator = OutputDeduplicator(args.target)
     if args.duplicates_command == "scan":
-        payload = deduplicator.scan_and_persist()
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
-        return 0
+        payload = deduplicator.scan_and_persist(); print(json.dumps(payload, ensure_ascii=False, indent=2)); return 0
     if args.duplicates_command == "analyze":
-        payload = deduplicator.analyze_and_persist()
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
-        return 0
-    results = deduplicator.delete(dry_run=args.dry_run)
-    print(json.dumps({"status": "success", "dry_run": args.dry_run, "results": results}, ensure_ascii=False, indent=2))
-    return 0
+        payload = deduplicator.analyze_and_persist(); print(json.dumps(payload, ensure_ascii=False, indent=2)); return 0
+    results = deduplicator.delete(dry_run=args.dry_run); print(json.dumps({"status": "success", "dry_run": args.dry_run, "results": results}, ensure_ascii=False, indent=2)); return 0
 
 
 def command_auth(args) -> int:
@@ -239,36 +230,30 @@ def command_auth(args) -> int:
     profile_dir = resolve_project_path(settings.provider_profile_dir) / "google" / args.profile
     manager = GoogleOAuthManager(profile_dir / "credentials.json", profile_dir / "token.json")
     credentials = manager.authorize(open_browser=True)
-    print(json.dumps({"provider": "google_drive", "profile": args.profile, "authorized": bool(credentials.valid or credentials.refresh_token), "token_file": str(manager.token_file)}, ensure_ascii=False, indent=2))
-    return 0
+    print(json.dumps({"provider": "google_drive", "profile": args.profile, "authorized": bool(credentials.valid or credentials.refresh_token), "token_file": str(manager.token_file)}, ensure_ascii=False, indent=2)); return 0
 
 
 def command_provider(args) -> int:
     settings = load_settings(args.config)
     registry = ProviderRegistry(settings)
     if args.provider_command == "bootstrap":
-        path = registry.rclone.ensure_binary()
-        print(json.dumps({"status": "success", "rclone": str(path), "version": registry.rclone.version()}, indent=2)); return 0
+        path = registry.rclone.ensure_binary(); print(json.dumps({"status": "success", "rclone": str(path), "version": registry.rclone.version()}, indent=2)); return 0
     if args.provider_command == "list":
         result = registry.list_profiles(); result["runtime"] = load_runtime().get("active", {}); print(json.dumps(result, ensure_ascii=False, indent=2)); return 0
     if args.provider_command == "verify":
         if args.provider == "google_drive":
             profile_dir = resolve_project_path(settings.provider_profile_dir) / "google" / args.profile
             manager = GoogleOAuthManager(profile_dir / "credentials.json", profile_dir / "token.json")
-            credentials, refreshed = manager.refresh_silently()
-            result = {"provider": "google_drive", "profile": args.profile, "authorized": True, "refreshed": refreshed, "refreshable": bool(credentials.refresh_token)}
+            credentials, refreshed = manager.refresh_silently(); result = {"provider": "google_drive", "profile": args.profile, "authorized": True, "refreshed": refreshed, "refreshable": bool(credentials.refresh_token)}
         else:
             result = registry.verify_rclone(args.profile, args.location); result.update({"provider": "rclone"})
         print(json.dumps(result, ensure_ascii=False, indent=2)); return 0
     if args.provider_command == "update-rclone":
-        if not args.force and not settings.auto_update_rclone:
-            raise RuntimeError("Automatic rclone update is disabled. Use --force or enable runtime.auto_update_rclone.")
+        if not args.force and not settings.auto_update_rclone: raise RuntimeError("Automatic rclone update is disabled. Use --force or enable runtime.auto_update_rclone.")
         result = registry.rclone.self_update(); print(json.dumps({"status": "success", "rclone": result}, ensure_ascii=False, indent=2)); return 0
     if args.provider_command == "setup-google":
         if not _safe_profile(args.profile): raise ValueError("Invalid Google profile name")
-        profile_dir = resolve_project_path(settings.provider_profile_dir) / "google" / args.profile
-        manager = GoogleOAuthManager(profile_dir / "credentials.json", profile_dir / "token.json")
-        credentials = manager.authorize(open_browser=True)
+        profile_dir = resolve_project_path(settings.provider_profile_dir) / "google" / args.profile; manager = GoogleOAuthManager(profile_dir / "credentials.json", profile_dir / "token.json"); credentials = manager.authorize(open_browser=True)
         save_runtime(provider="google_drive", profile=args.profile, source=f"gdrive://{args.source_folder_id}", target=f"gdrive://{args.target_folder_id}", archive=args.archive_folder_id)
         print(json.dumps({"status": "success", "provider": "google_drive", "profile": args.profile, "authorized": bool(credentials.refresh_token), "active": True}, ensure_ascii=False, indent=2)); return 0
     if args.provider_command == "auth-rclone":
@@ -280,9 +265,7 @@ def command_provider(args) -> int:
         else: registry.rclone.config_interactive(name=args.name, backend=args.backend); print(json.dumps({"status": "success", "provider": "rclone", "remote": args.name}, ensure_ascii=False, indent=2))
         return 0
     if args.provider_command == "setup-rclone":
-        registry.rclone.config_interactive(name=args.name, backend=args.backend)
-        save_runtime(provider="rclone", profile=args.name, rclone_remote=args.name, source=f"rclone://{args.source}", target=f"rclone://{args.target}")
-        print(json.dumps({"status": "success", "provider": "rclone", "remote": args.name, "active": True}, ensure_ascii=False, indent=2)); return 0
+        registry.rclone.config_interactive(name=args.name, backend=args.backend); save_runtime(provider="rclone", profile=args.name, rclone_remote=args.name, source=f"rclone://{args.source}", target=f"rclone://{args.target}"); print(json.dumps({"status": "success", "provider": "rclone", "remote": args.name, "active": True}, ensure_ascii=False, indent=2)); return 0
     if args.provider_command == "use":
         if args.provider == "local": save_runtime(provider="local", source=args.source, target=args.target)
         elif args.provider == "google_drive":
@@ -305,19 +288,12 @@ def command_provider(args) -> int:
 
 def command_reprocess_subtitles(args) -> int:
     settings = load_settings(args.config)
-    if args.scheduled and any(value is not None for value in (args.provider, args.target)):
-        raise ValueError("Scheduled reprocess mode must use the saved active provider configuration")
-    provider = (args.provider or settings.provider).lower()
-    provider = "google_drive" if provider == "gdrive" else provider
-    settings = replace(settings, provider=provider)
-    target = args.target or settings.target
-    parsed_target = parse_storage_uri(target)
-    expected_scheme = {"local": "local", "google_drive": "gdrive", "rclone": "rclone"}[provider]
+    if args.scheduled and any(value is not None for value in (args.provider, args.target)): raise ValueError("Scheduled reprocess mode must use the saved active provider configuration")
+    provider = (args.provider or settings.provider).lower(); provider = "google_drive" if provider == "gdrive" else provider; settings = replace(settings, provider=provider)
+    target = args.target or settings.target; parsed_target = parse_storage_uri(target); expected_scheme = {"local": "local", "google_drive": "gdrive", "rclone": "rclone"}[provider]
     if parsed_target.scheme != expected_scheme: raise ValueError(f"Provider {provider!r} requires {expected_scheme}:// target")
-    configure_logging(settings.log_level)
-    readiness = check_unattended(settings, ensure_rclone_binary=(provider == "rclone" and settings.auto_bootstrap_rclone))
-    if not readiness.ready:
-        print(json.dumps({"status": "not_ready", "provider": provider, "checks": readiness.checks, "errors": readiness.errors}, ensure_ascii=False, indent=2)); return 3
+    configure_logging(settings.log_level); readiness = check_unattended(settings, ensure_rclone_binary=(provider == "rclone" and settings.auto_bootstrap_rclone))
+    if not readiness.ready: print(json.dumps({"status": "not_ready", "provider": provider, "checks": readiness.checks, "errors": readiness.errors}, ensure_ascii=False, indent=2)); return 3
     selectors = [args.output_folder, args.video_name, args.source]
     if args.reprocess_all and any(selectors): raise ValueError("--all cannot be combined with --output-folder, --video or --source")
     mode = "stt_only" if args.stt_only else "translate_only" if args.translate_only else "full"
@@ -328,6 +304,12 @@ def command_reprocess_subtitles(args) -> int:
             reprocessor = SubtitleReprocessor(settings, storage)
             if args.reprocess_all or not any(selectors): result = reprocessor.reprocess_all(parsed_target.value, mode=mode)
             else: result = reprocessor.reprocess(parsed_target.value, mode=mode, output_folder=args.output_folder, video_name=args.video_name, source=args.source)
+            if settings.tts_enabled:
+                from src.output_postprocessor import OutputPostProcessor
+                tts_result = OutputPostProcessor(settings, storage).process_target(parsed_target.value)
+                result["tts_postprocessing"] = tts_result
+                if tts_result.get("failed"):
+                    result["status"] = "error" if settings.tts_required else "partial_failure"
         finally: storage.close()
     print(json.dumps(result, ensure_ascii=False, indent=2))
     if result.get("status") in {"error", "partial_failure"}: return 1
@@ -337,15 +319,14 @@ def command_reprocess_subtitles(args) -> int:
 def command_prefetch_whisper(args) -> int:
     settings = load_settings(args.config); configure_logging(settings.log_level)
     from src.stt_engine import STTEngine
-    STTEngine(settings)
-    print(json.dumps({"status": "success", "whisper_model": settings.whisper_model, "resource_profile": settings.resource_profile, "whisper_cpu_threads": settings.whisper_cpu_threads}, ensure_ascii=False, indent=2)); return 0
+    STTEngine(settings); print(json.dumps({"status": "success", "whisper_model": settings.whisper_model, "resource_profile": settings.resource_profile, "whisper_cpu_threads": settings.whisper_cpu_threads}, ensure_ascii=False, indent=2)); return 0
 
 
 def command_doctor(args) -> int:
-    settings = load_settings(args.config); ensure_directories()
-    checks = {"config": Path(args.config).is_file(), "python": sys.version_info >= (3, 11), "resource_profile": settings.resource_profile, "whisper_model": settings.whisper_model, "whisper_cpu_threads": settings.whisper_cpu_threads, "max_parallel_videos": settings.max_parallel_videos, "detected_logical_cpus": settings.detected_logical_cpus, "detected_memory_gb": settings.detected_memory_gb}
+    settings = load_settings(args.config); ensure_directories(); checks = {"config": Path(args.config).is_file(), "python": sys.version_info >= (3, 11), "resource_profile": settings.resource_profile, "whisper_model": settings.whisper_model, "whisper_cpu_threads": settings.whisper_cpu_threads, "max_parallel_videos": settings.max_parallel_videos, "detected_logical_cpus": settings.detected_logical_cpus, "detected_memory_gb": settings.detected_memory_gb}
     ffmpeg_check = FFmpegResolver.doctor(settings); checks["ffmpeg"] = ffmpeg_check["available"]; checks["ffmpeg_path"] = ffmpeg_check.get("path", "")
     readiness = check_unattended(settings, ensure_rclone_binary=False); checks["unattended_ready"] = readiness.ready; checks["provider"] = readiness.provider; checks["provider_errors"] = readiness.errors; checks["provider_checks"] = readiness.checks
+    checks["tts_enabled"] = settings.tts_enabled; checks["tts_provider"] = settings.tts_provider; checks["tts_model_path"] = settings.tts_model_path; checks["tts_voices_path"] = settings.tts_voices_path
     print(json.dumps(checks, ensure_ascii=False, indent=2)); return 0 if checks["config"] and checks["python"] and checks["ffmpeg"] else 1
 
 
@@ -354,8 +335,7 @@ def _safe_profile(name: str) -> bool:
 
 
 def main() -> int:
-    argv = sys.argv[1:] or ["run", "--scheduled"]
-    args = build_parser().parse_args(argv)
+    argv = sys.argv[1:] or ["run", "--scheduled"]; args = build_parser().parse_args(argv)
     try:
         ensure_directories()
         if args.command == "init": ensure_directories(); print(f"Runtime initialized under: {BASE_DIR}"); return 0
