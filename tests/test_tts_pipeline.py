@@ -79,13 +79,13 @@ def test_render_timeline_retries_with_higher_speed_when_cue_is_too_long(tmp_path
 def test_render_timeline_time_stretches_when_max_speed_is_insufficient(tmp_path: Path, monkeypatch) -> None:
     first_cue_duration = 2.0
     second_cue_duration = 2.0
-    provider = FakeProvider([first_cue_duration, first_cue_duration, second_cue_duration, second_cue_duration])
+    provider = FakeProvider([first_cue_duration, second_cue_duration])
     settings = AppSettings(tts_sample_rate=1000, tts_speed=1.0, tts_max_speed=1.1)
     output = tmp_path / "tts.wav"
     cue_duration = 1.0
     expected_target_samples = round(cue_duration * settings.tts_sample_rate)
     expected_stretch_calls = 2
-    expected_adjustments = expected_stretch_calls * 2
+    expected_adjustments = expected_stretch_calls
     stretch_calls: list[tuple[int, int]] = []
 
     def fake_time_stretch(samples, target_samples, sample_rate, settings, temp_dir):
@@ -105,7 +105,7 @@ def test_render_timeline_time_stretches_when_max_speed_is_insufficient(tmp_path:
         (round(first_cue_duration * settings.tts_sample_rate), expected_target_samples),
         (round(second_cue_duration * settings.tts_sample_rate), expected_target_samples),
     ]
-    assert len(provider.calls) == expected_stretch_calls * 2
+    assert len(provider.calls) == expected_stretch_calls
     assert output.is_file()
 
 
