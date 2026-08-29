@@ -195,10 +195,21 @@ def _render_timeline(
                 adjusted += 1
         if len(audio) > target_samples:
             if len(audio) > target_samples * (1.0 + settings.tts_duration_tolerance):
-                raise TTSProviderError(
-                    f"Cue {cue_index} cannot fit in {cue.duration:.3f}s at max TTS speed {settings.tts_max_speed:.2f}"
+                logger.warning(
+                    "Cue %d exceeds its VTT duration at max TTS speed %.2fx; applying pitch-preserving time stretch",
+                    cue_index,
+                    settings.tts_max_speed,
                 )
-            audio = audio[:target_samples]
+                audio = _time_stretch_to_fit(
+                    audio,
+                    target_samples,
+                    sample_rate,
+                    settings,
+                    output.parent,
+                )
+                adjusted += 1
+            if len(audio) > target_samples:
+                audio = audio[:target_samples]
         start_samples = round(cue.start * sample_rate)
         required_length = start_samples + len(audio)
         if required_length > len(timeline):
@@ -209,6 +220,59 @@ def _render_timeline(
         timeline = np.zeros(2, dtype=np.float32)
     _write_wav(output, np.clip(timeline, -1.0, 1.0), sample_rate)
     return adjusted
+
+
+def _time_stretch_to_fit(
+    samples,
+    target_samples: int,
+    sample_rate: int,
+    settings: AppSettings,
+    temp_dir: Path,
+):
+    import numpy as np
+
+    if len(samples) <= target_samples:
+        return samples
+    ratio = len(samples) / target_samples
+    with tempfile.TemporaryDirectory(prefix="tts_stretch_", dir=temp_dir) as tmp:
+        root = Path(tmp)
+        source = root / "input.wav"
+        stretched = root / "output.wav"
+        _write_wav(source, samples, sample_rate)
+        filters: list[str] = []
+        while ratio > 2.0:
+            filters.append("atempo=2.0")
+            ratio /= 2.0
+        filters.append(f"atempo={ratio:.8f}")
+        command = [
+            str(_resolve_ffmpeg(settings)),
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            str(source.resolve()),
+            "-af",
+            ",".join(filters),
+            "-ac",
+            "1",
+            "-ar",
+            str(sample_rate),
+            str(stretched.resolve()),
+        ]
+        _run_ffmpeg(command, max(30, settings.ffmpeg_timeout_seconds))
+        try:
+            with wave.open(str(stretched), "rb") as handle:
+                if handle.getnchannels() != 1 or handle.getframerate() != sample_rate:
+                    raise TTSProviderError("TTS time-stretch produced an incompatible audio format")
+                audio = (
+                    np.frombuffer(handle.readframes(handle.getnframes()), dtype=np.int16).astype(np.float32) / 32767.0
+                )
+        except (OSError, EOFError) as exc:
+            raise TTSProviderError("TTS time-stretch produced an invalid WAV file") from exc
+    if len(audio) > target_samples:
+        audio = audio[:target_samples]
+    return audio
 
 
 def _resolve_ffmpeg(settings: AppSettings) -> Path:
@@ -357,29 +421,26 @@ def _write_wav(path: Path, samples, sample_rate: int) -> None:
 
 def _timestamp(value: str) -> float:
     parts = value.replace(",", ".").split(":")
-    if len(parts) == 3:
-        hours, minutes, seconds = parts
-    elif len(parts) == 2:
-        hours = "0"
-        minutes, seconds = parts
-    else:
+    if len(parts) != 3:
         raise ValueError(f"Invalid VTT timestamp: {value}")
+    hours, minutes, seconds = parts
     return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
 
 
 def _kokoro_language(language: str) -> str:
-    normalized = language.lower().replace("_", "-")
+    normalized = language.lower().replace("_", "-").strip()
     return {
-        "en": "en-us",
         "en-us": "en-us",
-        "en-gb": "en-gb",
-        "es": "es",
+        "en": "en-us",
         "es-es": "es",
+        "es": "es",
+        "fr-fr": "fr-fr",
         "fr": "fr-fr",
+        "de-de": "de",
+        "de": "de",
+        "it-it": "it",
         "it": "it",
-        "pt": "pt-br",
         "pt-br": "pt-br",
         "ja": "ja",
         "zh": "zh",
-        "hi": "hi",
     }.get(normalized, normalized)
