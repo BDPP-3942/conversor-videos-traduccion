@@ -85,6 +85,7 @@ def test_render_timeline_time_stretches_when_max_speed_is_insufficient(tmp_path:
     cue_duration = 1.0
     expected_target_samples = round(cue_duration * settings.tts_sample_rate)
     expected_stretch_calls = 2
+    expected_adjustments = expected_stretch_calls * 2
     stretch_calls: list[tuple[int, int]] = []
 
     def fake_time_stretch(samples, target_samples, sample_rate, settings, temp_dir):
@@ -99,7 +100,7 @@ def test_render_timeline_time_stretches_when_max_speed_is_insufficient(tmp_path:
         output,
     )
 
-    assert adjusted == expected_stretch_calls
+    assert adjusted == expected_adjustments
     assert stretch_calls == [
         (round(first_cue_duration * settings.tts_sample_rate), expected_target_samples),
         (round(second_cue_duration * settings.tts_sample_rate), expected_target_samples),
