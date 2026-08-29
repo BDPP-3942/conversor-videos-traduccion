@@ -196,8 +196,7 @@ def _render_timeline(
         if len(audio) > target_samples:
             if len(audio) > target_samples * (1.0 + settings.tts_duration_tolerance):
                 logger.warning(
-                    "Cue %d exceeds its VTT duration at max TTS speed %.2fx; "
-                    "applying pitch-preserving time stretch",
+                    "Cue %d exceeds its VTT duration at max TTS speed %.2fx; applying pitch-preserving time stretch",
                     cue_index,
                     settings.tts_max_speed,
                 )
@@ -444,5 +443,4 @@ def _kokoro_language(language: str) -> str:
         "pt-br": "pt-br",
         "ja": "ja",
         "zh": "zh",
-        "hi": "hi",
     }.get(normalized, normalized)
