@@ -47,8 +47,8 @@ def test_render_timeline_keeps_silence_between_cues(tmp_path: Path) -> None:
 
     assert adjusted == 0
     assert output.is_file()
-    assert provider.calls[0] == ("Uno", 1.0)
-    assert provider.calls[1] == ("Dos", 1.0)
+    assert [text for text, _ in provider.calls] == ["Uno", "Dos"]
+    assert [speed for _, speed in provider.calls] == [1.0, 1.0]
 
 
 def test_render_timeline_retries_with_higher_speed_when_cue_is_too_long(tmp_path: Path) -> None:
@@ -65,7 +65,8 @@ def test_render_timeline_retries_with_higher_speed_when_cue_is_too_long(tmp_path
 
     assert adjusted == 1
     assert len(provider.calls) == 2
-    assert provider.calls[0] == ("Texto", 1.0)
+    assert provider.calls[0][0] == "Texto"
+    assert provider.calls[0][1] == 1.0
     assert provider.calls[1][0] == "Texto"
     assert 1.0 < provider.calls[1][1] <= 1.35
 
@@ -89,8 +90,8 @@ def test_render_timeline_time_stretches_when_max_speed_is_insufficient(tmp_path:
     )
 
     assert adjusted == 2
-    assert stretch_calls == [(2000, 1000)]
-    assert len(provider.calls) == 3
+    assert stretch_calls == [(2000, 1000), (2000, 1000)]
+    assert len(provider.calls) == 4
     assert output.is_file()
 
 
