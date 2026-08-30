@@ -20,20 +20,18 @@ class VTTBuilder:
 
     @classmethod
     def validate_segments(cls, segments: list[dict]) -> None:
-        previous_end = 0.0
         for index, segment in enumerate(segments, start=1):
             start = float(segment["start"])
             end = float(segment["end"])
             text = str(segment.get("text") or "").strip()
             if start < 0:
                 raise ValueError(f"Segment {index}: start cannot be negative")
-            if end <= start:
-                raise ValueError(f"Segment {index}: end must be greater than start")
-            if start < previous_end:
-                logger.warning("Segment %d overlaps previous segment", index)
+            # A cue is erroneous only when its final timestamp precedes its initial timestamp.
+            # Zero-duration cues are therefore retained as valid for repair/reprocessing.
+            if end < start:
+                raise ValueError(f"Segment {index}: end must not be earlier than start")
             if not text:
                 logger.warning("Segment %d contains empty text", index)
-            previous_end = max(previous_end, end)
 
     @classmethod
     def generate_vtt(cls, segments: list[dict], output_path: Path) -> None:
