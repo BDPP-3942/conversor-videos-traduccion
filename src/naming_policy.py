@@ -10,15 +10,19 @@ _NOISE = re.compile(
     r"extract(?:ed)?|unzip(?:ped)?|descomprim(?:ido|ida|idos|idas))",
     re.IGNORECASE,
 )
+# Transport/download tools commonly append timestamps in several conventions.
+# The trailing guard deliberately checks digit boundaries rather than ``\b``:
+# ``_`` is a word character in Python regexes, so ``\b`` does not match before
+# ``_Curso_03`` and would leave the timestamp behind.
 _DATE = re.compile(
     r"(?:"
-    r"\b\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?\b|"
-    r"\b\d{8}[ _-]?\d{4,6}\b|"
-    r"\b\d{4}[-_.]\d{1,2}[-_.]\d{1,2}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?\b|"
-    r"\b\d{1,2}[-_.]\d{1,2}[-_.]\d{4}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?\b|"
-    r"\b\d{1,2}[/-]\d{1,2}[/-]\d{4}(?:[ _T-]+\d{1,2}[:.]\d{2}(?::\d{2})?)?\b|"
-    r"\b\d{4}[-_.]\d{1,2}[-_.]\d{1,2}[T _-]\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?(?:Z|[+-]\d{2}:?\d{2})?\b|"
-    r"\b\d{4}\d{2}\d{2}[ _T-]\d{1,2}[:.]\d{2}(?::\d{2})?\b"
+    r"(?<!\d)\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?(?!\d)|"
+    r"(?<!\d)\d{8}[ _-]?\d{4,6}(?!\d)|"
+    r"(?<!\d)\d{4}[-_.]\d{1,2}[-_.]\d{1,2}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?(?!\d)|"
+    r"(?<!\d)\d{1,2}[-_.]\d{1,2}[-_.]\d{4}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?(?!\d)|"
+    r"(?<!\d)\d{1,2}[/-]\d{1,2}[/-]\d{4}(?:[ _T-]+\d{1,2}[:.]\d{2}(?::\d{2})?)?(?!\d)|"
+    r"(?<!\d)\d{4}[-_.]\d{1,2}[-_.]\d{1,2}[T _-]\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?(?:Z|[+-]\d{2}:?\d{2})?(?!\d)|"
+    r"(?<!\d)\d{4}\d{2}\d{2}[ _T-]\d{1,2}[:.]\d{2}(?::\d{2})?(?!\d)"
     r")",
     re.IGNORECASE,
 )
@@ -49,13 +53,6 @@ def _clean(value: str) -> str:
     value = re.sub(r"\s*\((?:copy|copia|\d+)\)\s*$", "", value, flags=re.IGNORECASE)
     value = _NOISE.sub("_", value)
     return re.sub(r"[_ .-]+", "_", value).strip("_ .-")
-
-
-def _meaningful_parts(value: str) -> list[str]:
-    cleaned = _clean(value)
-    if not cleaned:
-        return []
-    return [part for part in cleaned.split("_") if part]
 
 
 def _is_noise(value: str) -> bool:
@@ -105,9 +102,6 @@ def _course_context(context_values: list[str]) -> tuple[int | None, str | None]:
             return number, _description(value, number, _COURSE_LABEL)
     for value in meaningful:
         if not value or _is_noise(value) or _LESSON_LABEL.search(value):
-            continue
-        # Never infer a course number from a component that contained a date.
-        if _DATE.search(value):
             continue
         number = _match_number(value, _NUMBER)
         if number is not None:
