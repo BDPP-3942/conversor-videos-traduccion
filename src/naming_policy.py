@@ -70,7 +70,12 @@ def _clean_context(context_values: list[str]) -> list[str]:
     """
     raw_context = "/".join(context_values)
     cleaned_context = _TIMESTAMP.sub("_", raw_context)
-    return [cleaned for part in cleaned_context.split("/") if (cleaned := _clean(part))]
+    cleaned_parts: list[str] = []
+    for part in cleaned_context.split("/"):
+        cleaned = _clean(part)
+        if cleaned:
+            cleaned_parts.append(cleaned)
+    return cleaned_parts
 
 
 def _is_noise(value: str) -> bool:
