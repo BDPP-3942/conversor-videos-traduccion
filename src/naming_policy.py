@@ -16,7 +16,7 @@ _NOISE = re.compile(
 _DATE = re.compile(
     r"(?:"
     r"\b\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?\b|"
-    r"\b\d{8}[ _-]?\d{6}\b|"
+    r"\b\d{8}[ _-]?\d{4,6}\b|"
     r"\b\d{4}[-_.]\d{1,2}[-_.]\d{1,2}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?\b|"
     r"\b\d{1,2}[-_.]\d{1,2}[-_.]\d{4}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?\b|"
     r"\b\d{4}[-_.]\d{1,2}[-_.]\d{1,2}[T _-]\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?(?:Z|[+-]\d{2}:?\d{2})?\b"
@@ -38,26 +38,9 @@ _LESSON_NUMBER = re.compile(
     re.IGNORECASE,
 )
 _GENERIC = {
-    "mp4",
-    "wmv",
-    "video",
-    "videos",
-    "audio",
-    "media",
-    "file",
-    "files",
-    "archivo",
-    "archivos",
-    "download",
-    "downloads",
-    "descarga",
-    "descargas",
-    "compressed",
-    "compression",
-    "archive",
-    "zip",
-    "rar",
-    "7z",
+    "mp4", "wmv", "video", "videos", "audio", "media", "file", "files",
+    "archivo", "archivos", "download", "downloads", "descarga", "descargas",
+    "compressed", "compression", "archive", "zip", "rar", "7z",
 }
 
 
@@ -128,7 +111,6 @@ def _lesson_context(source: Path, context_values: list[str]) -> tuple[int | None
     description = _description(source.name, number, _LESSON_LABEL)
     if number is not None or description:
         return number, description
-
     for value in reversed(context_values):
         number = _match_number(value, _LESSON_NUMBER)
         description = _description(value, number, _LESSON_LABEL)
@@ -143,26 +125,21 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
     context = list(relative.parts[:-1])
     course, course_name = _course_context(context)
     lesson, lesson_name = _lesson_context(source, context)
-
     course_part = str(course) if course is not None else (course_name or "")
     if course is not None and course_name:
         course_part = f"{course}_{course_name}"
-
     lesson_part = f"{lesson:02d}" if lesson is not None else ""
     if lesson_name:
         lesson_part = f"{lesson_part + '_' if lesson_part else ''}{lesson_name}"
-
     output_stem = "x".join(part for part in (course_part, lesson_part) if part)
     fallback = _sanitize_text(_clean(source.stem))
     output_stem = output_stem or fallback
-
     review_required = course is None or lesson is None
     reasons: list[str] = []
     if course is None:
         reasons.append("course number not found; textual course description used when available")
     if lesson is None:
         reasons.append("lesson number not found; textual lesson description used when available")
-
     return SourceNameMetadata(
         course=course,
         lesson=lesson,
