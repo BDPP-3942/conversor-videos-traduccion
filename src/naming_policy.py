@@ -15,8 +15,8 @@ _NOISE = re.compile(
 # accidentally discarded as generic numeric noise.
 _DATE = re.compile(
     r"(?:"
-    r"\b\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?\b|"  # 20260826T120000Z
-    r"\b\d{8}[ _-]?\d{6}\b|"  # 20260826_120000 / 20260826120000
+    r"\b\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?\b|"
+    r"\b\d{8}[ _-]?\d{6}\b|"
     r"\b\d{4}[-_.]\d{1,2}[-_.]\d{1,2}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?\b|"
     r"\b\d{1,2}[-_.]\d{1,2}[-_.]\d{4}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?\b|"
     r"\b\d{4}[-_.]\d{1,2}[-_.]\d{1,2}[T _-]\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?(?:Z|[+-]\d{2}:?\d{2})?\b"
@@ -153,7 +153,7 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
         lesson_part = f"{lesson_part + '_' if lesson_part else ''}{lesson_name}"
 
     output_stem = "x".join(part for part in (course_part, lesson_part) if part)
-    fallback = _sanitize_text(source.stem)
+    fallback = _sanitize_text(_clean(source.stem))
     output_stem = output_stem or fallback
 
     review_required = course is None or lesson is None
