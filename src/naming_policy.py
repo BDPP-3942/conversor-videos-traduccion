@@ -19,6 +19,7 @@ _DATE = re.compile(
     r"(?<!\d)\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?(?!\d)|"
     r"(?<!\d)\d{8}[ _-]?\d{4,6}(?!\d)|"
     r"(?<!\d)\d{4}[-_.]\d{1,2}[-_.]\d{1,2}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?(?!\d)|"
+    r"(?<!\d)\d{4}/\d{1,2}/\d{1,2}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?(?!\d)|"
     r"(?<!\d)\d{1,2}[-_.]\d{1,2}[-_.]\d{4}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?(?!\d)|"
     r"(?<!\d)\d{1,2}[/-]\d{1,2}[/-]\d{4}(?:[ _T-]+\d{1,2}[:.]\d{2}(?::\d{2})?)?(?!\d)|"
     r"(?<!\d)\d{4}[-_.]\d{1,2}[-_.]\d{1,2}[T _-]\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?(?:Z|[+-]\d{2}:?\d{2})?(?!\d)|"
@@ -45,14 +46,31 @@ _GENERIC = {
     "archivo", "archivos", "download", "downloads", "descarga", "descargas",
     "compressed", "compression", "archive", "zip", "rar", "7z",
 }
+_VIDEO_EXTENSIONS = {".mp4", ".wmv"}
 
 
 def _clean(value: str) -> str:
-    value = Path(value).stem
+    value = value.strip()
+    suffix = Path(value).suffix.lower()
+    if suffix in _VIDEO_EXTENSIONS:
+        value = value[: -len(suffix)]
     value = _TIMESTAMP.sub("_", value)
     value = re.sub(r"\s*\((?:copy|copia|\d+)\)\s*$", "", value, flags=re.IGNORECASE)
     value = _NOISE.sub("_", value)
     return re.sub(r"[_ .-]+", "_", value).strip("_ .-")
+
+
+def _clean_context(context_values: list[str]) -> list[str]:
+    """Clean date noise before treating Path components as semantic context.
+
+    A slash-formatted date is split into several ``Path.parts`` components before
+    the naming policy sees it. Rejoining the components for date cleanup lets the
+    date matcher remove the timestamp as one semantic block without confusing
+    its day/month/year fragments with course or lesson numbers.
+    """
+    raw_context = "/".join(context_values)
+    cleaned_context = _TIMESTAMP.sub("_", raw_context)
+    return [cleaned for part in cleaned_context.split("/") if (cleaned := _clean(part))]
 
 
 def _is_noise(value: str) -> bool:
@@ -93,7 +111,7 @@ def _description(value: str, number: int | None, label_pattern: re.Pattern[str])
 
 def _course_context(context_values: list[str]) -> tuple[int | None, str | None]:
     """Find course number/description only from meaningful, date-cleaned path components."""
-    meaningful = [_clean(value) for value in context_values]
+    meaningful = _clean_context(context_values)
     for value in meaningful:
         if not value or _is_noise(value):
             continue
@@ -119,7 +137,7 @@ def _lesson_context(source: Path, context_values: list[str]) -> tuple[int | None
     description = _description(source.name, number, _LESSON_LABEL)
     if number is not None or description:
         return number, description
-    for value in reversed(context_values):
+    for value in reversed(_clean_context(context_values)):
         number = _match_number(value, _LESSON_NUMBER)
         description = _description(value, number, _LESSON_LABEL)
         if number is not None or description:
