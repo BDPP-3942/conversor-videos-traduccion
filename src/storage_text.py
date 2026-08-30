@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.storage.base import StorageFile, StorageProvider
+from src.storage.base import StorageProvider
 from src.storage.uri import parse_storage_uri
 
 
