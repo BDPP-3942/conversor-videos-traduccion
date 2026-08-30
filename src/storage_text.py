@@ -15,11 +15,7 @@ def load_storage_text_file(storage: StorageProvider, uri: str, *, label: str) ->
     parent_value, separator, name = value.rpartition("/")
     if not separator or not parent_value or not name:
         raise ValueError(f"{label} must identify a file below a storage folder: {uri}")
-    candidates = [
-        item
-        for item in storage.list_children(parent_value)
-        if not item.is_directory and item.name == name
-    ]
+    candidates = [item for item in storage.list_children(parent_value) if not item.is_directory and item.name == name]
     if not candidates:
         raise FileNotFoundError(f"{label} does not exist in storage: {uri}")
     if len(candidates) > 1:
