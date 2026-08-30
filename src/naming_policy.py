@@ -10,14 +10,24 @@ _NOISE = re.compile(
     r"extract(?:ed)?|unzip(?:ped)?|descomprim(?:ido|ida|idos|idas))",
     re.IGNORECASE,
 )
-_TIMESTAMP = re.compile(
-    r"(?:\b\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?\b|"
-    r"\b\d{8}[_ -]?\d{6}\b|"
-    r"\b\d{4}[_ -]\d{2}[_ -]\d{2}(?:[_ -]\d{2}[_ -]\d{2}[_ -]\d{2})?\b|"
-    r"\b\d{4}-\d{2}-\d{2}(?:[ _-]\d{2}[-:]\d{2}[-:]\d{2})?\b|"
-    r"\b\d{4}/\d{2}/\d{2}(?:[ _-]\d{2}[-:]\d{2}[-:]\d{2})?\b)",
+# Transport/download tools commonly append timestamps in several conventions.
+# The trailing guard deliberately checks digit boundaries rather than ``\b``:
+# ``_`` is a word character in Python regexes, so ``\b`` does not match before
+# ``_Curso_03`` and would leave the timestamp behind.
+_DATE = re.compile(
+    r"(?:"
+    r"(?<!\d)\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?(?!\d)|"
+    r"(?<!\d)\d{8}[ _-]?\d{4,6}(?!\d)|"
+    r"(?<!\d)\d{4}[-_.]\d{1,2}[-_.]\d{1,2}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?(?!\d)|"
+    r"(?<!\d)\d{4}/\d{1,2}/\d{1,2}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?(?!\d)|"
+    r"(?<!\d)\d{1,2}[-_.]\d{1,2}[-_.]\d{4}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?(?!\d)|"
+    r"(?<!\d)\d{1,2}[/-]\d{1,2}[/-]\d{4}(?:[ _T-]+\d{1,2}[:.]\d{2}(?::\d{2})?)?(?!\d)|"
+    r"(?<!\d)\d{4}[-_.]\d{1,2}[-_.]\d{1,2}[T _-]\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?(?:Z|[+-]\d{2}:?\d{2})?(?!\d)|"
+    r"(?<!\d)\d{4}\d{2}\d{2}[ _T-]\d{1,2}[:.]\d{2}(?::\d{2})?(?!\d)"
+    r")",
     re.IGNORECASE,
 )
+_TIMESTAMP = _DATE
 _NUMBER = re.compile(r"(?<!\d)(\d{1,4})(?!\d)")
 _COURSE_LABEL = re.compile(r"(?:curso|course)", re.IGNORECASE)
 _LESSON_LABEL = re.compile(r"(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)", re.IGNORECASE)
@@ -53,14 +63,36 @@ _GENERIC = {
     "rar",
     "7z",
 }
+_VIDEO_EXTENSIONS = {".mp4", ".wmv"}
 
 
 def _clean(value: str) -> str:
-    value = Path(value).stem
+    value = value.strip()
+    suffix = Path(value).suffix.lower()
+    if suffix in _VIDEO_EXTENSIONS:
+        value = value[: -len(suffix)]
     value = _TIMESTAMP.sub("_", value)
     value = re.sub(r"\s*\((?:copy|copia|\d+)\)\s*$", "", value, flags=re.IGNORECASE)
     value = _NOISE.sub("_", value)
     return re.sub(r"[_ .-]+", "_", value).strip("_ .-")
+
+
+def _clean_context(context_values: list[str]) -> list[str]:
+    """Clean date noise before treating Path components as semantic context.
+
+    A slash-formatted date is split into several ``Path.parts`` components before
+    the naming policy sees it. Rejoining the components for date cleanup lets the
+    date matcher remove the timestamp as one semantic block without confusing
+    its day/month/year fragments with course or lesson numbers.
+    """
+    raw_context = "/".join(context_values)
+    cleaned_context = _TIMESTAMP.sub("_", raw_context)
+    cleaned_parts: list[str] = []
+    for part in cleaned_context.split("/"):
+        cleaned = _clean(part)
+        if cleaned:
+            cleaned_parts.append(cleaned)
+    return cleaned_parts
 
 
 def _is_noise(value: str) -> bool:
@@ -100,19 +132,24 @@ def _description(value: str, number: int | None, label_pattern: re.Pattern[str])
 
 
 def _course_context(context_values: list[str]) -> tuple[int | None, str | None]:
-    """Find course number and description from the same meaningful path component."""
-    for value in context_values:
+    """Find course number/description only from meaningful, date-cleaned path components."""
+    meaningful = _clean_context(context_values)
+    for value in meaningful:
+        if not value or _is_noise(value):
+            continue
         number = _match_number(value, _COURSE_NUMBER)
         if number is not None:
             return number, _description(value, number, _COURSE_LABEL)
-    for value in context_values:
+    for value in meaningful:
+        if not value or _is_noise(value) or _LESSON_LABEL.search(value):
+            continue
         number = _match_number(value, _NUMBER)
-        if number is not None and not _LESSON_LABEL.search(value):
+        if number is not None:
             return number, _description(value, number, _COURSE_LABEL)
-    for value in context_values:
-        cleaned = _clean(value)
-        if not _is_noise(cleaned):
-            return None, _description(cleaned, None, _COURSE_LABEL)
+    for value in meaningful:
+        if not value or _is_noise(value):
+            continue
+        return None, _description(value, None, _COURSE_LABEL)
     return None, None
 
 
@@ -122,8 +159,7 @@ def _lesson_context(source: Path, context_values: list[str]) -> tuple[int | None
     description = _description(source.name, number, _LESSON_LABEL)
     if number is not None or description:
         return number, description
-
-    for value in reversed(context_values):
+    for value in reversed(_clean_context(context_values)):
         number = _match_number(value, _LESSON_NUMBER)
         description = _description(value, number, _LESSON_LABEL)
         if number is not None or description:
@@ -137,26 +173,21 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
     context = list(relative.parts[:-1])
     course, course_name = _course_context(context)
     lesson, lesson_name = _lesson_context(source, context)
-
     course_part = str(course) if course is not None else (course_name or "")
     if course is not None and course_name:
         course_part = f"{course}_{course_name}"
-
     lesson_part = f"{lesson:02d}" if lesson is not None else ""
     if lesson_name:
         lesson_part = f"{lesson_part + '_' if lesson_part else ''}{lesson_name}"
-
     output_stem = "x".join(part for part in (course_part, lesson_part) if part)
-    fallback = _sanitize_text(source.stem)
+    fallback = _sanitize_text(_clean(source.stem))
     output_stem = output_stem or fallback
-
     review_required = course is None or lesson is None
     reasons: list[str] = []
     if course is None:
         reasons.append("course number not found; textual course description used when available")
     if lesson is None:
         reasons.append("lesson number not found; textual lesson description used when available")
-
     return SourceNameMetadata(
         course=course,
         lesson=lesson,
