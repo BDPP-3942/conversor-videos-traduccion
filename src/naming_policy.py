@@ -10,14 +10,20 @@ _NOISE = re.compile(
     r"extract(?:ed)?|unzip(?:ped)?|descomprim(?:ido|ida|idos|idas))",
     re.IGNORECASE,
 )
-_TIMESTAMP = re.compile(
-    r"(?:\b\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?\b|"
-    r"\b\d{8}[_ -]?\d{6}\b|"
-    r"\b\d{4}[_ -]\d{2}[_ -]\d{2}(?:[_ -]\d{2}[_ -]\d{2}[_ -]\d{2})?\b|"
-    r"\b\d{4}-\d{2}-\d{2}(?:[ _-]\d{2}[-:]\d{2}[-:]\d{2})?\b|"
-    r"\b\d{4}/\d{2}/\d{2}(?:[ _-]\d{2}[-:]\d{2}[-:]\d{2})?\b)",
+# Transport/download tools commonly append timestamps in several conventions.
+# Keep these patterns deliberately date-specific so course/lesson numbers are not
+# accidentally discarded as generic numeric noise.
+_DATE = re.compile(
+    r"(?:"
+    r"\b\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?\b|"  # 20260826T120000Z
+    r"\b\d{8}[ _-]?\d{6}\b|"  # 20260826_120000 / 20260826120000
+    r"\b\d{4}[-_.]\d{1,2}[-_.]\d{1,2}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?\b|"
+    r"\b\d{1,2}[-_.]\d{1,2}[-_.]\d{4}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?\b|"
+    r"\b\d{4}[-_.]\d{1,2}[-_.]\d{1,2}[T _-]\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?(?:Z|[+-]\d{2}:?\d{2})?\b"
+    r")",
     re.IGNORECASE,
 )
+_TIMESTAMP = _DATE
 _NUMBER = re.compile(r"(?<!\d)(\d{1,4})(?!\d)")
 _COURSE_LABEL = re.compile(r"(?:curso|course)", re.IGNORECASE)
 _LESSON_LABEL = re.compile(r"(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)", re.IGNORECASE)
