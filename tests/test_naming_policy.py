@@ -37,6 +37,20 @@ def test_download_noise_does_not_become_course_number():
     assert metadata.lesson == 7
 
 
+
+def test_date_noise_formats_are_ignored_without_removing_course_or_lesson():
+    for noisy_folder in (
+        "download_2026-08-26_12-00-00_Curso_03",
+        "download_26-08-2026_12-00-00_Curso_03",
+        "download_2026.08.26T12:00:00_Curso_03",
+        "download_20260826_120000_Curso_03",
+    ):
+        metadata = resolve(Path(noisy_folder) / "07_Forma_del_Tigre.mp4", Path("."))
+        assert metadata.course == 3
+        assert metadata.lesson == 7
+        assert metadata.output_stem == "3x07_Forma_del_Tigre"
+
+
 def test_textual_course_and_numeric_lesson_use_x_separator():
     metadata = resolve(Path("Taichi_Intermedio/02_Forma.mp4"), Path("."))
     assert metadata.course_name == "Taichi_Intermedio"
