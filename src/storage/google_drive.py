@@ -18,8 +18,7 @@ class GoogleDriveStorageProvider(StorageProvider):
             from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
         except ImportError as exc:
             raise RuntimeError(
-                "Google Drive support requires google-api-python-client, "
-                "google-auth-httplib2 and google-auth-oauthlib"
+                "Google Drive support requires google-api-python-client, google-auth-httplib2 and google-auth-oauthlib"
             ) from exc
         self._Request = Request
         self._Credentials = Credentials
