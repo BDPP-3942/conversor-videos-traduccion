@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import os
 from dataclasses import dataclass, replace
 
 from config.settings import AppSettings
@@ -37,6 +39,11 @@ class ResourceProfile:
     disk_free_gb: float = 0.0
 
 
+def _memory_gb() -> float:
+    """Return detected physical memory and preserve the legacy injectable seam."""
+    return detect_hardware().memory_total_gb
+
+
 def estimate_whisper_budget(model: str, device: str, threads: int) -> ResourceBudget:
     ram = {"tiny": 0.8, "base": 1.0, "small": 1.6, "medium": 3.0, "large": 5.5, "large-v3": 5.5}.get(model.lower(), 3.0)
     if device == "cuda":
@@ -45,13 +52,13 @@ def estimate_whisper_budget(model: str, device: str, threads: int) -> ResourceBu
 
 
 def available_gpu_memory(hw: HardwareInfo) -> float:
-    """Return the safe GPU memory budget without double-counting unified memory."""
-    if hw.gpu.memory_shared_with_system or hw.gpu.memory_model == "unified":
+    """Return safe GPU memory without double-counting system-shared memory."""
+    gpu = hw.gpu
+    if gpu.memory_shared_with_system or gpu.memory_model in {"unified", "shared"}:
         return max(0.0, hw.memory_available_gb - 2.0)
-    return max(0.0, hw.gpu.vram_free_gb)
+    return max(0.0, gpu.vram_free_gb)
 
 
-# Backward-compatible private alias for existing callers/tests.
 _available_gpu_memory = available_gpu_memory
 
 
@@ -71,10 +78,9 @@ def _resolve_whisper(hardware: HardwareInfo, settings: AppSettings) -> tuple[str
         device = "cpu"
     else:
         device = "cuda" if hardware.gpu.usable_for_whisper and gpu_memory >= 3.0 else "cpu"
-    if requested_compute == "auto":
+    compute = requested_compute
+    if compute == "auto":
         compute = "float16" if device == "cuda" else "int8"
-    else:
-        compute = requested_compute
     if device == "cpu" and compute not in {"int8", "int8_float32", "float32"}:
         compute = "int8"
     if device == "cuda" and compute not in {"float16", "int8_float16", "int8_float32", "float32"}:
@@ -96,13 +102,9 @@ def safe_parallelism(settings: AppSettings, hardware: HardwareInfo | None = None
     safe_ram = max(1.0, hw.memory_available_gb - 2.0)
     by_cpu = max(1, safe_cpu // max(1, budget.cpu_threads))
     by_ram = max(1, int(safe_ram // max(0.5, budget.ram_gb)))
-    if device == "cuda":
-        by_gpu = max(1, int(available_gpu_memory(hw) // max(0.5, budget.gpu_memory_gb)))
-    else:
-        by_gpu = requested
+    by_gpu = requested if device != "cuda" else max(1, int(available_gpu_memory(hw) // max(0.5, budget.gpu_memory_gb)))
     effective = min(requested, by_cpu, by_ram, by_gpu)
     if effective < requested:
-        import logging
         logging.getLogger(__name__).warning("Clamping max_parallel_videos from %d to %d for safe resource budget", requested, effective)
     return effective
 
@@ -137,7 +139,18 @@ def build_profile(settings: AppSettings, hardware: HardwareInfo | None = None) -
 
 
 def detect_profile(settings: AppSettings) -> ResourceProfile:
-    return build_profile(settings)
+    """Build a profile while preserving deterministic CPU/memory test seams."""
+    hardware = detect_hardware()
+    detected_memory = _memory_gb()
+    detected_cpus = max(1, os.cpu_count() or hardware.logical_cpus)
+    if detected_memory != hardware.memory_total_gb or detected_cpus != hardware.logical_cpus:
+        hardware = replace(
+            hardware,
+            logical_cpus=detected_cpus,
+            memory_total_gb=detected_memory,
+            memory_available_gb=min(hardware.memory_available_gb, detected_memory),
+        )
+    return build_profile(settings, hardware)
 
 
 def apply_resource_profile(settings: AppSettings, hardware: HardwareInfo | None = None) -> AppSettings:
