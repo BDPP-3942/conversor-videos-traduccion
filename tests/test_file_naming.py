@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from src.file_naming import FileNameFormatter, normalize_comparison_key
+from src.file_naming import FileNameFormatter, normalize_comparison_key, normalize_filename
 
 
 def test_course_number_and_description_are_preserved(tmp_path: Path) -> None:
@@ -53,3 +53,40 @@ def test_trailing_iso_hh_mm_timestamp_is_removed(tmp_path: Path) -> None:
     assert "2026" not in metadata.output_stem
     assert "10_24" not in metadata.output_stem
     assert metadata.lesson == 7
+
+
+def test_calendar_date_time_formats_are_removed_from_normalized_name() -> None:
+    cases = (
+        "Forma_31-08-2026_10:24:59.mp4",
+        "Forma_31/08/2026_10:24:59.mp4",
+        "Forma_08/31/2026_10:24:59.mp4",
+        "Forma_2026-08-31_10:24:59.mp4",
+        "Forma_2026/08/31 10:24:59.mp4",
+        "Forma_2026.08.31T10.24.59.mp4",
+        "Forma_20260831_102459.mp4",
+        "Forma_31082026_102459.mp4",
+        "Forma_08312026_102459.mp4",
+    )
+    for filename in cases:
+        normalized = normalize_filename(filename)
+        assert "2026" not in normalized
+        assert "31_08_2026" not in normalized
+        assert "08_31_2026" not in normalized
+        assert "10_24_59" not in normalized
+
+
+def test_calendar_date_time_suffix_is_removed_from_source_output(tmp_path: Path) -> None:
+    root = tmp_path / "extracted"
+    for timestamp in (
+        "31-08-2026 10:24:59",
+        "31/08/2026 10:24:59",
+        "08/31/2026 10:24:59",
+        "2026-08-31 10:24:59",
+        "2026/08/31_10_24_59",
+        "20260831_102459",
+    ):
+        source = root / "Curso 03 Tai Chi" / f"07 Forma del Tigre_{timestamp}.mp4"
+        metadata = FileNameFormatter.resolve_source_metadata(source, root)
+        assert metadata.lesson == 7
+        assert "2026" not in metadata.output_stem
+        assert "10_24" not in metadata.output_stem
