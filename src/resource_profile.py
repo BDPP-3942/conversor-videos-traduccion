@@ -116,7 +116,11 @@ def safe_parallelism(settings: AppSettings, hardware: HardwareInfo | None = None
     safe_ram = max(1.0, hw.memory_available_gb - 2.0)
     by_cpu = max(1, safe_cpu // max(1, budget.cpu_threads))
     by_ram = max(1, int(safe_ram // max(0.5, budget.ram_gb)))
-    by_gpu = max(1, int(available_gpu_memory(hw) // max(0.5, budget.gpu_memory_gb))) if device == "cuda" else 2**31 - 1
+    by_gpu = (
+        max(1, int(available_gpu_memory(hw) // max(0.5, budget.gpu_memory_gb)))
+        if device == "cuda"
+        else 2**31 - 1
+    )
     hardware_cap = max(1, min(by_cpu, by_ram, by_gpu))
 
     configured = int(settings.max_parallel_videos)
@@ -149,7 +153,9 @@ def build_profile(settings: AppSettings, hardware: HardwareInfo | None = None) -
     model = settings.whisper_model.lower()
     if model == "auto":
         model = (
-            "medium" if (device == "cuda" and available_gpu_memory(hw) >= 8) or (memory >= 16 and cpus >= 6) else "small"
+            "medium"
+            if (device == "cuda" and available_gpu_memory(hw) >= 8) or (memory >= 16 and cpus >= 6)
+            else "small"
         )
     if memory >= 24 and cpus >= 12:
         name, batch = "high", 12
