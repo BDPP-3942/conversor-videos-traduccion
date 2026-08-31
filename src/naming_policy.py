@@ -10,7 +10,7 @@ _COURSE_LABEL = re.compile(r"(?:curso|course)", re.IGNORECASE)
 _LESSON_LABEL = re.compile(r"(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)", re.IGNORECASE)
 _COURSE_NUMBER = re.compile(r"(?:^|[_\- .])(?:curso|course)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|\b(\d{1,4})\s*(?:º|°)\s*curso\b", re.IGNORECASE)
 _LESSON_NUMBER = re.compile(r"(?:^|[_\- .])(?:cap[ií]tulo|lecci[oó]n|lesson|chapter|clase|tema|unidad)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|^\s*(\d{1,4})\s*(?:º|°|[._-])\s*", re.IGNORECASE)
-_LEADING_NUMBER = re.compile(r"^\s*(\d{1,4})\s*(?:º|°|[._-])\s*")
+_LEADING_NUMBER = re.compile(r"^\s*(\d{1,4})(?:\s+(?=[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])|[._-])\s*(?:º|°|[._-])?\s*", re.IGNORECASE)
 _GENERIC = {"mp4", "wmv", "video", "videos", "audio", "media", "file", "files", "archivo", "archivos", "download", "downloads", "descarga", "descargas", "compressed", "compression", "archive", "zip", "rar", "7z"}
 _VIDEO_EXTENSIONS = {".mp4", ".wmv"}
 
@@ -145,7 +145,6 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
         course=course,
         lesson=lesson,
         description=lesson_name or course_name or fallback,
-        output_stem=output_stem,
         confidence="high" if course is not None and lesson is not None else "medium",
         review_required=review_required,
         review_reason="; ".join(reasons),
