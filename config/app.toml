@@ -32,8 +32,8 @@ auto_update_rclone = false
 
 [processing]
 whisper_model = "auto"
-whisper_device = "cpu"
-whisper_compute_type = "int8"
+whisper_device = "auto"
+whisper_compute_type = "auto"
 whisper_beam_size = 5
 whisper_condition_on_previous_text = true
 whisper_initial_prompt = "Tai Chi, taichi, Tai Chi Chuan, Taijiquan, T'ai Chi, qi, qigong, chi kung, yin yang, wuji, baguazhang, Xing Yi, Tui Shou, Qin Na, Chin Na, Lan Que Wei, Si Zheng Tui, Peng, Lu, Ji, An, Cai, Lie, Zhou, Kao, taiji, taijiquan, manos de seda, gran rueda, tambor chino, cielo, tierra"
@@ -82,7 +82,6 @@ timeout_seconds = 7200
 avoid_reencode = true
 
 [tts]
-# Disabled by default: existing processing remains unchanged until explicitly enabled.
 enabled = false
 required = false
 provider = "kokoro"
