@@ -38,14 +38,8 @@ def _memory_info() -> tuple[float, float]:
     try:
         if system == "Windows":
             import ctypes
-
             class MemoryStatus(ctypes.Structure):
-                _fields_ = [("length", ctypes.c_ulong), ("memory_load", ctypes.c_ulong),
-                            ("total_phys", ctypes.c_ulonglong), ("avail_phys", ctypes.c_ulonglong),
-                            ("total_page", ctypes.c_ulonglong), ("avail_page", ctypes.c_ulonglong),
-                            ("total_virtual", ctypes.c_ulonglong), ("avail_virtual", ctypes.c_ulonglong),
-                            ("avail_ext_virtual", ctypes.c_ulonglong)]
-
+                _fields_ = [("length", ctypes.c_ulong), ("memory_load", ctypes.c_ulong), ("total_phys", ctypes.c_ulonglong), ("avail_phys", ctypes.c_ulonglong), ("total_page", ctypes.c_ulonglong), ("avail_page", ctypes.c_ulonglong), ("total_virtual", ctypes.c_ulonglong), ("avail_virtual", ctypes.c_ulonglong), ("avail_ext_virtual", ctypes.c_ulonglong)]
             status = MemoryStatus()
             status.length = ctypes.sizeof(MemoryStatus)
             if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
@@ -71,21 +65,19 @@ def _memory_info() -> tuple[float, float]:
 
 
 def _physical_cpus() -> int | None:
-    try:
-        import multiprocessing
-        return multiprocessing.cpu_count() if platform.system() == "Windows" else _physical_cpus_posix()
-    except (OSError, ValueError):
+    if platform.system() == "Windows":
+        try:
+            return int(os.environ.get("NUMBER_OF_PROCESSORS", "1"))
+        except ValueError:
+            return None
+    binary = shutil.which("lscpu")
+    if not binary:
         return None
-
-
-def _physical_cpus_posix() -> int | None:
     try:
-        import os
-        return int(os.cpu_count() or 1) if not shutil.which("lscpu") else int(
-            subprocess.check_output(["lscpu", "-p=CPU,CORE"], text=True, stderr=subprocess.DEVNULL, timeout=2)
-            .strip().splitlines()[-1].split(",")[-1]
-        )
-    except (OSError, ValueError, subprocess.SubprocessError, IndexError):
+        output = subprocess.check_output([binary, "-p=CORE"], text=True, stderr=subprocess.DEVNULL, timeout=2)
+        cores = {line.strip() for line in output.splitlines() if line.strip() and not line.startswith("#")}
+        return len(cores) or None
+    except (OSError, ValueError, subprocess.SubprocessError):
         return None
 
 
@@ -94,22 +86,14 @@ def _nvidia_gpu() -> GPUInfo:
     if not binary:
         return GPUInfo(False, vendor="NVIDIA", reason="nvidia-smi not available")
     try:
-        result = subprocess.run(
-            [binary, "--query-gpu=index,name,memory.total,memory.free,driver_version", "--format=csv,noheader,nounits"],
-            capture_output=True, text=True, timeout=3, check=True,
-        )
+        result = subprocess.run([binary, "--query-gpu=index,name,memory.total,memory.free,driver_version", "--format=csv,noheader,nounits"], capture_output=True, text=True, timeout=3, check=True)
         rows = [line.strip() for line in result.stdout.splitlines() if line.strip()]
         if not rows:
             return GPUInfo(False, vendor="NVIDIA", reason="nvidia-smi returned no GPU")
         first = [item.strip() for item in rows[0].split(",")]
         if len(first) < 5:
             return GPUInfo(False, vendor="NVIDIA", reason="invalid nvidia-smi output")
-        index = int(first[0])
-        total = float(first[2]) / 1024
-        free = float(first[3]) / 1024
-        # faster-whisper/CTranslate2 GPU support is NVIDIA CUDA in the supported path.
-        # Detection alone is not enough: verify the Python runtime can import CTranslate2
-        # and expose CUDA devices before marking the device usable.
+        index, total, free = int(first[0]), float(first[2]) / 1024, float(first[3]) / 1024
         runtime = None
         usable = False
         reason = "CUDA runtime not verified"
@@ -131,28 +115,16 @@ def detect_gpu() -> GPUInfo:
         return nvidia
     system = platform.system()
     if system == "Darwin" and platform.machine().lower() in {"arm64", "aarch64"}:
-        # Apple Silicon GPU is physically present, but faster-whisper's supported
-        # runtime path here is not Metal/CoreML, so do not claim Whisper usability.
-        return GPUInfo(True, "Apple", "Apple Silicon GPU", 0, 0.0, 0.0, backend="metal", usable_for_whisper=False,
-                       reason="faster-whisper backend is not selected for Metal automatically")
+        return GPUInfo(True, "Apple", "Apple Silicon GPU", 0, backend="metal", usable_for_whisper=False, reason="faster-whisper backend is not selected for Metal automatically")
     if shutil.which("rocm-smi"):
-        return GPUInfo(True, "AMD", None, 0, 0.0, 0.0, runtime="ROCm", backend="rocm", usable_for_whisper=False,
-                       reason="GPU detected but faster-whisper runtime is not verified")
+        return GPUInfo(True, "AMD", None, 0, runtime="ROCm", backend="rocm", usable_for_whisper=False, reason="GPU detected but faster-whisper runtime is not verified")
     return GPUInfo(False, reason="no supported GPU runtime detected")
 
 
 def detect_hardware(path: Path | None = None) -> HardwareInfo:
     total, available = _memory_info()
-    disk_path = path or Path.cwd()
     try:
-        disk_free = shutil.disk_usage(disk_path).free / 1024**3
+        disk_free = shutil.disk_usage(path or Path.cwd()).free / 1024**3
     except OSError:
         disk_free = 0.0
-    return HardwareInfo(
-        logical_cpus=max(1, os.cpu_count() or 1),
-        physical_cpus=_physical_cpus(),
-        memory_total_gb=total,
-        memory_available_gb=available,
-        gpu=detect_gpu(),
-        disk_free_gb=disk_free,
-    )
+    return HardwareInfo(max(1, os.cpu_count() or 1), _physical_cpus(), total, available, detect_gpu(), disk_free)
