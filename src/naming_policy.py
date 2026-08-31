@@ -60,6 +60,9 @@ def _match_source_lesson(source: Path) -> int | None:
 def _match_logical_lesson(logical_source: Path) -> tuple[int | None, str]:
     stem = _clean(logical_source.stem)
     matches = list(_LOGICAL_LESSON_NUMBER.finditer(stem))
+    course_match = _COURSE_NUMBER.search(stem)
+    if course_match:
+        matches = [match for match in matches if match.start(1) > course_match.end()]
     if not matches:
         return None, ""
     match = matches[-1]
@@ -125,9 +128,6 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
     if not raw_parts:
         raise ValueError(f"Source path is empty relative to extract root: {source}")
 
-    # Preserve '/' until calendar noise has been stripped. Otherwise a date
-    # such as 31/08/2026 becomes 31_08_2026 and can no longer be recognized as
-    # one semantic timestamp after pathlib has split it into path components.
     logical_relative = "/".join(raw_parts)
     normalized_logical = _clean(logical_relative)
     logical_source = Path(normalized_logical + source.suffix.lower())
