@@ -40,6 +40,7 @@ El VTT original es la fuente de verdad temporal. La traducción conserva `start/
 - MP4 TTS y WebM TTS opcional.
 - Manifests, resume e idempotencia.
 - Deduplicación conservadora.
+- Concurrencia de vídeo adaptada a los recursos disponibles en el estado actual de `main`.
 - CLI, wrappers, ejecutable y ejecución programada.
 - CI, auditoría de seguridad y auditoría de dependencias.
 
@@ -90,6 +91,12 @@ La implementación local utiliza Kokoro mediante `kokoro-onnx`. Los extras TTS y
 
 Consulta [`docs/TTS.md`](docs/TTS.md).
 
+## Concurrencia de vídeo
+
+En el estado actual de `main`, `max_parallel_videos = 0` significa AUTO. El runtime calcula un límite conservador teniendo en cuenta la configuración efectiva de Whisper, CPU, RAM disponible y, cuando corresponde, memoria GPU. Un valor positivo es un máximo solicitado y puede reducirse si supera el límite seguro; `1` mantiene un único worker.
+
+Esta lógica fue introducida por la PR #20 después de la release `1.2.2`. Por tanto, forma parte del estado actual de `main`, pero no de la release publicada `1.2.2`.
+
 ## Almacenamiento y ejecución programada
 
 El núcleo de procesamiento es común a todos los modos:
@@ -131,6 +138,7 @@ La CI además comprueba packaging, entry points, seguridad y dependencias. Consu
 | [`docs/STT.md`](docs/STT.md) | Transcripción |
 | [`docs/SUBTITLES.md`](docs/SUBTITLES.md) | VTT, QA y reparación |
 | [`docs/TRANSLATION.md`](docs/TRANSLATION.md) | Traducción |
+| [`docs/TRANSLATION_PROVIDERS.md`](docs/TRANSLATION_PROVIDERS.md) | Proveedores y límites del cliente |
 | [`docs/TTS.md`](docs/TTS.md) | TTS sincronizado |
 | [`docs/STORAGE.md`](docs/STORAGE.md) | Almacenamiento |
 | [`docs/RESUME.md`](docs/RESUME.md) | Resume e idempotencia |
@@ -148,7 +156,7 @@ Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` 
 
 ## Versionado
 
-La política es Semantic Versioning. La última release publicada que se ha verificado en GitHub es `1.2.2`. El metadata de `pyproject.toml` declara actualmente `1.0.0`, por lo que existe una discrepancia que debe corregirse en el metadata del paquete antes de afirmar que la versión instalada es `1.2.2`.
+La última release publicada es `1.2.2` y el metadata del paquete en `main` está alineado con ella. No obstante, `main` contiene cambios funcionales posteriores a esa release. Consulta [`docs/RELEASES.md`](docs/RELEASES.md) para distinguir las capacidades publicadas de los cambios posteriores todavía no asociados a una release.
 
 ## Seguridad y licencias
 

@@ -12,6 +12,21 @@ Se utiliza Semantic Versioning (`MAJOR.MINOR.PATCH`):
 
 La versión del proyecto no debe incrementarse por cada commit de formato o CI. Una release agrupa un conjunto funcional coherente.
 
+## Funcionalidades con evidencia de introducción
+
+La siguiente tabla solo asigna una versión cuando existe evidencia explícita en el historial de releases/changelog. Los cambios posteriores a la última release publicada se identifican como tales y no se les asigna una versión que todavía no existe.
+
+| Funcionalidad | Primera versión verificada |
+|---|---:|
+| Pipeline audiovisual, STT, VTT, traducción, almacenamiento, resume/idempotencia, deduplicación, TTS sincronizado, ejecución programada y packaging | `1.0.0` |
+| Recuperación/reparación de VTT e integración TTS en el pipeline común | `1.1.0` |
+| Naming descriptivo/más resistente a colisiones y bootstrap de assets TTS | `1.2.0` |
+| Corrección de instalación de assets TTS en Windows y consistencia multiplataforma | `1.2.1` |
+| Limpieza de timestamps técnicos en naming | `1.2.2` |
+| **Concurrencia de vídeo adaptada a recursos (CPU/RAM/GPU)** | **Posterior a `1.2.2` — PR #20** |
+
+No se infieren versiones de introducción a partir de nombres de archivos, commits aislados o documentación histórica cuando el historial de releases no lo acredita.
+
 ## Releases publicadas verificadas
 
 ### 1.2.2 — Naming Timestamp Cleanup
@@ -74,10 +89,41 @@ Publicado el 28 de agosto de 2026.
 
 Incluye el pipeline audiovisual, FFmpeg, Whisper/faster-whisper, VTT y traducción con fallback, almacenamiento local/Google Drive/rclone, manifests/resume, deduplicación, TTS sincronizado, ejecución programada, packaging, seguridad, tests y auditorías.
 
+## Cambios posteriores a la última release publicada
+
+La rama `main` contiene actualmente cambios posteriores a la release `1.2.2`. No deben describirse como parte de esa release hasta que exista una nueva release que los incluya.
+
+### PR #20 — Safe video concurrency
+
+**Estado:** fusionada en `main` después de `1.2.2`.
+
+**Tipo de cambio:** funcional/performance/estabilidad.
+
+La implementación modifica `safe_parallelism()` para que:
+
+- `max_parallel_videos = 0` signifique **AUTO** en lugar de convertirse implícitamente en un único worker;
+- se resuelva primero el dispositivo/modelo efectivo de Whisper;
+- se calcule un techo conservador según CPU y RAM disponibles;
+- se tenga en cuenta la memoria GPU disponible cuando se utiliza CUDA;
+- los valores positivos configurados actúen como límite superior y puedan ser recortados si superan la capacidad segura;
+- `max_parallel_videos = 1` continúe garantizando un único worker.
+
+La PR incorpora tests específicos para AUTO, clamping por hardware y single-worker. Esta funcionalidad pertenece al estado actual de `main`, pero **no pertenece a la release publicada `1.2.2`**.
+
+### PR #21 — Package metadata alignment
+
+**Estado:** fusionada en `main` después de `1.2.2`.
+
+**Tipo de cambio:** corrección de metadata.
+
+Actualiza `project.version` en `pyproject.toml` de `1.0.0` a `1.2.2` para que el metadata del paquete coincida con la release ya publicada. No introduce una funcionalidad de producto nueva ni debe contarse como una funcionalidad de `1.2.2`.
+
 ## Historial anterior
 
 Antes de establecer la línea de producto `1.x`, el repositorio utilizó versiones internas `4.x` y `5.x`. No se reinterpretan retroactivamente como versiones `1.x`.
 
-## Discrepancia pendiente de metadata
+## Estado actual del versionado
 
-Las releases publicadas verificadas llegan a `1.2.2`, mientras que `pyproject.toml` en `main` declara `version = "1.0.0"`. La documentación no debe ocultar esta discrepancia: el metadata del paquete debe alinearse con la release que corresponda antes de distribuir una nueva versión del paquete.
+La última release publicada sigue siendo `1.2.2`. El `pyproject.toml` actual declara también `1.2.2` debido a PR #21. Sin embargo, `main` contiene además cambios funcionales posteriores a esa release, principalmente la concurrencia adaptativa de PR #20.
+
+Por tanto, **la versión publicada y la versión del paquete no deben interpretarse como una descripción completa de todas las capacidades presentes en `main`**. Hasta que se publique una nueva release, las funcionalidades posteriores deben identificarse explícitamente como cambios post-`1.2.2`.

@@ -44,6 +44,18 @@ python main.py provider list
 python main.py provider use --help
 ```
 
+## Video concurrency
+
+`max_parallel_videos` controls the upper bound for concurrent video processing. Its effective value is calculated from the resolved Whisper device/model, CPU threads, available RAM and, when CUDA is used, available GPU memory.
+
+- `0` means **AUTO**: the application selects a conservative safe concurrency level from the detected hardware.
+- A positive value is an **upper bound**, not a guarantee. If it exceeds the safe hardware ceiling, it is clamped automatically.
+- `1` explicitly preserves single-worker execution.
+
+The resource calculation intentionally leaves headroom for the operating system, Python and FFmpeg. The effective value can therefore be lower than the configured value even when the configuration is valid.
+
+This behavior was introduced after the `1.2.2` release by PR #20 (`perf: enforce safe video concurrency`). It is part of the current `main` behavior, but it is **not part of the published `1.2.2` release**.
+
 ## Important defaults
 
 - Resume: enabled.

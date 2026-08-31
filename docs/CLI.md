@@ -24,6 +24,10 @@ python main.py run --scheduled
 
 Useful processing overrides include `--provider`, `--source`, `--target`, `--no-resume`, `--parallel-videos`, `--translation-batch-size`, `--whisper-beam-size`, `--whisper-cpu-threads`, `--no-ffmpeg-copy`, `--generate-webm` and `--no-webm`. Run `python main.py run --help` for the authoritative list.
 
+`--parallel-videos` controls the configured upper bound for concurrent video processing. In the current implementation, `0` means AUTO: the effective concurrency is calculated conservatively from the resolved Whisper configuration and available CPU/RAM resources, and GPU memory when CUDA is selected. Positive values may be clamped to the safe hardware ceiling; `1` remains single-worker execution.
+
+This resource-aware behavior was introduced after the published `1.2.2` release by PR #20 and is therefore documented as current `main` behavior rather than as part of `1.2.2`.
+
 ### Subtitle recovery
 
 ```bash
