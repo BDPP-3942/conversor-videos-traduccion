@@ -185,7 +185,7 @@ class MediaConverter:
         progress_state = {"out_time_ms": None, "speed": None}
         started = time.monotonic()
         try:
-            process = subprocess.Popen(
+            process = subprocess.Popen(  # noqa: S603 - FFmpegResolver validates the executable path
                 ["ffmpeg", *progress_command[1:]],
                 executable=self.ffmpeg_bin,
                 stdout=subprocess.DEVNULL,
