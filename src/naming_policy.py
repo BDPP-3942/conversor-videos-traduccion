@@ -88,9 +88,10 @@ def _course_context(context_values: list[str]) -> tuple[int | None, str | None]:
     return None, None
 
 
-def _lesson_context(source: Path, context_values: list[str]) -> tuple[int | None, str]:
-    number = _match_source_lesson(source)
-    description = _description(source.name, number, _LESSON_LABEL)
+def _lesson_context(source: Path, context_values: list[str], logical_source: Path | None = None) -> tuple[int | None, str]:
+    candidate = logical_source or source
+    number = _match_source_lesson(candidate)
+    description = _description(candidate.name, number, _LESSON_LABEL)
     if number is not None or description:
         return number, description
     for value in reversed(_clean_context(context_values)):
@@ -107,21 +108,21 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
     if not raw_parts:
         raise ValueError(f"Source path is empty relative to extract root: {source}")
 
-    # Providers may use '/' inside a timestamp. On POSIX that creates fake
-    # path components (e.g. 31/08/2026), so reconstruct the logical name
-    # before extracting metadata. Date removal then happens on the complete
-    # token instead of component-by-component.
     logical_relative = "_".join(raw_parts)
     normalized_logical = _clean(logical_relative)
     logical_source = Path(normalized_logical + source.suffix.lower())
 
+    # Keep the actual parent context for course extraction, but reconstruct the
+    # complete filename separately. This handles timestamps containing '/':
+    # pathlib splits 31/08/2026 into directories, although semantically it is
+    # still a suffix of the media filename.
     raw_context = raw_parts[:-1]
     context_text = "_".join(raw_context)
     normalized_context = _clean(context_text)
     context = [normalized_context] if normalized_context else []
 
     course, course_name = _course_context(context)
-    lesson, lesson_name = _lesson_context(logical_source, context)
+    lesson, lesson_name = _lesson_context(source, context, logical_source)
     course_part = str(course) if course is not None else (course_name or "")
     if course is not None and course_name:
         course_part = f"{course}_{course_name}"
