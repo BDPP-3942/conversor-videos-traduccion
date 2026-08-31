@@ -5,18 +5,11 @@ from pathlib import Path
 
 from src.file_naming import SourceNameMetadata, _sanitize_text
 
-_NOISE = re.compile(
-    r"(?:wetransfer|drive-download|download|descarga|archive|compressed|backup|compression|"
-    r"extract(?:ed)?|unzip(?:ped)?|descomprim(?:ido|ida|idos|idas))",
-    re.IGNORECASE,
-)
-# Transport/download tools commonly append timestamps in several conventions.
-# The trailing guard deliberately checks digit boundaries rather than ``\b``:
-# ``_`` is a word character in Python regexes, so ``\b`` does not match before
-# ``_Curso_03`` and would leave the timestamp behind.
+_NOISE = re.compile(r"(?:wetransfer|drive-download|download|descarga|archive|compressed|backup|compression|extract(?:ed)?|unzip(?:ped)?|descomprim(?:ido|ida|idos|idas))", re.IGNORECASE)
 _DATE = re.compile(
     r"(?:"
     r"(?<!\d)\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?(?!\d)|"
+    r"(?<!\d)\d{8}[_ -]\d{1,2}[_-]\d{2}(?:[_:-]\d{2})?(?!\d)|"
     r"(?<!\d)\d{8}[ _-]?\d{4,6}(?!\d)|"
     r"(?<!\d)\d{4}[-_.]\d{1,2}[-_.]\d{1,2}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?(?!\d)|"
     r"(?<!\d)\d{4}/\d{1,2}/\d{1,2}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?(?!\d)|"
@@ -31,38 +24,9 @@ _TIMESTAMP = _DATE
 _NUMBER = re.compile(r"(?<!\d)(\d{1,4})(?!\d)")
 _COURSE_LABEL = re.compile(r"(?:curso|course)", re.IGNORECASE)
 _LESSON_LABEL = re.compile(r"(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)", re.IGNORECASE)
-_COURSE_NUMBER = re.compile(
-    r"(?:^|[_\- .])(?:curso|course)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|"
-    r"\b(\d{1,4})\s*(?:º|°)\s*curso\b",
-    re.IGNORECASE,
-)
-_LESSON_NUMBER = re.compile(
-    r"(?:^|[_\- .])(?:cap[ií]tulo|lecci[oó]n|lesson|chapter|clase|tema|unidad)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|"
-    r"^\s*(\d{1,4})\s*(?:º|°|[._-])\s*",
-    re.IGNORECASE,
-)
-_GENERIC = {
-    "mp4",
-    "wmv",
-    "video",
-    "videos",
-    "audio",
-    "media",
-    "file",
-    "files",
-    "archivo",
-    "archivos",
-    "download",
-    "downloads",
-    "descarga",
-    "descargas",
-    "compressed",
-    "compression",
-    "archive",
-    "zip",
-    "rar",
-    "7z",
-}
+_COURSE_NUMBER = re.compile(r"(?:^|[_\- .])(?:curso|course)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|\b(\d{1,4})\s*(?:º|°)\s*curso\b", re.IGNORECASE)
+_LESSON_NUMBER = re.compile(r"(?:^|[_\- .])(?:cap[ií]tulo|lecci[oó]n|lesson|chapter|clase|tema|unidad)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|^\s*(\d{1,4})\s*(?:º|°|[._-])\s*", re.IGNORECASE)
+_GENERIC = {"mp4","wmv","video","videos","audio","media","file","files","archivo","archivos","download","downloads","descarga","descargas","compressed","compression","archive","zip","rar","7z"}
 _VIDEO_EXTENSIONS = {".mp4", ".wmv"}
 
 
@@ -78,21 +42,9 @@ def _clean(value: str) -> str:
 
 
 def _clean_context(context_values: list[str]) -> list[str]:
-    """Clean date noise before treating Path components as semantic context.
-
-    A slash-formatted date is split into several ``Path.parts`` components before
-    the naming policy sees it. Rejoining the components for date cleanup lets the
-    date matcher remove the timestamp as one semantic block without confusing
-    its day/month/year fragments with course or lesson numbers.
-    """
     raw_context = "/".join(context_values)
     cleaned_context = _TIMESTAMP.sub("_", raw_context)
-    cleaned_parts: list[str] = []
-    for part in cleaned_context.split("/"):
-        cleaned = _clean(part)
-        if cleaned:
-            cleaned_parts.append(cleaned)
-    return cleaned_parts
+    return [cleaned for part in cleaned_context.split("/") if (cleaned := _clean(part))]
 
 
 def _is_noise(value: str) -> bool:
@@ -107,10 +59,7 @@ def _match_number(value: str, pattern: re.Pattern[str]) -> int | None:
     match = pattern.search(cleaned)
     if not match:
         return None
-    for group in match.groups():
-        if group:
-            return int(group)
-    return None
+    return next((int(group) for group in match.groups() if group), None)
 
 
 def _remove_number(value: str, number: int | None) -> str:
@@ -123,8 +72,7 @@ def _description(value: str, number: int | None, label_pattern: re.Pattern[str])
     cleaned = _clean(value)
     if not cleaned:
         return ""
-    if number is not None:
-        cleaned = _remove_number(cleaned, number)
+    cleaned = _remove_number(cleaned, number) if number is not None else cleaned
     cleaned = label_pattern.sub("_", cleaned)
     cleaned = re.sub(r"_+", "_", cleaned).strip("_")
     tokens = [token for token in cleaned.split("_") if token.lower() not in _GENERIC]
@@ -132,7 +80,6 @@ def _description(value: str, number: int | None, label_pattern: re.Pattern[str])
 
 
 def _course_context(context_values: list[str]) -> tuple[int | None, str | None]:
-    """Find course number/description only from meaningful, date-cleaned path components."""
     meaningful = _clean_context(context_values)
     for value in meaningful:
         if not value or _is_noise(value):
@@ -143,18 +90,11 @@ def _course_context(context_values: list[str]) -> tuple[int | None, str | None]:
     for value in meaningful:
         if not value or _is_noise(value) or _LESSON_LABEL.search(value):
             continue
-        number = _match_number(value, _NUMBER)
-        if number is not None:
-            return number, _description(value, number, _COURSE_LABEL)
-    for value in meaningful:
-        if not value or _is_noise(value):
-            continue
         return None, _description(value, None, _COURSE_LABEL)
     return None, None
 
 
 def _lesson_context(source: Path, context_values: list[str]) -> tuple[int | None, str]:
-    """Find lesson number/description from filename, then its immediate parent context."""
     number = _match_number(source.name, _LESSON_NUMBER)
     description = _description(source.name, number, _LESSON_LABEL)
     if number is not None or description:
@@ -168,7 +108,6 @@ def _lesson_context(source: Path, context_values: list[str]) -> tuple[int | None
 
 
 def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
-    """Build stable names such as ``12_movilidad_articularx03_rotacion_hombros``."""
     relative = source.relative_to(extract_root)
     context = list(relative.parts[:-1])
     course, course_name = _course_context(context)
@@ -188,14 +127,4 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
         reasons.append("course number not found; textual course description used when available")
     if lesson is None:
         reasons.append("lesson number not found; textual lesson description used when available")
-    return SourceNameMetadata(
-        course=course,
-        lesson=lesson,
-        description=lesson_name or course_name or fallback,
-        output_stem=output_stem,
-        confidence=("high" if course is not None and lesson is not None else "medium"),
-        review_required=review_required,
-        review_reason="; ".join(reasons),
-        course_name=course_name,
-        lesson_name=lesson_name or None,
-    )
+    return SourceNameMetadata(course=course, lesson=lesson, description=lesson_name or course_name or fallback, output_stem=output_stem, confidence=("high" if course is not None and lesson is not None else "medium"), review_required=review_required, review_reason="; ".join(reasons), course_name=course_name, lesson_name=lesson_name or None)
