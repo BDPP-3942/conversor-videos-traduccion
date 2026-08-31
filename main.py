@@ -166,13 +166,9 @@ def _run_automatic_deduplication(settings, target: str) -> dict[str, Any] | None
 
 def _apply_run_overrides(settings, args):
     if args.parallel_videos is not None:
-        requested = max(0, args.parallel_videos)
+        requested = 0 if args.parallel_videos == 0 else max(1, args.parallel_videos)
         settings = replace(settings, max_parallel_videos=requested)
-        if requested == 1:
-            effective = 1
-        else:
-            effective = safe_parallelism(settings)
-        settings = replace(settings, max_parallel_videos=effective)
+        settings = replace(settings, max_parallel_videos=safe_parallelism(settings))
     if args.translation_batch_size is not None:
         settings = replace(settings, translation_batch_size=max(1, args.translation_batch_size))
     if args.whisper_beam_size is not None:
