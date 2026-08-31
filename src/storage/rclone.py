@@ -19,11 +19,13 @@ class RcloneStorageProvider(StorageProvider):
         self.config_file.parent.mkdir(parents=True, exist_ok=True)
         if not self.binary_file.is_file():
             raise FileNotFoundError(
-                f"Managed rclone executable not found: {self.binary_file}. Run `python main.py provider bootstrap` or enable the rclone provider setup."
+                f"Managed rclone executable not found: {self.binary_file}. "
+                "Run `python main.py provider bootstrap` or enable the rclone provider setup."
             )
         if not self.config_file.is_file():
             raise FileNotFoundError(
-                f"rclone configuration not found: {self.config_file}. Run `python main.py provider auth-rclone ...` first."
+                f"rclone configuration not found: {self.config_file}. "
+                "Run `python main.py provider auth-rclone ...` first."
             )
 
     def _run(self, args: list[str]) -> str:
@@ -121,7 +123,13 @@ class RcloneStorageProvider(StorageProvider):
                 continue
             desired = self._rename_artifact_name(child["Name"], old_name, new_name)
             if desired != child["Name"] and not self.file_exists(new_path, desired):
-                self._run(["moveto", f"{self.remote}:{new_path}/{child['Name']}", f"{self.remote}:{new_path}/{desired}"])
+                self._run(
+                    [
+                        "moveto",
+                        f"{self.remote}:{new_path}/{child['Name']}",
+                        f"{self.remote}:{new_path}/{desired}",
+                    ]
+                )
         return {old_name: new_name}
 
     @staticmethod
