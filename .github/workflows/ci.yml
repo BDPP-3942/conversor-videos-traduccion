@@ -49,6 +49,7 @@ jobs:
       - name: Verify installed entry points
         run: |
           video-translation-pipeline --help
+          video-translation-regenerate --help
           video-subtitle-qa --help
           video-translation-tts --help
 
@@ -92,6 +93,7 @@ jobs:
           /tmp/package-check/bin/python -m pip install dist/*.whl
           /tmp/package-check/bin/python -m pip check
           /tmp/package-check/bin/video-translation-pipeline --help
+          /tmp/package-check/bin/video-translation-regenerate --help
           /tmp/package-check/bin/video-subtitle-qa --help
           /tmp/package-check/bin/video-translation-tts --help
 

@@ -40,7 +40,7 @@ El VTT original es la fuente de verdad temporal. La traducción conserva `start/
 - MP4 TTS y WebM TTS opcional.
 - Manifests, resume e idempotencia.
 - Deduplicación conservadora.
-- Concurrencia de vídeo adaptada a los recursos disponibles en el estado actual de `main`.
+- Concurrencia de vídeo adaptada a los recursos disponibles en el estado actual.
 - CLI, wrappers, ejecutable y ejecución programada.
 - CI, auditoría de seguridad y auditoría de dependencias.
 
@@ -61,6 +61,26 @@ Para operación desatendida:
 ```bash
 python main.py run --scheduled
 ```
+
+## Regeneración completa
+
+Cuando necesitas volver a generar un vídeo cuyo resultado ya existe utilizando **la implementación actual completa del pipeline**, utiliza la operación explícita `REGENERATE FROM ZERO`:
+
+```bash
+video-translation-regenerate
+```
+
+También puedes indicar las ubicaciones explícitamente:
+
+```bash
+video-translation-regenerate \
+  --source local://storage/input \
+  --target local://storage/output
+```
+
+La regeneración no es `resume` ni una recuperación selectiva. Localiza los resultados registrados, los aparta temporalmente mediante backup, fuerza el procesamiento desde la fuente a través de `MediaPipeline` y elimina los backups anteriores únicamente después de completar correctamente la regeneración. La fuente original se conserva. Si el procesamiento falla, los backups se restauran cuando el backend permite la operación de rename.
+
+Consulta [`docs/REGENERATION.md`](docs/REGENERATION.md) para las garantías y limitaciones específicas de local, Google Drive y rclone.
 
 ## Reprocesado y recuperación de VTT
 
@@ -93,9 +113,9 @@ Consulta [`docs/TTS.md`](docs/TTS.md).
 
 ## Concurrencia de vídeo
 
-En el estado actual de `main`, `max_parallel_videos = 0` significa AUTO. El runtime calcula un límite conservador teniendo en cuenta la configuración efectiva de Whisper, CPU, RAM disponible y, cuando corresponde, memoria GPU. Un valor positivo es un máximo solicitado y puede reducirse si supera el límite seguro; `1` mantiene un único worker.
+La configuración actual usa `max_parallel_videos = 0` como AUTO. El runtime calcula un límite conservador teniendo en cuenta la configuración efectiva de Whisper, CPU, RAM disponible y, cuando corresponde, memoria GPU. Un valor positivo es un máximo solicitado y puede reducirse si supera el límite seguro; `1` mantiene un único worker.
 
-Esta lógica fue introducida por la PR #20 después de la release `1.2.2`. Por tanto, forma parte del estado actual de `main`, pero no de la release publicada `1.2.2`.
+Esta lógica fue introducida después de la release `1.2.2` por la PR #20 y está incorporada al código de la versión de desarrollo `1.3.0`.
 
 ## Almacenamiento y ejecución programada
 
@@ -151,12 +171,13 @@ La CI además comprueba packaging, entry points, seguridad y dependencias. Consu
 | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Desarrollo |
 | [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) | Diagnóstico |
 | [`docs/RELEASES.md`](docs/RELEASES.md) | Releases y versionado |
+| [`docs/REGENERATION.md`](docs/REGENERATION.md) | Regeneración completa desde la fuente |
 
 Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` y `VERSIONING.md` se mantienen por compatibilidad de navegación; los documentos anteriores son la referencia canónica para cada tema.
 
 ## Versionado
 
-La última release publicada es `1.2.2` y el metadata del paquete en `main` está alineado con ella. No obstante, `main` contiene cambios funcionales posteriores a esa release. Consulta [`docs/RELEASES.md`](docs/RELEASES.md) para distinguir las capacidades publicadas de los cambios posteriores todavía no asociados a una release.
+La última release publicada es `1.2.2`. El estado actual del código de esta rama corresponde a `1.3.0` en el metadata del paquete, pero `1.3.0` todavía no se presenta aquí como una release publicada. Consulta [`docs/RELEASES.md`](docs/RELEASES.md) para distinguir las capacidades publicadas de los cambios posteriores.
 
 ## Seguridad y licencias
 
