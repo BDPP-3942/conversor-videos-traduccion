@@ -98,7 +98,11 @@ def _run_regeneration(config: Path, storage_dir: Path) -> subprocess.CompletedPr
 
 
 def _json_output(result: subprocess.CompletedProcess[str]) -> dict:
-    starts = [index for index, char in enumerate(result.stdout) if char == "{" and (index == 0 or result.stdout[index - 1] == "\n")]
+    starts = [
+        index
+        for index, char in enumerate(result.stdout)
+        if char == "{" and (index == 0 or result.stdout[index - 1] == "\n")
+    ]
     if not starts:
         raise AssertionError(f"CLI did not emit a JSON object: {result.stdout}")
     return json.loads(result.stdout[starts[-1] :])
@@ -161,9 +165,21 @@ def test_e2e_real_cli_dry_run_has_no_side_effects(tmp_path: Path):
 def test_e2e_real_cli_concurrency_override_is_clamped(tmp_path: Path):
     config = _config(tmp_path)
 
-    auto = _run("run", "--dry-run", "--parallel-videos", "0", config=config, storage_dir=tmp_path / "storage")
+    auto = _run(
+        "run",
+        "--dry-run",
+        "--parallel-videos",
+        "0",
+        config=config,
+        storage_dir=tmp_path / "storage",
+    )
     excessive = _run(
-        "run", "--dry-run", "--parallel-videos", "999", config=config, storage_dir=tmp_path / "storage"
+        "run",
+        "--dry-run",
+        "--parallel-videos",
+        "999",
+        config=config,
+        storage_dir=tmp_path / "storage",
     )
 
     assert auto.returncode == 0, auto.stdout + auto.stderr
@@ -177,7 +193,13 @@ def test_e2e_real_cli_concurrency_override_is_clamped(tmp_path: Path):
 
 def test_e2e_real_cli_scheduled_mode_uses_same_entry_point(tmp_path: Path):
     config = _config(tmp_path)
-    result = _run("run", "--scheduled", "--dry-run", config=config, storage_dir=tmp_path / "storage")
+    result = _run(
+        "run",
+        "--scheduled",
+        "--dry-run",
+        config=config,
+        storage_dir=tmp_path / "storage",
+    )
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert _json_output(result)["status"] == "ready"
@@ -189,7 +211,12 @@ def test_e2e_real_pipeline_and_regeneration_success(tmp_path: Path):
     archive = _make_video_zip(tmp_path)
     shutil.copy2(archive, source / archive.name)
 
-    first = _run("run", "--no-retain-sources", config=config, storage_dir=tmp_path / "storage")
+    first = _run(
+        "run",
+        "--no-retain-sources",
+        config=config,
+        storage_dir=tmp_path / "storage",
+    )
     assert first.returncode == 0, first.stdout + first.stderr
     assert _json_output(first)["status"] == "success"
     outputs = [path for folder in target.iterdir() if folder.is_dir() for path in folder.glob("*.mp4")]
@@ -215,7 +242,12 @@ def test_e2e_real_regeneration_failure_rolls_back_previous_output(tmp_path: Path
     archive = _make_video_zip(tmp_path, "rollback.zip")
     shutil.copy2(archive, source / archive.name)
 
-    first = _run("run", "--no-retain-sources", config=config, storage_dir=tmp_path / "storage")
+    first = _run(
+        "run",
+        "--no-retain-sources",
+        config=config,
+        storage_dir=tmp_path / "storage",
+    )
     assert first.returncode == 0, first.stdout + first.stderr
     outputs = [path for folder in target.iterdir() if folder.is_dir() for path in folder.glob("*.mp4")]
     assert len(outputs) == 1
@@ -241,6 +273,10 @@ def test_e2e_real_packaged_entry_points_help():
     ]
     for executable in entry_points:
         result = subprocess.run(
-            [executable, "--help"], cwd=ROOT, capture_output=True, text=True, check=False
+            [executable, "--help"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
         )
         assert result.returncode == 0, executable + ": " + result.stdout + result.stderr
