@@ -161,6 +161,14 @@ class GoogleDriveStorageProvider(StorageProvider):
             if not page_token:
                 return files
 
+    def _delete_folder_tree(self, folder_id: str) -> None:
+        for child in self._list_children(folder_id):
+            if child["mimeType"] == "application/vnd.google-apps.folder":
+                self._delete_folder_tree(child["id"])
+            else:
+                self._service.files().delete(fileId=child["id"]).execute()
+        self._service.files().delete(fileId=folder_id).execute()
+
     def delete_folder(self, parent: str, name: str) -> None:
         folders = [
             item
@@ -169,8 +177,7 @@ class GoogleDriveStorageProvider(StorageProvider):
         ]
         if not folders:
             return
-        folder_id = folders[0]["id"]
-        self._service.files().delete(fileId=folder_id).execute()
+        self._delete_folder_tree(folders[0]["id"])
 
     def rename_output_folder(
         self, target: str, old_name: str, new_name: str, original_transcript_subdir: str
