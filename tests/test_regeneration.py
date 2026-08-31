@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from types import SimpleNamespace
 
 import src.regeneration as regeneration
-from src.storage.local import LocalStorageProvider
 from src.storage.base import StorageFile
+from src.storage.local import LocalStorageProvider
 
 
 class FakeStorage(LocalStorageProvider):
     def __init__(self, root: Path) -> None:
         super().__init__()
-        self.root = root
         self.source = root / "input"
         self.target = root / "output"
         self.source.mkdir(parents=True)
@@ -19,12 +19,17 @@ class FakeStorage(LocalStorageProvider):
         (self.source / "video.zip").write_bytes(b"source")
 
     def list_zip_files(self, location: str) -> list[StorageFile]:
+        del location
         return [StorageFile(id=str(self.source / "video.zip"), name="video.zip")]
 
     def folder_exists(self, parent: str, name: str) -> bool:
+        del parent
         return (self.target / name).is_dir()
 
-    def rename_output_folder(self, target: str, old_name: str, new_name: str, original_transcript_subdir: str):
+    def rename_output_folder(
+        self, target: str, old_name: str, new_name: str, original_transcript_subdir: str
+    ) -> dict[str, str]:
+        del target, original_transcript_subdir
         old = self.target / old_name
         new = self.target / new_name
         old.rename(new)
@@ -44,23 +49,38 @@ class FakeSettings:
 
 class FakePipeline:
     def __init__(self, settings, storage):
+        del settings
         self.storage = storage
-        self.try_resume = None
-        self.find_duplicate = None
 
     def run(self, source: str, target: str):
-        self.try_resume = self._try_resume
-        self.find_duplicate = self._find_media_duplicate
+        del source, target
         output = self.storage.target / "lesson"
         output.mkdir()
         (output / "video.mp4").write_bytes(b"new")
         return {"status": "success", "videos": [{"output_folder": "lesson"}]}
 
-    def _try_resume(self, *_args):
-        return "unexpected"
 
-    def _find_media_duplicate(self, *_args):
-        return "unexpected"
+def _settings(storage):
+    return SimpleNamespace(
+        provider="local",
+        original_transcript_subdir="original_transcriptions",
+        storage=storage,
+    )
+
+
+def _patch(monkeypatch, tmp_path, manifest_dir, storage, pipeline):
+    monkeypatch.setattr(regeneration, "create_storage_provider", lambda provider, settings: storage)
+    monkeypatch.setattr(
+        regeneration,
+        "resolve_project_path",
+        lambda value: Path(value) if Path(value).is_absolute() else tmp_path / value,
+    )
+    monkeypatch.setattr(
+        regeneration,
+        "_manifest_local_path",
+        lambda name: manifest_dir / f"{Path(name).stem}.json",
+    )
+    monkeypatch.setattr("src.pipeline.MediaPipeline", pipeline)
 
 
 def test_regeneration_removes_stale_artifacts_and_preserves_source(monkeypatch, tmp_path):
@@ -72,7 +92,8 @@ def test_regeneration_removes_stale_artifacts_and_preserves_source(monkeypatch, 
     manifest_dir = tmp_path / "manifests"
     manifest_dir.mkdir()
     (manifest_dir / "video.json").write_text(
-        '{"entries":[{"source":"lesson.mp4","status":"success","output_folder":"lesson"}]}',
+        '{"entries":[{"source":"lesson.mp4","status":"success",'
+        '"output_folder":"lesson"}]}',
         encoding="utf-8",
     )
 
@@ -82,12 +103,8 @@ def test_regeneration_removes_stale_artifacts_and_preserves_source(monkeypatch, 
             assert self._find_media_duplicate(None, "lesson", []) is None
             return super().run(source, target)
 
-    monkeypatch.setattr(regeneration, "create_storage_provider", lambda provider, settings: storage)
-    monkeypatch.setattr(regeneration, "resolve_project_path", lambda value: Path(value) if Path(value).is_absolute() else tmp_path / value)
-    monkeypatch.setattr("src.pipeline.MediaPipeline", Pipeline)
-    monkeypatch.setattr(regeneration, "_manifest_local_path", lambda zip_name: manifest_dir / f"{Path(zip_name).stem}.json")
-
-    result = regeneration.regenerate("input", "output", FakeSettings())
+    _patch(monkeypatch, tmp_path, manifest_dir, storage, Pipeline)
+    result = regeneration.regenerate("input", "output", _settings(storage))
 
     assert result["status"] == "success"
     assert result["source_preserved"] is True
@@ -106,21 +123,20 @@ def test_regeneration_restores_previous_output_on_failure(monkeypatch, tmp_path)
     manifest_dir = tmp_path / "manifests"
     manifest_dir.mkdir()
     (manifest_dir / "video.json").write_text(
-        '{"entries":[{"source":"lesson.mp4","status":"success","output_folder":"lesson"}]}',
+        '{"entries":[{"source":"lesson.mp4","status":"success",'
+        '"output_folder":"lesson"}]}',
         encoding="utf-8",
     )
 
     class FailingPipeline(FakePipeline):
         def run(self, source, target):
+            del source, target
             return {"status": "error"}
 
-    monkeypatch.setattr(regeneration, "create_storage_provider", lambda provider, settings: storage)
-    monkeypatch.setattr(regeneration, "resolve_project_path", lambda value: Path(value) if Path(value).is_absolute() else tmp_path / value)
-    monkeypatch.setattr("src.pipeline.MediaPipeline", FailingPipeline)
-    monkeypatch.setattr(regeneration, "_manifest_local_path", lambda zip_name: manifest_dir / f"{Path(zip_name).stem}.json")
+    _patch(monkeypatch, tmp_path, manifest_dir, storage, FailingPipeline)
 
     try:
-        regeneration.regenerate("input", "output", FakeSettings())
+        regeneration.regenerate("input", "output", _settings(storage))
     except regeneration.RegenerationError:
         pass
     else:
