@@ -62,6 +62,26 @@ Para operación desatendida:
 python main.py run --scheduled
 ```
 
+## Regeneración completa
+
+Cuando necesitas volver a generar un vídeo cuyo resultado ya existe utilizando **la implementación actual completa del pipeline**, utiliza la operación explícita `REGENERATE FROM ZERO`:
+
+```bash
+video-translation-regenerate
+```
+
+También puedes indicar las ubicaciones explícitamente:
+
+```bash
+video-translation-regenerate \
+  --source local://storage/input \
+  --target local://storage/output
+```
+
+La regeneración no es `resume` ni una recuperación selectiva. Localiza los resultados registrados, los aparta temporalmente mediante backup, fuerza el procesamiento desde la fuente a través de `MediaPipeline` y elimina los backups anteriores únicamente después de completar correctamente la regeneración. La fuente original se conserva. Si el procesamiento falla, los backups se restauran cuando el backend permite la operación de rename.
+
+Consulta [`docs/REGENERATION.md`](docs/REGENERATION.md) para las garantías y limitaciones específicas de local, Google Drive y rclone.
+
 ## Reprocesado y recuperación de VTT
 
 Los resultados ya procesados no necesitan volver a pasar por la conversión audiovisual. Si existe el vídeo normal, la recuperación puede reconstruir los subtítulos sin regenerarlo.
@@ -151,6 +171,7 @@ La CI además comprueba packaging, entry points, seguridad y dependencias. Consu
 | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Desarrollo |
 | [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) | Diagnóstico |
 | [`docs/RELEASES.md`](docs/RELEASES.md) | Releases y versionado |
+| [`docs/REGENERATION.md`](docs/REGENERATION.md) | Regeneración completa desde la fuente |
 
 Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` y `VERSIONING.md` se mantienen por compatibilidad de navegación; los documentos anteriores son la referencia canónica para cada tema.
 
