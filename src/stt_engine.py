@@ -49,7 +49,7 @@ class STTEngine:
                 cpu_threads=threads,
                 num_workers=1,
             )
-        except Exception as exc:
+        except Exception:
             if device != "cuda":
                 raise
             # A CUDA failure is a capability/runtime failure, not a reason to retry
