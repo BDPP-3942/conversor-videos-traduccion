@@ -456,7 +456,11 @@ class MediaPipeline:
         return {
             "source": str(source_path.relative_to(extract_root)),
             "video": artifacts.mp4_path.name,
-            "secondary_video": artifacts.secondary_video_path.name if artifacts.secondary_video_path is not None else "",
+            "secondary_video": (
+                artifacts.secondary_video_path.name
+                if artifacts.secondary_video_path is not None
+                else ""
+            ),
             "translated_vtt": translated_path.name,
             "original_transcription": original_path.name,
             "output_folder": stem,
