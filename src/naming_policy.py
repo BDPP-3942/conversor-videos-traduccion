@@ -76,13 +76,13 @@ def _description(value: str, number: int | None, label_pattern: re.Pattern[str])
 def _course_context(context_values: list[str]) -> tuple[int | None, str | None]:
     meaningful = _clean_context(context_values)
     for value in meaningful:
-        if not value or _is_noise(value):
+        if _is_noise(value):
             continue
         number = _match_number(value, _COURSE_NUMBER)
         if number is not None:
             return number, _description(value, number, _COURSE_LABEL)
     for value in meaningful:
-        if not value or _is_noise(value) or _LESSON_LABEL.search(value):
+        if _is_noise(value) or _LESSON_LABEL.search(value):
             continue
         return None, _description(value, None, _COURSE_LABEL)
     return None, None
@@ -103,9 +103,25 @@ def _lesson_context(source: Path, context_values: list[str]) -> tuple[int | None
 
 def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
     relative = source.relative_to(extract_root)
-    context = list(relative.parts[:-1])
+    raw_parts = list(relative.parts)
+    if not raw_parts:
+        raise ValueError(f"Source path is empty relative to extract root: {source}")
+
+    # Providers may use '/' inside a timestamp. On POSIX that creates fake
+    # path components (e.g. 31/08/2026), so reconstruct the logical name
+    # before extracting metadata. Date removal then happens on the complete
+    # token instead of component-by-component.
+    logical_relative = "_".join(raw_parts)
+    normalized_logical = _clean(logical_relative)
+    logical_source = Path(normalized_logical + source.suffix.lower())
+
+    raw_context = raw_parts[:-1]
+    context_text = "_".join(raw_context)
+    normalized_context = _clean(context_text)
+    context = [normalized_context] if normalized_context else []
+
     course, course_name = _course_context(context)
-    lesson, lesson_name = _lesson_context(source, context)
+    lesson, lesson_name = _lesson_context(logical_source, context)
     course_part = str(course) if course is not None else (course_name or "")
     if course is not None and course_name:
         course_part = f"{course}_{course_name}"
@@ -113,7 +129,7 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
     if lesson_name:
         lesson_part = f"{lesson_part + '_' if lesson_part else ''}{lesson_name}"
     output_stem = "x".join(part for part in (course_part, lesson_part) if part)
-    fallback = _sanitize_text(_clean(source.stem))
+    fallback = _sanitize_text(_clean(logical_source.stem))
     output_stem = output_stem or fallback
     review_required = course is None or lesson is None
     reasons: list[str] = []
@@ -121,4 +137,14 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
         reasons.append("course number not found; textual course description used when available")
     if lesson is None:
         reasons.append("lesson number not found; textual lesson description used when available")
-    return SourceNameMetadata(course=course, lesson=lesson, description=lesson_name or course_name or fallback, output_stem=output_stem, confidence=("high" if course is not None and lesson is not None else "medium"), review_required=review_required, review_reason="; ".join(reasons), course_name=course_name, lesson_name=lesson_name or None)
+    return SourceNameMetadata(
+        course=course,
+        lesson=lesson,
+        description=lesson_name or course_name or fallback,
+        output_stem=output_stem,
+        confidence="high" if course is not None and lesson is not None else "medium",
+        review_required=review_required,
+        review_reason="; ".join(reasons),
+        course_name=course_name,
+        lesson_name=lesson_name or None,
+    )
