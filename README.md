@@ -148,7 +148,7 @@ Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` 
 
 ## Versionado
 
-La política es Semantic Versioning. La última release publicada que se ha verificado en GitHub es `1.2.2`. El metadata de `pyproject.toml` declara actualmente `1.0.0`, por lo que existe una discrepancia que debe corregirse en el metadata del paquete antes de afirmar que la versión instalada es `1.2.2`.
+La última release publicada y el metadata del paquete están alineados en `1.2.2`. La release está publicada en GitHub con el tag `1.2.2`. El proyecto utiliza Semantic Versioning; consulta [`docs/RELEASES.md`](docs/RELEASES.md) para el historial y la evidencia de cada funcionalidad.
 
 ## Seguridad y licencias
 
