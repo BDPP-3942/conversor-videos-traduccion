@@ -53,6 +53,13 @@ class FakeStorage(StorageProvider):
             return []
         return [StorageFile(id=str(item), name=item.name, is_directory=item.is_dir()) for item in path.iterdir()]
 
+    def delete_folder(self, parent: str, name: str) -> None:
+        import shutil
+
+        folder = self._path(parent) / name
+        if folder.is_dir():
+            shutil.rmtree(folder)
+
 
 def _settings() -> AppSettings:
     return AppSettings(
@@ -107,11 +114,7 @@ class FakeSTT:
 class FakeTranslator:
     def translate_segments(self, segments):
         return [
-            {
-                "start": item["start"],
-                "end": item["end"],
-                "text": f"EN:{item['text']}",
-            }
+            {"start": item["start"], "end": item["end"], "text": f"EN:{item['text']}"}
             for item in segments
         ]
 
