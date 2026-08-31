@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.3.0] — Safe Resource-Aware Video Concurrency
+
+**Tipo:** MINOR — nueva gestión adaptativa de concurrencia compatible hacia atrás.
+
+### Added / Improved
+
+- `max_parallel_videos = 0` activa selección automática de concurrencia basada en los recursos disponibles.
+- El límite efectivo se calcula de forma conservadora a partir de CPU, RAM y GPU cuando CUDA está disponible.
+- La resolución efectiva de dispositivo y configuración de Whisper se realiza antes de calcular la concurrencia.
+- Los valores positivos de `max_parallel_videos` continúan siendo límites superiores y se recortan cuando superan la capacidad segura detectada.
+- Se mantiene explícitamente el comportamiento de un único worker con `max_parallel_videos = 1`.
+- La gestión de memoria GPU evita contar dos veces memoria compartida con el sistema.
+
+### Fixed
+
+- Alineada la versión declarada en `pyproject.toml` con el ciclo de releases del proyecto.
+
+### Validation
+
+- Regresiones para concurrencia AUTO.
+- Regresiones para clamping por recursos.
+- Regresión para single-worker.
+- Suite pytest.
+- Ruff lint, formato y seguridad.
+- Compileall y packaging.
+- Auditorías de dependencias y TTS.
+
 ## [1.2.2] — Naming Timestamp Cleanup
 
 **Tipo:** PATCH — corrección compatible de la política de nombres.
