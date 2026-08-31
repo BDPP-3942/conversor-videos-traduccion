@@ -9,15 +9,23 @@ fuente original
     ↓
 localizar manifest/resultados existentes
     ↓
-renombrar temporalmente los resultados anteriores a backup
+StorageProvider.backup_output_folder()
     ↓
-forzar pipeline completo desde la fuente
+MediaPipeline común con force_reprocess
     ↓
-validar resultado
+validación normal del pipeline
     ↓
-publicar el resultado actual
-    ↓
-eliminar backups anteriores
+StorageProvider.delete_output_backup()
+```
+
+Si el pipeline falla:
+
+```text
+fallo
+  ↓
+StorageProvider.restore_output_backup()
+  ↓
+restaurar manifest anterior
 ```
 
 No equivale a `resume`. El modo normal mantiene la idempotencia, resume y deduplicación existentes.
@@ -43,8 +51,18 @@ La configuración del proveedor activo sigue siendo la misma que utiliza el pipe
 ## Qué se conserva
 
 - El ZIP/vídeo fuente nunca se elimina ni se mueve como consecuencia de la regeneración.
-- Si la regeneración falla, los resultados anteriores se restauran cuando el proveedor permite la operación de rename.
+- Si la regeneración falla, los resultados anteriores se restauran cuando el proveedor permite rename.
 - La regeneración utiliza `MediaPipeline`, por lo que no existe un pipeline paralelo que omita STT, VTT, traducción, QA, TTS o generación audiovisual.
+
+## Contrato de StorageProvider
+
+La operación usa únicamente el contrato público del proveedor:
+
+- `backup_output_folder(...)`: mueve un resultado existente a un backup gestionado por el provider.
+- `restore_output_backup(...)`: restaura el backup si la ruta original está libre.
+- `delete_output_backup(...)`: elimina el backup después del éxito.
+
+Las operaciones concretas de filesystem, Google Drive o rclone permanecen dentro de sus adaptadores. La regeneración no accede a atributos privados del provider ni monkey-patchea `MediaPipeline`.
 
 ## Qué se invalida
 
@@ -60,7 +78,7 @@ El resultado anterior se renombra dentro del mismo filesystem. La regeneración 
 
 ### Google Drive
 
-Los folders anteriores se renombran dentro de Drive y, una vez completada la regeneración, se envían a la papelera mediante la API de Drive. Esto es recuperable desde la papelera de Drive, pero no constituye una transacción ACID.
+Los folders anteriores se renombran dentro de Drive y, una vez completada la regeneración, el backup se elimina mediante la API de Drive. Esto no constituye una transacción ACID; si una operación distribuida falla, la recuperación depende del estado observado por el provider.
 
 ### rclone
 
@@ -71,10 +89,6 @@ Los backups se eliminan mediante `rclone purge` después de una regeneración ex
 La operación evita destruir inmediatamente el resultado anterior: primero crea un backup lógico mediante rename y solo lo elimina después del éxito completo.
 
 Esto **no debe interpretarse como atomicidad distribuida**. Especialmente en Google Drive y rclone, renombrar, procesar, publicar y eliminar son operaciones independientes. El original se conserva, y los resultados anteriores pueden recuperarse si la fase de procesamiento falla antes de su limpieza definitiva.
-
-## Limitación conocida
-
-El contrato histórico de `StorageProvider` no expone todavía una operación pública `delete_folder`. La implementación actual mantiene la mecánica destructiva en un adaptador específico de regeneración para no modificar el core del pipeline. Una evolución posterior recomendable es promover `delete_folder` a la interfaz de storage y cubrir sus garantías por proveedor.
 
 ## Concurrencia
 
