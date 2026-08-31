@@ -89,6 +89,7 @@ class MediaConverter:
         progress_command = command[:-1] + ["-progress", "pipe:2", "-nostats", command[-1]] if command else command
         process: subprocess.Popen[str] | None = None
         stderr_lines: list[str] = []
+        progress_state = {"out_time_ms": None, "speed": None}
         started = time.monotonic()
         try:
             process = subprocess.Popen(progress_command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, bufsize=1)  # noqa: S603
@@ -99,15 +100,30 @@ class MediaConverter:
                 assert process is not None and process.stderr is not None
                 for raw in process.stderr:
                     line = raw.strip()
-                    if line:
-                        stderr_lines.append(line)
+                    if not line:
+                        continue
+                    stderr_lines.append(line)
+                    if line.startswith("out_time_ms="):
+                        try:
+                            progress_state["out_time_ms"] = int(line.split("=", 1)[1])
+                        except ValueError:
+                            pass
+                    elif line.startswith("speed="):
+                        progress_state["speed"] = line.split("=", 1)[1].strip()
 
             reader = threading.Thread(target=consume_stderr, name="ffmpeg-stderr", daemon=True)
             reader.start()
             timeout = max(1, int(self.settings.ffmpeg_timeout_seconds))
             deadline = started + timeout
+            last_log = started
             while process.poll() is None:
                 now = time.monotonic()
+                if now - last_log >= 15:
+                    out_time = progress_state["out_time_ms"]
+                    output_time = f"{int(out_time) / 1_000_000:.1f}s" if isinstance(out_time, int) else "unknown"
+                    speed = progress_state["speed"] or "unknown"
+                    logger.info("FFmpeg working: elapsed=%.0fs output_time=%s speed=%s", now - started, output_time, speed)
+                    last_log = now
                 if now >= deadline:
                     process.kill()
                     process.wait()
@@ -118,6 +134,7 @@ class MediaConverter:
             if process.returncode != 0:
                 detail = next((line for line in reversed(stderr_lines) if not line.startswith(("frame=", "fps=", "out_", "progress="))), "FFmpeg conversion failed")
                 raise RuntimeError(detail)
+            logger.info("FFmpeg completed: elapsed=%.1fs", time.monotonic() - started)
         except FileNotFoundError as exc:
             raise RuntimeError("FFmpeg no está disponible. Configura FFMPEG_BIN o instala imageio-ffmpeg.") from exc
         finally:
