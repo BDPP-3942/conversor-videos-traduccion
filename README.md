@@ -131,6 +131,7 @@ La CI además comprueba packaging, entry points, seguridad y dependencias. Consu
 | [`docs/STT.md`](docs/STT.md) | Transcripción |
 | [`docs/SUBTITLES.md`](docs/SUBTITLES.md) | VTT, QA y reparación |
 | [`docs/TRANSLATION.md`](docs/TRANSLATION.md) | Traducción |
+| [`docs/TRANSLATION_PROVIDERS.md`](docs/TRANSLATION_PROVIDERS.md) | Proveedores y límites del cliente |
 | [`docs/TTS.md`](docs/TTS.md) | TTS sincronizado |
 | [`docs/STORAGE.md`](docs/STORAGE.md) | Almacenamiento |
 | [`docs/RESUME.md`](docs/RESUME.md) | Resume e idempotencia |
