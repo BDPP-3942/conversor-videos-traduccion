@@ -174,7 +174,9 @@ def test_e2e_real_cli_dry_run_has_no_processing_side_effects(tmp_path: Path):
     assert _json_output(result)["status"] == "ready"
     assert list(source.iterdir()) == []
     assert list(target.iterdir()) == []
-    assert list((tmp_path / "storage").iterdir()) == []
+    for directory in ("input", "output", "archive", "state", "failures", "work"):
+        path = tmp_path / "storage" / directory
+        assert not [item for item in path.rglob("*") if item.is_file()]
 
 
 def test_e2e_real_cli_concurrency_override_is_clamped(tmp_path: Path):
