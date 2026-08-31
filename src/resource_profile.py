@@ -45,7 +45,14 @@ def _memory_gb() -> float:
 
 
 def estimate_whisper_budget(model: str, device: str, threads: int) -> ResourceBudget:
-    ram = {"tiny": 0.8, "base": 1.0, "small": 1.6, "medium": 3.0, "large": 5.5, "large-v3": 5.5}.get(model.lower(), 3.0)
+    ram = {
+        "tiny": 0.8,
+        "base": 1.0,
+        "small": 1.6,
+        "medium": 3.0,
+        "large": 5.5,
+        "large-v3": 5.5,
+    }.get(model.lower(), 3.0)
     if device == "cuda":
         return ResourceBudget(max(1, threads), 1.5, True, max(2.0, ram * 0.85), 0.0)
     return ResourceBudget(max(1, threads), ram, False, 0.0, 0.0)
