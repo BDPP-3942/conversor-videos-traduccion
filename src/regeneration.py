@@ -41,13 +41,12 @@ def _delete_folder(storage: StorageProvider, folder: str) -> None:
         return
 
     if isinstance(storage, GoogleDriveStorageProvider):
+
         def trash_tree(folder_id: str) -> None:
             for child in storage.list_children(folder_id):
                 if child.is_directory:
                     trash_tree(child.id)
-                storage._service.files().update(
-                    fileId=child.id, body={"trashed": True}, fields="id"
-                ).execute()
+                storage._service.files().update(fileId=child.id, body={"trashed": True}, fields="id").execute()
 
         trash_tree(folder)
         storage._service.files().update(fileId=folder, body={"trashed": True}, fields="id").execute()
@@ -57,9 +56,7 @@ def _delete_folder(storage: StorageProvider, folder: str) -> None:
         storage._run(["purge", f"{storage.remote}:{folder.rstrip('/')}"])
         return
 
-    raise RegenerationError(
-        f"Storage provider {type(storage).__name__} does not expose safe recursive deletion"
-    )
+    raise RegenerationError(f"Storage provider {type(storage).__name__} does not expose safe recursive deletion")
 
 
 def _manifest_local_path(zip_name: str) -> Path:
@@ -81,11 +78,7 @@ def _read_manifest(path: Path) -> dict[str, Any]:
 def _download_remote_manifest(storage: StorageProvider, target: str, zip_name: str) -> Path | None:
     manifest_name = f"{Path(zip_name).stem}.json"
     try:
-        candidates = [
-            item
-            for item in storage.list_children(target)
-            if item.name == manifest_name and not item.is_directory
-        ]
+        candidates = [item for item in storage.list_children(target) if item.name == manifest_name and not item.is_directory]
     except Exception:
         logger.exception("Could not inspect remote manifest for %s", zip_name)
         return None
@@ -228,9 +221,7 @@ def regenerate(source: str, target: str, settings) -> dict[str, Any]:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Explicit REGENERATE FROM ZERO operation for existing video results"
-    )
+    parser = argparse.ArgumentParser(description="Explicit REGENERATE FROM ZERO operation for existing video results")
     parser.add_argument("--config", type=Path, default=resolve_project_path("config/app.toml"))
     parser.add_argument("--source", default=None, help="Source storage URI containing ZIP inputs")
     parser.add_argument("--target", default=None, help="Target storage URI containing generated outputs")
