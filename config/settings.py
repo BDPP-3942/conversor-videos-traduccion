@@ -27,8 +27,8 @@ class AppSettings:
     target_lang: str = "en"
     log_level: str = "INFO"
     whisper_model: str = "auto"
-    whisper_device: str = "cpu"
-    whisper_compute_type: str = "int8"
+    whisper_device: str = "auto"
+    whisper_compute_type: str = "auto"
     whisper_beam_size: int = 5
     whisper_vad_filter: bool = True
     whisper_min_silence_duration_ms: int = 1500
@@ -104,6 +104,13 @@ class AppSettings:
     resource_profile: str = "auto"
     detected_logical_cpus: int = 0
     detected_memory_gb: float = 0.0
+    detected_memory_available_gb: float = 0.0
+    detected_gpu_vendor: str = "none"
+    detected_gpu_model: str | None = None
+    detected_gpu_index: int = -1
+    detected_gpu_vram_gb: float = 0.0
+    detected_gpu_usable: bool = False
+    detected_disk_free_gb: float = 0.0
 
     @property
     def max_extracted_size_bytes(self) -> int:
@@ -120,7 +127,6 @@ class AppSettings:
         fallback_raw = os.getenv("TRANSLATION_FALLBACK_PROVIDERS", fallback_default)
         fallback = tuple(item.strip() for item in fallback_raw.split(",") if item.strip())
         condition_env = os.getenv("WHISPER_CONDITION_ON_PREVIOUS_TEXT", "true")
-        condition_on_previous_text = condition_env.lower() == "true"
         return cls(
             provider=os.getenv("STORAGE_PROVIDER", cls.provider),
             source=os.getenv("SOURCE_URI", cls.source),
@@ -136,7 +142,7 @@ class AppSettings:
             whisper_min_silence_duration_ms=int(
                 os.getenv("WHISPER_MIN_SILENCE_DURATION_MS", cls.whisper_min_silence_duration_ms)
             ),
-            whisper_condition_on_previous_text=condition_on_previous_text,
+            whisper_condition_on_previous_text=condition_env.lower() == "true",
             whisper_initial_prompt=os.getenv("WHISPER_INITIAL_PROMPT", cls.whisper_initial_prompt),
             whisper_cpu_threads=int(os.getenv("WHISPER_CPU_THREADS", cls.whisper_cpu_threads)),
             translation_provider=os.getenv("TRANSLATION_PROVIDER", cls.translation_provider),
@@ -159,10 +165,7 @@ class AppSettings:
                 os.getenv("TRANSLATION_MAX_PARALLEL_REQUESTS", cls.translation_max_parallel_requests)
             ),
             translation_provider_max_parallel_requests=int(
-                os.getenv(
-                    "TRANSLATION_PROVIDER_MAX_PARALLEL_REQUESTS",
-                    cls.translation_provider_max_parallel_requests,
-                )
+                os.getenv("TRANSLATION_PROVIDER_MAX_PARALLEL_REQUESTS", cls.translation_provider_max_parallel_requests)
             ),
             max_zip_depth=int(os.getenv("MAX_ZIP_DEPTH", cls.max_zip_depth)),
             max_extracted_files=int(os.getenv("MAX_EXTRACTED_FILES", cls.max_extracted_files)),
