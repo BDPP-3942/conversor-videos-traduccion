@@ -45,7 +45,14 @@ def _memory_gb() -> float:
 
 
 def estimate_whisper_budget(model: str, device: str, threads: int) -> ResourceBudget:
-    ram = {"tiny": 0.8, "base": 1.0, "small": 1.6, "medium": 3.0, "large": 5.5, "large-v3": 5.5}.get(model.lower(), 3.0)
+    ram = {
+        "tiny": 0.8,
+        "base": 1.0,
+        "small": 1.6,
+        "medium": 3.0,
+        "large": 5.5,
+        "large-v3": 5.5,
+    }.get(model.lower(), 3.0)
     if device == "cuda":
         return ResourceBudget(max(1, threads), 1.5, True, max(2.0, ram * 0.85), 0.0)
     return ResourceBudget(max(1, threads), ram, False, 0.0, 0.0)
@@ -93,24 +100,42 @@ def _resolve_whisper(hardware: HardwareInfo, settings: AppSettings) -> tuple[str
 
 
 def safe_parallelism(settings: AppSettings, hardware: HardwareInfo | None = None) -> int:
-    requested = max(1, int(settings.max_parallel_videos))
-    if requested == 1:
-        return 1
+    """Calculate a conservative concurrency ceiling from current hardware.
+
+    A configured value is only an upper bound. ``0`` means AUTO and lets the
+    resource model choose the safe value instead of silently becoming one.
+    """
     hw = hardware or detect_hardware()
-    device = settings.whisper_device.lower()
-    if device == "auto":
-        device = "cuda" if hw.gpu.usable_for_whisper and available_gpu_memory(hw) >= 3.0 else "cpu"
+    device, _ = _resolve_whisper(hw, settings)
     threads = settings.whisper_cpu_threads if settings.whisper_cpu_threads > 0 else max(2, min(8, hw.logical_cpus // 2))
     budget = estimate_whisper_budget(settings.whisper_model, device, threads)
+
+    # Keep headroom for the OS, Python runtime and FFmpeg. This is deliberately
+    # conservative: stability is preferable to saturating the machine.
     safe_cpu = max(1, hw.logical_cpus - 2)
     safe_ram = max(1.0, hw.memory_available_gb - 2.0)
     by_cpu = max(1, safe_cpu // max(1, budget.cpu_threads))
     by_ram = max(1, int(safe_ram // max(0.5, budget.ram_gb)))
-    by_gpu = requested if device != "cuda" else max(1, int(available_gpu_memory(hw) // max(0.5, budget.gpu_memory_gb)))
-    effective = min(requested, by_cpu, by_ram, by_gpu)
-    if effective < requested:
+    by_gpu = max(1, int(available_gpu_memory(hw) // max(0.5, budget.gpu_memory_gb))) if device == "cuda" else 2**31 - 1
+    hardware_cap = max(1, min(by_cpu, by_ram, by_gpu))
+
+    configured = int(settings.max_parallel_videos)
+    requested = hardware_cap if configured <= 0 else max(1, configured)
+    effective = min(requested, hardware_cap)
+
+    if configured > 0 and effective < configured:
         logging.getLogger(__name__).warning(
-            "Clamping max_parallel_videos from %d to %d for safe resource budget", requested, effective
+            "Clamping max_parallel_videos from %d to %d for safe resource budget",
+            configured,
+            effective,
+        )
+    elif configured <= 0:
+        logging.getLogger(__name__).info(
+            "Auto-selected max_parallel_videos=%d from CPU=%d, available RAM=%.2f GB, device=%s",
+            effective,
+            hw.logical_cpus,
+            hw.memory_available_gb,
+            device,
         )
     return effective
 
@@ -138,8 +163,14 @@ def build_profile(settings: AppSettings, hardware: HardwareInfo | None = None) -
         name, batch = "low", 6
         default_threads = min(4, max(2, cpus - 1))
     threads = default_threads if settings.whisper_cpu_threads <= 0 else max(1, settings.whisper_cpu_threads)
-    configured_parallel = 1 if settings.max_parallel_videos <= 0 else max(1, settings.max_parallel_videos)
-    effective_parallel = safe_parallelism(replace(settings, max_parallel_videos=configured_parallel), hw)
+    effective_settings = replace(
+        settings,
+        whisper_model=model,
+        whisper_device=device,
+        whisper_compute_type=compute,
+        whisper_cpu_threads=threads,
+    )
+    effective_parallel = safe_parallelism(effective_settings, hw)
     return ResourceProfile(
         name,
         cpus,
