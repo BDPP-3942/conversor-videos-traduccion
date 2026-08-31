@@ -25,7 +25,7 @@ class _Storage:
 def test_pipeline_does_not_turn_finalize_filenotfound_into_zip_failure():
     pipeline = MediaPipeline.__new__(MediaPipeline)
     pipeline.storage = _Storage()
-    pipeline._process_zip = lambda zip_file, target: {
+    pipeline._process_zip = lambda zip_file, target, **kwargs: {
         "zip": zip_file.name,
         "status": "success",
         "output_folders": [],

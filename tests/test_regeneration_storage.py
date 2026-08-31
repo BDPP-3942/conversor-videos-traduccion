@@ -29,12 +29,21 @@ class FakeDriveStorage(GoogleDriveStorageProvider):
     def __init__(self):
         self._service = FakeDriveService()
         self.children = {
-            "root": [StorageFile("folder", "backup", True)],
             "folder": [StorageFile("file", "video.mp4", False)],
         }
 
     def list_children(self, parent: str):
         return self.children.get(parent, [])
+
+    def delete_folder(self, parent: str, name: str) -> None:
+        def trash_tree(folder_id: str):
+            for child in self.list_children(folder_id):
+                if child.is_directory:
+                    trash_tree(child.id)
+                self._service.files().update(fileId=child.id, body={"trashed": True}, fields="id").execute()
+
+        trash_tree(name)
+        self._service.files().update(fileId=name, body={"trashed": True}, fields="id").execute()
 
 
 class FakeRcloneStorage(RcloneStorageProvider):
@@ -46,18 +55,18 @@ class FakeRcloneStorage(RcloneStorageProvider):
         self.commands.append(args)
         return SimpleNamespace(returncode=0, stdout="", stderr="")
 
+    def delete_folder(self, parent: str, name: str) -> None:
+        del parent
+        self._run(["purge", f"{self.remote}:{name}"])
 
-def test_google_drive_cleanup_recursively_trashes_tree():
+
+def test_regeneration_uses_public_storage_delete_contract_for_google_drive():
     storage = FakeDriveStorage()
-
-    regeneration._delete_folder(storage, "folder")
-
+    regeneration._delete_backups(storage, "root", [("lesson", "folder")])
     assert storage._service.trashed == ["file", "folder"]
 
 
-def test_rclone_cleanup_uses_purge_for_backup_tree():
+def test_regeneration_uses_public_storage_delete_contract_for_rclone():
     storage = FakeRcloneStorage()
-
-    regeneration._delete_folder(storage, "backup")
-
+    regeneration._delete_backups(storage, "root", [("lesson", "backup")])
     assert storage.commands == [["purge", "remote:backup"]]
