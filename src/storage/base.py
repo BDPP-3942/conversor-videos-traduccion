@@ -48,9 +48,7 @@ class StorageProvider(ABC):
         """Delete a complete output folder using provider-native storage operations."""
         raise NotImplementedError("This storage provider does not support folder deletion")
 
-    def backup_output_folder(
-        self, target: str, folder: str, backup_name: str, original_transcript_subdir: str
-    ) -> bool:
+    def backup_output_folder(self, target: str, folder: str, backup_name: str, original_transcript_subdir: str) -> bool:
         """Move an existing output folder into a provider-managed regeneration backup."""
         if not self.folder_exists(target, folder):
             return False
@@ -59,9 +57,7 @@ class StorageProvider(ABC):
         self.rename_output_folder(target, folder, backup_name, original_transcript_subdir)
         return True
 
-    def restore_output_backup(
-        self, target: str, backup_name: str, folder: str, original_transcript_subdir: str
-    ) -> bool:
+    def restore_output_backup(self, target: str, backup_name: str, folder: str, original_transcript_subdir: str) -> bool:
         """Restore a regeneration backup when the original output path is free."""
         if not self.folder_exists(target, backup_name) or self.folder_exists(target, folder):
             return False
