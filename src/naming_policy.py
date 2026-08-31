@@ -6,12 +6,12 @@ from pathlib import Path
 from src.file_naming import SourceNameMetadata, _sanitize_text, strip_date_artifacts
 
 _NOISE = re.compile(r"(?:wetransfer|drive-download|download|descarga|archive|compressed|backup|compression|extract(?:ed)?|unzip(?:ped)?|descomprim(?:ido|ida|idos|idas))", re.IGNORECASE)
-_NUMBER = re.compile(r"(?<!\d)(\d{1,4})(?!\d)")
 _COURSE_LABEL = re.compile(r"(?:curso|course)", re.IGNORECASE)
 _LESSON_LABEL = re.compile(r"(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)", re.IGNORECASE)
 _COURSE_NUMBER = re.compile(r"(?:^|[_\- .])(?:curso|course)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|\b(\d{1,4})\s*(?:º|°)\s*curso\b", re.IGNORECASE)
-_LESSON_NUMBER = re.compile(r"(?:^|[_\- .])(?:cap[ií]tulo|lecci[oó]n|lesson|chapter|clase|tema|unidad)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|^\s*(\d{1,4})\s*(?:º|°|[._-])\s*", re.IGNORECASE)
-_GENERIC = {"mp4","wmv","video","videos","audio","media","file","files","archivo","archivos","download","downloads","descarga","descargas","compressed","compression","archive","zip","rar","7z"}
+_LESSON_NUMBER = re.compile(r"(?:^|[_\- .])(?:cap[ií]tulo|lecci[oó]n|lesson|chapter|clase|tema|unidad)\s*[_\-.:#]*\s*(\d{1,4})\b|^\s*(\d{1,4})\s*(?:º|°|[._-])\s*", re.IGNORECASE)
+_LEADING_NUMBER = re.compile(r"^\s*(\d{1,4})\s*(?:º|°|[._-])\s*")
+_GENERIC = {"mp4", "wmv", "video", "videos", "audio", "media", "file", "files", "archivo", "archivos", "download", "downloads", "descarga", "descargas", "compressed", "compression", "archive", "zip", "rar", "7z"}
 _VIDEO_EXTENSIONS = {".mp4", ".wmv"}
 
 
@@ -43,6 +43,17 @@ def _match_number(value: str, pattern: re.Pattern[str]) -> int | None:
     if not match:
         return None
     return next((int(group) for group in match.groups() if group), None)
+
+
+def _match_source_lesson(source: Path) -> int | None:
+    stem = source.name.rsplit(".", 1)[0] if "." in source.name else source.name
+    match = _LEADING_NUMBER.match(stem)
+    if match:
+        return int(match.group(1))
+    match = _LESSON_NUMBER.search(stem)
+    if match:
+        return next((int(group) for group in match.groups() if group), None)
+    return None
 
 
 def _remove_number(value: str, number: int | None) -> str:
@@ -78,7 +89,7 @@ def _course_context(context_values: list[str]) -> tuple[int | None, str | None]:
 
 
 def _lesson_context(source: Path, context_values: list[str]) -> tuple[int | None, str]:
-    number = _match_number(source.name, _LESSON_NUMBER)
+    number = _match_source_lesson(source)
     description = _description(source.name, number, _LESSON_LABEL)
     if number is not None or description:
         return number, description
