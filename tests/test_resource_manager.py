@@ -15,7 +15,7 @@ def test_auto_without_gpu_uses_cpu_int8():
 
 
 def test_auto_uses_cuda_only_when_runtime_is_usable():
-    gpu = GPUInfo(True, "NVIDIA", "RTX Test", 0, 12.0, 10.0, "test", "test", "cuda", True)
+    gpu = GPUInfo(available=True, vendor="NVIDIA", model="RTX Test", device_index=0, count=1, vram_total_gb=12.0, vram_free_gb=10.0, driver_version="test", runtime="test", backend="cuda", usable_for_whisper=True)
     settings = AppSettings(whisper_model="auto", whisper_device="auto", whisper_compute_type="auto")
     profile = build_profile(settings, hardware(gpu=gpu))
     assert profile.whisper_device == "cuda"
@@ -23,7 +23,7 @@ def test_auto_uses_cuda_only_when_runtime_is_usable():
 
 
 def test_detected_gpu_without_runtime_is_not_selected():
-    gpu = GPUInfo(True, "NVIDIA", "RTX Test", 0, 12.0, 10.0, usable_for_whisper=False, reason="CUDA unavailable")
+    gpu = GPUInfo(available=True, vendor="NVIDIA", model="RTX Test", device_index=0, count=1, vram_total_gb=12.0, vram_free_gb=10.0, usable_for_whisper=False, reason="CUDA unavailable")
     settings = AppSettings(whisper_model="auto", whisper_device="auto", whisper_compute_type="auto")
     profile = build_profile(settings, hardware(gpu=gpu))
     assert profile.whisper_device == "cpu"
