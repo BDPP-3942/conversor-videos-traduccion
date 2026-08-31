@@ -158,7 +158,11 @@ class TTSAwareStorageProvider(StorageProvider):
             None,
         )
         webm = next(
-            (item for item in files.values() if item.name.lower().endswith(".webm") and "_tts" not in item.name.lower()),
+            (
+                item
+                for item in files.values()
+                if item.name.lower().endswith(".webm") and "_tts" not in item.name.lower()
+            ),
             None,
         )
         if not vtt:
