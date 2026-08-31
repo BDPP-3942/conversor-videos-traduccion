@@ -5,8 +5,8 @@
 - Python 3.11, 3.12 or 3.13 (`>=3.11,<3.14`).
 - Internet access for package/model/provider downloads as applicable.
 - Disk space for media, Whisper/TTS assets and generated output.
-- Optional provider dependencies for Google Drive.
-- rclone support can use the project's managed binary.
+- Optional Google dependency for Google Drive.
+- rclone is an external executable; the project can bootstrap and manage its own binary under `tools/rclone/`.
 
 FFmpeg is supplied through the `imageio-ffmpeg` dependency unless an explicit executable is configured.
 
@@ -26,7 +26,7 @@ chmod +x scripts/setup_env.sh
 ./scripts/setup_env.sh
 ```
 
-Optional setup flags supported by the script are `--cloud`, `--rclone`, `--tts` and `--prefetch-whisper`.
+The setup script accepts exactly these optional flags: `--cloud`, `--rclone`, `--tts` and `--prefetch-whisper`.
 
 ### Windows
 
@@ -34,7 +34,7 @@ Optional setup flags supported by the script are `--cloud`, `--rclone`, `--tts` 
 scripts\setup_env.bat
 ```
 
-The Windows script provides the corresponding environment setup; use `scripts\setup_env.bat --help` only if the installed version adds help handling.
+The Windows setup script accepts the same four optional flags: `--cloud`, `--rclone`, `--tts` and `--prefetch-whisper`.
 
 ### Manual virtual environment
 
@@ -77,7 +77,7 @@ Do not commit `.env`, credentials, provider profiles or model weights.
 
 ## Runtime directories
 
-The repository already contains placeholders for the runtime layout:
+The runtime layout is:
 
 ```text
 storage/
@@ -91,15 +91,15 @@ storage/
 └── state/
 ```
 
-If a checkout lacks a directory, create it under `storage/`; logs are written to `storage/logs/`, not a top-level `logs/` directory.
+If a checkout lacks a directory, create it under `storage/`; logs are written to `storage/logs/pipeline.log`.
 
 ## Translation providers
 
-The default processing configuration uses Mistral with DeepL and MyMemory fallback. Provider credentials are configured through the environment/profile mechanisms documented in [TRANSLATION_PROVIDERS.md](TRANSLATION_PROVIDERS.md).
+The default processing configuration uses Mistral with DeepL and MyMemory fallback. Provider credentials are configured through environment/profile mechanisms. See [TRANSLATION_PROVIDERS.md](TRANSLATION_PROVIDERS.md).
 
 ## TTS
 
-TTS is disabled by default. When enabled, the local provider is Kokoro through `kokoro-onnx`. The setup helper downloads the configured default assets when TTS is enabled:
+TTS is disabled by default. When enabled, the local provider is Kokoro through `kokoro-onnx`. The setup helper prepares the default assets when TTS is enabled:
 
 ```text
 tools/tts/kokoro-v1.0.onnx
@@ -117,20 +117,20 @@ Custom asset locations can be configured with `TTS_MODEL_PATH` and `TTS_VOICES_P
 
 ## Google Drive and rclone
 
-Google Drive requires the optional Google dependency and a provider profile. The interactive setup is:
+Google Drive requires the `[google]` extra and a provider profile. The interactive setup is exposed by:
 
 ```bash
 python main.py provider setup-google --help
 ```
 
-rclone can be bootstrapped and configured through the provider CLI:
+rclone is not a Python dependency. The project can bootstrap its managed rclone binary and then configure a remote through the provider CLI:
 
 ```bash
 python main.py provider bootstrap
 python main.py provider setup-rclone --help
 ```
 
-The managed rclone binary is stored under `tools/rclone/`; its configuration is under `secrets/rclone/rclone.conf` by default.
+The managed binary is stored under `tools/rclone/`; its configuration is under `secrets/rclone/rclone.conf` by default.
 
 ## Validate installation
 
@@ -159,7 +159,7 @@ For local processing, place a supported video or ZIP in `storage/input/` and run
 python main.py run
 ```
 
-The wrapper equivalents are `scripts/run_local.sh` and `scripts\run_local.bat`.
+The wrapper equivalents are `scripts/run_local.sh` and `scripts\\run_local.bat`.
 
 ## Existing results
 
@@ -187,7 +187,7 @@ Do not delete manifests or outputs during an upgrade unless a documented migrati
 
 ## Packaging
 
-Install the packaging extra and use the platform-specific build script:
+The repository currently provides packaging scripts for Windows and Linux:
 
 ```bash
 python -m pip install -e ".[package]"
@@ -201,4 +201,4 @@ python -m pip install -e ".[package]"
 scripts\build_windows.bat
 ```
 
-See [PACKAGING.md](PACKAGING.md).
+There is no repository packaging script for macOS at present. See [PACKAGING.md](PACKAGING.md).
