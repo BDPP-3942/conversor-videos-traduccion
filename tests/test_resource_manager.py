@@ -46,10 +46,11 @@ def test_apple_unified_memory_is_not_double_counted_as_vram():
     gpu = GPUInfo(available=True, vendor="Apple", model="Apple Silicon GPU", device_index=0, count=1,
                   backend="metal", usable_for_whisper=False, memory_model="unified",
                   memory_shared_with_system=True, reason="Metal backend unavailable")
-    profile = build_profile(AppSettings(whisper_model="medium"), hardware(cpu=10, ram=16.0, available=6.0, gpu=gpu))
+    hw = hardware(cpu=10, ram=16.0, available=6.0, gpu=gpu)
+    profile = build_profile(AppSettings(whisper_model="medium"), hw)
     assert profile.whisper_device == "cpu"
     assert profile.gpu_vram_gb == 0.0
-    assert available_gpu_memory(hardware(gpu=gpu)) == 4.0
+    assert available_gpu_memory(hw) == 4.0
 
 
 def test_unified_memory_budget_uses_available_system_memory():
