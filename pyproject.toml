@@ -52,5 +52,6 @@ include = ["config*", "src*"]
 
 [project.scripts]
 video-translation-pipeline = "main:main"
+video-translation-regenerate = "src.regeneration:main"
 video-subtitle-qa = "src.subtitle_qa_cli:main"
 video-translation-tts = "src.tts_cli:main"
