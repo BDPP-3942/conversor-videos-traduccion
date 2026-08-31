@@ -49,12 +49,7 @@ class LocalStorageProvider(StorageProvider):
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
 
-    def upload_file(
-        self,
-        local_path: Path,
-        location: str,
-        mime_type: str | None = None,
-    ) -> StorageFile:
+    def upload_file(self, local_path: Path, location: str, mime_type: str | None = None) -> StorageFile:
         del mime_type
         source = local_path.resolve()
         if not source.is_file():
@@ -81,6 +76,11 @@ class LocalStorageProvider(StorageProvider):
             StorageFile(id=str(child), name=child.name, is_directory=child.is_dir())
             for child in sorted(folder.iterdir(), key=lambda item: item.name.lower())
         ]
+
+    def delete_folder(self, parent: str, name: str) -> None:
+        folder = self._folder(parent) / name
+        if folder.is_dir():
+            shutil.rmtree(folder)
 
     def rename_output_folder(
         self, target: str, old_name: str, new_name: str, original_transcript_subdir: str
@@ -133,11 +133,7 @@ class LocalStorageProvider(StorageProvider):
             if new_name != folder.name:
                 candidate = root / new_name
                 if candidate.exists():
-                    logger.warning(
-                        "Cannot normalize output folder '%s' because '%s' already exists",
-                        folder.name,
-                        candidate.name,
-                    )
+                    logger.warning("Cannot normalize output folder '%s' because '%s' already exists", folder.name, candidate.name)
                 else:
                     try:
                         folder.rename(candidate)
@@ -150,9 +146,7 @@ class LocalStorageProvider(StorageProvider):
         self._update_manifests_after_migration(root, mapping)
         return mapping
 
-    def _normalize_files_recursive(
-        self, root: Path, storage_root: Path, original_transcript_subdir: str, mapping: dict[str, str]
-    ) -> None:
+    def _normalize_files_recursive(self, root: Path, storage_root: Path, original_transcript_subdir: str, mapping: dict[str, str]) -> None:
         try:
             children = list(root.iterdir())
         except FileNotFoundError:
@@ -175,7 +169,6 @@ class LocalStorageProvider(StorageProvider):
                             continue
                 self._normalize_files_recursive(child, storage_root, original_transcript_subdir, mapping)
                 continue
-
             normalized_stem = fit_component(normalize_component(child.stem), child.parent)
             normalized_name = f"{normalized_stem}{child.suffix.lower()}"
             if normalized_name == child.name:
@@ -195,7 +188,6 @@ class LocalStorageProvider(StorageProvider):
         if not manifests.is_dir() or not mapping:
             return
         from src.manifest import read_manifest, write_manifest
-
         for manifest in manifests.glob("*.json"):
             data = read_manifest(manifest)
             changed = False
@@ -210,40 +202,25 @@ class LocalStorageProvider(StorageProvider):
                 if new_folder != old_folder:
                     entry["output_folder"] = new_folder
                     changed = True
-
                 for key in ("video", "secondary_video", "audio", "translated_vtt"):
                     old_name = str(entry.get(key, ""))
                     if not old_name:
                         continue
                     candidate = output_dir / old_name
-                    normalized_name = (
-                        f"{fit_component(normalize_component(Path(old_name).stem), output_dir)}"
-                        f"{Path(old_name).suffix.lower()}"
-                    )
-                    if candidate.is_file():
-                        final_name = candidate.name
-                    else:
-                        final_name = normalized_name if (output_dir / normalized_name).is_file() else old_name
+                    normalized_name = f"{fit_component(normalize_component(Path(old_name).stem), output_dir)}{Path(old_name).suffix.lower()}"
+                    final_name = candidate.name if candidate.is_file() else normalized_name if (output_dir / normalized_name).is_file() else old_name
                     if final_name != old_name:
                         entry[key] = final_name
                         changed = True
-
                 old_original = str(entry.get("original_transcription", ""))
                 if old_original:
                     original_dir = output_dir / "original_transcriptions"
                     candidate = original_dir / old_original
-                    normalized_name = (
-                        f"{fit_component(normalize_component(Path(old_original).stem), original_dir)}"
-                        f"{Path(old_original).suffix.lower()}"
-                    )
-                    if candidate.is_file():
-                        final_name = candidate.name
-                    else:
-                        final_name = normalized_name if (original_dir / normalized_name).is_file() else old_original
+                    normalized_name = f"{fit_component(normalize_component(Path(old_original).stem), original_dir)}{Path(old_original).suffix.lower()}"
+                    final_name = candidate.name if candidate.is_file() else normalized_name if (original_dir / normalized_name).is_file() else old_original
                     if final_name != old_original:
                         entry["original_transcription"] = final_name
                         changed = True
-
                 relative_output = entry.get("output_relative_path")
                 if isinstance(relative_output, str):
                     output_name = str(entry.get("video", ""))
@@ -251,7 +228,6 @@ class LocalStorageProvider(StorageProvider):
                     if new_relative != relative_output:
                         entry["output_relative_path"] = new_relative
                         changed = True
-
             if changed:
                 try:
                     write_manifest(manifest, data.get("entries", []), metadata=data.get("metadata", {}))
@@ -260,30 +236,20 @@ class LocalStorageProvider(StorageProvider):
 
     def source_fingerprint(self, file: StorageFile) -> dict[str, Any]:
         source = Path(file.id).resolve()
-        return {
-            "sha256": sha256_file(source),
-            "size": source.stat().st_size,
-        }
+        return {"sha256": sha256_file(source), "size": source.stat().st_size}
 
     def is_processed(self, file: StorageFile) -> bool:
         fingerprint = self.source_fingerprint(file)
         registry = ProcessedRegistry(self._storage_root("storage/state") / "processed.jsonl")
         return registry.contains_success(file.name, str(fingerprint["sha256"]))
 
-    def finalize_source(
-        self,
-        file: StorageFile,
-        status: str,
-        output_folders: list[str] | None = None,
-    ) -> None:
+    def finalize_source(self, file: StorageFile, status: str, output_folders: list[str] | None = None) -> None:
         if status != "success" or not self.retain_sources:
             return
-
         source = Path(file.id).resolve()
         if not source.is_file():
             logger.warning("Source already absent during finalization: %s", source)
             return
-
         try:
             fingerprint = self.source_fingerprint(file)
             archive_root = self._storage_root("storage/archive/sources")
@@ -296,12 +262,10 @@ class LocalStorageProvider(StorageProvider):
         except FileNotFoundError:
             logger.warning("Source disappeared during finalization: %s", source)
             return
-
         archived_hash = sha256_file(archive_path)
         if archived_hash != fingerprint["sha256"]:
             archive_path.unlink(missing_ok=True)
             raise OSError("Archived source checksum does not match the original")
-
         registry = ProcessedRegistry(self._storage_root("storage/state") / "processed.jsonl")
         registry.append_success(
             source_name=file.name,
@@ -310,7 +274,6 @@ class LocalStorageProvider(StorageProvider):
             archive_name=archive_name,
             output_folders=output_folders or [],
         )
-
         try:
             source.unlink()
         except FileNotFoundError:
