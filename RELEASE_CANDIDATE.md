@@ -3,119 +3,133 @@
 ## Release
 
 - **Version:** 1.4.0
-- **Candidate SHA at report creation:** `1bb709c82c648e6bb1c1fe1225eebf1bdb092ede`
+- **Candidate SHA at report creation:** `9dd44ee2477808ea9a9e0855a09c16a0df0eedd1`
 - **Previous release:** `v1.3.0` → `620af6acbe3fca7d42ccd57f3585b3952cccf0a7`
 - **Target tag:** `v1.4.0` — not created
 
+The report records the last code-validation SHA before this documentation-only reconciliation commit. A release tag must point to the final immutable commit selected by the Release Gate; the tracked report cannot contain that commit's own SHA without becoming self-referential.
+
 ## Scope
 
-The comparison `v1.3.0...main` contains 23 commits. The relevant post-release product evolution is:
+- PR #26: release 1.4.0 integration, hardening and release-gate work.
+- PRs included: #24, #25 and the hardening changes required by #27 and #28.
+- PRs excluded: no unrelated product work is included in the release candidate.
+- `v1.3.0` remains immutable.
 
-| PR | Change | Type | 1.4.0 |
-|---|---|---|---|
-| #24 | Explicit clean video regeneration | FEATURE | YES |
-| #25 | Repository governance and hygiene | GOVERNANCE / DOCUMENTATION | YES |
+## #27 — Safe parallelism
 
-PRs #20–#23 form the already-published v1.3.0 baseline and are not reintroduced as new features. The v1.3.0 tag remains immutable.
+Resolved in code and regression coverage.
 
-## Features
+The effective concurrency path is now:
 
-- Clean regeneration from the original source through the common `MediaPipeline`.
-- Backup before regeneration and rollback where storage rename permits it.
-- `video-translation-regenerate` entry point.
-- Governance rules and removal of the one-off format-writing workflow.
+```text
+requested CLI value
+        ↓
+resolved AppSettings
+        ↓
+safe_parallelism()
+        ↓
+MediaPipeline._effective_parallelism()
+        ↓
+effective worker count
+```
 
-## Bug fixes / hardening
+Contract:
 
-- Package metadata and release documentation are aligned to 1.4.0 on this candidate branch.
-- The audit identified a concurrency override defect that is **not yet fixed**.
-- The audit identified an architectural contract problem in regeneration that is **not yet fixed**.
+- `0` → AUTO.
+- `1` → exactly one worker.
+- `N > 1` → clamped to the hardware-safe limit.
+
+The CLI regression exercises `--parallel-videos 999` through a real subprocess and asserts that it cannot exceed the AUTO safe limit.
+
+## #28 — Regeneration architecture
+
+Resolved in code and contract coverage.
+
+Regeneration now uses the common `MediaPipeline` with `force_reprocess=True` and only the public `StorageProvider` regeneration contract:
+
+- `backup_output_folder()`
+- `restore_output_backup()`
+- `delete_output_backup()`
+
+No monkey-patching of pipeline/storage internals is used by regeneration. Local, Google Drive and rclone providers expose the contract; remote behavior is covered with deterministic provider fakes.
+
+## Functionality
+
+- Clean regeneration backs up existing derived output before processing.
+- Successful regeneration validates through the common pipeline and removes the backup.
+- Failed regeneration restores the previous output and manifest state where the provider exposes the required operations.
+- Source input is preserved by the regeneration operation.
+- Existing resume/idempotency and duplicate handling remain in the common pipeline.
+
+## E2E
+
+The release E2E suite uses real subprocess entry points and controlled local infrastructure:
+
+- temporary filesystem;
+- deterministic STT/translation adapters only for external model/API boundaries;
+- real `MediaPipeline`;
+- real ffmpeg conversion;
+- real local storage;
+- real regeneration entry point;
+- success and rollback scenarios;
+- CLI dry-run, scheduled mode and concurrency regression.
+
+The package does not currently declare a standalone `video-translation-scheduled` console entry point. Scheduled execution is `video-translation-pipeline run --scheduled` and is tested through that real entry point.
 
 ## Security
 
-The existing CI has a successful Ruff Security and dependency-audit run on the current `main` SHA. That result cannot approve this candidate because the candidate SHA has not received the required CI run yet.
-
-Manual review found no evidence in the inspected regeneration implementation of `shell=True`; rclone execution uses an argv list and explicit subprocess timeout. However, regeneration currently reaches provider internals/private fields, so the architectural security/reliability boundary is not considered closed.
+- Ruff Security is a mandatory CI job.
+- Dependency auditing is mandatory for the normal and optional TTS dependency graphs.
+- No new `noqa`, `continue-on-error`, formatter auto-commit or self-modifying workflow was introduced.
+- Regeneration does not access provider private fields or private pipeline methods.
+- Provider-specific destructive operations remain inside the provider adapter.
 
 ## Tests
 
-The repository contains broad regression coverage, including resource management, resume, regeneration, storage, STT, subtitles, translation and TTS. The release audit has not yet demonstrated the mandatory new CLI regression for `--parallel-videos 999`.
+Coverage is behavior-oriented rather than percentage-driven and includes unit, integration, subprocess E2E, regeneration rollback and provider-contract tests. The mandatory full suite remains a release gate and must pass on the final candidate SHA.
 
 ## CI
 
-Latest verified successful GitHub Actions run:
+The CI workflow now runs on pushes to `release/1.4.0-hardening` so the branch-head SHA can be validated directly. Required validation includes Python 3.11/3.12/3.13, pytest, Ruff, Ruff Security, Ruff format, repository-wide compileall, pip check, pip-audit, distribution build and clean-wheel entry-point checks.
 
-- SHA: `250fd2d239848c4f1f9b82485f602728b46cf71f`
-- Workflow: CI
-- Python: 3.11, 3.12, 3.13
-- Packaging: success
-- Dependency audit: success
-- TTS dependency audit: success
-- Ruff / Ruff Security / format / compileall: success
-
-This is **not** the final candidate SHA. The candidate currently has no status checks recorded, so CI is not a release gate pass.
+A successful run on another SHA is never substituted for the final candidate run.
 
 ## Packaging
 
-`pyproject.toml` now declares `1.4.0` on this branch. The package entry points include:
+`pyproject.toml` declares `1.4.0` and the packaged entry points are:
 
 - `video-translation-pipeline`
 - `video-translation-regenerate`
 - `video-subtitle-qa`
 - `video-translation-tts`
 
-Packaging was successful on the pre-candidate main SHA, including installation of the wheel and `--help` checks, but packaging must be rerun on the final candidate SHA.
-
-PyInstaller artifacts have not been declared validated by this audit.
+`video-translation-scheduled` is not a declared entry point and is therefore not represented as a supported package executable.
 
 ## Documentation
 
-Updated on this candidate branch:
+The CLI, regeneration architecture and explicit E2E matrix were reconciled with the hardening implementation. The historical `v1.3.0` tag and release documentation remain unchanged.
 
-- `README.md`
-- `CHANGELOG.md`
-- `docs/RELEASES.md`
-- `docs/VERSIONING.md`
-- `RELEASE_SCOPE.md`
-- `RELEASE_CANDIDATE.md`
+## Known limitations
 
-`docs/REGENERATION.md` already documents the feature and its distributed-storage limitations. It should be reconciled with the final implementation after architectural hardening.
-
-## Known limitations / blockers
-
-### CRITICAL — concurrency contract violation
-
-`main.py` applies `--parallel-videos` after resource tuning and converts zero to one. `src/pipeline.py::_effective_parallelism()` then returns the configured value for local storage. Consequently an explicit value such as `--parallel-videos 999` can bypass the hardware-safe ceiling. This contradicts the stated 0=AUTO / 1=single / N=bounded-by-safe-limit contract.
-
-Tracked in issue #27.
-
-### HIGH — regeneration contract leakage
-
-`src/regeneration.py` monkey-patches private `MediaPipeline` methods/attributes and accesses private provider implementation details to perform destructive cleanup. The public `StorageProvider` contract does not expose a regeneration/delete operation. This makes the release behavior dependent on private implementation details.
-
-Tracked in issue #28.
-
-### RELEASE — candidate CI not validated
-
-No status checks are recorded for the candidate SHA at report creation. A successful CI run on another SHA cannot be substituted.
+- Google Drive and rclone are not exercised against real remote accounts in CI; their public storage contract is validated with deterministic fakes. Real cloud credentials are intentionally excluded from CI.
+- TTS is validated at the packaged entry-point level in the release suite; the full external TTS provider requires its optional runtime/model environment and is not a mandatory networked CI test.
+- The report's own commit SHA cannot be truthfully embedded into its content because doing so changes the SHA. The exact final release SHA is therefore recorded by the Release Gate and tag, while this report records the preceding code-validation SHA.
 
 ## Release Gate
 
 | Gate | Status |
 |---|---|
-| Architecture | **BLOCK** — regeneration contract leakage |
-| Functionality | **BLOCK** — concurrency override can bypass safe ceiling |
-| Security | **BLOCK** — boundary review not closed; candidate checks pending |
-| Tests | **BLOCK** — mandatory CLI concurrency regression not yet demonstrated |
-| CI | **BLOCK** — no checks on final candidate SHA |
-| Packaging | **BLOCK** — 1.4.0 candidate build not yet rerun after final fixes |
-| Documentation | PASS with condition — candidate docs aligned, regeneration docs need final implementation reconciliation |
-| Versioning | PASS for candidate branch — `pyproject.toml` is 1.4.0; tag intentionally absent |
+| Architecture | **BLOCK** until final SHA validation |
+| Functionality | **BLOCK** until final SHA validation |
+| E2E | **BLOCK** until final SHA validation |
+| Security | **BLOCK** until final SHA validation |
+| Tests | **BLOCK** until final SHA validation |
+| CI | **BLOCK** until final SHA validation |
+| Packaging | **BLOCK** until final SHA validation |
+| Documentation | **PASS** for reconciled documentation |
+| Versioning | **PASS** for 1.4.0 metadata; tag intentionally absent |
 
 ## Decision
 
-**BLOCK RELEASE**
-
-The repository is not yet publishable as `v1.4.0`.
-
-The correct next steps are to fix #27, harden #28, add/execute the required regression suite, rerun all local and GitHub checks on the resulting final SHA, rebuild/package that exact SHA, reconcile documentation, and only then create `v1.4.0` on the validated commit.
+**BLOCK RELEASE** until every required gate is demonstrated on one final SHA. Issues #27 and #28 must remain open until the final validation is complete; they may only be closed after the behavior is demonstrated and the release gate is PASS.
