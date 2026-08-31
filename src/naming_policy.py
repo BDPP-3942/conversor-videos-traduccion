@@ -9,6 +9,7 @@ _NOISE = re.compile(r"(?:wetransfer|drive-download|download|descarga|archive|com
 _COURSE_LABEL = re.compile(r"(?:curso|course)", re.IGNORECASE)
 _LESSON_LABEL = re.compile(r"(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)", re.IGNORECASE)
 _COURSE_NUMBER = re.compile(r"(?:^|[_\- .])(?:curso|course)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|\b(\d{1,4})\s*(?:º|°)\s*curso\b", re.IGNORECASE)
+_LESSON_NUMBER = re.compile(r"(?:^|[_\- .])(?:cap[ií]tulo|lecci[oó]n|lesson|chapter|clase|tema|unidad)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|^\s*(\d{1,4})\s*(?:º|°|[._-])\s*", re.IGNORECASE)
 _LEADING_NUMBER = re.compile(r"^\s*(\d{1,4})(?:\s+(?=[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])|[._-])\s*(?:º|°|[._-])?\s*", re.IGNORECASE)
 _LOGICAL_LESSON_NUMBER = re.compile(r"(?:^|_)(\d{1,4})(?=_[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])", re.IGNORECASE)
 _GENERIC = {"mp4", "wmv", "video", "videos", "audio", "media", "file", "files", "archivo", "archivos", "download", "downloads", "descarga", "descargas", "compressed", "compression", "archive", "zip", "rar", "7z"}
@@ -47,7 +48,12 @@ def _match_number(value: str, pattern: re.Pattern[str]) -> int | None:
 def _match_source_lesson(source: Path) -> int | None:
     stem = source.name.rsplit(".", 1)[0] if "." in source.name else source.name
     match = _LEADING_NUMBER.match(stem)
-    return int(match.group(1)) if match else None
+    if match:
+        return int(match.group(1))
+    match = _LESSON_NUMBER.search(stem)
+    if match:
+        return next((int(group) for group in match.groups() if group), None)
+    return None
 
 
 def _match_logical_lesson(logical_source: Path) -> tuple[int | None, str]:
@@ -82,7 +88,6 @@ def _description(value: str, number: int | None, label_pattern: re.Pattern[str])
 
 
 def _course_description(value: str, number: int) -> str:
-    """Extract only text following the explicit course marker/number."""
     cleaned = _clean(value)
     match = _COURSE_NUMBER.search(cleaned)
     if not match:
@@ -117,7 +122,7 @@ def _lesson_context(source: Path, context_values: list[str], logical_source: Pat
         return number, description
 
     for value in reversed(_clean_context(context_values)):
-        number = _match_number(value, _LEADING_NUMBER)
+        number = _match_number(value, _LESSON_NUMBER)
         description = _description(value, number, _LESSON_LABEL)
         if number is not None or description:
             return number, description
