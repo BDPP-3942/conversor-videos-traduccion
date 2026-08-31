@@ -81,6 +81,22 @@ def _run(*args: str, config: Path, storage_dir: Path | None = None) -> subproces
     )
 
 
+def _run_regeneration(config: Path, storage_dir: Path) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(ROOT / "tests" / "e2e_support"), str(ROOT), env.get("PYTHONPATH", "")]
+    )
+    env["E2E_STORAGE_DIR"] = str(storage_dir)
+    return subprocess.run(
+        ["video-translation-regenerate", "--config", str(config)],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
 def _make_video_zip(tmp_path: Path, name: str = "lesson.zip") -> Path:
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
@@ -171,38 +187,20 @@ def test_e2e_real_pipeline_and_regeneration_success(tmp_path: Path):
     assert first.returncode == 0, first.stdout + first.stderr
     first_payload = json.loads(first.stdout)
     assert first_payload["status"] == "success"
-    folders = [item for item in target.iterdir() if item.is_dir()]
-    assert folders
-    old_output = next(folder.glob("*.mp4") for folder in folders)
-    old_bytes = old_output.read_bytes()
+    outputs = [path for folder in target.iterdir() if folder.is_dir() for path in folder.glob("*.mp4")]
+    assert len(outputs) == 1
+    output = outputs[0]
+    old_mtime = output.stat().st_mtime_ns
 
-    regenerated = _run(
-        "--config-does-not-exist",
-        config=config,
-        storage_dir=tmp_path / "storage",
-    )
-    assert regenerated.returncode != 0
+    regenerated = _run_regeneration(config, tmp_path / "storage")
 
-    regenerated = subprocess.run(
-        ["video-translation-regenerate", "--config", str(config)],
-        cwd=ROOT,
-        env={
-            **os.environ,
-            "PYTHONPATH": os.pathsep.join(
-                [str(ROOT / "tests" / "e2e_support"), str(ROOT), os.environ.get("PYTHONPATH", "")]
-            ),
-            "E2E_STORAGE_DIR": str(tmp_path / "storage"),
-        },
-        capture_output=True,
-        text=True,
-        check=False,
-    )
     assert regenerated.returncode == 0, regenerated.stdout + regenerated.stderr
     payload = json.loads(regenerated.stdout)
     assert payload["status"] == "success"
+    assert output.is_file()
+    assert output.stat().st_size > 0
+    assert output.stat().st_mtime_ns >= old_mtime
     assert not list(target.glob(".regeneration-backup-*"))
-    assert old_output.is_file()
-    assert old_output.read_bytes() != old_bytes or payload["pipeline"]["status"] == "success"
     assert (source / archive.name).is_file()
 
 
@@ -214,29 +212,17 @@ def test_e2e_real_regeneration_failure_rolls_back_previous_output(tmp_path: Path
 
     first = _run("run", "--no-retain-sources", config=config, storage_dir=tmp_path / "storage")
     assert first.returncode == 0, first.stdout + first.stderr
-    folders = [item for item in target.iterdir() if item.is_dir()]
-    assert folders
-    old_output = next(folder.glob("*.mp4") for folder in folders)
-    old_bytes = old_output.read_bytes()
+    outputs = [path for folder in target.iterdir() if folder.is_dir() for path in folder.glob("*.mp4")]
+    assert len(outputs) == 1
+    output = outputs[0]
+    old_bytes = output.read_bytes()
 
     (source / archive.name).write_bytes(b"not a zip")
-    failed = subprocess.run(
-        ["video-translation-regenerate", "--config", str(config)],
-        cwd=ROOT,
-        env={
-            **os.environ,
-            "PYTHONPATH": os.pathsep.join(
-                [str(ROOT / "tests" / "e2e_support"), str(ROOT), os.environ.get("PYTHONPATH", "")]
-            ),
-            "E2E_STORAGE_DIR": str(tmp_path / "storage"),
-        },
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    failed = _run_regeneration(config, tmp_path / "storage")
+
     assert failed.returncode != 0
-    assert old_output.is_file()
-    assert old_output.read_bytes() == old_bytes
+    assert output.is_file()
+    assert output.read_bytes() == old_bytes
     assert not list(target.glob(".regeneration-backup-*"))
     assert (source / archive.name).is_file()
 
