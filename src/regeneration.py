@@ -138,9 +138,7 @@ def regenerate(source: str, target: str, settings) -> dict[str, Any]:
         pipeline = MediaPipeline(settings, storage)
         result = pipeline.run(source, target, force_reprocess=True, finalize_source=False)
         if result.get("status") != "success":
-            raise RegenerationError(
-                f"Regeneration did not complete successfully (status={result.get('status')!r})"
-            )
+            raise RegenerationError(f"Regeneration did not complete successfully (status={result.get('status')!r})")
 
         _delete_backups(storage, target, backups)
         return {
