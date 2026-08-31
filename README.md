@@ -40,6 +40,7 @@ El VTT original es la fuente de verdad temporal. La traducción conserva `start/
 - MP4 TTS y WebM TTS opcional.
 - Manifests, resume e idempotencia.
 - Deduplicación conservadora.
+- Concurrencia de vídeo adaptada a los recursos disponibles en el estado actual de `main`.
 - CLI, wrappers, ejecutable y ejecución programada.
 - CI, auditoría de seguridad y auditoría de dependencias.
 
@@ -89,6 +90,12 @@ TTS_VOICES_PATH=tools/tts/voices-v1.0.bin
 La implementación local utiliza Kokoro mediante `kokoro-onnx`. Los extras TTS y los pesos del modelo deben instalarse/proporcionarse cuando TTS está habilitado.
 
 Consulta [`docs/TTS.md`](docs/TTS.md).
+
+## Concurrencia de vídeo
+
+En el estado actual de `main`, `max_parallel_videos = 0` significa AUTO. El runtime calcula un límite conservador teniendo en cuenta la configuración efectiva de Whisper, CPU, RAM disponible y, cuando corresponde, memoria GPU. Un valor positivo es un máximo solicitado y puede reducirse si supera el límite seguro; `1` mantiene un único worker.
+
+Esta lógica fue introducida por la PR #20 después de la release `1.2.2`. Por tanto, forma parte del estado actual de `main`, pero no de la release publicada `1.2.2`.
 
 ## Almacenamiento y ejecución programada
 
@@ -149,7 +156,7 @@ Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` 
 
 ## Versionado
 
-La última release publicada y el metadata del paquete están alineados en `1.2.2`. La release está publicada en GitHub con el tag `1.2.2`. El proyecto utiliza Semantic Versioning; consulta [`docs/RELEASES.md`](docs/RELEASES.md) para el historial y la evidencia de cada funcionalidad.
+La última release publicada es `1.2.2` y el metadata del paquete en `main` está alineado con ella. No obstante, `main` contiene cambios funcionales posteriores a esa release. Consulta [`docs/RELEASES.md`](docs/RELEASES.md) para distinguir las capacidades publicadas de los cambios posteriores todavía no asociados a una release.
 
 ## Seguridad y licencias
 
