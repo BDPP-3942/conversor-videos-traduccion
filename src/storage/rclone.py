@@ -18,9 +18,13 @@ class RcloneStorageProvider(StorageProvider):
         self.remote = remote
         self.config_file.parent.mkdir(parents=True, exist_ok=True)
         if not self.binary_file.is_file():
-            raise FileNotFoundError(f"Managed rclone executable not found: {self.binary_file}. Run `python main.py provider bootstrap` or enable the rclone provider setup.")
+            raise FileNotFoundError(
+                f"Managed rclone executable not found: {self.binary_file}. Run `python main.py provider bootstrap` or enable the rclone provider setup."
+            )
         if not self.config_file.is_file():
-            raise FileNotFoundError(f"rclone configuration not found: {self.config_file}. Run `python main.py provider auth-rclone ...` first.")
+            raise FileNotFoundError(
+                f"rclone configuration not found: {self.config_file}. Run `python main.py provider auth-rclone ...` first."
+            )
 
     def _run(self, args: list[str]) -> str:
         command = [str(self.binary_file), "--config", str(self.config_file), *args]
@@ -40,7 +44,11 @@ class RcloneStorageProvider(StorageProvider):
 
     def list_zip_files(self, location: str) -> list[StorageFile]:
         items = self._items(location)
-        return [StorageFile(id=f"{location.rstrip('/')}/{item['Name']}", name=item["Name"]) for item in items if not item.get("IsDir") and item.get("Name", "").lower().endswith(".zip")]
+        return [
+            StorageFile(id=f"{location.rstrip('/')}/{item['Name']}", name=item["Name"])
+            for item in items
+            if not item.get("IsDir") and item.get("Name", "").lower().endswith(".zip")
+        ]
 
     def download_file(self, file: StorageFile, destination: Path) -> None:
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -71,12 +79,19 @@ class RcloneStorageProvider(StorageProvider):
         return any(item.get("Name") == name for item in items)
 
     def list_children(self, parent: str) -> list[StorageFile]:
-        return [StorageFile(id=f"{parent.rstrip('/')}/{item['Name']}", name=item["Name"], is_directory=bool(item.get("IsDir"))) for item in self._items(parent)]
+        return [
+            StorageFile(
+                id=f"{parent.rstrip('/')}/{item['Name']}", name=item["Name"], is_directory=bool(item.get("IsDir"))
+            )
+            for item in self._items(parent)
+        ]
 
     def delete_folder(self, parent: str, name: str) -> None:
         self._run(["purge", f"{self.remote}:{parent.rstrip('/')}/{name}"])
 
-    def rename_output_folder(self, target: str, old_name: str, new_name: str, original_transcript_subdir: str) -> dict[str, str]:
+    def rename_output_folder(
+        self, target: str, old_name: str, new_name: str, original_transcript_subdir: str
+    ) -> dict[str, str]:
         if old_name == new_name:
             return {}
         if not self.folder_exists(target, old_name):
@@ -96,7 +111,13 @@ class RcloneStorageProvider(StorageProvider):
                         continue
                     desired = self._rename_artifact_name(nested["Name"], old_name, new_name)
                     if desired != nested["Name"] and not self.file_exists(nested_path, desired):
-                        self._run(["moveto", f"{self.remote}:{nested_path}/{nested['Name']}", f"{self.remote}:{nested_path}/{desired}"])
+                        self._run(
+                            [
+                                "moveto",
+                                f"{self.remote}:{nested_path}/{nested['Name']}",
+                                f"{self.remote}:{nested_path}/{desired}",
+                            ]
+                        )
                 continue
             desired = self._rename_artifact_name(child["Name"], old_name, new_name)
             if desired != child["Name"] and not self.file_exists(new_path, desired):
@@ -108,7 +129,7 @@ class RcloneStorageProvider(StorageProvider):
         path = Path(old_name)
         stem = path.stem
         if stem.startswith(old_stem):
-            stem = new_stem + stem[len(old_stem):]
+            stem = new_stem + stem[len(old_stem) :]
         else:
             stem = normalize_component(stem)
         return f"{stem}{path.suffix.lower()}"
@@ -131,7 +152,13 @@ class RcloneStorageProvider(StorageProvider):
                     continue
                 normalized = normalize_filename(child["Name"])
                 if normalized != child["Name"] and not self.file_exists(folder_path, normalized):
-                    self._run(["moveto", f"{self.remote}:{folder_path}/{child['Name']}", f"{self.remote}:{folder_path}/{normalized}"])
+                    self._run(
+                        [
+                            "moveto",
+                            f"{self.remote}:{folder_path}/{child['Name']}",
+                            f"{self.remote}:{folder_path}/{normalized}",
+                        ]
+                    )
         return renamed
 
     def ensure_folder(self, parent: str, name: str) -> str:
