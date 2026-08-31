@@ -28,6 +28,27 @@ Useful processing overrides include `--provider`, `--source`, `--target`, `--no-
 
 This resource-aware behavior was introduced after the published `1.2.2` release by PR #20 and is therefore documented as current `main` behavior rather than as part of `1.2.2`.
 
+### Clean regeneration
+
+To explicitly regenerate existing video results from the original source, bypassing normal reuse decisions:
+
+```bash
+video-translation-regenerate --help
+video-translation-regenerate
+```
+
+Locations may be supplied explicitly:
+
+```bash
+video-translation-regenerate \
+  --source local://storage/input \
+  --target local://storage/output
+```
+
+This operation is different from `run --no-resume`: regeneration first locates existing results, moves registered output folders to a temporary backup, runs the common `MediaPipeline` from the source, and removes the backups only after successful completion. The source is preserved. If processing fails, previous outputs are restored where the storage backend supports the required rename operation.
+
+See [`REGENERATION.md`](REGENERATION.md) for provider-specific guarantees and limitations.
+
 ### Subtitle recovery
 
 ```bash
