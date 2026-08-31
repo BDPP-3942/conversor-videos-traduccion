@@ -128,14 +128,16 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
     if not raw_parts:
         raise ValueError(f"Source path is empty relative to extract root: {source}")
 
+    # Preserve '/' until calendar noise has been stripped so dates split by
+    # pathlib remain one semantic timestamp during normalization.
     logical_relative = "/".join(raw_parts)
     normalized_logical = _clean(logical_relative)
     logical_source = Path(normalized_logical + source.suffix.lower())
 
-    raw_context = raw_parts[:-1]
-    context_text = "/".join(raw_context)
-    normalized_context = _clean(context_text)
-    context = [normalized_context] if normalized_context else []
+    # Keep each parent component independent. Joining the whole parent path
+    # would merge the lesson name into course_name when a timestamp contains
+    # '/' and pathlib has materialized its components as directories.
+    context = _clean_context(raw_parts[:-1])
 
     course, course_name = _course_context(context)
     lesson, lesson_name = _lesson_context(source, context, logical_source)
