@@ -67,7 +67,9 @@ def _load_existing_entries(storage, target: str, zip_name: str) -> list[dict[str
     return [entry for entry in manifest.get("entries", []) if isinstance(entry, dict) and entry.get("output_folder")]
 
 
-def _backup_existing_outputs(storage, target: str, entries: list[dict[str, Any]], run_id: str, transcript_subdir: str):
+def _backup_existing_outputs(
+    storage, target: str, entries: list[dict[str, Any]], run_id: str, transcript_subdir: str
+) -> list[tuple[str, str]]:
     backups: list[tuple[str, str]] = []
     seen: set[str] = set()
     for entry in entries:
@@ -75,44 +77,57 @@ def _backup_existing_outputs(storage, target: str, entries: list[dict[str, Any]]
         if not folder or folder in seen:
             continue
         seen.add(folder)
-        if not storage.folder_exists(target, folder):
-            continue
         backup = f".regeneration-backup-{run_id}-{folder}"
-        if storage.folder_exists(target, backup):
-            raise RegenerationError(f"Regeneration backup already exists: {backup}")
-        storage.rename_output_folder(target, folder, backup, transcript_subdir)
-        backups.append((folder, backup))
+        if storage.backup_output_folder(target, folder, backup, transcript_subdir):
+            backups.append((folder, backup))
     return backups
 
 
 def _restore_backups(storage, target: str, backups: list[tuple[str, str]], transcript_subdir: str) -> None:
     for original, backup in reversed(backups):
         try:
-            if storage.folder_exists(target, backup) and not storage.folder_exists(target, original):
-                storage.rename_output_folder(target, backup, original, transcript_subdir)
+            storage.restore_output_backup(target, backup, original, transcript_subdir)
         except Exception:
             logger.exception("Could not restore regeneration backup %s", backup)
 
 
 def _delete_backups(storage, target: str, backups: list[tuple[str, str]]) -> None:
     for _, backup in backups:
-        if storage.folder_exists(target, backup):
-            storage.delete_folder(target, backup)
+        storage.delete_output_backup(target, backup)
+
+
+def _restore_manifest(storage, target: str, zip_name: str, original: dict[str, Any]) -> None:
+    if not original:
+        return
+    path = _manifest_local_path(zip_name)
+    path.write_text(json.dumps(original, ensure_ascii=False, indent=2), encoding="utf-8")
+    if storage.__class__.__name__ != "LocalStorageProvider":
+        try:
+            storage.upload_file(path, target, "application/json")
+        except Exception:
+            logger.exception("Could not restore manifest for %s", zip_name)
 
 
 def regenerate(source: str, target: str, settings) -> dict[str, Any]:
-    """Regenerate existing results through the normal MediaPipeline contract."""
+    """Regenerate existing results through MediaPipeline and StorageProvider contracts."""
     from src.pipeline import MediaPipeline
 
     storage = create_storage_provider(settings.provider, settings)
     run_id = uuid.uuid4().hex[:12]
     backups: list[tuple[str, str]] = []
+    original_manifests: dict[str, dict[str, Any]] = {}
     try:
         zips = storage.list_zip_files(source)
         if not zips:
             raise RegenerationError(f"No ZIP sources found in {source!r}")
 
         for zip_file in zips:
+            manifest_path = _manifest_local_path(zip_file.name)
+            original_manifests[zip_file.name] = _read_manifest(manifest_path)
+            if not original_manifests[zip_file.name]:
+                remote = _download_remote_manifest(storage, target, zip_file.name)
+                if remote:
+                    original_manifests[zip_file.name] = _read_manifest(remote)
             entries = _load_existing_entries(storage, target, zip_file.name)
             backups.extend(
                 _backup_existing_outputs(storage, target, entries, run_id, settings.original_transcript_subdir)
@@ -121,7 +136,9 @@ def regenerate(source: str, target: str, settings) -> dict[str, Any]:
         pipeline = MediaPipeline(settings, storage)
         result = pipeline.run(source, target, force_reprocess=True, finalize_source=False)
         if result.get("status") != "success":
-            raise RegenerationError(f"Regeneration did not complete successfully (status={result.get('status')!r})")
+            raise RegenerationError(
+                f"Regeneration did not complete successfully (status={result.get('status')!r})"
+            )
 
         _delete_backups(storage, target, backups)
         return {
@@ -134,6 +151,8 @@ def regenerate(source: str, target: str, settings) -> dict[str, Any]:
         }
     except Exception:
         _restore_backups(storage, target, backups, settings.original_transcript_subdir)
+        for zip_name, manifest in original_manifests.items():
+            _restore_manifest(storage, target, zip_name, manifest)
         raise
     finally:
         storage.close()
