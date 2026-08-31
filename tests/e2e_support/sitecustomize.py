@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 
 class _FakeSTT:
     def __init__(self, settings):
@@ -25,8 +28,12 @@ class _FakeTranslator:
 
 
 def _install():
+    from config import settings as app_settings
     from src import stt_engine, translator
 
+    storage_root = os.environ.get("E2E_STORAGE_DIR")
+    if storage_root:
+        app_settings.STORAGE_DIR = Path(storage_root).resolve()
     stt_engine.STTEngine = _FakeSTT
     translator.TextTranslator = _FakeTranslator
 
