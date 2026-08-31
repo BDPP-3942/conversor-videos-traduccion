@@ -9,17 +9,15 @@ _NOISE = re.compile(r"(?:wetransfer|drive-download|download|descarga|archive|com
 _COURSE_LABEL = re.compile(r"(?:curso|course)", re.IGNORECASE)
 _LESSON_LABEL = re.compile(r"(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)", re.IGNORECASE)
 _COURSE_NUMBER = re.compile(r"(?:^|[_\- .])(?:curso|course)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|\b(\d{1,4})\s*(?:º|°)\s*curso\b", re.IGNORECASE)
-_LESSON_NUMBER = re.compile(r"(?:^|[_\- .])(?:cap[ií]tulo|lecci[oó]n|lesson|chapter|clase|tema|unidad)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|^\s*(\d{1,4})\s*(?:º|°|[._-])\s*", re.IGNORECASE)
 _LEADING_NUMBER = re.compile(r"^\s*(\d{1,4})(?:\s+(?=[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])|[._-])\s*(?:º|°|[._-])?\s*", re.IGNORECASE)
 _LOGICAL_LESSON_NUMBER = re.compile(r"(?:^|_)(\d{1,4})(?=_[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])", re.IGNORECASE)
 _GENERIC = {"mp4", "wmv", "video", "videos", "audio", "media", "file", "files", "archivo", "archivos", "download", "downloads", "descarga", "descargas", "compressed", "compression", "archive", "zip", "rar", "7z"}
-_VIDEO_EXTENSIONS = {".mp4", ".wmv"}
 
 
 def _clean(value: str) -> str:
     value = value.strip()
     suffix = Path(value).suffix.lower()
-    if suffix in _VIDEO_EXTENSIONS:
+    if suffix in {".mp4", ".wmv"}:
         value = value[: -len(suffix)]
     value = strip_date_artifacts(value)
     value = re.sub(r"\s*\((?:copy|copia|\d+)\)\s*$", "", value, flags=re.IGNORECASE)
@@ -49,12 +47,7 @@ def _match_number(value: str, pattern: re.Pattern[str]) -> int | None:
 def _match_source_lesson(source: Path) -> int | None:
     stem = source.name.rsplit(".", 1)[0] if "." in source.name else source.name
     match = _LEADING_NUMBER.match(stem)
-    if match:
-        return int(match.group(1))
-    match = _LESSON_NUMBER.search(stem)
-    if match:
-        return next((int(group) for group in match.groups() if group), None)
-    return None
+    return int(match.group(1)) if match else None
 
 
 def _match_logical_lesson(logical_source: Path) -> tuple[int | None, str]:
@@ -88,6 +81,15 @@ def _description(value: str, number: int | None, label_pattern: re.Pattern[str])
     return _sanitize_text("_".join(tokens)) if tokens else ""
 
 
+def _course_description(value: str, number: int) -> str:
+    """Extract only text following the explicit course marker/number."""
+    cleaned = _clean(value)
+    match = _COURSE_NUMBER.search(cleaned)
+    if not match:
+        return ""
+    return _description(cleaned[match.end():], None, _COURSE_LABEL)
+
+
 def _course_context(context_values: list[str]) -> tuple[int | None, str | None]:
     meaningful = _clean_context(context_values)
     for value in meaningful:
@@ -95,7 +97,7 @@ def _course_context(context_values: list[str]) -> tuple[int | None, str | None]:
             continue
         number = _match_number(value, _COURSE_NUMBER)
         if number is not None:
-            return number, _description(value, number, _COURSE_LABEL)
+            return number, _course_description(value, number) or None
     for value in meaningful:
         if _is_noise(value) or _LESSON_LABEL.search(value):
             continue
@@ -115,7 +117,7 @@ def _lesson_context(source: Path, context_values: list[str], logical_source: Pat
         return number, description
 
     for value in reversed(_clean_context(context_values)):
-        number = _match_number(value, _LESSON_NUMBER)
+        number = _match_number(value, _LEADING_NUMBER)
         description = _description(value, number, _LESSON_LABEL)
         if number is not None or description:
             return number, description
@@ -128,15 +130,9 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
     if not raw_parts:
         raise ValueError(f"Source path is empty relative to extract root: {source}")
 
-    # Preserve '/' until calendar noise has been stripped so dates split by
-    # pathlib remain one semantic timestamp during normalization.
     logical_relative = "/".join(raw_parts)
     normalized_logical = _clean(logical_relative)
     logical_source = Path(normalized_logical + source.suffix.lower())
-
-    # Keep each parent component independent. Joining the whole parent path
-    # would merge the lesson name into course_name when a timestamp contains
-    # '/' and pathlib has materialized its components as directories.
     context = _clean_context(raw_parts[:-1])
 
     course, course_name = _course_context(context)
