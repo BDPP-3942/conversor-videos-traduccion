@@ -186,13 +186,19 @@ class MediaConverter:
         started = time.monotonic()
         try:
             process = subprocess.Popen(
-                progress_command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, bufsize=1
-            )  # noqa: S603
+                ["ffmpeg", *progress_command[1:]],
+                executable=self.ffmpeg_bin,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+            )
             if process.stderr is None:
                 raise RuntimeError("FFmpeg stderr stream was not created")
 
             def consume_stderr() -> None:
-                assert process is not None and process.stderr is not None
+                if process is None or process.stderr is None:
+                    return
                 for raw in process.stderr:
                     line = raw.strip()
                     if not line:
