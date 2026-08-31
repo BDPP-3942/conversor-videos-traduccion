@@ -21,10 +21,7 @@ class _FakeTranslator:
         self.settings = settings
 
     def translate_segments(self, segments):
-        return [
-            {"start": item["start"], "end": item["end"], "text": f"EN:{item['text']}"}
-            for item in segments
-        ]
+        return [{"start": item["start"], "end": item["end"], "text": f"EN:{item['text']}"} for item in segments]
 
 
 def _install():
