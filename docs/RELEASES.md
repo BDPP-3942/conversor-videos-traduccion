@@ -108,6 +108,16 @@ Publicado el 28 de agosto de 2026.
 - Retira el workflow one-off de formato.
 - Mantiene CI como comprobación de formato sin escritura en ramas.
 
+### Hardening de release — PR #26
+
+**Tipo:** `FIX / SECURITY / QA / ARCHITECTURE`.
+
+- El cálculo efectivo de concurrencia permanece sujeto al límite seguro de recursos incluso con overrides CLI.
+- La regeneración usa el contrato explícito de `StorageProvider` para la limpieza de resultados.
+- Local, Google Drive y rclone mantienen sus operaciones destructivas dentro de sus adaptadores.
+- Se validan los caminos de éxito y rollback de regeneración.
+- Se incorporan comprobaciones E2E/CLI de los contratos de release.
+
 ## Estado de la candidata
 
 La rama `release/1.4.0-hardening` parte exactamente de `main` en `250fd2d239848c4f1f9b82485f602728b46cf71f`. La candidata aún no está publicada y no existe `v1.4.0`.
