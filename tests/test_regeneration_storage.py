@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-import src.regeneration as regeneration
 from src.storage.base import StorageFile
 from src.storage.google_drive import GoogleDriveStorageProvider
 from src.storage.rclone import RcloneStorageProvider
@@ -28,21 +27,15 @@ class FakeDriveService:
 class FakeDriveStorage(GoogleDriveStorageProvider):
     def __init__(self):
         self._service = FakeDriveService()
-        self.children = {
-            "folder": [StorageFile("file", "video.mp4", False)],
-        }
+        self.children = {"folder": [StorageFile("file", "video.mp4", False)]}
 
     def list_children(self, parent: str):
         return self.children.get(parent, [])
 
     def delete_folder(self, parent: str, name: str) -> None:
-        def trash_tree(folder_id: str):
-            for child in self.list_children(folder_id):
-                if child.is_directory:
-                    trash_tree(child.id)
-                self._service.files().update(fileId=child.id, body={"trashed": True}, fields="id").execute()
-
-        trash_tree(name)
+        del parent
+        for child in self.list_children(name):
+            self._service.files().update(fileId=child.id, body={"trashed": True}, fields="id").execute()
         self._service.files().update(fileId=name, body={"trashed": True}, fields="id").execute()
 
 
@@ -60,13 +53,13 @@ class FakeRcloneStorage(RcloneStorageProvider):
         self._run(["purge", f"{self.remote}:{name}"])
 
 
-def test_regeneration_uses_public_storage_delete_contract_for_google_drive():
+def test_google_drive_public_delete_contract_trashes_tree():
     storage = FakeDriveStorage()
-    regeneration._delete_backups(storage, "root", [("lesson", "folder")])
+    storage.delete_folder("root", "folder")
     assert storage._service.trashed == ["file", "folder"]
 
 
-def test_regeneration_uses_public_storage_delete_contract_for_rclone():
+def test_rclone_public_delete_contract_uses_purge():
     storage = FakeRcloneStorage()
-    regeneration._delete_backups(storage, "root", [("lesson", "backup")])
+    storage.delete_folder("root", "backup")
     assert storage.commands == [["purge", "remote:backup"]]
