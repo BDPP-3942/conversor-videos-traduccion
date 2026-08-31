@@ -97,6 +97,13 @@ def _run_regeneration(config: Path, storage_dir: Path) -> subprocess.CompletedPr
     )
 
 
+def _json_output(result: subprocess.CompletedProcess[str]) -> dict:
+    starts = [index for index, char in enumerate(result.stdout) if char == "{" and (index == 0 or result.stdout[index - 1] == "\n")]
+    if not starts:
+        raise AssertionError(f"CLI did not emit a JSON object: {result.stdout}")
+    return json.loads(result.stdout[starts[-1] :])
+
+
 def _make_video_zip(tmp_path: Path, name: str = "lesson.zip") -> Path:
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
@@ -146,8 +153,7 @@ def test_e2e_real_cli_dry_run_has_no_side_effects(tmp_path: Path):
     result = _run("run", "--dry-run", config=config, storage_dir=tmp_path / "storage")
 
     assert result.returncode == 0, result.stdout + result.stderr
-    payload = json.loads(result.stdout)
-    assert payload["status"] == "ready"
+    assert _json_output(result)["status"] == "ready"
     after = sorted(path.relative_to(tmp_path) for path in tmp_path.rglob("*"))
     assert after == before
 
@@ -162,8 +168,8 @@ def test_e2e_real_cli_concurrency_override_is_clamped(tmp_path: Path):
 
     assert auto.returncode == 0, auto.stdout + auto.stderr
     assert excessive.returncode == 0, excessive.stdout + excessive.stderr
-    auto_payload = json.loads(auto.stdout)
-    excessive_payload = json.loads(excessive.stdout)
+    auto_payload = _json_output(auto)
+    excessive_payload = _json_output(excessive)
     assert auto_payload["effective_parallelism"] >= 1
     assert excessive_payload["effective_parallelism"] == auto_payload["effective_parallelism"]
     assert excessive_payload["effective_parallelism"] < 999
@@ -174,7 +180,7 @@ def test_e2e_real_cli_scheduled_mode_uses_same_entry_point(tmp_path: Path):
     result = _run("run", "--scheduled", "--dry-run", config=config, storage_dir=tmp_path / "storage")
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert json.loads(result.stdout)["status"] == "ready"
+    assert _json_output(result)["status"] == "ready"
 
 
 def test_e2e_real_pipeline_and_regeneration_success(tmp_path: Path):
@@ -185,8 +191,7 @@ def test_e2e_real_pipeline_and_regeneration_success(tmp_path: Path):
 
     first = _run("run", "--no-retain-sources", config=config, storage_dir=tmp_path / "storage")
     assert first.returncode == 0, first.stdout + first.stderr
-    first_payload = json.loads(first.stdout)
-    assert first_payload["status"] == "success"
+    assert _json_output(first)["status"] == "success"
     outputs = [path for folder in target.iterdir() if folder.is_dir() for path in folder.glob("*.mp4")]
     assert len(outputs) == 1
     output = outputs[0]
@@ -195,7 +200,7 @@ def test_e2e_real_pipeline_and_regeneration_success(tmp_path: Path):
     regenerated = _run_regeneration(config, tmp_path / "storage")
 
     assert regenerated.returncode == 0, regenerated.stdout + regenerated.stderr
-    payload = json.loads(regenerated.stdout)
+    payload = _json_output(regenerated)
     assert payload["status"] == "success"
     assert output.is_file()
     assert output.stat().st_size > 0
