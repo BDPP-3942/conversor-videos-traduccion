@@ -15,7 +15,8 @@ _COURSE_NUMBER = re.compile(
     r"(?:^|[_\- .])(?:curso|course)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|\b(\d{1,4})\s*(?:º|°)\s*curso\b", re.IGNORECASE
 )
 _LESSON_NUMBER = re.compile(
-    r"(?:^|[_\- .])(?:cap[ií]tulo|lecci[oó]n|lesson|chapter|clase|tema|unidad)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|^\s*(\d{1,4})\s*(?:º|°|[._-])\s*",
+    r"(?:^|[_\- .])(?:cap[ií]tulo|lecci[oó]n|lesson|chapter|clase|tema|unidad)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)"
+    r"|^\s*(\d{1,4})\s*(?:º|°|[._-])\s*",
     re.IGNORECASE,
 )
 _LEADING_NUMBER = re.compile(r"^\s*(\d{1,4})(?:\s+(?=[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])|[._-])\s*(?:º|°|[._-])?\s*", re.IGNORECASE)
