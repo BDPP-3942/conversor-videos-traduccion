@@ -1,5 +1,51 @@
 # Changelog
 
+## [1.2.2] — Naming Timestamp Cleanup
+
+**Tipo:** PATCH — corrección compatible de la política de nombres.
+
+### Fixed
+
+- Evita que metadatos técnicos de fecha/hora procedentes de ZIP, carpetas extraídas o nombres de origen formen parte de la descripción del curso.
+- Amplía la limpieza de formatos de fecha y datetime.
+- Elimina timestamps técnicos antes de extraer números o descripciones de curso/lección.
+- Evita incorporar timestamps a nombres de carpetas y archivos de salida.
+
+### Validation
+
+- Regresiones de nombres de curso/lección.
+- Validación de limpieza de timestamps.
+- Suite pytest.
+- Ruff lint/formato/seguridad.
+- Packaging y auditoría de dependencias.
+
+## [1.2.1] — TTS Installation Fix
+
+**Tipo:** PATCH — corrección compatible de instalación de recursos TTS.
+
+### Fixed
+
+- Corrige la instalación de modelos TTS en Windows ante `PermissionError: [WinError 32]`.
+- Cierra los archivos temporales antes de moverlos a su destino.
+- Hace consistente el bootstrap de assets TTS entre Windows, Linux y macOS.
+- Evita que descargas TTS fallidas dejen archivos temporales bloqueados.
+
+### Compatibility
+
+No cambia el formato de modelos TTS, las variables de configuración, los formatos de salida ni el pipeline TTS.
+
+## [1.2.0] — Naming and TTS Improvements
+
+**Tipo:** MINOR — funcionalidad compatible de naming y bootstrap TTS.
+
+### Added / Improved
+
+- Convención de nombres `[course_number]_[course_description]x[lesson_number]_[lesson_description]` cuando la información está disponible.
+- Mejor detección de números/descripciones de curso y lección y soporte para resultados ya procesados.
+- Bootstrap TTS capaz de preparar los assets Kokoro bajo `tools/tts/` cuando TTS está habilitado.
+- Validación del host de las descargas de modelos TTS.
+- Detección de resultados previamente procesados para evitar reprocesado audiovisual innecesario.
+
 ## [1.1.0] — Reparación de VTT e integración TTS en el pipeline
 
 **Tipo:** MINOR — funcionalidad compatible para recuperar resultados existentes y ejecutar TTS desde el flujo común.
@@ -9,42 +55,36 @@
 - Recuperación automática de VTT originales y traducidos con timestamps inválidos o sintaxis WebVTT no válida.
 - Regeneración de STT sobre el vídeo normal existente cuando el VTT original no puede validarse.
 - Regeneración de traducción cuando el VTT traducido es inválido o cuando el STT tuvo que reconstruirse.
-- Integración de la reparación de VTT antes de TTS para ejecuciones nuevas y resultados ya procesados.
+- Integración de la reparación de VTT antes de TTS.
 - Validación final de timestamps después de la segmentación STT por silencios.
-- Generación TTS sincronizada desde el VTT traducido validado mediante el mismo backend de almacenamiento.
+- Generación TTS sincronizada desde el VTT traducido validado.
 - Reutilización de artefactos TTS existentes cuando siguen siendo válidos.
 - Copias de seguridad de VTT antes de sustituir artefactos defectuosos.
-- Tests de regresión para los tres escenarios principales de recuperación.
 
 ### Fixed
 
 - Los cues STT con `start >= end` ya no se propagan como subtítulos utilizables.
-- Un VTT histórico inválido ya no bloquea el intento de recuperación antes de poder regenerar STT.
+- Un VTT histórico inválido ya no bloquea la recuperación.
 - Un VTT traducido inválido ya no obliga a repetir STT cuando la transcripción original sigue siendo válida.
-- `TTS_ENABLED=true` activa realmente el postprocesado TTS en el pipeline común.
+- `TTS_ENABLED=true` activa el postprocesado TTS en el pipeline común.
 - Los VTT inválidos no se utilizan como entrada de síntesis.
-
-### Documentation
-
-- Añadida `docs/VTT_REPAIR.md` con los tres escenarios de recuperación y las garantías de seguridad.
-- Actualizadas las instrucciones de TTS, instalación y ejecución sobre resultados existentes.
 
 ## [1.0.1] — Documentación de instalación y mantenimiento
 
-**Tipo:** PATCH — corrección compatible de documentación y navegación del proyecto.
+**Tipo:** PATCH — corrección compatible de documentación y navegación.
 
 ### Fixed
 
-- Añadida la guía de instalación que era referenciada desde `README.md`.
-- Corregidos los enlaces del índice de documentación del README para no apuntar a documentos inexistentes.
-- Aclarados los requisitos de Python, dependencias opcionales, FFmpeg, TTS, modelos externos, proveedores de traducción, almacenamiento cloud, ejecución programada y empaquetado.
-- Documentado el procedimiento de actualización y validación de una instalación existente.
+- Añadida la guía de instalación referenciada desde `README.md`.
+- Corregidos enlaces del índice de documentación.
+- Aclarados requisitos, dependencias opcionales, FFmpeg, TTS, modelos, proveedores, cloud, scheduler y packaging.
+- Documentado el procedimiento de actualización.
 
 ## [1.0.0] — Primera release estable
 
-**Tipo:** MAJOR — primera release estable de esta línea de producto.
+**Tipo:** primera release estable de esta línea.
 
-**Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`
+**Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
 
 ### Added
 
@@ -64,20 +104,6 @@
 - CLI, wrappers, ejecución programada y packaging.
 - Auditorías de seguridad y dependencias.
 
-### Fixed
-
-- Conservación de pausas largas en la segmentación de subtítulos.
-- Duración del vídeo cuando la narración TTS termina antes.
-- Nombres lógicos de carpetas en manifests cloud.
-- Configuración de perfiles de recursos y deduplicación.
-- Compatibilidad con Ruff lint y formato canónico.
-
 ## Historial anterior
 
-Antes de establecer la línea de releases de producto `1.x`, el repositorio utilizó versiones internas `4.x` y `5.x` durante la reconstrucción y evolución del pipeline. Esas entradas se conservan en el historial Git y en las releases/tag que ya existan, pero no se reinterpretan retroactivamente como versiones `1.x`.
-
-## Próximas versiones
-
-- `1.1.x` — correcciones compatibles sobre la recuperación y TTS.
-- `1.2.0` — siguiente conjunto de funcionalidad nueva compatible.
-- `2.0.0` — solo ante cambios incompatibles de contrato o arquitectura pública.
+Antes de establecer la línea de releases de producto `1.x`, el repositorio utilizó versiones internas `4.x` y `5.x`. Esas entradas se conservan en el historial Git y no se reinterpretan retroactivamente como versiones `1.x`.

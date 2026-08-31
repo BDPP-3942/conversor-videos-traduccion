@@ -47,7 +47,7 @@ No es un editor audiovisual interactivo ni sustituye la revisión humana de trad
 
 ## Inicio rápido
 
-Consulta [`docs/INSTALLATION.md`](docs/INSTALLATION.md) para instalar dependencias y preparar modelos.
+Consulta [`docs/INSTALLATION.md`](docs/INSTALLATION.md) para instalar dependencias y preparar el entorno.
 
 ```bash
 python main.py doctor
@@ -71,19 +71,11 @@ python main.py reprocess-subtitles --all --translate-only
 python main.py reprocess-subtitles --all
 ```
 
-Los tres casos principales son:
-
-1. **VTT original/STT inválido o ausente:** se reutiliza el vídeo normal, se vuelve a ejecutar STT y después se traduce.
-2. **VTT original válido y traducción inválida o ausente:** se conserva el timing original y solo se vuelve a traducir.
-3. **Ambos VTT inválidos:** se ejecuta STT una vez y, tras validarlo, se reconstruye la traducción.
-
-Los VTT sustituidos se conservan mediante copias `.bak.*`. La recuperación nunca regenera el vídeo normal.
-
-Consulta [`docs/VTT_REPAIR.md`](docs/VTT_REPAIR.md).
+Consulta [`docs/SUBTITLES.md`](docs/SUBTITLES.md) y [`docs/RESUME.md`](docs/RESUME.md).
 
 ## TTS
 
-TTS está desactivado por defecto. Con `TTS_ENABLED=true`, el pipeline común valida/repara los VTT antes de sintetizar y genera los artefactos TTS mediante el mismo proveedor de almacenamiento utilizado por la ejecución.
+TTS está desactivado por defecto. Con `TTS_ENABLED=true`, el pipeline valida/repara los VTT antes de sintetizar y genera los artefactos TTS mediante el mismo proveedor de almacenamiento utilizado por la ejecución.
 
 ```dotenv
 TTS_ENABLED=true
@@ -94,17 +86,11 @@ TTS_MODEL_PATH=tools/tts/kokoro-v1.0.onnx
 TTS_VOICES_PATH=tools/tts/voices-v1.0.bin
 ```
 
-La implementación local utiliza Kokoro mediante `kokoro-onnx`. Los extras TTS y los pesos del modelo deben instalarse/proporcionarse por separado. Un TTS ya válido se reutiliza; si se reparan los VTT, el audio se regenera para mantener sincronización con el nuevo contenido.
+La implementación local utiliza Kokoro mediante `kokoro-onnx`. Los extras TTS y los pesos del modelo deben instalarse/proporcionarse cuando TTS está habilitado.
 
-Consulta [`docs/TTS.md`](docs/TTS.md) para configuración, sincronización, artefactos, modelos y licencias.
+Consulta [`docs/TTS.md`](docs/TTS.md).
 
-## Primera ejecución y resultados existentes
-
-En una primera ejecución, TTS se ejecuta después de que la carpeta de salida tenga un vídeo normal y el VTT traducido validado.
-
-Para resultados ya procesados, no es necesario volver a colocar todos los vídeos en `storage/input` si el MP4 normal sigue disponible en `storage/output`. Primero revisa duplicados y subtítulos; después utiliza `reprocess-subtitles` o una ejecución con resume.
-
-## Almacenamiento
+## Almacenamiento y ejecución programada
 
 El núcleo de procesamiento es común a todos los modos:
 
@@ -118,19 +104,9 @@ CLI / wrapper / ejecutable / scheduler
        local             Google Drive/rclone
 ```
 
-La autenticación cloud se configura antes de una ejecución programada y no debe requerir interacción durante el procesamiento.
-
-## Reanudación
-
-Los artefactos válidos se reutilizan y solo se repiten las etapas que no pueden recuperarse. La reparación de VTT no regenera el vídeo normal. Un fallo TTS no obliga a repetir STT o traducción.
-
-## Ejecución programada y ejecutable
-
-Windows Task Scheduler, macOS launchd, cron y los ejecutables deben utilizar el mismo pipeline, directorio de trabajo determinista, configuración, credenciales y modelos. `--scheduled` evita depender de interacción humana.
+Consulta [`docs/STORAGE.md`](docs/STORAGE.md) y [`docs/SCHEDULING.md`](docs/SCHEDULING.md).
 
 ## Calidad
-
-La CI comprueba tests, lint, formato, seguridad, compilación, packaging y dependencias. Localmente:
 
 ```bash
 pytest
@@ -139,25 +115,40 @@ ruff format --check .
 python -m compileall .
 ```
 
-## Documentación
+La CI además comprueba packaging, entry points, seguridad y dependencias. Consulta [`docs/CI_CD.md`](docs/CI_CD.md).
+
+## Documentación canónica
 
 | Documento | Propósito |
 |---|---|
-| [`docs/INSTALLATION.md`](docs/INSTALLATION.md) | Instalación, dependencias, entorno y puesta en marcha |
-| [`docs/PROJECT_GUIDE.md`](docs/PROJECT_GUIDE.md) | Alcance funcional y funcionamiento completo |
-| [`docs/VTT_REPAIR.md`](docs/VTT_REPAIR.md) | Validación y recuperación de VTT |
-| [`docs/TTS.md`](docs/TTS.md) | TTS, sincronización, artefactos y licencias |
-| [`docs/TRANSLATION_PROVIDERS.md`](docs/TRANSLATION_PROVIDERS.md) | Proveedores de traducción y fallback |
-| [`docs/UNATTENDED.md`](docs/UNATTENDED.md) | Scheduler y ejecución sin interacción |
-| [`docs/DEDUPLICATION.md`](docs/DEDUPLICATION.md) | Deduplicación y limpieza segura |
-| [`docs/SECURITY.md`](docs/SECURITY.md) | Seguridad y gestión de secretos |
-| [`docs/AUDIT.md`](docs/AUDIT.md) | Auditoría técnica y riesgos conocidos |
-| [`docs/RELEASES.md`](docs/RELEASES.md) | Política e histórico de releases |
-| [`CHANGELOG.md`](CHANGELOG.md) | Cambios orientados al usuario |
+| [`docs/PROJECT.md`](docs/PROJECT.md) | Propósito y alcance |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Arquitectura y componentes |
+| [`docs/USE_CASES.md`](docs/USE_CASES.md) | Casos de uso soportados |
+| [`docs/PIPELINE.md`](docs/PIPELINE.md) | Flujo de procesamiento |
+| [`docs/INSTALLATION.md`](docs/INSTALLATION.md) | Instalación y puesta en marcha |
+| [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) | Configuración |
+| [`docs/CLI.md`](docs/CLI.md) | CLI |
+| [`docs/STT.md`](docs/STT.md) | Transcripción |
+| [`docs/SUBTITLES.md`](docs/SUBTITLES.md) | VTT, QA y reparación |
+| [`docs/TRANSLATION.md`](docs/TRANSLATION.md) | Traducción |
+| [`docs/TTS.md`](docs/TTS.md) | TTS sincronizado |
+| [`docs/STORAGE.md`](docs/STORAGE.md) | Almacenamiento |
+| [`docs/RESUME.md`](docs/RESUME.md) | Resume e idempotencia |
+| [`docs/DEDUPLICATION.md`](docs/DEDUPLICATION.md) | Deduplicación |
+| [`docs/SCHEDULING.md`](docs/SCHEDULING.md) | Ejecución programada |
+| [`docs/PACKAGING.md`](docs/PACKAGING.md) | Empaquetado |
+| [`docs/SECURITY.md`](docs/SECURITY.md) | Seguridad |
+| [`docs/TESTING.md`](docs/TESTING.md) | Tests |
+| [`docs/CI_CD.md`](docs/CI_CD.md) | Integración continua |
+| [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Desarrollo |
+| [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) | Diagnóstico |
+| [`docs/RELEASES.md`](docs/RELEASES.md) | Releases y versionado |
+
+Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` y `VERSIONING.md` se mantienen por compatibilidad de navegación; los documentos anteriores son la referencia canónica para cada tema.
 
 ## Versionado
 
-Se usa Semantic Versioning. La línea de producto comienza en `1.0.0`; `1.1.x` contiene correcciones compatibles de esta integración y `1.2.0` queda para la siguiente funcionalidad nueva compatible.
+La política es Semantic Versioning. La última release publicada que se ha verificado en GitHub es `1.2.2`. El metadata de `pyproject.toml` declara actualmente `1.0.0`, por lo que existe una discrepancia que debe corregirse en el metadata del paquete antes de afirmar que la versión instalada es `1.2.2`.
 
 ## Seguridad y licencias
 
