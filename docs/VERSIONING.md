@@ -1,30 +1,55 @@
-# Versionado de esta base
+# Versionado
 
-La reconstrucción comienza en `v5.0.0`. No se recupera el versionado anterior como continuidad técnica: `v5.0.0` representa el nuevo contrato funcional y operativo del proyecto reconstruido.
+La línea de releases de producto actualmente publicada es `1.x`.
 
-## Rama de reconstrucción
+## Releases publicadas
 
-La Pull Request de reconstrucción se desarrolla sobre la rama principal y conserva el comportamiento útil de la implementación anterior como referencia funcional.
+- `v1.3.0` → commit `620af6acbe3fca7d42ccd57f3585b3952cccf0a7`.
 
-## Commits
+`v1.3.0` es historia publicada y no debe modificarse, moverse ni reutilizarse.
 
-Usar Conventional Commits:
+## Candidata 1.4.0
 
-```text
-feat(provider): add persistent provider profile setup
-feat(translation): add bounded provider fallback
-fix(ci): repair reconstructed package discovery
-fix(naming): restore filename compatibility helpers
-fix(media): accept all advertised raw-video formats
-fix(scheduler): prevent concurrent executions
-test(translation): add fallback regression coverage
-docs(reconstruction): document migration behavior
-```
+La evolución posterior a `v1.3.0` se agrupa en una nueva release coherente:
 
-## Releases
+- PR #24: regeneración limpia explícita desde la fuente mediante `MediaPipeline`.
+- PR #25: gobernanza e higiene del repositorio.
+- Hardening adicional solo cuando exista evidencia y regresión asociada.
+
+La candidata debe terminar en un único SHA validado. Solo después se crea el tag inmutable `v1.4.0` sobre ese SHA.
+
+## Semantic Versioning
 
 ```text
-v5.0.0  reconstrucción funcional y nuevo contrato de ejecución
+MAJOR.MINOR.PATCH
 ```
 
-No incrementar la versión por cada corrección posterior. Los incrementos `5.x` deben corresponder a cambios reales del contrato o funcionalidades del proyecto.
+- **MAJOR**: cambio incompatible de CLI, configuración, formatos o contratos públicos.
+- **MINOR**: funcionalidad nueva compatible hacia atrás.
+- **PATCH**: correcciones compatibles, seguridad, documentación y mantenimiento.
+
+La regeneración limpia es una operación nueva y explícita, compatible con la ejecución normal, por lo que `1.4.0` es semánticamente apropiado salvo que la auditoría detecte un cambio incompatible.
+
+## Trazabilidad
+
+Cada release debe poder relacionar inequívocamente:
+
+```text
+source version
+     ↓
+CHANGELOG
+     ↓
+docs/RELEASES.md
+     ↓
+validated commit SHA
+     ↓
+tag vX.Y.Z
+     ↓
+GitHub Release
+```
+
+No se crean tags retrospectivos ni se reasignan tags publicados.
+
+## Historial de reconstrucción
+
+El repositorio conserva documentación histórica de una etapa de reconstrucción anterior (`5.x`) para trazabilidad. Esa historia no constituye la línea actual de releases de producto y no debe usarse para alterar la secuencia `1.x`.
