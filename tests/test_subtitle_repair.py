@@ -113,10 +113,7 @@ class FakeSTT:
 
 class FakeTranslator:
     def translate_segments(self, segments):
-        return [
-            {"start": item["start"], "end": item["end"], "text": f"EN:{item['text']}"}
-            for item in segments
-        ]
+        return [{"start": item["start"], "end": item["end"], "text": f"EN:{item['text']}"} for item in segments]
 
 
 def test_both_invalid_rebuilds_stt_and_translation(tmp_path: Path, monkeypatch):
