@@ -1,4 +1,3 @@
-# ruff: noqa: E501
 from __future__ import annotations
 
 import argparse
@@ -18,6 +17,7 @@ from src.auth.unattended import check_unattended
 from src.ffmpeg_resolver import FFmpegResolver
 from src.providers.registry import ProviderRegistry
 from src.providers.runtime import clear_runtime, load_runtime, save_runtime
+from src.resource_profile import safe_parallelism
 from src.runtime_lock import RunLock
 from src.storage.factory import create_storage_provider
 from src.storage.uri import parse_storage_uri
@@ -33,7 +33,9 @@ def configure_logging(log_level: str) -> None:
         format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
         handlers=[
             logging.StreamHandler(sys.stdout),
-            RotatingFileHandler(log_dir / "pipeline.log", maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"),
+            RotatingFileHandler(
+                log_dir / "pipeline.log", maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"
+            ),
         ],
     )
 
@@ -162,6 +164,28 @@ def _run_automatic_deduplication(settings, target: str) -> dict[str, Any] | None
     return {"plan": plan, "results": results}
 
 
+def _apply_run_overrides(settings, args):
+    if args.parallel_videos is not None:
+        requested = max(0, args.parallel_videos)
+        settings = replace(settings, max_parallel_videos=requested)
+        if requested == 1:
+            effective = 1
+        else:
+            effective = safe_parallelism(settings)
+        settings = replace(settings, max_parallel_videos=effective)
+    if args.translation_batch_size is not None:
+        settings = replace(settings, translation_batch_size=max(1, args.translation_batch_size))
+    if args.whisper_beam_size is not None:
+        settings = replace(settings, whisper_beam_size=max(1, args.whisper_beam_size))
+    if args.whisper_cpu_threads is not None:
+        settings = replace(settings, whisper_cpu_threads=max(0, args.whisper_cpu_threads))
+    if args.no_ffmpeg_copy:
+        settings = replace(settings, ffmpeg_avoid_reencode=False)
+    if args.generate_webm is not None:
+        settings = replace(settings, generate_webm=args.generate_webm)
+    return settings
+
+
 def command_run(args) -> int:
     settings = load_settings(args.config)
     provider = (args.provider or settings.provider).lower()
@@ -180,18 +204,7 @@ def command_run(args) -> int:
         settings = replace(settings, resume_enabled=False)
     if args.no_name_migration:
         settings = replace(settings, normalize_legacy_names=False)
-    if args.parallel_videos is not None:
-        settings = replace(settings, max_parallel_videos=max(1, args.parallel_videos))
-    if args.translation_batch_size is not None:
-        settings = replace(settings, translation_batch_size=max(1, args.translation_batch_size))
-    if args.whisper_beam_size is not None:
-        settings = replace(settings, whisper_beam_size=max(1, args.whisper_beam_size))
-    if args.whisper_cpu_threads is not None:
-        settings = replace(settings, whisper_cpu_threads=max(0, args.whisper_cpu_threads))
-    if args.no_ffmpeg_copy:
-        settings = replace(settings, ffmpeg_avoid_reencode=False)
-    if args.generate_webm is not None:
-        settings = replace(settings, generate_webm=args.generate_webm)
+    settings = _apply_run_overrides(settings, args)
     configure_logging(settings.log_level)
     if provider == "rclone" and settings.auto_update_rclone:
         try:
@@ -215,7 +228,14 @@ def command_run(args) -> int:
     if args.dry_run:
         print(
             json.dumps(
-                {"status": "ready", "provider": provider, "checks": readiness.checks}, ensure_ascii=False, indent=2
+                {
+                    "status": "ready",
+                    "provider": provider,
+                    "checks": readiness.checks,
+                    "effective_parallelism": safe_parallelism(settings),
+                },
+                ensure_ascii=False,
+                indent=2,
             )
         )
         return 0
