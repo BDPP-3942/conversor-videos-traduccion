@@ -12,6 +12,20 @@ Se utiliza Semantic Versioning (`MAJOR.MINOR.PATCH`):
 
 La versión del proyecto no debe incrementarse por cada commit de formato o CI. Una release agrupa un conjunto funcional coherente.
 
+## Funcionalidades con evidencia de introducción
+
+La siguiente tabla solo asigna una versión cuando existe evidencia explícita en el historial de releases/changelog:
+
+| Funcionalidad | Primera versión verificada |
+|---|---:|
+| Pipeline audiovisual, STT, VTT, traducción, almacenamiento, resume/idempotencia, deduplicación, TTS sincronizado, ejecución programada y packaging | `1.0.0` |
+| Recuperación/reparación de VTT e integración TTS en el pipeline común | `1.1.0` |
+| Naming descriptivo/más resistente a colisiones y bootstrap de assets TTS | `1.2.0` |
+| Corrección de instalación de assets TTS en Windows y consistencia multiplataforma | `1.2.1` |
+| Limpieza de timestamps técnicos en naming | `1.2.2` |
+
+No se infieren versiones de introducción a partir de nombres de archivos, commits aislados o documentación histórica cuando el historial de releases no lo acredita.
+
 ## Releases publicadas verificadas
 
 ### 1.2.2 — Naming Timestamp Cleanup
@@ -78,6 +92,6 @@ Incluye el pipeline audiovisual, FFmpeg, Whisper/faster-whisper, VTT y traducci�
 
 Antes de establecer la línea de producto `1.x`, el repositorio utilizó versiones internas `4.x` y `5.x`. No se reinterpretan retroactivamente como versiones `1.x`.
 
-## Discrepancia pendiente de metadata
+## Estado actual del versionado
 
-Las releases publicadas verificadas llegan a `1.2.2`, mientras que `pyproject.toml` en `main` declara `version = "1.0.0"`. La documentación no debe ocultar esta discrepancia: el metadata del paquete debe alinearse con la release que corresponda antes de distribuir una nueva versión del paquete.
+`pyproject.toml` en `main` declara `version = "1.2.2"`, alineado con la última release publicada y verificada, `1.2.2`. No existe actualmente la discrepancia de metadata que se documentaba en versiones anteriores de esta guía.
