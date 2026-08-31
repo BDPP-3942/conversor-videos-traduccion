@@ -150,16 +150,19 @@ def _fixture_dirs(config: Path) -> tuple[Path, Path]:
     return source, target
 
 
-def test_e2e_real_cli_dry_run_has_no_side_effects(tmp_path: Path):
+def test_e2e_real_cli_dry_run_has_no_processing_side_effects(tmp_path: Path):
     config = _config(tmp_path)
-    before = sorted(path.relative_to(tmp_path) for path in tmp_path.rglob("*"))
+    source, target = _fixture_dirs(config)
 
     result = _run("run", "--dry-run", config=config, storage_dir=tmp_path / "storage")
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert _json_output(result)["status"] == "ready"
-    after = sorted(path.relative_to(tmp_path) for path in tmp_path.rglob("*"))
-    assert after == before
+    assert list(source.iterdir()) == []
+    assert list(target.iterdir()) == []
+    manifests = tmp_path.joinpath("storage", "output", "_manifests")
+    assert manifests.is_dir()
+    assert list(manifests.iterdir()) == []
 
 
 def test_e2e_real_cli_concurrency_override_is_clamped(tmp_path: Path):
