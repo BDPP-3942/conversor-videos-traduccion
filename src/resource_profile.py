@@ -42,12 +42,7 @@ def estimate_whisper_budget(model: str, device: str, threads: int) -> ResourceBu
 
 
 def _available_gpu_memory(hw: HardwareInfo) -> float:
-    """Return memory that can safely be budgeted for GPU work.
-
-    Dedicated GPUs use reported free VRAM. Unified-memory systems must use the
-    same available system-memory pool as CPU work; never double-count it as RAM
-    plus VRAM.
-    """
+    """Memory budget available to GPU work without double-counting unified memory."""
     if hw.gpu.memory_shared_with_system or hw.gpu.memory_model == "unified":
         return max(0.0, hw.memory_available_gb - 2.0)
     return max(0.0, hw.gpu.vram_free_gb)
@@ -126,7 +121,7 @@ def build_profile(settings: AppSettings, hardware: HardwareInfo | None = None) -
     effective_parallel = safe_parallelism(replace(settings, max_parallel_videos=configured_parallel), hw)
     return ResourceProfile(name, cpus, hw.physical_cpus, memory, available, model, device, compute, threads,
                            effective_parallel, settings.translation_batch_size if settings.translation_batch_size > 0 else batch,
-                           hw.gpu.device_index, _available_gpu_memory(hw), hw.disk_free_gb)
+                           hw.gpu.device_index, hw.gpu.vram_free_gb, hw.disk_free_gb)
 
 
 def detect_profile(settings: AppSettings) -> ResourceProfile:
