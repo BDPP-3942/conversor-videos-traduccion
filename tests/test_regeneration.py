@@ -92,8 +92,7 @@ def test_regeneration_removes_stale_artifacts_and_preserves_source(monkeypatch, 
     manifest_dir = tmp_path / "manifests"
     manifest_dir.mkdir()
     (manifest_dir / "video.json").write_text(
-        '{"entries":[{"source":"lesson.mp4","status":"success",'
-        '"output_folder":"lesson"}]}',
+        '{"entries":[{"source":"lesson.mp4","status":"success","output_folder":"lesson"}]}',
         encoding="utf-8",
     )
 
@@ -123,8 +122,7 @@ def test_regeneration_restores_previous_output_on_failure(monkeypatch, tmp_path)
     manifest_dir = tmp_path / "manifests"
     manifest_dir.mkdir()
     (manifest_dir / "video.json").write_text(
-        '{"entries":[{"source":"lesson.mp4","status":"success",'
-        '"output_folder":"lesson"}]}',
+        '{"entries":[{"source":"lesson.mp4","status":"success","output_folder":"lesson"}]}',
         encoding="utf-8",
     )
 
