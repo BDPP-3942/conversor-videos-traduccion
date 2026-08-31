@@ -11,6 +11,7 @@ _LESSON_LABEL = re.compile(r"(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|te
 _COURSE_NUMBER = re.compile(r"(?:^|[_\- .])(?:curso|course)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|\b(\d{1,4})\s*(?:º|°)\s*curso\b", re.IGNORECASE)
 _LESSON_NUMBER = re.compile(r"(?:^|[_\- .])(?:cap[ií]tulo|lecci[oó]n|lesson|chapter|clase|tema|unidad)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|^\s*(\d{1,4})\s*(?:º|°|[._-])\s*", re.IGNORECASE)
 _LEADING_NUMBER = re.compile(r"^\s*(\d{1,4})(?:\s+(?=[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])|[._-])\s*(?:º|°|[._-])?\s*", re.IGNORECASE)
+_LOGICAL_LESSON_NUMBER = re.compile(r"(?:^|_)(\d{1,4})(?=_[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])", re.IGNORECASE)
 _GENERIC = {"mp4", "wmv", "video", "videos", "audio", "media", "file", "files", "archivo", "archivos", "download", "downloads", "descarga", "descargas", "compressed", "compression", "archive", "zip", "rar", "7z"}
 _VIDEO_EXTENSIONS = {".mp4", ".wmv"}
 
@@ -56,6 +57,18 @@ def _match_source_lesson(source: Path) -> int | None:
     return None
 
 
+def _match_logical_lesson(logical_source: Path) -> tuple[int | None, str]:
+    """Recover lesson metadata when a timestamp containing '/' split the filename into path parts."""
+    stem = _clean(logical_source.stem)
+    matches = list(_LOGICAL_LESSON_NUMBER.finditer(stem))
+    if not matches:
+        return None, ""
+    match = matches[-1]
+    number = int(match.group(1))
+    lesson_fragment = stem[match.start(1):]
+    return number, _description(lesson_fragment, number, _LESSON_LABEL)
+
+
 def _remove_number(value: str, number: int | None) -> str:
     if number is None:
         return value
@@ -89,14 +102,20 @@ def _course_context(context_values: list[str]) -> tuple[int | None, str | None]:
 
 
 def _lesson_context(source: Path, context_values: list[str], logical_source: Path | None = None) -> tuple[int | None, str]:
-    # Lesson metadata belongs to the actual media filename. The logical path
-    # may include course/container text and therefore must not be re-used as a
-    # filename for lesson extraction or description generation.
+    # Prefer the actual media filename. If a timestamp contains '/', pathlib
+    # splits that suffix into directories, so the reconstructed logical source
+    # is the authoritative fallback for lesson parsing.
     candidate = source
     number = _match_source_lesson(candidate)
     description = _description(candidate.name, number, _LESSON_LABEL)
     if number is not None or description:
         return number, description
+
+    if logical_source is not None:
+        number, description = _match_logical_lesson(logical_source)
+        if number is not None or description:
+            return number, description
+
     for value in reversed(_clean_context(context_values)):
         number = _match_number(value, _LESSON_NUMBER)
         description = _description(value, number, _LESSON_LABEL)
