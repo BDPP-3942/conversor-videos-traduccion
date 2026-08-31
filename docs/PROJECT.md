@@ -20,7 +20,7 @@ Implemented capabilities include:
 - conservative duplicate-output management;
 - optional synchronized Kokoro TTS;
 - CLI entry points and unattended execution;
-- Windows/Linux/macOS packaging and scheduler helpers;
+- Windows/Linux/macOS scheduler helpers; portable packaging scripts are currently provided for Windows and Linux;
 - automated tests, linting, security checks, packaging and dependency audits.
 
 The application is not an interactive video editor and automated translation/TTS output still requires human quality review when accuracy matters.
@@ -39,4 +39,16 @@ See [INSTALLATION.md](INSTALLATION.md), [CONFIGURATION.md](CONFIGURATION.md) and
 
 ## Version evidence
 
-The repository's published release history currently reaches `1.2.2`. The release notes establish `1.0.0` as the first product release, `1.1.0` for VTT recovery/TTS integration, `1.2.0` for naming/TTS setup improvements, `1.2.1` for TTS installation fixes, and `1.2.2` for timestamp cleanup in naming. The Python package metadata currently declares `1.0.0`; this is a repository consistency issue and must not be silently described as `1.2.2` until the package metadata is aligned.
+The current `main` branch declares package version `1.2.2` in `pyproject.toml`, matching the latest published GitHub release/tag `1.2.2`.
+
+The verified release history establishes:
+
+| Capability | First verified product release | Evidence |
+|---|---:|---|
+| Core audiovisual pipeline, STT, VTT, translation, storage, resume/idempotency, conservative deduplication, TTS, scheduling and packaging | `1.0.0` | `CHANGELOG.md` / release history |
+| VTT recovery/repair and integrated synchronized TTS | `1.1.0` | `CHANGELOG.md` / release history |
+| Naming improvements and TTS asset bootstrap | `1.2.0` | `CHANGELOG.md` / release history |
+| TTS installation fix | `1.2.1` | release history |
+| Timestamp cleanup in naming | `1.2.2` | release history |
+
+The table records only functionality for which the repository's release history provides explicit evidence; it does not infer introduction dates from source-code presence alone.
