@@ -159,7 +159,7 @@ For local processing, place a supported video or ZIP in `storage/input/` and run
 python main.py run
 ```
 
-The wrapper equivalents are `scripts/run_local.sh` and `scripts\\run_local.bat`.
+The wrapper equivalents are `scripts/run_local.sh` and `scripts\run_local.bat`.
 
 ## Existing results
 
