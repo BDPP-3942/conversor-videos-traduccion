@@ -8,7 +8,11 @@ from src.storage.base import StorageFile, StorageProvider
 
 class GoogleDriveStorageProvider(StorageProvider):
     def __init__(
-        self, credentials_file: Path, token_file: Path, archive_folder_id: str = "", allow_interactive_auth: bool = False
+        self,
+        credentials_file: Path,
+        token_file: Path,
+        archive_folder_id: str = "",
+        allow_interactive_auth: bool = False,
     ) -> None:
         try:
             from google.auth.transport.requests import Request
