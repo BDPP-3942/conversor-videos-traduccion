@@ -107,11 +107,7 @@ def safe_parallelism(settings: AppSettings, hardware: HardwareInfo | None = None
     """
     hw = hardware or detect_hardware()
     device, _ = _resolve_whisper(hw, settings)
-    threads = (
-        settings.whisper_cpu_threads
-        if settings.whisper_cpu_threads > 0
-        else max(2, min(8, hw.logical_cpus // 2))
-    )
+    threads = settings.whisper_cpu_threads if settings.whisper_cpu_threads > 0 else max(2, min(8, hw.logical_cpus // 2))
     budget = estimate_whisper_budget(settings.whisper_model, device, threads)
 
     # Keep headroom for the OS, Python runtime and FFmpeg. This is deliberately
@@ -120,11 +116,7 @@ def safe_parallelism(settings: AppSettings, hardware: HardwareInfo | None = None
     safe_ram = max(1.0, hw.memory_available_gb - 2.0)
     by_cpu = max(1, safe_cpu // max(1, budget.cpu_threads))
     by_ram = max(1, int(safe_ram // max(0.5, budget.ram_gb)))
-    by_gpu = (
-        max(1, int(available_gpu_memory(hw) // max(0.5, budget.gpu_memory_gb)))
-        if device == "cuda"
-        else 2**31 - 1
-    )
+    by_gpu = max(1, int(available_gpu_memory(hw) // max(0.5, budget.gpu_memory_gb))) if device == "cuda" else 2**31 - 1
     hardware_cap = max(1, min(by_cpu, by_ram, by_gpu))
 
     configured = int(settings.max_parallel_videos)
