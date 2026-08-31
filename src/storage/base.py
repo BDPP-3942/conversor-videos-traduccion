@@ -23,12 +23,7 @@ class StorageProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def upload_file(
-        self,
-        local_path: Path,
-        location: str,
-        mime_type: str | None = None,
-    ) -> StorageFile:
+    def upload_file(self, local_path: Path, location: str, mime_type: str | None = None) -> StorageFile:
         raise NotImplementedError
 
     @abstractmethod
@@ -39,31 +34,26 @@ class StorageProvider(ABC):
         return False
 
     def file_exists(self, parent: str, name: str) -> bool:
-        """Return whether a file exists below a storage folder."""
         return False
 
     def list_children(self, parent: str) -> list[StorageFile]:
-        """List direct child files/folders using the provider-native identifiers."""
         return []
 
-    def rename_output_folder(
-        self, target: str, old_name: str, new_name: str, original_transcript_subdir: str
-    ) -> dict[str, str]:
-        """Rename an already processed output folder and its generated artifact stems."""
+    def rename_output_folder(self, target: str, old_name: str, new_name: str, original_transcript_subdir: str) -> dict[str, str]:
         return {}
 
+    def delete_folder(self, parent: str, name: str) -> None:
+        """Delete one complete output folder using provider-native semantics."""
+        raise NotImplementedError
+
     def normalize_existing_output_names(self, target: str, original_transcript_subdir: str) -> dict[str, str]:
-        """Best-effort migration hook for output names created by older versions."""
         return {}
 
     def source_fingerprint(self, file: StorageFile) -> dict[str, Any]:
-        """Optional source identity used to make resume decisions safer."""
         return {"id": file.id, "name": file.name}
 
     def finalize_source(self, file: StorageFile, status: str, output_folders: list[str] | None = None) -> None:
-        """Hook opcional para retirar fuentes procesadas del buzón de entrada."""
         return None
 
     def close(self) -> None:
-        """Hook opcional para liberar recursos del proveedor."""
         return None

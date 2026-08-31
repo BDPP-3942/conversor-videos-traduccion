@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import shutil
 import uuid
 from pathlib import Path
 from typing import Any
@@ -12,7 +11,6 @@ from config.loader import load_settings
 from config.settings import ensure_directories, local_storage_paths, resolve_project_path
 from src.auth.unattended import check_unattended
 from src.runtime_lock import RunLock
-from src.storage.base import StorageProvider
 from src.storage.factory import create_storage_provider
 from src.storage.uri import parse_storage_uri
 
@@ -21,42 +19,6 @@ logger = logging.getLogger(__name__)
 
 class RegenerationError(RuntimeError):
     """Raised when a clean regeneration cannot be completed safely."""
-
-
-def _delete_folder(storage: StorageProvider, folder: str) -> None:
-    """Delete a complete output tree using the provider's native mechanism.
-
-    The existing StorageProvider contract predates destructive output cleanup.
-    This compatibility adapter keeps those mechanics outside MediaPipeline until
-    delete_folder can be promoted to the public provider contract.
-    """
-    from src.storage.google_drive import GoogleDriveStorageProvider
-    from src.storage.local import LocalStorageProvider
-    from src.storage.rclone import RcloneStorageProvider
-
-    if isinstance(storage, LocalStorageProvider):
-        path = resolve_project_path(folder)
-        if path.exists():
-            shutil.rmtree(path)
-        return
-
-    if isinstance(storage, GoogleDriveStorageProvider):
-
-        def trash_tree(folder_id: str) -> None:
-            for child in storage.list_children(folder_id):
-                if child.is_directory:
-                    trash_tree(child.id)
-                storage._service.files().update(fileId=child.id, body={"trashed": True}, fields="id").execute()
-
-        trash_tree(folder)
-        storage._service.files().update(fileId=folder, body={"trashed": True}, fields="id").execute()
-        return
-
-    if isinstance(storage, RcloneStorageProvider):
-        storage._run(["purge", f"{storage.remote}:{folder.rstrip('/')}"])
-        return
-
-    raise RegenerationError(f"Storage provider {type(storage).__name__} does not expose safe recursive deletion")
 
 
 def _manifest_local_path(zip_name: str) -> Path:
@@ -75,13 +37,10 @@ def _read_manifest(path: Path) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
-def _download_remote_manifest(storage: StorageProvider, target: str, zip_name: str) -> Path | None:
+def _download_remote_manifest(storage, target: str, zip_name: str) -> Path | None:
     manifest_name = f"{Path(zip_name).stem}.json"
     try:
-        candidates = []
-        for item in storage.list_children(target):
-            if item.name == manifest_name and not item.is_directory:
-                candidates.append(item)
+        candidates = [item for item in storage.list_children(target) if item.name == manifest_name and not item.is_directory]
     except Exception:
         logger.exception("Could not inspect remote manifest for %s", zip_name)
         return None
@@ -96,26 +55,19 @@ def _download_remote_manifest(storage: StorageProvider, target: str, zip_name: s
     return destination
 
 
-def _load_existing_entries(storage: StorageProvider, target: str, zip_name: str) -> list[dict[str, Any]]:
-    from src.storage.local import LocalStorageProvider
-
+def _load_existing_entries(storage, target: str, zip_name: str) -> list[dict[str, Any]]:
     path = _manifest_local_path(zip_name)
-    local_manifest = _read_manifest(path)
-    if not local_manifest and not isinstance(storage, LocalStorageProvider):
+    manifest = _read_manifest(path)
+    if not manifest:
         remote = _download_remote_manifest(storage, target, zip_name)
         if remote:
-            local_manifest = _read_manifest(remote)
-    entries = local_manifest.get("entries", [])
-    return [entry for entry in entries if isinstance(entry, dict) and entry.get("output_folder")]
+            manifest = _read_manifest(remote)
+    return [
+        entry for entry in manifest.get("entries", []) if isinstance(entry, dict) and entry.get("output_folder")
+    ]
 
 
-def _backup_existing_outputs(
-    storage: StorageProvider,
-    target: str,
-    entries: list[dict[str, Any]],
-    run_id: str,
-    original_transcript_subdir: str,
-) -> list[tuple[str, str]]:
+def _backup_existing_outputs(storage, target: str, entries: list[dict[str, Any]], run_id: str, transcript_subdir: str):
     backups: list[tuple[str, str]] = []
     seen: set[str] = set()
     for entry in entries:
@@ -128,53 +80,33 @@ def _backup_existing_outputs(
         backup = f".regeneration-backup-{run_id}-{folder}"
         if storage.folder_exists(target, backup):
             raise RegenerationError(f"Regeneration backup already exists: {backup}")
-        storage.rename_output_folder(target, folder, backup, original_transcript_subdir)
+        storage.rename_output_folder(target, folder, backup, transcript_subdir)
         backups.append((folder, backup))
     return backups
 
 
-def _restore_backups(
-    storage: StorageProvider, target: str, backups: list[tuple[str, str]], original_transcript_subdir: str
-) -> None:
+def _restore_backups(storage, target: str, backups: list[tuple[str, str]], transcript_subdir: str) -> None:
     for original, backup in reversed(backups):
         try:
             if storage.folder_exists(target, backup) and not storage.folder_exists(target, original):
-                storage.rename_output_folder(target, backup, original, original_transcript_subdir)
+                storage.rename_output_folder(target, backup, original, transcript_subdir)
         except Exception:
             logger.exception("Could not restore regeneration backup %s", backup)
 
 
-def _cloud_folder_id(storage: StorageProvider, target: str, name: str) -> str:
-    from src.storage.google_drive import GoogleDriveStorageProvider
-
-    if not isinstance(storage, GoogleDriveStorageProvider):
-        return name
-    matches = [item for item in storage.list_children(target) if item.name == name and item.is_directory]
-    if not matches:
-        raise RegenerationError(f"Regeneration backup folder disappeared: {name}")
-    return matches[0].id
-
-
-def _delete_backups(storage: StorageProvider, target: str, backups: list[tuple[str, str]]) -> None:
-    from src.storage.local import LocalStorageProvider
-
+def _delete_backups(storage, target: str, backups: list[tuple[str, str]]) -> None:
     for _, backup in backups:
-        if not storage.folder_exists(target, backup):
-            continue
-        if isinstance(storage, LocalStorageProvider):
-            folder_id = str(resolve_project_path(target) / backup)
-        else:
-            folder_id = _cloud_folder_id(storage, target, backup)
-        _delete_folder(storage, folder_id)
+        if storage.folder_exists(target, backup):
+            storage.delete_folder(target, backup)
 
 
 def regenerate(source: str, target: str, settings) -> dict[str, Any]:
-    """Regenerate existing results while keeping the original source intact."""
+    """Regenerate existing results through the normal MediaPipeline contract."""
     from src.pipeline import MediaPipeline
 
     storage = create_storage_provider(settings.provider, settings)
     run_id = uuid.uuid4().hex[:12]
-    all_backups: list[tuple[str, str]] = []
+    backups: list[tuple[str, str]] = []
     try:
         zips = storage.list_zip_files(source)
         if not zips:
@@ -182,32 +114,20 @@ def regenerate(source: str, target: str, settings) -> dict[str, Any]:
 
         for zip_file in zips:
             entries = _load_existing_entries(storage, target, zip_file.name)
-            all_backups.extend(
+            backups.extend(
                 _backup_existing_outputs(
-                    storage,
-                    target,
-                    entries,
-                    run_id,
-                    settings.original_transcript_subdir,
+                    storage, target, entries, run_id, settings.original_transcript_subdir
                 )
             )
 
-        # Do not alter normal resume/idempotency semantics. Regeneration is an
-        # explicit orchestration mode that bypasses only the reuse decisions.
         pipeline = MediaPipeline(settings, storage)
-        storage.is_processed = lambda file: False  # type: ignore[attr-defined]
-        storage.finalize_source = lambda file, status, output_folders=None: None  # type: ignore[method-assign]
-        pipeline._try_resume = lambda existing_entry, target, relative_source: None  # type: ignore[method-assign]
-        pipeline._find_media_duplicate = lambda source_path, normalized_name, registry: None  # type: ignore[method-assign]
-
-        result = pipeline.run(source, target)
+        result = pipeline.run(source, target, force_reprocess=True, finalize_source=False)
         if result.get("status") != "success":
             raise RegenerationError(
-                f"Regeneration did not complete successfully (status={result.get('status')!r}); "
-                "previous outputs were restored where possible"
+                f"Regeneration did not complete successfully (status={result.get('status')!r})"
             )
 
-        _delete_backups(storage, target, all_backups)
+        _delete_backups(storage, target, backups)
         return {
             "status": "success",
             "mode": "regenerate_from_zero",
@@ -217,7 +137,7 @@ def regenerate(source: str, target: str, settings) -> dict[str, Any]:
             "pipeline": result,
         }
     except Exception:
-        _restore_backups(storage, target, all_backups, settings.original_transcript_subdir)
+        _restore_backups(storage, target, backups, settings.original_transcript_subdir)
         raise
     finally:
         storage.close()
