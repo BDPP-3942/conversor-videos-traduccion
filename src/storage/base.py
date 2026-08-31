@@ -44,9 +44,10 @@ class StorageProvider(ABC):
     ) -> dict[str, str]:
         return {}
 
+    @abstractmethod
     def delete_folder(self, parent: str, name: str) -> None:
-        """Delete a complete output folder using the provider's native operations."""
-        raise NotImplementedError(f"{type(self).__name__} does not implement delete_folder")
+        """Delete a complete output folder using provider-native storage operations."""
+        raise NotImplementedError
 
     def normalize_existing_output_names(self, target: str, original_transcript_subdir: str) -> dict[str, str]:
         return {}
