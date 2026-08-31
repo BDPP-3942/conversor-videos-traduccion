@@ -92,9 +92,7 @@ def _env(storage_dir: Path) -> dict[str, str]:
     env.pop("STORAGE_PROVIDER", None)
     env.pop("SOURCE_URI", None)
     env.pop("TARGET_URI", None)
-    env["PYTHONPATH"] = os.pathsep.join(
-        [str(ROOT / "tests" / "e2e_support"), str(ROOT), env.get("PYTHONPATH", "")]
-    )
+    env["PYTHONPATH"] = os.pathsep.join([str(ROOT / "tests" / "e2e_support"), str(ROOT), env.get("PYTHONPATH", "")])
     env["E2E_STORAGE_DIR"] = str(storage_dir)
     return env
 
