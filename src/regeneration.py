@@ -101,9 +101,11 @@ def _download_remote_manifest(storage: StorageProvider, target: str, zip_name: s
 
 
 def _load_existing_entries(storage: StorageProvider, target: str, zip_name: str) -> list[dict[str, Any]]:
+    from src.storage.local import LocalStorageProvider
+
     path = _manifest_local_path(zip_name)
     local_manifest = _read_manifest(path)
-    if not local_manifest and storage.__class__.__name__ != "LocalStorageProvider":
+    if not local_manifest and not isinstance(storage, LocalStorageProvider):
         remote = _download_remote_manifest(storage, target, zip_name)
         if remote:
             local_manifest = _read_manifest(remote)
@@ -158,10 +160,12 @@ def _cloud_folder_id(storage: StorageProvider, target: str, name: str) -> str:
 
 
 def _delete_backups(storage: StorageProvider, target: str, backups: list[tuple[str, str]]) -> None:
+    from src.storage.local import LocalStorageProvider
+
     for _, backup in backups:
         if not storage.folder_exists(target, backup):
             continue
-        if storage.__class__.__name__ == "LocalStorageProvider":
+        if isinstance(storage, LocalStorageProvider):
             folder_id = str(resolve_project_path(target) / backup)
         else:
             folder_id = _cloud_folder_id(storage, target, backup)
