@@ -40,7 +40,9 @@ def _read_manifest(path: Path) -> dict[str, Any]:
 def _download_remote_manifest(storage, target: str, zip_name: str) -> Path | None:
     manifest_name = f"{Path(zip_name).stem}.json"
     try:
-        candidates = [item for item in storage.list_children(target) if item.name == manifest_name and not item.is_directory]
+        candidates = [
+            item for item in storage.list_children(target) if item.name == manifest_name and not item.is_directory
+        ]
     except Exception:
         logger.exception("Could not inspect remote manifest for %s", zip_name)
         return None
@@ -62,9 +64,7 @@ def _load_existing_entries(storage, target: str, zip_name: str) -> list[dict[str
         remote = _download_remote_manifest(storage, target, zip_name)
         if remote:
             manifest = _read_manifest(remote)
-    return [
-        entry for entry in manifest.get("entries", []) if isinstance(entry, dict) and entry.get("output_folder")
-    ]
+    return [entry for entry in manifest.get("entries", []) if isinstance(entry, dict) and entry.get("output_folder")]
 
 
 def _backup_existing_outputs(storage, target: str, entries: list[dict[str, Any]], run_id: str, transcript_subdir: str):
@@ -115,17 +115,13 @@ def regenerate(source: str, target: str, settings) -> dict[str, Any]:
         for zip_file in zips:
             entries = _load_existing_entries(storage, target, zip_file.name)
             backups.extend(
-                _backup_existing_outputs(
-                    storage, target, entries, run_id, settings.original_transcript_subdir
-                )
+                _backup_existing_outputs(storage, target, entries, run_id, settings.original_transcript_subdir)
             )
 
         pipeline = MediaPipeline(settings, storage)
         result = pipeline.run(source, target, force_reprocess=True, finalize_source=False)
         if result.get("status") != "success":
-            raise RegenerationError(
-                f"Regeneration did not complete successfully (status={result.get('status')!r})"
-            )
+            raise RegenerationError(f"Regeneration did not complete successfully (status={result.get('status')!r})")
 
         _delete_backups(storage, target, backups)
         return {

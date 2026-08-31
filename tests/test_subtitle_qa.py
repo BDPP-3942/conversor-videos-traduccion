@@ -52,8 +52,7 @@ def test_ollama_reviewer_preserves_timing(monkeypatch: pytest.MonkeyPatch) -> No
         return {
             "message": {
                 "content": (
-                    '{"changed": true, "corrected_text": "We need to leave.", '
-                    '"issues": ["grammar"], "confidence": 0.98}'
+                    '{"changed": true, "corrected_text": "We need to leave.", "issues": ["grammar"], "confidence": 0.98}'
                 )
             }
         }

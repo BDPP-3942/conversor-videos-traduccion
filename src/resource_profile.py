@@ -149,9 +149,7 @@ def build_profile(settings: AppSettings, hardware: HardwareInfo | None = None) -
     model = settings.whisper_model.lower()
     if model == "auto":
         model = (
-            "medium"
-            if (device == "cuda" and available_gpu_memory(hw) >= 8) or (memory >= 16 and cpus >= 6)
-            else "small"
+            "medium" if (device == "cuda" and available_gpu_memory(hw) >= 8) or (memory >= 16 and cpus >= 6) else "small"
         )
     if memory >= 24 and cpus >= 12:
         name, batch = "high", 12

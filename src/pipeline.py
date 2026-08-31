@@ -214,7 +214,9 @@ class MediaPipeline:
 
             pending = []
             for source_path, relative_source, metadata_item, normalized_name in normalized_candidates:
-                duplicate = None if force_reprocess else self._find_media_duplicate(source_path, normalized_name, media_registry)
+                duplicate = (
+                    None if force_reprocess else self._find_media_duplicate(source_path, normalized_name, media_registry)
+                )
                 if duplicate:
                     duplicate_entry = {
                         "source": relative_source,
@@ -454,9 +456,7 @@ class MediaPipeline:
         return {
             "source": str(source_path.relative_to(extract_root)),
             "video": artifacts.mp4_path.name,
-            "secondary_video": artifacts.secondary_video_path.name
-            if artifacts.secondary_video_path is not None
-            else "",
+            "secondary_video": artifacts.secondary_video_path.name if artifacts.secondary_video_path is not None else "",
             "translated_vtt": translated_path.name,
             "original_transcription": original_path.name,
             "output_folder": stem,

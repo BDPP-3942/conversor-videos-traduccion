@@ -110,10 +110,7 @@ def test_first_provider_failure_does_not_retry_primary_after_fallback_exhaustion
     monkeypatch.setattr(translator, "_get_provider", lambda name: translator._providers[name])
 
     result = translator.translate_segments(
-        [
-            {"start": index, "end": index + 1, "text": text}
-            for index, text in enumerate(("uno", "dos", "tres", "cuatro"))
-        ]
+        [{"start": index, "end": index + 1, "text": text} for index, text in enumerate(("uno", "dos", "tres", "cuatro"))]
     )
 
     assert [item["text"] for item in result] == ["uno", "dos", "tres", "cuatro"]

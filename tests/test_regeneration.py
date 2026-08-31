@@ -25,7 +25,9 @@ class FakeStorage(LocalStorageProvider):
         del parent
         return (self.target / name).is_dir()
 
-    def rename_output_folder(self, target: str, old_name: str, new_name: str, original_transcript_subdir: str) -> dict[str, str]:
+    def rename_output_folder(
+        self, target: str, old_name: str, new_name: str, original_transcript_subdir: str
+    ) -> dict[str, str]:
         del target, original_transcript_subdir
         old = self.target / old_name
         new = self.target / new_name
