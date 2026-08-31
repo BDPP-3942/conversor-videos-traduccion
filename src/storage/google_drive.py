@@ -18,7 +18,8 @@ class GoogleDriveStorageProvider(StorageProvider):
             from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
         except ImportError as exc:
             raise RuntimeError(
-                "Google Drive support requires google-api-python-client, google-auth-httplib2 and google-auth-oauthlib"
+                "Google Drive support requires google-api-python-client, "
+                "google-auth-httplib2 and google-auth-oauthlib"
             ) from exc
         self._Request = Request
         self._Credentials = Credentials
@@ -44,7 +45,9 @@ class GoogleDriveStorageProvider(StorageProvider):
             return credentials
         if not self._allow_interactive_auth:
             raise RuntimeError(
-                "Google Drive is not authorized for unattended execution. Run the one-time interactive setup command on the deployment machine and keep the generated token.json available to the scheduled task account."
+                "Google Drive is not authorized for unattended execution. "
+                "Run the one-time interactive setup command on the deployment machine "
+                "and keep the generated token.json available to the scheduled task account."
             )
         if not self._credentials_file.is_file():
             raise FileNotFoundError(f"Google OAuth credentials not found: {self._credentials_file}")
@@ -94,7 +97,8 @@ class GoogleDriveStorageProvider(StorageProvider):
     def upload_file(self, local_path: Path, location: str, mime_type: str | None = None) -> StorageFile:
         if not local_path.is_file():
             raise FileNotFoundError(f"Local output not found: {local_path}")
-        query = f"'{location}' in parents and trashed = false and name = '{local_path.name.replace(chr(39), chr(92) + chr(39))}'"
+        escaped_name = local_path.name.replace(chr(39), chr(92) + chr(39))
+        query = f"'{location}' in parents and trashed = false and name = '{escaped_name}'"
         found = (
             self._service.files()
             .list(q=query, spaces="drive", fields="files(id,name)", pageSize=10)
@@ -112,13 +116,21 @@ class GoogleDriveStorageProvider(StorageProvider):
 
     def folder_exists(self, parent: str, name: str) -> bool:
         escaped = name.replace("'", "\\'")
-        query = f"'{parent}' in parents and trashed = false and mimeType = 'application/vnd.google-apps.folder' and name = '{escaped}'"
+        query = (
+            f"'{parent}' in parents and trashed = false and "
+            "mimeType = 'application/vnd.google-apps.folder' and "
+            f"name = '{escaped}'"
+        )
         result = self._service.files().list(q=query, spaces="drive", fields="files(id)", pageSize=1).execute()
         return bool(result.get("files"))
 
     def ensure_folder(self, parent: str, name: str) -> str:
         escaped = name.replace("'", "\\'")
-        query = f"'{parent}' in parents and trashed = false and mimeType = 'application/vnd.google-apps.folder' and name = '{escaped}'"
+        query = (
+            f"'{parent}' in parents and trashed = false and "
+            "mimeType = 'application/vnd.google-apps.folder' and "
+            f"name = '{escaped}'"
+        )
         result = self._service.files().list(q=query, spaces="drive", fields="files(id)", pageSize=10).execute()
         if result.get("files"):
             return result["files"][0]["id"]
@@ -128,7 +140,11 @@ class GoogleDriveStorageProvider(StorageProvider):
 
     def file_exists(self, parent: str, name: str) -> bool:
         escaped = name.replace("'", "\\'")
-        query = f"'{parent}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder' and name = '{escaped}'"
+        query = (
+            f"'{parent}' in parents and trashed = false and "
+            "mimeType != 'application/vnd.google-apps.folder' and "
+            f"name = '{escaped}'"
+        )
         result = self._service.files().list(q=query, spaces="drive", fields="files(id)", pageSize=1).execute()
         return bool(result.get("files"))
 
@@ -266,7 +282,9 @@ class GoogleDriveStorageProvider(StorageProvider):
         archive_folder_id = self._archive_folder_id
         if not archive_folder_id:
             raise RuntimeError(
-                "Google Drive archive folder is not configured. Set google_drive.archive_folder_id or GDRIVE_ARCHIVE_FOLDER_ID before running unattended cloud mode."
+                "Google Drive archive folder is not configured. "
+                "Set google_drive.archive_folder_id or GDRIVE_ARCHIVE_FOLDER_ID "
+                "before running unattended cloud mode."
             )
         self._service.files().update(
             fileId=file.id,
