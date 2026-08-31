@@ -96,12 +96,12 @@ def _delete_backups(storage, target: str, backups: list[tuple[str, str]]) -> Non
         storage.delete_output_backup(target, backup)
 
 
-def _restore_manifest(storage, target: str, zip_name: str, original: dict[str, Any]) -> None:
+def _restore_manifest(storage, target: str, zip_name: str, original: dict[str, Any], remote: bool) -> None:
     if not original:
         return
     path = _manifest_local_path(zip_name)
     path.write_text(json.dumps(original, ensure_ascii=False, indent=2), encoding="utf-8")
-    if storage.__class__.__name__ != "LocalStorageProvider":
+    if remote:
         try:
             storage.upload_file(path, target, "application/json")
         except Exception:
@@ -116,6 +116,7 @@ def regenerate(source: str, target: str, settings) -> dict[str, Any]:
     run_id = uuid.uuid4().hex[:12]
     backups: list[tuple[str, str]] = []
     original_manifests: dict[str, dict[str, Any]] = {}
+    remote_manifests: set[str] = set()
     try:
         zips = storage.list_zip_files(source)
         if not zips:
@@ -128,6 +129,7 @@ def regenerate(source: str, target: str, settings) -> dict[str, Any]:
                 remote = _download_remote_manifest(storage, target, zip_file.name)
                 if remote:
                     original_manifests[zip_file.name] = _read_manifest(remote)
+                    remote_manifests.add(zip_file.name)
             entries = _load_existing_entries(storage, target, zip_file.name)
             backups.extend(
                 _backup_existing_outputs(storage, target, entries, run_id, settings.original_transcript_subdir)
@@ -152,7 +154,7 @@ def regenerate(source: str, target: str, settings) -> dict[str, Any]:
     except Exception:
         _restore_backups(storage, target, backups, settings.original_transcript_subdir)
         for zip_name, manifest in original_manifests.items():
-            _restore_manifest(storage, target, zip_name, manifest)
+            _restore_manifest(storage, target, zip_name, manifest, zip_name in remote_manifests)
         raise
     finally:
         storage.close()
