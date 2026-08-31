@@ -1,5 +1,0 @@
-name: Format branch once
-
-# Intentionally disabled as a repository-wide governance workflow.
-# Formatting is enforced by CI with `ruff format --check .`.
-# Keep this file only as historical context; do not enable it for new branches.
