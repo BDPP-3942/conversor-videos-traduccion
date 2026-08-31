@@ -1,6 +1,6 @@
 from config.settings import AppSettings
 from src.hardware import GPUInfo, HardwareInfo
-from src.resource_profile import build_profile, safe_parallelism
+from src.resource_profile import available_gpu_memory, build_profile, safe_parallelism
 
 
 def hardware(*, cpu=16, ram=32.0, available=24.0, gpu=None, disk=100.0):
@@ -49,14 +49,17 @@ def test_apple_unified_memory_is_not_double_counted_as_vram():
     profile = build_profile(AppSettings(whisper_model="medium"), hardware(cpu=10, ram=16.0, available=6.0, gpu=gpu))
     assert profile.whisper_device == "cpu"
     assert profile.gpu_vram_gb == 0.0
+    assert available_gpu_memory(hardware(gpu=gpu)) == 4.0
 
 
 def test_unified_memory_budget_uses_available_system_memory():
     gpu = GPUInfo(available=True, vendor="Apple", model="Apple Silicon GPU", backend="metal",
                   usable_for_whisper=False, memory_model="unified", memory_shared_with_system=True)
-    profile = build_profile(AppSettings(whisper_model="medium"), hardware(cpu=12, ram=32.0, available=10.0, gpu=gpu))
+    hw = hardware(cpu=12, ram=32.0, available=10.0, gpu=gpu)
+    profile = build_profile(AppSettings(whisper_model="medium"), hw)
     assert profile.whisper_device == "cpu"
     assert profile.gpu_vram_gb == 0.0
+    assert profile.gpu_memory_available_gb == 8.0
 
 
 def test_explicit_cuda_requires_usable_runtime():
