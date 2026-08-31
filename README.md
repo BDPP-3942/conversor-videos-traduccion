@@ -40,7 +40,8 @@ El VTT original es la fuente de verdad temporal. La traducción conserva `start/
 - MP4 TTS y WebM TTS opcional.
 - Manifests, resume e idempotencia.
 - Deduplicación conservadora.
-- Concurrencia de vídeo adaptada a los recursos disponibles en el estado actual.
+- Concurrencia de vídeo adaptada a los recursos disponibles.
+- Regeneración limpia explícita de resultados existentes mediante el pipeline común.
 - CLI, wrappers, ejecutable y ejecución programada.
 - CI, auditoría de seguridad y auditoría de dependencias.
 
@@ -115,7 +116,9 @@ Consulta [`docs/TTS.md`](docs/TTS.md).
 
 La configuración actual usa `max_parallel_videos = 0` como AUTO. El runtime calcula un límite conservador teniendo en cuenta la configuración efectiva de Whisper, CPU, RAM disponible y, cuando corresponde, memoria GPU. Un valor positivo es un máximo solicitado y puede reducirse si supera el límite seguro; `1` mantiene un único worker.
 
-Esta lógica fue introducida después de la release `1.2.2` por la PR #20 y está incorporada al código de la versión de desarrollo `1.3.0`.
+Esta lógica fue introducida después de la release `1.2.2` por la PR #20 y forma parte de `v1.3.0`.
+
+**Importante para la release 1.4.0:** la CLI debe aplicar el mismo cálculo seguro también cuando se proporciona `--parallel-videos`; el valor solicitado nunca debe saltarse el techo calculado por recursos.
 
 ## Almacenamiento y ejecución programada
 
@@ -138,8 +141,12 @@ Consulta [`docs/STORAGE.md`](docs/STORAGE.md) y [`docs/SCHEDULING.md`](docs/SCHE
 ```bash
 pytest
 ruff check .
+ruff check . --select S
 ruff format --check .
 python -m compileall .
+python -m pip check
+python -m build
+pip-audit
 ```
 
 La CI además comprueba packaging, entry points, seguridad y dependencias. Consulta [`docs/CI_CD.md`](docs/CI_CD.md).
@@ -177,7 +184,9 @@ Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` 
 
 ## Versionado
 
-La última release publicada es `1.2.2`. El estado actual del código de esta rama corresponde a `1.3.0` en el metadata del paquete, pero `1.3.0` todavía no se presenta aquí como una release publicada. Consulta [`docs/RELEASES.md`](docs/RELEASES.md) para distinguir las capacidades publicadas de los cambios posteriores.
+La release publicada anterior es `1.3.0` (`v1.3.0`). Esta rama prepara `1.4.0`, que aún no está publicada. La release candidata incluye la regeneración limpia de la PR #24 y la gobernanza de la PR #25, además de las correcciones de hardening que superen el release gate.
+
+`v1.3.0` apunta al commit histórico `620af6acbe3fca7d42ccd57f3585b3952cccf0a7` y no se modifica.
 
 ## Seguridad y licencias
 
