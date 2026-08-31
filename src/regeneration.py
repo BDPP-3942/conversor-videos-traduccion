@@ -146,14 +146,12 @@ def _restore_backups(
             logger.exception("Could not restore regeneration backup %s", backup)
 
 
-def _delete_backups(
-    storage: StorageProvider, target: str, backups: list[tuple[str, str]]
-) -> None:
+def _delete_backups(storage: StorageProvider, target: str, backups: list[tuple[str, str]]) -> None:
     for _, backup in backups:
         if not storage.folder_exists(target, backup):
             continue
         if storage.__class__.__name__ == "LocalStorageProvider":
-            folder_id = str(Path(target) / backup)
+            folder_id = str(resolve_project_path(target) / backup)
         else:
             folder_id = backup
         _delete_folder(storage, folder_id)
