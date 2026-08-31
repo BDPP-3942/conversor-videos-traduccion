@@ -70,9 +70,13 @@ def _resolve_whisper(hardware: HardwareInfo, settings: AppSettings) -> tuple[str
     gpu_memory = available_gpu_memory(hardware)
     if requested_device == "cuda":
         if not hardware.gpu.usable_for_whisper:
-            raise RuntimeError(f"CUDA was explicitly requested but is unavailable: {hardware.gpu.reason or 'unknown reason'}")
+            raise RuntimeError(
+                f"CUDA was explicitly requested but is unavailable: {hardware.gpu.reason or 'unknown reason'}"
+            )
         if gpu_memory < 3.0:
-            raise RuntimeError(f"CUDA was explicitly requested but available GPU memory is insufficient: {gpu_memory:.2f} GB")
+            raise RuntimeError(
+                f"CUDA was explicitly requested but available GPU memory is insufficient: {gpu_memory:.2f} GB"
+            )
         device = "cuda"
     elif requested_device == "cpu":
         device = "cpu"
@@ -105,7 +109,9 @@ def safe_parallelism(settings: AppSettings, hardware: HardwareInfo | None = None
     by_gpu = requested if device != "cuda" else max(1, int(available_gpu_memory(hw) // max(0.5, budget.gpu_memory_gb)))
     effective = min(requested, by_cpu, by_ram, by_gpu)
     if effective < requested:
-        logging.getLogger(__name__).warning("Clamping max_parallel_videos from %d to %d for safe resource budget", requested, effective)
+        logging.getLogger(__name__).warning(
+            "Clamping max_parallel_videos from %d to %d for safe resource budget", requested, effective
+        )
     return effective
 
 
@@ -117,7 +123,11 @@ def build_profile(settings: AppSettings, hardware: HardwareInfo | None = None) -
     cpus = hw.logical_cpus
     model = settings.whisper_model.lower()
     if model == "auto":
-        model = "medium" if (device == "cuda" and available_gpu_memory(hw) >= 8) or (memory >= 16 and cpus >= 6) else "small"
+        model = (
+            "medium"
+            if (device == "cuda" and available_gpu_memory(hw) >= 8) or (memory >= 16 and cpus >= 6)
+            else "small"
+        )
     if memory >= 24 and cpus >= 12:
         name, batch = "high", 12
         default_threads = min(8, max(4, cpus // 2))
@@ -131,10 +141,23 @@ def build_profile(settings: AppSettings, hardware: HardwareInfo | None = None) -
     configured_parallel = 1 if settings.max_parallel_videos <= 0 else max(1, settings.max_parallel_videos)
     effective_parallel = safe_parallelism(replace(settings, max_parallel_videos=configured_parallel), hw)
     return ResourceProfile(
-        name, cpus, hw.physical_cpus, memory, available, model, device, compute, threads,
-        effective_parallel, settings.translation_batch_size if settings.translation_batch_size > 0 else batch,
-        hw.gpu.device_index, hw.gpu.vram_free_gb, available_gpu_memory(hw), hw.gpu.memory_model,
-        hw.gpu.memory_shared_with_system, hw.disk_free_gb,
+        name,
+        cpus,
+        hw.physical_cpus,
+        memory,
+        available,
+        model,
+        device,
+        compute,
+        threads,
+        effective_parallel,
+        settings.translation_batch_size if settings.translation_batch_size > 0 else batch,
+        hw.gpu.device_index,
+        hw.gpu.vram_free_gb,
+        available_gpu_memory(hw),
+        hw.gpu.memory_model,
+        hw.gpu.memory_shared_with_system,
+        hw.disk_free_gb,
     )
 
 
@@ -162,8 +185,12 @@ def apply_resource_profile(settings: AppSettings, hardware: HardwareInfo | None 
         settings,
         whisper_model=profile.whisper_model,
         whisper_device=profile.whisper_device if settings.whisper_device.lower() == "auto" else settings.whisper_device,
-        whisper_compute_type=profile.whisper_compute_type if settings.whisper_compute_type.lower() == "auto" else settings.whisper_compute_type,
-        whisper_cpu_threads=profile.whisper_threads if settings.whisper_cpu_threads <= 0 else settings.whisper_cpu_threads,
+        whisper_compute_type=profile.whisper_compute_type
+        if settings.whisper_compute_type.lower() == "auto"
+        else settings.whisper_compute_type,
+        whisper_cpu_threads=profile.whisper_threads
+        if settings.whisper_cpu_threads <= 0
+        else settings.whisper_cpu_threads,
         max_parallel_videos=profile.max_parallel_videos,
         translation_batch_size=profile.translation_batch_size,
         resource_profile=profile.name,

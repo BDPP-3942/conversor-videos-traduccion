@@ -74,9 +74,27 @@ class FileNameFormatter:
         re.compile(r"[_\-]+copy\s*$", re.IGNORECASE),
     )
     GENERIC_TOKENS = {
-        "mp4", "wmv", "video", "videos", "audio", "media", "file", "files",
-        "archivo", "archivos", "download", "downloads", "descarga", "descargas",
-        "compressed", "compression", "archive", "archivo_comprimido", "zip", "rar", "7z",
+        "mp4",
+        "wmv",
+        "video",
+        "videos",
+        "audio",
+        "media",
+        "file",
+        "files",
+        "archivo",
+        "archivos",
+        "download",
+        "downloads",
+        "descarga",
+        "descargas",
+        "compressed",
+        "compression",
+        "archive",
+        "archivo_comprimido",
+        "zip",
+        "rar",
+        "7z",
     }
     FILENAME_ARTIFACT_PATTERN = re.compile(
         r"(?:^|[_\- .])(?:\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?)(?:[_\- .]|$)",
@@ -103,6 +121,7 @@ class FileNameFormatter:
     @classmethod
     def resolve_source_metadata(cls, source: Path, extract_root: Path) -> SourceNameMetadata:
         from src.naming_policy import resolve
+
         return resolve(source, extract_root)
 
     @classmethod
@@ -158,7 +177,9 @@ class FileNameFormatter:
         return None
 
     @classmethod
-    def _build_description(cls, stem: str, *, course: int | None, lesson: int | None, course_name: str | None, lesson_name: str | None) -> str:
+    def _build_description(
+        cls, stem: str, *, course: int | None, lesson: int | None, course_name: str | None, lesson_name: str | None
+    ) -> str:
         value = stem
         if course is not None:
             value = cls._remove_number(value, course)
@@ -183,7 +204,9 @@ class FileNameFormatter:
     def _remove_label(value: str) -> str:
         return re.sub(
             r"(?:^|[_\- .])(?:curso|course|lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)(?=[_\- .]|$)",
-            "_", value, flags=re.IGNORECASE,
+            "_",
+            value,
+            flags=re.IGNORECASE,
         )
 
     @classmethod
@@ -292,13 +315,16 @@ def normalized_name_similarity(left: str, right: str) -> float:
     return 0.65 * sequence_score + 0.35 * token_score
 
 
-def fit_output_stem(stem: str, parent: Path, unique_suffix: str | None = None, reserve_suffixes: tuple[str, ...] = ()) -> str:
+def fit_output_stem(
+    stem: str, parent: Path, unique_suffix: str | None = None, reserve_suffixes: tuple[str, ...] = ()
+) -> str:
     """Fit an output stem to the host filesystem, reserving artifact suffix space."""
     suffix = f"__{unique_suffix}" if unique_suffix else ""
     candidate = fit_component(stem, parent, suffix=suffix)
     if not reserve_suffixes:
         return candidate
     from src.path_limits import get_filesystem_limits
+
     limits = get_filesystem_limits(parent)
     max_component = max(1, limits.max_component)
     extra = max((len(item.encode("utf-8")) for item in reserve_suffixes), default=0)

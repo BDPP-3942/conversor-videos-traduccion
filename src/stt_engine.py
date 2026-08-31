@@ -139,5 +139,11 @@ class STTEngine:
                 split_count += len(split_segments) - 1
             result.extend(split_segments)
         result.sort(key=lambda item: (float(item["start"]), float(item["end"])))
-        logger.info("STT completed: %d subtitle segments from %d Whisper segments; split %d; discarded %d", len(result), raw_count, split_count, discarded_count)
+        logger.info(
+            "STT completed: %d subtitle segments from %d Whisper segments; split %d; discarded %d",
+            len(result),
+            raw_count,
+            split_count,
+            discarded_count,
+        )
         return result
