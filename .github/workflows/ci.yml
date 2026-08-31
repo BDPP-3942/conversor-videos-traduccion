@@ -1,5 +1,6 @@
 name: CI
 
+# Release 1.4.0 candidate validation runs directly on the release branch head.
 on:
   push:
     branches:
