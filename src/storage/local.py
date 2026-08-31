@@ -133,7 +133,9 @@ class LocalStorageProvider(StorageProvider):
             if new_name != folder.name:
                 candidate = root / new_name
                 if candidate.exists():
-                    logger.warning("Cannot normalize output folder '%s' because '%s' already exists", folder.name, candidate.name)
+                    logger.warning(
+                        "Cannot normalize output folder '%s' because '%s' already exists", folder.name, candidate.name
+                    )
                 else:
                     try:
                         folder.rename(candidate)
@@ -146,7 +148,9 @@ class LocalStorageProvider(StorageProvider):
         self._update_manifests_after_migration(root, mapping)
         return mapping
 
-    def _normalize_files_recursive(self, root: Path, storage_root: Path, original_transcript_subdir: str, mapping: dict[str, str]) -> None:
+    def _normalize_files_recursive(
+        self, root: Path, storage_root: Path, original_transcript_subdir: str, mapping: dict[str, str]
+    ) -> None:
         try:
             children = list(root.iterdir())
         except FileNotFoundError:
@@ -188,6 +192,7 @@ class LocalStorageProvider(StorageProvider):
         if not manifests.is_dir() or not mapping:
             return
         from src.manifest import read_manifest, write_manifest
+
         for manifest in manifests.glob("*.json"):
             data = read_manifest(manifest)
             changed = False
@@ -208,7 +213,13 @@ class LocalStorageProvider(StorageProvider):
                         continue
                     candidate = output_dir / old_name
                     normalized_name = f"{fit_component(normalize_component(Path(old_name).stem), output_dir)}{Path(old_name).suffix.lower()}"
-                    final_name = candidate.name if candidate.is_file() else normalized_name if (output_dir / normalized_name).is_file() else old_name
+                    final_name = (
+                        candidate.name
+                        if candidate.is_file()
+                        else normalized_name
+                        if (output_dir / normalized_name).is_file()
+                        else old_name
+                    )
                     if final_name != old_name:
                         entry[key] = final_name
                         changed = True
@@ -217,7 +228,13 @@ class LocalStorageProvider(StorageProvider):
                     original_dir = output_dir / "original_transcriptions"
                     candidate = original_dir / old_original
                     normalized_name = f"{fit_component(normalize_component(Path(old_original).stem), original_dir)}{Path(old_original).suffix.lower()}"
-                    final_name = candidate.name if candidate.is_file() else normalized_name if (original_dir / normalized_name).is_file() else old_original
+                    final_name = (
+                        candidate.name
+                        if candidate.is_file()
+                        else normalized_name
+                        if (original_dir / normalized_name).is_file()
+                        else old_original
+                    )
                     if final_name != old_original:
                         entry["original_transcription"] = final_name
                         changed = True
