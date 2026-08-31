@@ -81,11 +81,10 @@ def _memory_info() -> tuple[float, float]:
 
 
 def _darwin_available_memory(page_size: int, total_gb: float) -> float:
-    binary = shutil.which("vm_stat")
-    if not binary:
+    if not shutil.which("vm_stat"):
         return max(0.0, total_gb * 0.5)
     try:
-        output = subprocess.check_output([binary], text=True, stderr=subprocess.DEVNULL, timeout=2)
+        output = subprocess.check_output(["vm_stat"], text=True, stderr=subprocess.DEVNULL, timeout=2)
         pages: dict[str, int] = {}
         for line in output.splitlines():
             if ":" not in line:
@@ -103,11 +102,10 @@ def _darwin_available_memory(page_size: int, total_gb: float) -> float:
 def _physical_cpus() -> int | None:
     if platform.system() == "Windows":
         return None
-    binary = shutil.which("lscpu")
-    if not binary:
+    if not shutil.which("lscpu"):
         return None
     try:
-        output = subprocess.check_output([binary, "-p=CORE"], text=True, stderr=subprocess.DEVNULL, timeout=2)
+        output = subprocess.check_output(["lscpu", "-p=CORE"], text=True, stderr=subprocess.DEVNULL, timeout=2)
         cores = {line.strip() for line in output.splitlines() if line.strip() and not line.startswith("#")}
         return len(cores) or None
     except (OSError, ValueError, subprocess.SubprocessError):
@@ -137,12 +135,15 @@ def _probe_ctranslate2_gpu(device_index: int = 0) -> tuple[bool, str | None, str
 
 
 def _nvidia_gpu() -> GPUInfo:
-    binary = shutil.which("nvidia-smi")
-    if not binary:
+    if not shutil.which("nvidia-smi"):
         return GPUInfo(False, vendor="NVIDIA", reason="nvidia-smi not available")
     try:
         result = subprocess.run(
-            [binary, "--query-gpu=index,name,memory.total,memory.free,driver_version", "--format=csv,noheader,nounits"],
+            [
+                "nvidia-smi",
+                "--query-gpu=index,name,memory.total,memory.free,driver_version",
+                "--format=csv,noheader,nounits",
+            ],
             capture_output=True,
             text=True,
             timeout=3,
@@ -178,16 +179,19 @@ def _nvidia_gpu() -> GPUInfo:
 
 
 def _amd_gpu() -> GPUInfo | None:
-    binary = shutil.which("rocm-smi")
-    rocminfo = shutil.which("rocminfo")
-    if not binary and not rocminfo:
+    rocm_smi_available = shutil.which("rocm-smi") is not None
+    rocminfo_available = shutil.which("rocminfo") is not None
+    if not rocm_smi_available and not rocminfo_available:
         return None
     model = None
     total = free = 0.0
-    if binary:
+    if rocm_smi_available:
         try:
             output = subprocess.check_output(
-                [binary, "--showproductname", "--showmeminfo", "vram"], text=True, stderr=subprocess.DEVNULL, timeout=4
+                ["rocm-smi", "--showproductname", "--showmeminfo", "vram"],
+                text=True,
+                stderr=subprocess.DEVNULL,
+                timeout=4,
             )
             for line in output.splitlines():
                 low = line.lower()
@@ -200,9 +204,9 @@ def _amd_gpu() -> GPUInfo | None:
                     free = max(0.0, total - used)
         except (OSError, ValueError, subprocess.SubprocessError):
             pass
-    if model is None and rocminfo:
+    if model is None and rocminfo_available:
         try:
-            output = subprocess.check_output([rocminfo], text=True, stderr=subprocess.DEVNULL, timeout=4)
+            output = subprocess.check_output(["rocminfo"], text=True, stderr=subprocess.DEVNULL, timeout=4)
             for line in output.splitlines():
                 stripped = line.strip()
                 if stripped.startswith("Name:") and "gfx" not in stripped.lower():
@@ -230,8 +234,7 @@ def _amd_gpu() -> GPUInfo | None:
 
 
 def _intel_gpu() -> GPUInfo | None:
-    binary = shutil.which("xpu-smi") or shutil.which("intel_gpu_top")
-    if not binary:
+    if not (shutil.which("xpu-smi") or shutil.which("intel_gpu_top")):
         return None
     return GPUInfo(
         True,
