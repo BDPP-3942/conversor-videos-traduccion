@@ -2,15 +2,41 @@ from __future__ import annotations
 
 import json
 import os
+import pty
 import shutil
-import subprocess
 import sys
 import zipfile
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+@dataclass
+class _ProcessResult:
+    returncode: int
+    stdout: str
+
+
+def _spawn(argv: list[str], env: dict[str, str]) -> _ProcessResult:
+    output = bytearray()
+    previous = os.environ.copy()
+    os.environ.clear()
+    os.environ.update(env)
+
+    def _read(fd: int) -> bytes:
+        chunk = os.read(fd, 4096)
+        output.extend(chunk)
+        return chunk
+
+    try:
+        status = pty.spawn(argv, _read)
+    finally:
+        os.environ.clear()
+        os.environ.update(previous)
+    return _ProcessResult(os.waitstatus_to_exitcode(status), output.decode(errors="replace"))
 
 
 def _config(tmp_path: Path) -> Path:
@@ -61,7 +87,7 @@ run_lock_file = "{lock}"
     return config
 
 
-def _run(*args: str, config: Path, storage_dir: Path | None = None) -> subprocess.CompletedProcess[str]:
+def _env(storage_dir: Path) -> dict[str, str]:
     env = os.environ.copy()
     env.pop("STORAGE_PROVIDER", None)
     env.pop("SOURCE_URI", None)
@@ -69,35 +95,23 @@ def _run(*args: str, config: Path, storage_dir: Path | None = None) -> subproces
     env["PYTHONPATH"] = os.pathsep.join(
         [str(ROOT / "tests" / "e2e_support"), str(ROOT), env.get("PYTHONPATH", "")]
     )
-    if storage_dir:
-        env["E2E_STORAGE_DIR"] = str(storage_dir)
-    return subprocess.run(
-        [sys.executable, "main.py", "--config", str(config), *args],
-        cwd=ROOT,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-
-def _run_regeneration(config: Path, storage_dir: Path) -> subprocess.CompletedProcess[str]:
-    env = os.environ.copy()
-    env["PYTHONPATH"] = os.pathsep.join(
-        [str(ROOT / "tests" / "e2e_support"), str(ROOT), env.get("PYTHONPATH", "")]
-    )
     env["E2E_STORAGE_DIR"] = str(storage_dir)
-    return subprocess.run(
-        ["video-translation-regenerate", "--config", str(config)],
-        cwd=ROOT,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    return env
 
 
-def _json_output(result: subprocess.CompletedProcess[str]) -> dict:
+def _run(*args: str, config: Path, storage_dir: Path | None = None) -> _ProcessResult:
+    env = _env(storage_dir or config.parent / "storage")
+    return _spawn([sys.executable, "main.py", "--config", str(config), *args], env)
+
+
+def _run_regeneration(config: Path, storage_dir: Path) -> _ProcessResult:
+    executable = shutil.which("video-translation-regenerate")
+    if not executable:
+        pytest.fail("video-translation-regenerate entry point is not installed")
+    return _spawn([executable, "--config", str(config)], _env(storage_dir))
+
+
+def _json_output(result: _ProcessResult) -> dict:
     starts = [
         index
         for index, char in enumerate(result.stdout)
@@ -113,7 +127,7 @@ def _make_video_zip(tmp_path: Path, name: str = "lesson.zip") -> Path:
     if not ffmpeg:
         pytest.skip("ffmpeg is required for the local media E2E suite")
     media = tmp_path / "lesson.mp4"
-    subprocess.run(
+    result = _spawn(
         [
             ffmpeg,
             "-y",
@@ -134,9 +148,9 @@ def _make_video_zip(tmp_path: Path, name: str = "lesson.zip") -> Path:
             "aac",
             str(media),
         ],
-        check=True,
-        capture_output=True,
+        os.environ.copy(),
     )
+    assert result.returncode == 0, result.stdout
     archive = tmp_path / name
     with zipfile.ZipFile(archive, "w") as handle:
         handle.write(media, media.name)
@@ -156,11 +170,11 @@ def test_e2e_real_cli_dry_run_has_no_processing_side_effects(tmp_path: Path):
 
     result = _run("run", "--dry-run", config=config, storage_dir=tmp_path / "storage")
 
-    assert result.returncode == 0, result.stdout + result.stderr
+    assert result.returncode == 0, result.stdout
     assert _json_output(result)["status"] == "ready"
     assert list(source.iterdir()) == []
     assert list(target.iterdir()) == []
-    manifests = tmp_path.joinpath("storage", "output", "_manifests")
+    manifests = tmp_path.joinpath("storage", "_manifests")
     assert manifests.is_dir()
     assert list(manifests.iterdir()) == []
 
@@ -185,8 +199,8 @@ def test_e2e_real_cli_concurrency_override_is_clamped(tmp_path: Path):
         storage_dir=tmp_path / "storage",
     )
 
-    assert auto.returncode == 0, auto.stdout + auto.stderr
-    assert excessive.returncode == 0, excessive.stdout + excessive.stderr
+    assert auto.returncode == 0, auto.stdout
+    assert excessive.returncode == 0, excessive.stdout
     auto_payload = _json_output(auto)
     excessive_payload = _json_output(excessive)
     assert auto_payload["effective_parallelism"] >= 1
@@ -204,7 +218,7 @@ def test_e2e_real_cli_scheduled_mode_uses_same_entry_point(tmp_path: Path):
         storage_dir=tmp_path / "storage",
     )
 
-    assert result.returncode == 0, result.stdout + result.stderr
+    assert result.returncode == 0, result.stdout
     assert _json_output(result)["status"] == "ready"
 
 
@@ -220,7 +234,7 @@ def test_e2e_real_pipeline_and_regeneration_success(tmp_path: Path):
         config=config,
         storage_dir=tmp_path / "storage",
     )
-    assert first.returncode == 0, first.stdout + first.stderr
+    assert first.returncode == 0, first.stdout
     assert _json_output(first)["status"] == "success"
     outputs = [path for folder in target.iterdir() if folder.is_dir() for path in folder.glob("*.mp4")]
     assert len(outputs) == 1
@@ -229,7 +243,7 @@ def test_e2e_real_pipeline_and_regeneration_success(tmp_path: Path):
 
     regenerated = _run_regeneration(config, tmp_path / "storage")
 
-    assert regenerated.returncode == 0, regenerated.stdout + regenerated.stderr
+    assert regenerated.returncode == 0, regenerated.stdout
     payload = _json_output(regenerated)
     assert payload["status"] == "success"
     assert output.is_file()
@@ -251,7 +265,7 @@ def test_e2e_real_regeneration_failure_rolls_back_previous_output(tmp_path: Path
         config=config,
         storage_dir=tmp_path / "storage",
     )
-    assert first.returncode == 0, first.stdout + first.stderr
+    assert first.returncode == 0, first.stdout
     outputs = [path for folder in target.iterdir() if folder.is_dir() for path in folder.glob("*.mp4")]
     assert len(outputs) == 1
     output = outputs[0]
@@ -275,11 +289,8 @@ def test_e2e_real_packaged_entry_points_help():
         "video-subtitle-qa",
     ]
     for executable in entry_points:
-        result = subprocess.run(
-            [executable, "--help"],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        assert result.returncode == 0, executable + ": " + result.stdout + result.stderr
+        path = shutil.which(executable)
+        if not path:
+            pytest.fail(f"{executable} entry point is not installed")
+        result = _spawn([path, "--help"], os.environ.copy())
+        assert result.returncode == 0, executable + ": " + result.stdout
