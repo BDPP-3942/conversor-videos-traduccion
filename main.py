@@ -33,9 +33,7 @@ def configure_logging(log_level: str) -> None:
         format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
         handlers=[
             logging.StreamHandler(sys.stdout),
-            RotatingFileHandler(
-                log_dir / "pipeline.log", maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"
-            ),
+            RotatingFileHandler(log_dir / "pipeline.log", maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"),
         ],
     )
 
