@@ -78,7 +78,11 @@ def _read_manifest(path: Path) -> dict[str, Any]:
 def _download_remote_manifest(storage: StorageProvider, target: str, zip_name: str) -> Path | None:
     manifest_name = f"{Path(zip_name).stem}.json"
     try:
-        candidates = [item for item in storage.list_children(target) if item.name == manifest_name and not item.is_directory]
+        candidates = [
+            item
+            for item in storage.list_children(target)
+            if item.name == manifest_name and not item.is_directory
+        ]
     except Exception:
         logger.exception("Could not inspect remote manifest for %s", zip_name)
         return None
