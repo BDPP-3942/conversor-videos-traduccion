@@ -37,9 +37,7 @@ def test_remote_provider_fakes_support_backup_rollback_and_commit(tmp_path: Path
     assert restored is True
     assert (original / "video.mp4").read_bytes() == b"old"
 
-    provider.backup_output_folder(
-        str(target), "lesson", ".regeneration-backup-run-lesson", "original_transcriptions"
-    )
+    provider.backup_output_folder(str(target), "lesson", ".regeneration-backup-run-lesson", "original_transcriptions")
     target.joinpath("lesson").mkdir()
     (target / "lesson" / "video.mp4").write_bytes(b"new")
     provider.delete_output_backup(str(target), ".regeneration-backup-run-lesson")
