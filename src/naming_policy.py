@@ -101,9 +101,6 @@ def _course_context(context_values: list[str]) -> tuple[int | None, str | None]:
 
 
 def _lesson_context(source: Path, context_values: list[str], logical_source: Path | None = None) -> tuple[int | None, str]:
-    # Parse the reconstructed logical filename first. A timestamp containing
-    # '/' is split by pathlib into path components, so source.name can become
-    # only the trailing clock fragment and must not be treated as lesson data.
     if logical_source is not None:
         number, description = _match_logical_lesson(logical_source)
         if number is not None or description:
@@ -128,12 +125,15 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
     if not raw_parts:
         raise ValueError(f"Source path is empty relative to extract root: {source}")
 
-    logical_relative = "_".join(raw_parts)
+    # Preserve '/' until calendar noise has been stripped. Otherwise a date
+    # such as 31/08/2026 becomes 31_08_2026 and can no longer be recognized as
+    # one semantic timestamp after pathlib has split it into path components.
+    logical_relative = "/".join(raw_parts)
     normalized_logical = _clean(logical_relative)
     logical_source = Path(normalized_logical + source.suffix.lower())
 
     raw_context = raw_parts[:-1]
-    context_text = "_".join(raw_context)
+    context_text = "/".join(raw_context)
     normalized_context = _clean(context_text)
     context = [normalized_context] if normalized_context else []
 
