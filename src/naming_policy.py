@@ -161,6 +161,7 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
         course=course,
         lesson=lesson,
         description=lesson_name or course_name or fallback,
+        output_stem=output_stem,
         confidence="high" if course is not None and lesson is not None else "medium",
         review_required=review_required,
         review_reason="; ".join(reasons),
