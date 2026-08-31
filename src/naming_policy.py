@@ -9,7 +9,7 @@ _NOISE = re.compile(r"(?:wetransfer|drive-download|download|descarga|archive|com
 _COURSE_LABEL = re.compile(r"(?:curso|course)", re.IGNORECASE)
 _LESSON_LABEL = re.compile(r"(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)", re.IGNORECASE)
 _COURSE_NUMBER = re.compile(r"(?:^|[_\- .])(?:curso|course)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|\b(\d{1,4})\s*(?:º|°)\s*curso\b", re.IGNORECASE)
-_LESSON_NUMBER = re.compile(r"(?:^|[_\- .])(?:cap[ií]tulo|lecci[oó]n|lesson|chapter|clase|tema|unidad)\s*[_\-.:#]*\s*(\d{1,4})\b|^\s*(\d{1,4})\s*(?:º|°|[._-])\s*", re.IGNORECASE)
+_LESSON_NUMBER = re.compile(r"(?:^|[_\- .])(?:cap[ií]tulo|lecci[oó]n|lesson|chapter|clase|tema|unidad)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|^\s*(\d{1,4})\s*(?:º|°|[._-])\s*", re.IGNORECASE)
 _LEADING_NUMBER = re.compile(r"^\s*(\d{1,4})\s*(?:º|°|[._-])\s*")
 _GENERIC = {"mp4", "wmv", "video", "videos", "audio", "media", "file", "files", "archivo", "archivos", "download", "downloads", "descarga", "descargas", "compressed", "compression", "archive", "zip", "rar", "7z"}
 _VIDEO_EXTENSIONS = {".mp4", ".wmv"}
@@ -89,7 +89,10 @@ def _course_context(context_values: list[str]) -> tuple[int | None, str | None]:
 
 
 def _lesson_context(source: Path, context_values: list[str], logical_source: Path | None = None) -> tuple[int | None, str]:
-    candidate = logical_source or source
+    # Lesson metadata belongs to the actual media filename. The logical path
+    # may include course/container text and therefore must not be re-used as a
+    # filename for lesson extraction or description generation.
+    candidate = source
     number = _match_source_lesson(candidate)
     description = _description(candidate.name, number, _LESSON_LABEL)
     if number is not None or description:
