@@ -48,16 +48,15 @@ def test_apple_unified_memory_is_not_double_counted_as_vram():
                   memory_shared_with_system=True, reason="Metal backend unavailable")
     profile = build_profile(AppSettings(whisper_model="medium"), hardware(cpu=10, ram=16.0, available=6.0, gpu=gpu))
     assert profile.whisper_device == "cpu"
-    assert profile.gpu_vram_gb == 4.0
+    assert profile.gpu_vram_gb == 0.0
 
 
-def test_unified_memory_gpu_budget_uses_available_system_memory():
+def test_unified_memory_budget_uses_available_system_memory():
     gpu = GPUInfo(available=True, vendor="Apple", model="Apple Silicon GPU", backend="metal",
-                  usable_for_whisper=True, memory_model="unified", memory_shared_with_system=True)
-    settings = AppSettings(whisper_model="medium", whisper_device="auto", whisper_compute_type="auto")
-    profile = build_profile(settings, hardware(cpu=12, ram=32.0, available=10.0, gpu=gpu))
-    assert profile.whisper_device == "cuda"
-    assert profile.gpu_vram_gb == 8.0
+                  usable_for_whisper=False, memory_model="unified", memory_shared_with_system=True)
+    profile = build_profile(AppSettings(whisper_model="medium"), hardware(cpu=12, ram=32.0, available=10.0, gpu=gpu))
+    assert profile.whisper_device == "cpu"
+    assert profile.gpu_vram_gb == 0.0
 
 
 def test_explicit_cuda_requires_usable_runtime():
