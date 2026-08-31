@@ -146,6 +146,17 @@ def _restore_backups(
             logger.exception("Could not restore regeneration backup %s", backup)
 
 
+def _cloud_folder_id(storage: StorageProvider, target: str, name: str) -> str:
+    from src.storage.google_drive import GoogleDriveStorageProvider
+
+    if not isinstance(storage, GoogleDriveStorageProvider):
+        return name
+    matches = [item for item in storage.list_children(target) if item.name == name and item.is_directory]
+    if not matches:
+        raise RegenerationError(f"Regeneration backup folder disappeared: {name}")
+    return matches[0].id
+
+
 def _delete_backups(storage: StorageProvider, target: str, backups: list[tuple[str, str]]) -> None:
     for _, backup in backups:
         if not storage.folder_exists(target, backup):
@@ -153,7 +164,7 @@ def _delete_backups(storage: StorageProvider, target: str, backups: list[tuple[s
         if storage.__class__.__name__ == "LocalStorageProvider":
             folder_id = str(resolve_project_path(target) / backup)
         else:
-            folder_id = backup
+            folder_id = _cloud_folder_id(storage, target, backup)
         _delete_folder(storage, folder_id)
 
 
