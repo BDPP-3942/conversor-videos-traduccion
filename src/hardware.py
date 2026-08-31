@@ -14,6 +14,7 @@ class GPUInfo:
     vendor: str | None = None
     model: str | None = None
     device_index: int | None = None
+    count: int = 0
     vram_total_gb: float = 0.0
     vram_free_gb: float = 0.0
     driver_version: str | None = None
@@ -66,10 +67,7 @@ def _memory_info() -> tuple[float, float]:
 
 def _physical_cpus() -> int | None:
     if platform.system() == "Windows":
-        try:
-            return int(os.environ.get("NUMBER_OF_PROCESSORS", "1"))
-        except ValueError:
-            return None
+        return None
     binary = shutil.which("lscpu")
     if not binary:
         return None
@@ -104,7 +102,7 @@ def _nvidia_gpu() -> GPUInfo:
             reason = None if usable else "CTranslate2 reports no usable CUDA device"
         except (ImportError, AttributeError, RuntimeError):
             reason = "CTranslate2 CUDA capability unavailable"
-        return GPUInfo(True, "NVIDIA", first[1], index, total, free, first[4], runtime, "cuda", usable, reason)
+        return GPUInfo(True, "NVIDIA", first[1], index, len(rows), total, free, first[4], runtime, "cuda", usable, reason)
     except (OSError, ValueError, subprocess.SubprocessError):
         return GPUInfo(False, vendor="NVIDIA", reason="nvidia-smi query failed")
 
@@ -115,9 +113,9 @@ def detect_gpu() -> GPUInfo:
         return nvidia
     system = platform.system()
     if system == "Darwin" and platform.machine().lower() in {"arm64", "aarch64"}:
-        return GPUInfo(True, "Apple", "Apple Silicon GPU", 0, backend="metal", usable_for_whisper=False, reason="faster-whisper backend is not selected for Metal automatically")
+        return GPUInfo(True, "Apple", "Apple Silicon GPU", 0, 1, backend="metal", usable_for_whisper=False, reason="faster-whisper backend is not selected for Metal automatically")
     if shutil.which("rocm-smi"):
-        return GPUInfo(True, "AMD", None, 0, runtime="ROCm", backend="rocm", usable_for_whisper=False, reason="GPU detected but faster-whisper runtime is not verified")
+        return GPUInfo(True, "AMD", None, 0, 1, runtime="ROCm", backend="rocm", usable_for_whisper=False, reason="GPU detected but faster-whisper runtime is not verified")
     return GPUInfo(False, reason="no supported GPU runtime detected")
 
 
