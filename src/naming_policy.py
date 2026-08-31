@@ -58,7 +58,6 @@ def _match_source_lesson(source: Path) -> int | None:
 
 
 def _match_logical_lesson(logical_source: Path) -> tuple[int | None, str]:
-    """Recover lesson metadata when a timestamp containing '/' split the filename into path parts."""
     stem = _clean(logical_source.stem)
     matches = list(_LOGICAL_LESSON_NUMBER.finditer(stem))
     if not matches:
@@ -102,19 +101,18 @@ def _course_context(context_values: list[str]) -> tuple[int | None, str | None]:
 
 
 def _lesson_context(source: Path, context_values: list[str], logical_source: Path | None = None) -> tuple[int | None, str]:
-    # Prefer the actual media filename. If a timestamp contains '/', pathlib
-    # splits that suffix into directories, so the reconstructed logical source
-    # is the authoritative fallback for lesson parsing.
-    candidate = source
-    number = _match_source_lesson(candidate)
-    description = _description(candidate.name, number, _LESSON_LABEL)
-    if number is not None or description:
-        return number, description
-
+    # Parse the reconstructed logical filename first. A timestamp containing
+    # '/' is split by pathlib into path components, so source.name can become
+    # only the trailing clock fragment and must not be treated as lesson data.
     if logical_source is not None:
         number, description = _match_logical_lesson(logical_source)
         if number is not None or description:
             return number, description
+
+    number = _match_source_lesson(source)
+    description = _description(source.name, number, _LESSON_LABEL)
+    if number is not None or description:
+        return number, description
 
     for value in reversed(_clean_context(context_values)):
         number = _match_number(value, _LESSON_NUMBER)
@@ -134,10 +132,6 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
     normalized_logical = _clean(logical_relative)
     logical_source = Path(normalized_logical + source.suffix.lower())
 
-    # Keep the actual parent context for course extraction, but reconstruct the
-    # complete filename separately. This handles timestamps containing '/':
-    # pathlib splits 31/08/2026 into directories, although semantically it is
-    # still a suffix of the media filename.
     raw_context = raw_parts[:-1]
     context_text = "_".join(raw_context)
     normalized_context = _clean(context_text)
