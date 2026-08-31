@@ -31,6 +31,9 @@ class ResourceProfile:
     translation_batch_size: int
     gpu_index: int | None = None
     gpu_vram_gb: float = 0.0
+    gpu_memory_available_gb: float = 0.0
+    gpu_memory_model: str = "dedicated"
+    gpu_memory_shared_with_system: bool = False
     disk_free_gb: float = 0.0
 
 
@@ -41,11 +44,15 @@ def estimate_whisper_budget(model: str, device: str, threads: int) -> ResourceBu
     return ResourceBudget(max(1, threads), ram, False, 0.0, 0.0)
 
 
-def _available_gpu_memory(hw: HardwareInfo) -> float:
-    """Memory budget available to GPU work without double-counting unified memory."""
+def available_gpu_memory(hw: HardwareInfo) -> float:
+    """Return the safe GPU memory budget without double-counting unified memory."""
     if hw.gpu.memory_shared_with_system or hw.gpu.memory_model == "unified":
         return max(0.0, hw.memory_available_gb - 2.0)
     return max(0.0, hw.gpu.vram_free_gb)
+
+
+# Backward-compatible private alias for existing callers/tests.
+_available_gpu_memory = available_gpu_memory
 
 
 def _resolve_whisper(hardware: HardwareInfo, settings: AppSettings) -> tuple[str, str]:
@@ -53,10 +60,12 @@ def _resolve_whisper(hardware: HardwareInfo, settings: AppSettings) -> tuple[str
     requested_compute = settings.whisper_compute_type.lower().strip()
     if requested_device not in {"auto", "cpu", "cuda"}:
         raise ValueError("whisper_device must be one of: auto, cpu, cuda")
-    gpu_memory = _available_gpu_memory(hardware)
+    gpu_memory = available_gpu_memory(hardware)
     if requested_device == "cuda":
         if not hardware.gpu.usable_for_whisper:
             raise RuntimeError(f"CUDA was explicitly requested but is unavailable: {hardware.gpu.reason or 'unknown reason'}")
+        if gpu_memory < 3.0:
+            raise RuntimeError(f"CUDA was explicitly requested but available GPU memory is insufficient: {gpu_memory:.2f} GB")
         device = "cuda"
     elif requested_device == "cpu":
         device = "cpu"
@@ -80,7 +89,7 @@ def safe_parallelism(settings: AppSettings, hardware: HardwareInfo | None = None
     hw = hardware or detect_hardware()
     device = settings.whisper_device.lower()
     if device == "auto":
-        device = "cuda" if hw.gpu.usable_for_whisper and _available_gpu_memory(hw) >= 3.0 else "cpu"
+        device = "cuda" if hw.gpu.usable_for_whisper and available_gpu_memory(hw) >= 3.0 else "cpu"
     threads = settings.whisper_cpu_threads if settings.whisper_cpu_threads > 0 else max(2, min(8, hw.logical_cpus // 2))
     budget = estimate_whisper_budget(settings.whisper_model, device, threads)
     safe_cpu = max(1, hw.logical_cpus - 2)
@@ -88,7 +97,7 @@ def safe_parallelism(settings: AppSettings, hardware: HardwareInfo | None = None
     by_cpu = max(1, safe_cpu // max(1, budget.cpu_threads))
     by_ram = max(1, int(safe_ram // max(0.5, budget.ram_gb)))
     if device == "cuda":
-        by_gpu = max(1, int(_available_gpu_memory(hw) // max(0.5, budget.gpu_memory_gb)))
+        by_gpu = max(1, int(available_gpu_memory(hw) // max(0.5, budget.gpu_memory_gb)))
     else:
         by_gpu = requested
     effective = min(requested, by_cpu, by_ram, by_gpu)
@@ -106,7 +115,7 @@ def build_profile(settings: AppSettings, hardware: HardwareInfo | None = None) -
     cpus = hw.logical_cpus
     model = settings.whisper_model.lower()
     if model == "auto":
-        model = "medium" if (device == "cuda" and _available_gpu_memory(hw) >= 8) or (memory >= 16 and cpus >= 6) else "small"
+        model = "medium" if (device == "cuda" and available_gpu_memory(hw) >= 8) or (memory >= 16 and cpus >= 6) else "small"
     if memory >= 24 and cpus >= 12:
         name, batch = "high", 12
         default_threads = min(8, max(4, cpus // 2))
@@ -119,9 +128,12 @@ def build_profile(settings: AppSettings, hardware: HardwareInfo | None = None) -
     threads = default_threads if settings.whisper_cpu_threads <= 0 else max(1, settings.whisper_cpu_threads)
     configured_parallel = 1 if settings.max_parallel_videos <= 0 else max(1, settings.max_parallel_videos)
     effective_parallel = safe_parallelism(replace(settings, max_parallel_videos=configured_parallel), hw)
-    return ResourceProfile(name, cpus, hw.physical_cpus, memory, available, model, device, compute, threads,
-                           effective_parallel, settings.translation_batch_size if settings.translation_batch_size > 0 else batch,
-                           hw.gpu.device_index, hw.gpu.vram_free_gb, hw.disk_free_gb)
+    return ResourceProfile(
+        name, cpus, hw.physical_cpus, memory, available, model, device, compute, threads,
+        effective_parallel, settings.translation_batch_size if settings.translation_batch_size > 0 else batch,
+        hw.gpu.device_index, hw.gpu.vram_free_gb, available_gpu_memory(hw), hw.gpu.memory_model,
+        hw.gpu.memory_shared_with_system, hw.disk_free_gb,
+    )
 
 
 def detect_profile(settings: AppSettings) -> ResourceProfile:
