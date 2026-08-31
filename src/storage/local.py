@@ -212,7 +212,10 @@ class LocalStorageProvider(StorageProvider):
                     if not old_name:
                         continue
                     candidate = output_dir / old_name
-                    normalized_name = f"{fit_component(normalize_component(Path(old_name).stem), output_dir)}{Path(old_name).suffix.lower()}"
+                    normalized_name = (
+                        f"{fit_component(normalize_component(Path(old_name).stem), output_dir)}"
+                        f"{Path(old_name).suffix.lower()}"
+                    )
                     final_name = (
                         candidate.name
                         if candidate.is_file()
@@ -227,7 +230,10 @@ class LocalStorageProvider(StorageProvider):
                 if old_original:
                     original_dir = output_dir / "original_transcriptions"
                     candidate = original_dir / old_original
-                    normalized_name = f"{fit_component(normalize_component(Path(old_original).stem), original_dir)}{Path(old_original).suffix.lower()}"
+                    normalized_name = (
+                        f"{fit_component(normalize_component(Path(old_original).stem), original_dir)}"
+                        f"{Path(old_original).suffix.lower()}"
+                    )
                     final_name = (
                         candidate.name
                         if candidate.is_file()
