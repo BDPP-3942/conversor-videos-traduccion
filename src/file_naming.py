@@ -232,7 +232,7 @@ _DATE_ARTIFACT_PATTERN = re.compile(
 
 
 def strip_date_artifacts(value: str) -> str:
-    """Remove date/time suffix noise without removing ordinary numeric identifiers."""
+    """Remove complete calendar date/time noise while preserving unrelated numbers."""
     return _DATE_ARTIFACT_PATTERN.sub("_", value)
 
 
@@ -245,9 +245,23 @@ def clean_for_filename(value: str) -> str:
     return normalized.strip("_.-")
 
 
+def _split_filename_extension(filename: str) -> tuple[str, str]:
+    """Split a logical filename without treating '/' as a path separator."""
+    match = re.match(r"^(.*?)(\.[A-Za-z0-9]{2,8})$", filename, re.DOTALL)
+    if not match:
+        return filename, ""
+    return match.group(1), match.group(2).lower()
+
+
 def normalize_filename(filename: str) -> str:
-    path = Path(filename)
-    return f"{clean_for_filename(strip_date_artifacts(path.stem))}{path.suffix.lower()}"
+    """Normalize a filename-like value before platform path parsing.
+
+    Input received from archives/providers may contain '/' as part of a noisy
+    timestamp. Treating it as a filesystem separator before timestamp removal
+    would discard the beginning of the logical filename on POSIX.
+    """
+    stem, extension = _split_filename_extension(filename)
+    return f"{clean_for_filename(strip_date_artifacts(stem))}{extension}"
 
 
 def normalize_component(value: str) -> str:
