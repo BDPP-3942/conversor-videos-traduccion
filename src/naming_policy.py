@@ -3,24 +3,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from src.file_naming import SourceNameMetadata, _sanitize_text
+from src.file_naming import SourceNameMetadata, _sanitize_text, strip_date_artifacts
 
 _NOISE = re.compile(r"(?:wetransfer|drive-download|download|descarga|archive|compressed|backup|compression|extract(?:ed)?|unzip(?:ped)?|descomprim(?:ido|ida|idos|idas))", re.IGNORECASE)
-_DATE = re.compile(
-    r"(?:"
-    r"(?<!\d)\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?(?!\d)|"
-    r"(?<!\d)\d{8}[_ -]\d{1,2}[_-]\d{2}(?:[_:-]\d{2})?(?!\d)|"
-    r"(?<!\d)\d{8}[ _-]?\d{4,6}(?!\d)|"
-    r"(?<!\d)\d{4}[-_.]\d{1,2}[-_.]\d{1,2}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?(?!\d)|"
-    r"(?<!\d)\d{4}/\d{1,2}/\d{1,2}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?(?!\d)|"
-    r"(?<!\d)\d{1,2}[-_.]\d{1,2}[-_.]\d{4}(?:[ _T-]+\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?)?(?!\d)|"
-    r"(?<!\d)\d{1,2}[/-]\d{1,2}[/-]\d{4}(?:[ _T-]+\d{1,2}[:.]\d{2}(?::\d{2})?)?(?!\d)|"
-    r"(?<!\d)\d{4}[-_.]\d{1,2}[-_.]\d{1,2}[T _-]\d{1,2}[-:.]\d{2}(?:[-:.]\d{2})?(?:Z|[+-]\d{2}:?\d{2})?(?!\d)|"
-    r"(?<!\d)\d{4}\d{2}\d{2}[ _T-]\d{1,2}[:.]\d{2}(?::\d{2})?(?!\d)"
-    r")",
-    re.IGNORECASE,
-)
-_TIMESTAMP = _DATE
 _NUMBER = re.compile(r"(?<!\d)(\d{1,4})(?!\d)")
 _COURSE_LABEL = re.compile(r"(?:curso|course)", re.IGNORECASE)
 _LESSON_LABEL = re.compile(r"(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)", re.IGNORECASE)
@@ -35,16 +20,14 @@ def _clean(value: str) -> str:
     suffix = Path(value).suffix.lower()
     if suffix in _VIDEO_EXTENSIONS:
         value = value[: -len(suffix)]
-    value = _TIMESTAMP.sub("_", value)
+    value = strip_date_artifacts(value)
     value = re.sub(r"\s*\((?:copy|copia|\d+)\)\s*$", "", value, flags=re.IGNORECASE)
     value = _NOISE.sub("_", value)
     return re.sub(r"[_ .-]+", "_", value).strip("_ .-")
 
 
 def _clean_context(context_values: list[str]) -> list[str]:
-    raw_context = "/".join(context_values)
-    cleaned_context = _TIMESTAMP.sub("_", raw_context)
-    return [cleaned for part in cleaned_context.split("/") if (cleaned := _clean(part))]
+    return [cleaned for part in context_values if (cleaned := _clean(part))]
 
 
 def _is_noise(value: str) -> bool:
