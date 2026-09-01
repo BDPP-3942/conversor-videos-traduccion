@@ -51,7 +51,7 @@ py-modules = ["main"]
 include = ["config*", "src*"]
 
 [tool.setuptools.package-data]
-config = ["*.toml"]
+config = ["*.toml", "palabras_contexto.*"]
 
 [project.scripts]
 video-translation-pipeline = "main:main"
