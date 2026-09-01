@@ -26,8 +26,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ['3.11', '3.12', '3.13']
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -56,6 +57,21 @@ jobs:
           video-translation-regenerate --help
           video-subtitle-qa --help
           video-translation-tts --help
+
+      - name: Verify Windows local wrapper
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          python -m venv --system-site-packages .venv
+          cmd /c "scripts\run_local.bat regenerate --help"
+
+      - name: Verify POSIX local wrapper syntax
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          bash -n scripts/run_local.sh
+          bash -n scripts/run_unattended.sh
+          bash -n scripts/run_scheduled.sh
 
       - name: Verify imports and unused imports
         run: ruff check . --select F401,I001
