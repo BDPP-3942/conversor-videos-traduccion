@@ -52,6 +52,13 @@ known-first-party = ["config", "src"]
 "src/reprocessor.py" = ["S101"]
 "src/subtitle_qa.py" = ["S310"]
 
+[tool.ruff.format]
+exclude = [
+    "src/naming_policy.py",
+    "tests/test_reference_naming.py",
+    "tests/test_e2e_release.py",
+]
+
 [tool.setuptools]
 py-modules = ["main"]
 
