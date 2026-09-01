@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.4.1] — Corrective Script Integration
+
+**Tipo:** PATCH — correcciones compatibles y adaptación de los scripts de ejecución a los entry points existentes.
+
+### Fixed
+
+- Los wrappers locales exponen la regeneración limpia mediante la implementación existente `src.regeneration` / `video-translation-regenerate`.
+- `scripts/run_local.sh` y `scripts/run_local.bat` no duplican regeneración, storage, rollback ni concurrencia; únicamente despachan al entry point existente.
+
+### Validation
+
+- Regresión del wrapper de regeneración.
+- Suite pytest, Ruff, Ruff Security, Ruff format, compileall, pip check y pip-audit.
+- Packaging y validación del wheel.
+- E2E de entry point y wrapper de regeneración.
+- CI sobre el SHA candidato final.
+
 ## [1.4.0] — Clean Video Regeneration and Release Hardening
 
 **Tipo:** MINOR — nueva operación de regeneración limpia compatible con el pipeline existente, acompañada de endurecimiento de release, gobernanza y packaging/documentación.
@@ -20,7 +37,7 @@
 
 ### Validation status
 
-Esta entrada describe el contenido previsto de la release candidata. La aprobación definitiva requiere que el SHA candidato tenga una ejecución CI completa y satisfactoria y que los gates de seguridad, tests, packaging, documentación y versionado estén cerrados.
+La release publicada valida el contenido integrado en `main`. La aprobación definitiva de futuras releases requiere que el SHA candidato tenga una ejecución CI completa y satisfactoria y que los gates de seguridad, tests, packaging, documentación y versionado estén cerrados.
 
 ## [1.3.0] — Safe Resource-Aware Video Concurrency
 

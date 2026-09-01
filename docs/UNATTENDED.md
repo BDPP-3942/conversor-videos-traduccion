@@ -214,6 +214,22 @@ Con cron:
 
 Con systemd se recomienda un usuario de servicio dedicado que sea propietario de `secrets/` y haya ejecutado la autorización inicial.
 
+## Regeneración limpia desde wrappers locales
+
+La operación de regeneración limpia ya existente se publica como `video-translation-regenerate` y se implementa en `src.regeneration`. Los wrappers locales `run_local.sh` y `run_local.bat` pueden despacharla mediante `regenerate`; no contienen lógica de regeneración propia.
+
+```bash
+./scripts/run_local.sh regenerate --config config/app.toml
+```
+
+En Windows:
+
+```text
+scripts\run_local.bat regenerate --config config\app.toml
+```
+
+Ambos comandos utilizan la misma implementación que el entry point de regeneración: `MediaPipeline` y el contrato público `StorageProvider` siguen siendo responsables del procesamiento, backup, rollback y cleanup.
+
 ## Ciclo completo
 
 ```text

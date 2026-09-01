@@ -71,12 +71,16 @@ Cuando necesitas volver a generar un vídeo cuyo resultado ya existe utilizando 
 video-translation-regenerate
 ```
 
-También puedes indicar las ubicaciones explícitamente:
+Los wrappers locales también exponen esta misma operación sin duplicarla:
 
 ```bash
-video-translation-regenerate \
-  --source local://storage/input \
-  --target local://storage/output
+scripts/run_local.sh regenerate --config config/app.toml
+```
+
+En Windows:
+
+```text
+scripts\run_local.bat regenerate --config config\app.toml
 ```
 
 La regeneración no es `resume` ni una recuperación selectiva. Localiza los resultados registrados, los aparta temporalmente mediante backup, fuerza el procesamiento desde la fuente a través de `MediaPipeline` y elimina los backups anteriores únicamente después de completar correctamente la regeneración. La fuente original se conserva. Si el procesamiento falla, los backups se restauran cuando el backend permite la operación de rename.
@@ -116,9 +120,7 @@ Consulta [`docs/TTS.md`](docs/TTS.md).
 
 La configuración actual usa `max_parallel_videos = 0` como AUTO. El runtime calcula un límite conservador teniendo en cuenta la configuración efectiva de Whisper, CPU, RAM disponible y, cuando corresponde, memoria GPU. Un valor positivo es un máximo solicitado y puede reducirse si supera el límite seguro; `1` mantiene un único worker.
 
-Esta lógica fue introducida después de la release `1.2.2` por la PR #20 y forma parte de `v1.3.0`.
-
-**Importante para la release 1.4.0:** la CLI debe aplicar el mismo cálculo seguro también cuando se proporciona `--parallel-videos`; el valor solicitado nunca debe saltarse el techo calculado por recursos.
+Esta lógica forma parte del código central y no se duplica en los scripts de ejecución.
 
 ## Almacenamiento y ejecución programada
 
@@ -184,9 +186,9 @@ Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` 
 
 ## Versionado
 
-La release publicada anterior es `1.3.0` (`v1.3.0`). Esta rama prepara `1.4.0`, que aún no está publicada. La release candidata incluye la regeneración limpia de la PR #24 y la gobernanza de la PR #25, además de las correcciones de hardening que superen el release gate.
+La release publicada anterior es `1.4.0` (`v1.4.0`). Esta rama prepara `1.4.1`, una patch release centrada en corregir la integración de los wrappers locales con la regeneración ya existente.
 
-`v1.3.0` apunta al commit histórico `620af6acbe3fca7d42ccd57f3585b3952cccf0a7` y no se modifica.
+`v1.4.0` apunta al commit histórico `ce1da6ea69a89f5a789c0670b200d6038f1a746d` y no se modifica.
 
 ## Seguridad y licencias
 
