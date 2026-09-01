@@ -39,9 +39,11 @@ whisper_initial_prompt = "Tai Chi, taijiquan, qigong"
 
 Hardware detection verifies the actual CTranslate2 CUDA capability instead of treating the presence of a GPU driver as sufficient. The effective profile records CPU count, available RAM, GPU/VRAM, selected model, device and compute type.
 
-When CUDA is selected, Whisper inference is executed by CTranslate2 on the GPU while configured CPU threads remain available for CPU-side work such as tokenization and related processing. The pipeline can additionally process independent videos concurrently when the resource budget permits it. Each video worker owns its Whisper instance, and the concurrency ceiling accounts for CPU threads, available RAM and GPU memory.
+When CUDA is selected, the Whisper model executes on the GPU. CPU resources are still used by the surrounding Python/media pipeline, but `cpu_threads` must not be interpreted as a mechanism for splitting one Whisper inference between CPU and GPU. The project therefore does **not** claim single-inference CPU+GPU model partitioning.
 
-This is **not** model splitting between CPU and GPU. The project does not claim that a single Whisper inference is partitioned across both devices. The safe project strategy is GPU inference plus CPU-side work and, where resources permit, parallel independent video jobs.
+The supported throughput strategy is parallelism between independent video jobs when the resource budget permits it. Each video worker owns its Whisper instance (`num_workers=1` inside that instance), while the pipeline-level concurrency ceiling accounts for CPU threads, available RAM and GPU memory. This avoids duplicating work or creating uncontrolled concurrent generation inside a single model instance.
+
+The upstream `faster-whisper` API exposes explicit `device`, `compute_type`, `cpu_threads` and `num_workers` controls. Its documented GPU examples select `device="cuda"`; CPU execution selects `device="cpu"`. The project follows that backend contract rather than inventing an unsupported hybrid inference mode.
 
 If CUDA initialization fails, the application performs one controlled fallback to CPU rather than repeatedly retrying the same failed GPU initialization.
 
