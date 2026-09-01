@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.4.2] — Regeneration CLI contract and help alignment
+
+**Tipo:** MINOR — ampliación compatible del contrato de CLI de regeneración y documentación completa del help público.
+
+### Added
+
+- Regeneración acepta las opciones de `run` cuya semántica es válida para el `MediaPipeline` común: provider, source/target, normalización de nombres, concurrencia de vídeo, batching de traducción, configuración de Whisper, comportamiento de FFmpeg y selección de WebM.
+- Regeneración reutiliza las acciones `argparse` reales de `run` y `_apply_run_overrides`, evitando un parser y una configuración paralelos.
+- Se mantienen explícitamente como exclusivas de `run` las opciones `--scheduled`, `--dry-run`, `--no-retain-sources` y `--no-resume`, porque no son aplicables o contradicen la semántica de regeneración.
+- El help de los comandos y subcomandos CLI se ha completado con tipos, choices, defaults, restricciones y descripción del comportamiento cuando corresponde.
+- Se incorporan regresiones para las flags compartidas, help heredado, aliases `-h`/`--help`, exclusiones de regeneración, mutual exclusion de WebM y defaults.
+
+### Documentation
+
+- Actualizada la referencia `docs/CLI.md` con el contrato completo de `run` y la clasificación de flags de regeneración.
+- Actualizada `docs/REGENERATION.md` con opciones compartidas, exclusiones, defaults, restricciones y garantías por proveedor.
+- Actualizado el README para reflejar el contrato de CLI y los entry points disponibles.
+
+### Packaging
+
+- La wheel incluye explícitamente `config/*.toml`, incluido `config/app.toml`, para que la configuración predeterminada esté disponible después de instalar el paquete.
+- La validación de packaging comprueba que la wheel contiene la configuración predeterminada y los cuatro console entry points publicados.
+
+### Validation
+
+- Suite pytest y regresiones de CLI.
+- Ruff y Ruff Security.
+- Ruff format.
+- `compileall`.
+- `pip check`.
+- `pip-audit`.
+- Build y validación del wheel.
+- Validación de entry points y CLI help.
+- CI sobre Python 3.11, 3.12 y 3.13.
+
 ## [1.4.1] — Corrective Script Integration
 
 **Tipo:** PATCH — correcciones compatibles y adaptación de los scripts de ejecución a los entry points existentes.

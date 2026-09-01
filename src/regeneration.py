@@ -4,12 +4,14 @@ import argparse
 import json
 import logging
 import uuid
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 from config.loader import load_settings
 from config.settings import ensure_directories, local_storage_paths, resolve_project_path
 from src.auth.unattended import check_unattended
+from src.cli_run_options import add_regenerate_run_options, apply_shared_run_overrides
 from src.runtime_lock import RunLock
 from src.storage.factory import create_storage_provider
 from src.storage.uri import parse_storage_uri
@@ -159,22 +161,42 @@ def regenerate(source: str, target: str, settings) -> dict[str, Any]:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Explicit REGENERATE FROM ZERO operation for existing video results")
-    parser.add_argument("--config", type=Path, default=resolve_project_path("config/app.toml"))
-    parser.add_argument("--source", default=None, help="Source storage URI containing ZIP inputs")
-    parser.add_argument("--target", default=None, help="Target storage URI containing generated outputs")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Explicit REGENERATE FROM ZERO operation for existing video results. "
+            "It reuses the normal run configuration contract and forces the common MediaPipeline to reprocess sources."
+        )
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=resolve_project_path("config/app.toml"),
+        help="Path to the TOML configuration file",
+    )
+    add_regenerate_run_options(parser)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     settings = load_settings(args.config)
-    source = args.source or settings.source
-    target = args.target or settings.target
-    provider = settings.provider.lower()
+    provider = (args.provider or settings.provider).lower()
+    settings = replace(settings, provider=provider)
+
+    from main import _build_locations, configure_logging
+
+    source, target = _build_locations(settings, provider, args.source, args.target)
+    settings = apply_shared_run_overrides(settings, args)
+    if args.no_name_migration:
+        settings = replace(settings, normalize_legacy_names=False)
+
+    parsed_source = parse_storage_uri(source)
+    parsed_target = parse_storage_uri(target)
     expected_scheme = {"local": "local", "google_drive": "gdrive", "gdrive": "gdrive", "rclone": "rclone"}[provider]
-    if parse_storage_uri(source).scheme != expected_scheme or parse_storage_uri(target).scheme != expected_scheme:
+    if parsed_source.scheme != expected_scheme or parsed_target.scheme != expected_scheme:
         raise SystemExit(f"Provider {provider!r} requires {expected_scheme}:// source and target")
+
+    configure_logging(settings.log_level)
     ensure_directories()
     readiness = check_unattended(
         settings, ensure_rclone_binary=(provider == "rclone" and settings.auto_bootstrap_rclone)

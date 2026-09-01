@@ -47,8 +47,8 @@ jobs:
       - name: Verify dependency consistency
         run: python -m pip check
 
-      - name: Run tests
-        run: python -m pytest -q
+      - name: Run tests excluding wheel-only checks
+        run: python -m pytest -q --ignore=tests/test_packaging.py
 
       - name: Verify installed entry points
         run: |
@@ -89,6 +89,12 @@ jobs:
 
       - name: Build distributions
         run: python -m build
+
+      - name: Install project test tooling
+        run: python -m pip install ".[dev]"
+
+      - name: Verify wheel contents
+        run: python -m pytest -q tests/test_packaging.py
 
       - name: Install wheel into clean target
         run: |

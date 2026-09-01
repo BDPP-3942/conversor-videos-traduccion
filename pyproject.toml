@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "video-translation-pipeline"
-version = "1.4.1"
+version = "1.4.2"
 description = "Local and pluggable video/audio transcription, translation and synchronized TTS pipeline"
 requires-python = ">=3.11,<3.14"
 dependencies = [
@@ -49,6 +49,9 @@ py-modules = ["main"]
 
 [tool.setuptools.packages.find]
 include = ["config*", "src*"]
+
+[tool.setuptools.package-data]
+config = ["*.toml"]
 
 [project.scripts]
 video-translation-pipeline = "main:main"
