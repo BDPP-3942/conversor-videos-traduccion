@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import csv
+import html
 import re
-import xml.etree.ElementTree as ET
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 
@@ -59,16 +59,12 @@ def _read_docx(path: Path) -> str:
     except (BadZipFile, KeyError) as exc:
         raise ValueError(f"Invalid DOCX context file: {path}") from exc
 
-    if b"<!DOCTYPE" in payload.upper() or b"<!ENTITY" in payload.upper():
+    upper = payload.upper()
+    if b"<!DOCTYPE" in upper or b"<!ENTITY" in upper:
         raise ValueError("DOCX XML with DTD/entity declarations is not accepted")
-    root = ET.fromstring(payload)
-    namespace = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
-    paragraphs: list[str] = []
-    for paragraph in root.iter(f"{namespace}p"):
-        text = "".join(node.text or "" for node in paragraph.iter(f"{namespace}t"))
-        if text.strip():
-            paragraphs.append(text.strip())
-    return "\n".join(paragraphs)
+    decoded = payload.decode("utf-8", errors="strict")
+    fragments = re.findall(r"<w:t(?:\s[^>]*)?>(.*?)</w:t>", decoded, flags=re.DOTALL)
+    return " ".join(html.unescape(fragment).strip() for fragment in fragments if fragment.strip())
 
 
 def _read_file(path: Path) -> str:
