@@ -98,6 +98,22 @@ This operation is different from `run --no-resume`: regeneration first locates e
 
 See [`REGENERATION.md`](REGENERATION.md) for provider-specific guarantees and limitations.
 
+### Local wrappers
+
+`run_local.sh` and `run_local.bat` use the same `scripts/run_local.py` dispatcher. The dispatcher removes only the wrapper-level `regenerate` or `tts` subcommand and preserves every remaining argument. `run` is accepted explicitly and is also the implicit default when the first argument is an option.
+
+```bash
+./scripts/run_local.sh run --config ./config/app.toml
+./scripts/run_local.sh regenerate --config ./config/app.toml --no-webm
+```
+
+```powershell
+.\scripts\run_local.bat run --config .\config\app.toml
+.\scripts\run_local.bat regenerate --config .\config\app.toml --no-webm
+```
+
+The public wrapper contract is therefore equivalent across Windows, Linux and macOS. `duplicates` and `reprocess-subtitles` continue to reach their existing `main.py` commands without creating a second implementation.
+
 ### Subtitle recovery
 
 ```bash
@@ -141,6 +157,16 @@ video-translation-regenerate --help
 ```
 
 These are installed by `pyproject.toml`; their parser help is the authoritative option contract.
+
+## Whisper initial prompt
+
+`processing.whisper_initial_prompt` accepts either the existing literal string form or a path to `txt`, `md`, `csv` or `docx`. The conventional filename `palabras_contexto.<extensión>` can also be auto-discovered when the setting is empty.
+
+```toml
+whisper_initial_prompt = "config/palabras_contexto.txt"
+```
+
+The external file is converted into the single string expected by Whisper. This does not change the `faster-whisper`/CTranslate2 inference contract.
 
 ## Entry points
 
