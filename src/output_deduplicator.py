@@ -304,7 +304,9 @@ class OutputDeduplicator:
                 if not isinstance(entries, list):
                     continue
                 kept_entries = [
-                    entry for entry in entries if not (isinstance(entry, dict) and entry.get("output_folder") in deleted)
+                    entry
+                    for entry in entries
+                    if not (isinstance(entry, dict) and entry.get("output_folder") in deleted)
                 ]
                 removed_entries = [
                     entry for entry in entries if isinstance(entry, dict) and entry.get("output_folder") in deleted
