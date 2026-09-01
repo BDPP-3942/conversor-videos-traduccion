@@ -1,11 +1,12 @@
 name: CI
 
-# Release 1.4.0 candidate validation runs directly on the release branch head.
+# Release candidate validation runs directly on the release branch head.
 on:
   push:
     branches:
       - main
       - release/1.4.0-hardening
+      - release/1.4.1-correction
   pull_request:
     branches: [main]
 
