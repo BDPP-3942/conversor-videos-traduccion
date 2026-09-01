@@ -5,14 +5,26 @@ from pathlib import Path
 
 from src.file_naming import SourceNameMetadata, _sanitize_text, strip_date_artifacts
 
-_NOISE = re.compile(r"(?:wetransfer|drive-download|download|descarga|archive|compressed|backup|compression|extract(?:ed)?|unzip(?:ped)?|descomprim(?:ido|ida|idos|idas))", re.IGNORECASE)
+_NOISE = re.compile(
+    r"(?:wetransfer|drive-download|download|descarga|archive|compressed|backup|compression|extract(?:ed)?|unzip(?:ped)?|descomprim(?:ido|ida|idos|idas))",
+    re.IGNORECASE,
+)
 _COURSE_LABEL = re.compile(r"(?:curso|course)", re.IGNORECASE)
 _LESSON_LABEL = re.compile(r"(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)", re.IGNORECASE)
-_COURSE_NUMBER = re.compile(r"(?:^|[_\- .])(?:curso|course)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|\b(\d{1,4})\s*(?:º|°)\s*curso\b", re.IGNORECASE)
-_LESSON_NUMBER = re.compile(r"(?:^|[_\- .])(?:cap[ií]tulo|lecci[oó]n|lesson|chapter|clase|tema|unidad)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|^\s*(\d{1,4})\s*(?:º|°|[._-])\s*", re.IGNORECASE)
+_COURSE_NUMBER = re.compile(
+    r"(?:^|[_\- .])(?:curso|course)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|\b(\d{1,4})\s*(?:º|°)\s*curso\b",
+    re.IGNORECASE,
+)
+_LESSON_NUMBER = re.compile(
+    r"(?:^|[_\- .])(?:cap[ií]tulo|lecci[oó]n|lesson|chapter|clase|tema|unidad)\s*[_\-.:#]*\s*(\d{1,4})(?!\d)|^\s*(\d{1,4})\s*(?:º|°|[._-])\s*",
+    re.IGNORECASE,
+)
 _LEADING_NUMBER = re.compile(r"^\s*(\d{1,4})(?:\s+(?=[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])|[._-])\s*(?:º|°|[._-])?\s*", re.IGNORECASE)
 _LOGICAL_LESSON_NUMBER = re.compile(r"(?:^|_)(\d{1,4})(?=_[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])", re.IGNORECASE)
-_GENERIC = {"mp4", "wmv", "video", "videos", "audio", "media", "file", "files", "archivo", "archivos", "download", "downloads", "descarga", "descargas", "compressed", "compression", "archive", "zip", "rar", "7z"}
+_GENERIC = {
+    "mp4", "wmv", "video", "videos", "audio", "media", "file", "files", "archivo", "archivos", "download",
+    "downloads", "descarga", "descargas", "compressed", "compression", "archive", "zip", "rar", "7z",
+}
 
 
 def _clean(value: str) -> str:
@@ -66,7 +78,7 @@ def _match_logical_lesson(logical_source: Path) -> tuple[int | None, str]:
         return None, ""
     match = matches[-1]
     number = int(match.group(1))
-    return number, _description(stem[match.start(1):], number, _LESSON_LABEL)
+    return number, _description(stem[match.start(1) :], number, _LESSON_LABEL)
 
 
 def _remove_number(value: str, number: int | None) -> str:
@@ -89,7 +101,7 @@ def _description(value: str, number: int | None, label_pattern: re.Pattern[str])
 def _course_description(value: str, number: int) -> str:
     cleaned = _clean(value)
     match = _COURSE_NUMBER.search(cleaned)
-    return _description(cleaned[match.end():], None, _COURSE_LABEL) if match else ""
+    return _description(cleaned[match.end() :], None, _COURSE_LABEL) if match else ""
 
 
 def _course_context(context_values: list[str]) -> tuple[int | None, str | None]:
@@ -107,7 +119,9 @@ def _course_context(context_values: list[str]) -> tuple[int | None, str | None]:
     return None, None
 
 
-def _lesson_context(source: Path, context_values: list[str], logical_source: Path | None = None) -> tuple[int | None, str]:
+def _lesson_context(
+    source: Path, context_values: list[str], logical_source: Path | None = None
+) -> tuple[int | None, str]:
     if logical_source is not None:
         number, description = _match_logical_lesson(logical_source)
         if number is not None or description:
