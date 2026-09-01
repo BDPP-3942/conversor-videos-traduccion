@@ -1,8 +1,49 @@
 # Speech-to-text (STT)
 
-STT uses `faster-whisper`. The selected model, device, compute type, beam size, CPU threads, VAD behavior and initial prompt are configurable.
+STT uses `faster-whisper` backed by CTranslate2. The selected model, device, compute type, beam size, CPU threads, VAD behavior and initial prompt are configurable.
 
 Defaults in `config/app.toml` include automatic model/device/compute selection, beam size `5`, VAD enabled and a minimum silence duration of `1500` ms. `.env.example` exposes explicit environment overrides.
+
+## Initial prompt / context file
+
+`processing.whisper_initial_prompt` accepts the original literal prompt form and can now also point to a context file.
+
+Supported formats are:
+
+- `.txt`
+- `.md`
+- `.csv` — cells are flattened into a comma-separated prompt
+- `.docx` — paragraph text is extracted from `word/document.xml` without adding a runtime `python-docx` dependency
+
+The repository configuration uses:
+
+```toml
+whisper_initial_prompt = "config/palabras_contexto.txt"
+```
+
+The conventional names `palabras_contexto.txt`, `palabras_contexto.md`, `palabras_contexto.csv` and `palabras_contexto.docx` are also auto-discovered when the configured value is empty. Context files are bounded to 2 MiB and DOCX XML containing DTD/entity declarations is rejected.
+
+For example:
+
+```toml
+whisper_initial_prompt = "config/palabras_contexto.txt"
+```
+
+or, for a literal prompt:
+
+```toml
+whisper_initial_prompt = "Tai Chi, taijiquan, qigong"
+```
+
+## Hardware and GPU/CPU execution
+
+Hardware detection verifies the actual CTranslate2 CUDA capability instead of treating the presence of a GPU driver as sufficient. The effective profile records CPU count, available RAM, GPU/VRAM, selected model, device and compute type.
+
+When CUDA is selected, Whisper inference is executed by CTranslate2 on the GPU while configured CPU threads remain available for CPU-side work such as tokenization and related processing. The pipeline can additionally process independent videos concurrently when the resource budget permits it. Each video worker owns its Whisper instance, and the concurrency ceiling accounts for CPU threads, available RAM and GPU memory.
+
+This is **not** model splitting between CPU and GPU. The project does not claim that a single Whisper inference is partitioned across both devices. CTranslate2 exposes separate CPU/GPU device execution and worker/thread controls; the safe project strategy is GPU inference plus CPU-side work and, where resources permit, parallel independent video jobs. citeturn0search0turn0search6
+
+If CUDA initialization fails, the application performs one controlled fallback to CPU rather than repeatedly retrying the same failed GPU initialization.
 
 ## Segmentation
 
