@@ -29,7 +29,12 @@ def main(argv: list[str] | None = None) -> int:
 
     from main import main as application_main
 
-    return int(application_main(main_argv))
+    original_argv = sys.argv
+    try:
+        sys.argv = ["main.py", *main_argv]
+        return int(application_main())
+    finally:
+        sys.argv = original_argv
 
 
 if __name__ == "__main__":
