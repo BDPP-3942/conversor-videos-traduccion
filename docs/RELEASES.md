@@ -23,8 +23,20 @@ La versión del proyecto no debe incrementarse por cada commit de formato o CI. 
 | Limpieza de timestamps técnicos en naming | `1.2.2` |
 | Concurrencia de vídeo adaptada a recursos (CPU/RAM/GPU) | `1.3.0` |
 | Regeneración limpia explícita de resultados existentes | `1.4.0` |
+| Integración de la regeneración existente en los wrappers locales | `1.4.1` |
 
 ## Releases publicadas
+
+### 1.4.0 — Clean Video Regeneration & Release Hardening
+
+**Tipo:** `MINOR`.
+
+**Commit/tag publicado:** `ce1da6ea69a89f5a789c0670b200d6038f1a746d` / `v1.4.0`.
+
+- Regeneración limpia mediante el `MediaPipeline` común.
+- Contrato público de `StorageProvider` para backup, restore y eliminación.
+- Concurrencia segura también para overrides CLI.
+- CI, packaging, seguridad y E2E de release validados.
 
 ### 1.3.0 — Safe Resource-Aware Video Concurrency
 
@@ -86,47 +98,29 @@ Publicado el 28 de agosto de 2026.
 
 **Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
 
-## Candidata 1.4.0
+## Candidata 1.4.1
 
-### PR #24 — Explicit clean video regeneration
+### Alcance
 
-**Tipo:** `FEATURE`.
+**Tipo:** `PATCH`.
 
-- Añade `src.regeneration` y `video-translation-regenerate`.
-- Localiza resultados registrados mediante manifest.
-- Aparta los resultados anteriores mediante backup antes de regenerar.
-- Reutiliza `MediaPipeline` para el procesamiento desde la fuente.
-- Limpia backups solo después del éxito.
-- Intenta restaurar backups ante fallo.
-- Mantiene la fuente original intacta.
+La candidata 1.4.1 no añade un pipeline nuevo. Integra en `scripts/run_local.sh` y `scripts/run_local.bat` la operación de regeneración ya existente mediante `src.regeneration` / `video-translation-regenerate`.
 
-### PR #25 — Repository governance and hygiene
+### PR de release
 
-**Tipo:** `GOVERNANCE / DOCUMENTATION`.
+- Rama: `release/1.4.1-correction`.
+- Base: `main`, sobre la release publicada `v1.4.0`.
+- Nueva PR específica de la release; no reutiliza PR #26.
 
-- Añade reglas de branches, Conventional Commits, PRs y release hygiene.
-- Retira el workflow one-off de formato.
-- Mantiene CI como comprobación de formato sin escritura en ramas.
+### Estado
 
-### Hardening de release — PR #26
-
-**Tipo:** `FIX / SECURITY / QA / ARCHITECTURE`.
-
-- El cálculo efectivo de concurrencia permanece sujeto al límite seguro de recursos incluso con overrides CLI.
-- La regeneración usa el contrato explícito de `StorageProvider` para la limpieza de resultados.
-- Local, Google Drive y rclone mantienen sus operaciones destructivas dentro de sus adaptadores.
-- Se validan los caminos de éxito y rollback de regeneración.
-- Se incorporan comprobaciones E2E/CLI de los contratos de release.
-
-## Estado de la candidata
-
-La rama `release/1.4.0-hardening` prepara `1.4.0` y todavía no está publicada. La publicación requiere que el commit final de la rama tenga CI verde y que PR #26 se mezcle sin cambios posteriores de release.
+La candidata no debe considerarse publicada hasta completar el Release Gate, CI, E2E, packaging, seguridad y validación de un único SHA final. El tag `v1.4.1` no se crea durante la preparación de la candidata.
 
 ## Política de tags
 
 Los tags de release utilizan el formato `vMAJOR.MINOR.PATCH` y no deben reutilizarse ni moverse después de publicar una release.
 
-`v1.3.0` permanece asociado a `620af6acbe3fca7d42ccd57f3585b3952cccf0a7` y no debe modificarse. `v1.4.0` debe crearse únicamente sobre el commit final resultante del merge validado de PR #26.
+`v1.3.0` permanece asociado a `620af6acbe3fca7d42ccd57f3585b3952cccf0a7` y no debe modificarse. `v1.4.0` permanece asociado al commit de `main` `ce1da6ea69a89f5a789c0670b200d6038f1a746d` y tampoco debe modificarse.
 
 ## Historial anterior
 

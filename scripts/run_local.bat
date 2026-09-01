@@ -8,6 +8,9 @@ if not exist ".venv\Scripts\python.exe" (
 if /I "%~1"=="tts" (
   shift
   ".venv\Scripts\python.exe" -m src.tts_cli %1 %2 %3 %4 %5 %6 %7 %8 %9
+) else if /I "%~1"=="regenerate" (
+  shift
+  ".venv\Scripts\python.exe" -m src.regeneration %1 %2 %3 %4 %5 %6 %7 %8 %9
 ) else if /I "%~1"=="reprocess-subtitles" (
   ".venv\Scripts\python.exe" main.py %*
 ) else if /I "%~1"=="duplicates" (

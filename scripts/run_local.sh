@@ -6,6 +6,10 @@ if [[ "${1:-}" == "tts" ]]; then
     shift
     exec ".venv/bin/python" -m src.tts_cli "$@"
 fi
+if [[ "${1:-}" == "regenerate" ]]; then
+    shift
+    exec ".venv/bin/python" -m src.regeneration "$@"
+fi
 if [[ "${1:-}" == "reprocess-subtitles" || "${1:-}" == "duplicates" ]]; then
     exec ".venv/bin/python" main.py "$@"
 fi
