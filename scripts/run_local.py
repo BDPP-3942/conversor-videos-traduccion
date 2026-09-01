@@ -22,7 +22,17 @@ def main(argv: list[str] | None = None) -> int:
 
         return int(tts_main(args[1:]))
 
-    if command in {"run", "reprocess-subtitles", "duplicates", "auth", "provider", "prefetch-whisper", "doctor", "init"}:
+    supported_commands = {
+        "run",
+        "reprocess-subtitles",
+        "duplicates",
+        "auth",
+        "provider",
+        "prefetch-whisper",
+        "doctor",
+        "init",
+    }
+    if command in supported_commands:
         main_argv = args
     else:
         main_argv = ["run", *args]
