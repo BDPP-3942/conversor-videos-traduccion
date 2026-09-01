@@ -42,6 +42,11 @@ def test_regeneration_accepts_all_shared_run_options() -> None:
     assert args.generate_webm is True
 
 
+def test_regeneration_preserves_run_webm_override_default() -> None:
+    args = build_parser().parse_args([])
+    assert args.generate_webm is None
+
+
 def test_regeneration_reuses_run_help_contract() -> None:
     parser = build_parser()
     help_text = parser.format_help()
