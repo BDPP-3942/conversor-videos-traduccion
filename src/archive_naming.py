@@ -15,12 +15,15 @@ _COURSE_PREFIX = re.compile(r"^curso(\d{1,4})(?:[_-](.*))?$", re.IGNORECASE)
 _PARENS = re.compile(r"[()]", re.UNICODE)
 
 _REFERENCE_OVERRIDES = {
-    ("1_el_juego_4_poderes_la_genesis", "2-el juego LOS 4 PODEROS alto bajo.wmv"):
-        "1_el_juego_4_poderes_la_genesisx_2_el_juego_LOS_4_PODEROS_alto_bajo",
-    ("1_el_juego_4_poderes_la_genesis", "4-juego 4 poderes poder de compresión.wmv"):
-        "1_el_juego_4_poderes_la_genesisx4_juego_4_poderes_poder_de_compresión",
-    ("7-opt-taich-bombeos", "20 peng.mp4"):
-        "7_opt_taich_bombeosx20_peng",
+    (
+        "1_el_juego_4_poderes_la_genesis",
+        "2-el juego LOS 4 PODEROS alto bajo.wmv",
+    ): "1_el_juego_4_poderes_la_genesisx_2_el_juego_LOS_4_PODEROS_alto_bajo",
+    (
+        "1_el_juego_4_poderes_la_genesis",
+        "4-juego 4 poderes poder de compresión.wmv",
+    ): "1_el_juego_4_poderes_la_genesisx4_juego_4_poderes_poder_de_compresión",
+    ("7-opt-taich-bombeos", "20 peng.mp4"): "7_opt_taich_bombeosx20_peng",
 }
 
 
