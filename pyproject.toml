@@ -38,6 +38,7 @@ known-first-party = ["config", "src"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101"]
+"tests/test_reference_naming.py" = ["I001"]
 "src/auth/rclone_manager.py" = ["S603", "S310"]
 "src/media_identity.py" = ["S603"]
 "src/storage/rclone.py" = ["S603"]
