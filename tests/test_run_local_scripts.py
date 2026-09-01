@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-import subprocess
+import pty
 import sys
 from pathlib import Path
 
@@ -17,6 +17,7 @@ def test_run_local_regeneration_dispatches_to_existing_module():
     script = ROOT / "scripts" / "run_local.sh"
     venv = ROOT / ".venv"
     python_link = venv / "bin" / "python"
+    output = bytearray()
     created = False
     try:
         if not python_link.exists():
@@ -24,15 +25,14 @@ def test_run_local_regeneration_dispatches_to_existing_module():
             python_link.symlink_to(Path(sys.executable))
             created = True
 
-        completed = subprocess.run(
-            [str(script), "regenerate", "--help"],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        assert completed.returncode == 0, completed.stderr + completed.stdout
-        assert "REGENERATE FROM ZERO" in completed.stdout
+        def read(fd: int) -> bytes:
+            chunk = os.read(fd, 4096)
+            output.extend(chunk)
+            return chunk
+
+        status = pty.spawn([str(script), "regenerate", "--help"], read)
+        assert os.waitstatus_to_exitcode(status) == 0
+        assert b"REGENERATE FROM ZERO" in output
     finally:
         if created:
             python_link.unlink(missing_ok=True)
