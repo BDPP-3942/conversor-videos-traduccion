@@ -41,7 +41,7 @@ Hardware detection verifies the actual CTranslate2 CUDA capability instead of tr
 
 When CUDA is selected, Whisper inference is executed by CTranslate2 on the GPU while configured CPU threads remain available for CPU-side work such as tokenization and related processing. The pipeline can additionally process independent videos concurrently when the resource budget permits it. Each video worker owns its Whisper instance, and the concurrency ceiling accounts for CPU threads, available RAM and GPU memory.
 
-This is **not** model splitting between CPU and GPU. The project does not claim that a single Whisper inference is partitioned across both devices. CTranslate2 exposes separate CPU/GPU device execution and worker/thread controls; the safe project strategy is GPU inference plus CPU-side work and, where resources permit, parallel independent video jobs. citeturn0search0turn0search6
+This is **not** model splitting between CPU and GPU. The project does not claim that a single Whisper inference is partitioned across both devices. The safe project strategy is GPU inference plus CPU-side work and, where resources permit, parallel independent video jobs.
 
 If CUDA initialization fails, the application performs one controlled fallback to CPU rather than repeatedly retrying the same failed GPU initialization.
 
