@@ -67,7 +67,7 @@ Las definiciones anteriores no se mantienen manualmente en dos parsers: regenera
 | `--no-retain-sources` | Contradice una garantía fundamental de regeneración: la fuente original se conserva siempre. |
 | `--no-resume` | La regeneración ya ejecuta `MediaPipeline.run(..., force_reprocess=True)`; aceptar esta flag sería redundante y podría sugerir una semántica de resume que no aplica. |
 
-Las flags exclusivas de `run` se rechazan como argumentos desconocidos por el parser de regeneración; no se aceptan y se ignoran silenciosamente.
+Las flags exclusivas de `run` no forman parte del parser de regeneración y, por tanto, `argparse` las rechaza como argumentos desconocidos en lugar de aceptarlas sin efecto.
 
 ## Ejemplos
 
