@@ -38,3 +38,23 @@ select = ["E", "F", "I", "B", "UP"]
 "src/auth/rclone_manager.py" = ["S603", "S310"]
 "src/media_identity.py" = ["S603"]
 "src/storage/rclone.py" = ["S603"]
+"src/translation_providers.py" = ["S310"]
+"tests/test_media_converter.py" = ["S603"]
+"tests/test_media_identity.py" = ["S603"]
+"src/reprocessor.py" = ["S101"]
+"src/subtitle_qa.py" = ["S310"]
+
+[tool.setuptools]
+py-modules = ["main"]
+
+[tool.setuptools.packages.find]
+include = ["config*", "src*"]
+
+[tool.setuptools.package-data]
+config = ["*.toml"]
+
+[project.scripts]
+video-translation-pipeline = "main:main"
+video-translation-regenerate = "src.regeneration:main"
+video-subtitle-qa = "src.subtitle_qa_cli:main"
+video-translation-tts = "src.tts_cli:main"
