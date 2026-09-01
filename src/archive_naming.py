@@ -52,6 +52,9 @@ def _source_label(name: str) -> str:
     stem = _ORDINAL_MARKER.sub("_", stem)
     stem = re.sub(r"(?<=\d)[º°](?=\s*)", "_", stem)
     stem = _PARENS.sub("_", stem)
+    # Numeric prefixes are separators in the reference (`1-foo`, `5.-foo`),
+    # while semantic hyphens such as `tai-chi` are intentionally preserved.
+    stem = re.sub(r"(?<=\d)[.-]+(?=\s*[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])", "_", stem)
     normalized = unicodedata.normalize("NFKD", stem)
     normalized = "".join(char for char in normalized if not unicodedata.combining(char))
     normalized = re.sub(r"[<>:\"/\\|?*,;!?\[\]]", "_", normalized)
