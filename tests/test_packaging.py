@@ -15,6 +15,10 @@ def test_wheel_contains_default_config_and_console_entry_points() -> None:
     with zipfile.ZipFile(wheel) as archive:
         names = set(archive.namelist())
         assert "config/app.toml" in names
+        context_resources = {
+            name for name in names if name.startswith("config/palabras_contexto.")
+        }
+        assert context_resources, "wheel does not contain config/palabras_contexto.*"
         entry_points = [name for name in names if name.endswith(".dist-info/entry_points.txt")]
         assert entry_points, "wheel has no console entry-point metadata"
         metadata = archive.read(entry_points[0]).decode("utf-8")
