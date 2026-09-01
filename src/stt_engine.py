@@ -6,7 +6,8 @@ import math
 from pathlib import Path
 from typing import Any
 
-from config.settings import AppSettings
+from config.settings import BASE_DIR, AppSettings
+from src.whisper_prompt import resolve_initial_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +53,6 @@ class STTEngine:
         except Exception:
             if device != "cuda":
                 raise
-            # A CUDA failure is a capability/runtime failure, not a reason to retry
-            # the same model repeatedly. Drop the failed object, collect Python refs,
-            # and create exactly one CPU instance.
             logger.exception("Whisper CUDA initialization failed; falling back once to CPU")
             self.model = None
             gc.collect()
@@ -124,9 +122,10 @@ class STTEngine:
             "vad_parameters": vad_parameters,
             "word_timestamps": True,
         }
-        prompt = self.settings.whisper_initial_prompt.strip()
+        prompt, prompt_source = resolve_initial_prompt(self.settings.whisper_initial_prompt, BASE_DIR)
         if prompt:
             transcribe_kwargs["initial_prompt"] = prompt
+        logger.debug("Whisper initial prompt source=%s length=%d", prompt_source, len(prompt))
         segments, _ = self.model.transcribe(str(media_path), **transcribe_kwargs)
         result: list[dict[str, Any]] = []
         raw_count = split_count = discarded_count = 0

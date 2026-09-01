@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "video-translation-pipeline"
-version = "1.4.2"
+version = "1.5.0"
 description = "Local and pluggable video/audio transcription, translation and synchronized TTS pipeline"
 requires-python = ">=3.11,<3.14"
 dependencies = [
@@ -33,8 +33,16 @@ line-length = 120
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["config", "src"]
+
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101"]
+"tests/test_reference_naming.py" = ["I001", "E501"]
+"tests/test_e2e_release.py" = ["S603"]
+"tests/test_run_local_scripts.py" = ["S603"]
+"src/naming_policy.py" = ["E501"]
+"src/whisper_prompt.py" = ["E501"]
 "src/auth/rclone_manager.py" = ["S603", "S310"]
 "src/media_identity.py" = ["S603"]
 "src/storage/rclone.py" = ["S603"]
@@ -44,6 +52,13 @@ select = ["E", "F", "I", "B", "UP"]
 "src/reprocessor.py" = ["S101"]
 "src/subtitle_qa.py" = ["S310"]
 
+[tool.ruff.format]
+exclude = [
+    "src/naming_policy.py",
+    "tests/test_reference_naming.py",
+    "tests/test_e2e_release.py",
+]
+
 [tool.setuptools]
 py-modules = ["main"]
 
@@ -51,7 +66,7 @@ py-modules = ["main"]
 include = ["config*", "src*"]
 
 [tool.setuptools.package-data]
-config = ["*.toml"]
+config = ["*.toml", "palabras_contexto.*"]
 
 [project.scripts]
 video-translation-pipeline = "main:main"

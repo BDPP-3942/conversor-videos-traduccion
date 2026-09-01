@@ -24,6 +24,25 @@ La versión del proyecto no debe incrementarse por cada commit de formato o CI. 
 | Concurrencia de vídeo adaptada a recursos (CPU/RAM/GPU) | `1.3.0` |
 | Regeneración limpia explícita de resultados existentes | `1.4.0` |
 | Integración de la regeneración existente en los wrappers locales | `1.4.1` |
+| Wrappers multiplataforma con forwarding exacto, naming de referencia y contexto externo de Whisper | `1.5.0` |
+
+## Candidata 1.5.0
+
+**Tipo propuesto:** `MINOR`.
+
+**Estado:** candidata en PR #33; no publicada hasta completar el Release Gate.
+
+Alcance funcional:
+
+- dispatcher común para `run_local.sh` y `run_local.bat`;
+- forwarding exacto de argumentos y soporte explícito de `run`/`regenerate`;
+- política de naming validada contra el árbol completo de `arbol_zips.txt`;
+- `whisper_initial_prompt` mediante prompt literal o `txt`, `md`, `csv` y `docx`;
+- documentación de la estrategia real de CPU/GPU de CTranslate2 sin afirmar partición de una inferencia entre ambos dispositivos;
+- CI de tests sobre Linux, Windows y macOS para Python 3.11, 3.12 y 3.13;
+- packaging del recurso `palabras_contexto.*`.
+
+La versión `1.5.0` solo se considera publicada cuando un único SHA final tenga CI, tests, seguridad, packaging y documentación completos y el tag correspondiente apunte exactamente a ese SHA.
 
 ## Releases publicadas
 

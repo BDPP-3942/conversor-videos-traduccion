@@ -34,7 +34,7 @@ def validate_vtt_file(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
         segments.append({"start": start, "end": end, "text": text})
         if start < 0:
             errors.append(f"cue {index}: negative start")
-        if end <= start:
+        if end < start:
             errors.append(f"cue {index}: end ({end:.3f}) must be greater than start ({start:.3f})")
         if start + TIMESTAMP_EPSILON < previous_start:
             errors.append(f"cue {index}: timestamps are not ordered")

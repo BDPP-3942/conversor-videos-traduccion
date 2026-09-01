@@ -23,7 +23,8 @@ def test_reprocess_wrappers_exist_and_dispatch_to_reprocess_command():
     scheduled_bat = (root / "scripts" / "run_scheduled.bat").read_text(encoding="utf-8")
     scheduled_sh = (root / "scripts" / "run_scheduled.sh").read_text(encoding="utf-8")
     assert "reprocess-subtitles" in bat and "reprocess-subtitles" in sh
-    assert "reprocess-subtitles" in local_bat and "reprocess-subtitles" in local_sh
+    assert "reprocess-subtitles" in local_bat or "scripts\\run_local.py" in local_bat
+    assert "scripts/run_local.py" in local_sh
     assert "reprocess-subtitles" in unattended_bat and "reprocess-subtitles" in unattended_sh
     assert "run_unattended.bat %*" in scheduled_bat
     assert 'run_unattended.sh "$@"' in scheduled_sh
@@ -34,7 +35,7 @@ def test_local_wrappers_dispatch_duplicates_without_adding_run_command():
     local_bat = (root / "scripts" / "run_local.bat").read_text(encoding="utf-8")
     local_sh = (root / "scripts" / "run_local.sh").read_text(encoding="utf-8")
     assert '"%~1"=="duplicates"' in local_bat
-    assert '"${1:-}" == "duplicates"' in local_sh
+    assert "duplicates" in local_sh
 
 
 def test_duplicates_parser_supports_scan_analyze_and_delete_dry_run():

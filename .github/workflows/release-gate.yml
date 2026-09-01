@@ -1,0 +1,76 @@
+name: Release Gate
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      expected_version:
+        description: "Candidate SemVer"
+        required: true
+        default: "1.5.0"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONWARNINGS: error
+
+jobs:
+  release-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact candidate SHA
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install build and test tooling
+        run: python -m pip install --upgrade pip setuptools wheel build pytest
+
+      - name: Verify exact SHA
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Verify release metadata and repository invariants
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_VERSION: ${{ github.event.inputs.expected_version || '1.5.0' }}
+        run: python scripts/release_gate.py "$EXPECTED_SHA" "$EXPECTED_VERSION"
+
+      - name: Build distributions
+        run: python -m build
+
+      - name: Install project test tooling
+        run: python -m pip install ".[dev]"
+
+      - name: Verify packaged resources and entry points
+        run: python -m pytest -q tests/test_packaging.py
+
+      - name: Verify clean wheel installation
+        run: |
+          python -m venv /tmp/release-gate-venv
+          /tmp/release-gate-venv/bin/python -m pip install --upgrade pip
+          /tmp/release-gate-venv/bin/python -m pip install dist/*.whl
+          /tmp/release-gate-venv/bin/python -m pip check
+          /tmp/release-gate-venv/bin/video-translation-pipeline --help
+          /tmp/release-gate-venv/bin/video-translation-regenerate --help
+          /tmp/release-gate-venv/bin/video-subtitle-qa --help
+          /tmp/release-gate-venv/bin/video-translation-tts --help
+
+      - name: Verify source package compiles
+        run: python -m compileall .
