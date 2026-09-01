@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 
@@ -23,16 +24,16 @@ def main() -> None:
     if expected_sha and actual_sha != expected_sha:
         _fail(f"checked-out SHA {actual_sha} differs from PR HEAD SHA {expected_sha}")
 
-    pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
-    version_match = re.search(r'^version\\s*=\\s*[\"\\\']([^\"\\\']+)[\"\\\']', pyproject, re.MULTILINE)
-    if not version_match:
-        _fail("pyproject.toml has no static project version")
-    version = version_match.group(1)
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+    version = pyproject.get("project", {}).get("version")
+    if not isinstance(version, str):
+        _fail("pyproject.toml has no static project.version")
     if version != expected_version:
         _fail(f"pyproject version is {version}, expected {expected_version}")
 
     changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
-    if not re.search(rf"^## \\[{re.escape(expected_version)}\\]\\b", changelog, re.MULTILINE):
+    heading = rf"^## \[{re.escape(expected_version)}\](?:\s|$)"
+    if not re.search(heading, changelog, re.MULTILINE):
         _fail(f"CHANGELOG.md has no {expected_version} release heading")
 
     releases = Path("docs/RELEASES.md").read_text(encoding="utf-8")
