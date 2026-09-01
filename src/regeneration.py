@@ -167,7 +167,12 @@ def build_parser() -> argparse.ArgumentParser:
             "It reuses the normal run configuration contract and forces the common MediaPipeline to reprocess sources."
         )
     )
-    parser.add_argument("--config", type=Path, default=resolve_project_path("config/app.toml"), help="Path to the TOML configuration file")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=resolve_project_path("config/app.toml"),
+        help="Path to the TOML configuration file",
+    )
     add_regenerate_run_options(parser)
     return parser
 

@@ -50,10 +50,7 @@ def add_regenerate_run_options(parser: argparse.ArgumentParser) -> None:
     """Reuse run argparse actions whose semantics remain valid for regeneration."""
     actions = list(_iter_run_actions())
     by_option = {
-        option: action
-        for action in actions
-        for option in action.option_strings
-        if option in REGENERATE_RUN_OPTIONS
+        option: action for action in actions for option in action.option_strings if option in REGENERATE_RUN_OPTIONS
     }
 
     webm_actions = [by_option[option] for option in ("--generate-webm", "--no-webm") if option in by_option]

@@ -40,64 +40,96 @@ def configure_logging(log_level: str) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Unattended video/audio STT + translation pipeline")
-    parser.add_argument("--config", type=Path, default=BASE_DIR / "config" / "app.toml", help="Path to the TOML configuration file")
+    parser.add_argument(
+        "--config", type=Path, default=BASE_DIR / "config" / "app.toml", help="Path to the TOML configuration file"
+    )
     sub = parser.add_subparsers(dest="command", required=True)
     run = sub.add_parser(
-        "run", help="Run one unattended processing batch using the saved active profile", description="Process source videos through the complete STT, translation and optional TTS pipeline."
+        "run",
+        help="Run one unattended processing batch using the saved active profile",
+        description="Process source videos through the complete STT, translation and optional TTS pipeline.",
     )
     run.add_argument(
-        "--scheduled", action="store_true", help="Run in unattended scheduled-task mode; never opens a browser or asks for interactive input"
+        "--scheduled",
+        action="store_true",
+        help="Run in unattended scheduled-task mode; never opens a browser or asks for interactive input",
     )
     run.add_argument(
-        "--dry-run", action="store_true", help="Validate runtime/provider readiness and report effective settings without processing files"
+        "--dry-run",
+        action="store_true",
+        help="Validate runtime/provider readiness and report effective settings without processing files",
     )
     run.add_argument(
-        "--provider", choices=["local", "google_drive", "gdrive", "rclone"], default=None,
-        help="Storage provider override; choices are local, google_drive/gdrive, or rclone. Default: active configured provider",
+        "--provider",
+        choices=["local", "google_drive", "gdrive", "rclone"],
+        default=None,
+        help="Storage provider override; choices are local, google_drive/gdrive, or rclone. "
+        "Default: active configured provider",
     )
     run.add_argument(
-        "--source", default=None,
+        "--source",
+        default=None,
         help="Source storage URI override. Default: source URI from the active configuration",
     )
     run.add_argument(
-        "--target", default=None,
+        "--target",
+        default=None,
         help="Target storage URI override. Default: target URI from the active configuration",
     )
     run.add_argument(
-        "--no-retain-sources", action="store_true",
-        help="For local processing, disable retention of source files after normal processing. Not applicable to regeneration",
+        "--no-retain-sources",
+        action="store_true",
+        help="For local processing, disable retention of source files after normal processing. "
+        "Not applicable to regeneration",
     )
     run.add_argument(
-        "--no-resume", action="store_true",
-        help="Disable normal resume/reuse behavior for this run. Regeneration already forces reprocessing and does not accept this flag",
+        "--no-resume",
+        action="store_true",
+        help="Disable normal resume/reuse behavior for this run. Regeneration already forces reprocessing "
+        "and does not accept this flag",
     )
     run.add_argument(
-        "--no-name-migration", action="store_true",
+        "--no-name-migration",
+        action="store_true",
         help="Disable normalization of legacy course/lesson names for this execution",
     )
     run.add_argument(
-        "--parallel-videos", type=int, default=None,
-        help="Maximum requested video workers; 0 selects AUTO, 1 keeps one worker, and positive values are clamped to the safe hardware limit",
+        "--parallel-videos",
+        type=int,
+        default=None,
+        help="Maximum requested video workers; 0 selects AUTO, 1 keeps one worker, "
+        "and positive values are clamped to the safe hardware limit",
     )
     run.add_argument(
-        "--translation-batch-size", type=int, default=None,
-        help="Translation request batch size override. Values below 1 are normalized to the minimum valid size; default: configured value",
+        "--translation-batch-size",
+        type=int,
+        default=None,
+        help="Translation request batch size override. Values below 1 are normalized to the minimum valid size; "
+        "default: configured value",
     )
     run.add_argument(
-        "--whisper-beam-size", type=int, default=None,
+        "--whisper-beam-size",
+        type=int,
+        default=None,
         help="Whisper beam-size override. Values below 1 are normalized to 1; default: configured value",
     )
     run.add_argument(
-        "--whisper-cpu-threads", type=int, default=None,
+        "--whisper-cpu-threads",
+        type=int,
+        default=None,
         help="Whisper CPU thread override. 0 keeps automatic runtime selection; negative values are normalized to 0",
     )
     run.add_argument(
-        "--no-ffmpeg-copy", action="store_true",
+        "--no-ffmpeg-copy",
+        action="store_true",
         help="Disable the FFmpeg stream-copy optimization and use the configured re-encode path instead",
     )
     webm_group = run.add_mutually_exclusive_group()
     webm_group.add_argument(
-        "--generate-webm", dest="generate_webm", action="store_true", help="Force generation of the secondary WebM output"
+        "--generate-webm",
+        dest="generate_webm",
+        action="store_true",
+        help="Force generation of the secondary WebM output",
     )
     webm_group.add_argument(
         "--no-webm", dest="generate_webm", action="store_false", help="Prevent generation of the secondary WebM output"
@@ -105,11 +137,16 @@ def build_parser() -> argparse.ArgumentParser:
     run.set_defaults(generate_webm=None)
 
     duplicates = sub.add_parser(
-        "duplicates", help="Inspect and manage duplicate local output folders",
-        description="Scan, analyze and optionally delete duplicate local output folders using the persisted deletion plan.",
+        "duplicates",
+        help="Inspect and manage duplicate local output folders",
+        description="Scan, analyze and optionally delete duplicate local output folders "
+        "using the persisted deletion plan.",
     )
     duplicates.add_argument(
-        "--target", type=Path, default=BASE_DIR / "storage" / "output", help="Local output directory to inspect. Default: storage/output"
+        "--target",
+        type=Path,
+        default=BASE_DIR / "storage" / "output",
+        help="Local output directory to inspect. Default: storage/output",
     )
     duplicate_sub = duplicates.add_subparsers(dest="duplicates_command", required=True)
     duplicate_sub.add_parser("scan", help="Detect duplicate output groups without modifying results")
@@ -121,17 +158,33 @@ def build_parser() -> argparse.ArgumentParser:
         "--dry-run", action="store_true", help="Show exactly what would be deleted without deleting anything"
     )
 
-    auth = sub.add_parser("auth", help="One-time interactive authentication", description="Authorize a provider for a named persistent profile.")
-    auth.add_argument("provider", choices=["google"], help="Authentication provider. Currently only google is supported")
+    auth = sub.add_parser(
+        "auth",
+        help="One-time interactive authentication",
+        description="Authorize a provider for a named persistent profile.",
+    )
+    auth.add_argument(
+        "provider", choices=["google"], help="Authentication provider. Currently only google is supported"
+    )
     auth.add_argument("--profile", default="default", help="Provider profile name. Default: default")
-    provider = sub.add_parser("provider", help="Configure and switch persistent provider profiles", description="Manage storage provider profiles and the active runtime selection.")
+    provider = sub.add_parser(
+        "provider",
+        help="Configure and switch persistent provider profiles",
+        description="Manage storage provider profiles and the active runtime selection.",
+    )
     provider_sub = provider.add_subparsers(dest="provider_command", required=True)
     provider_sub.add_parser("bootstrap", help="Install the managed rclone binary")
     provider_sub.add_parser("list", help="List configured provider profiles and the active runtime")
-    verify = provider_sub.add_parser("verify", help="Run a read-only cloud credential check", description="Verify access without changing provider configuration.")
+    verify = provider_sub.add_parser(
+        "verify",
+        help="Run a read-only cloud credential check",
+        description="Verify access without changing provider configuration.",
+    )
     verify.add_argument("provider", choices=["google_drive", "rclone"], help="Cloud provider to verify")
     verify.add_argument("--profile", default="default", help="Provider profile to verify. Default: default")
-    verify.add_argument("--location", default="", help="rclone folder used for the read-only health check. Default: empty")
+    verify.add_argument(
+        "--location", default="", help="rclone folder used for the read-only health check. Default: empty"
+    )
     update = provider_sub.add_parser("update-rclone", help="Update managed rclone binary explicitly")
     update.add_argument("--force", action="store_true", help="Run the update even when automatic updates are disabled")
     setup_google = provider_sub.add_parser(
@@ -140,12 +193,18 @@ def build_parser() -> argparse.ArgumentParser:
     setup_google.add_argument("--profile", default="default", help="Google provider profile name. Default: default")
     setup_google.add_argument("--source-folder-id", required=True, help="Google Drive source folder ID")
     setup_google.add_argument("--target-folder-id", required=True, help="Google Drive target folder ID")
-    setup_google.add_argument("--archive-folder-id", default="", help="Optional Google Drive archive folder ID. Default: empty")
+    setup_google.add_argument(
+        "--archive-folder-id", default="", help="Optional Google Drive archive folder ID. Default: empty"
+    )
     auth_rclone = provider_sub.add_parser("auth-rclone", help="One-time rclone remote configuration")
     auth_rclone.add_argument("name", help="rclone remote name")
     auth_rclone.add_argument("backend", help="rclone backend type")
     auth_rclone.add_argument("options", nargs="*", help="Optional rclone settings as key=value pairs")
-    auth_rclone.add_argument("--non-interactive", action="store_true", help="Create the remote without launching interactive rclone configuration")
+    auth_rclone.add_argument(
+        "--non-interactive",
+        action="store_true",
+        help="Create the remote without launching interactive rclone configuration",
+    )
     setup_rclone = provider_sub.add_parser("setup-rclone", help="One-time rclone setup + active source/target")
     setup_rclone.add_argument("name", help="rclone remote name")
     setup_rclone.add_argument("backend", help="rclone backend type")
@@ -166,21 +225,62 @@ def build_parser() -> argparse.ArgumentParser:
     reprocess = sub.add_parser(
         "reprocess-subtitles",
         help="Reprocess STT and/or translation inside an existing output folder without regenerating media",
-        description="Repair or regenerate subtitle stages in existing results while leaving the audiovisual media untouched.",
+        description="Repair or regenerate subtitle stages in existing results "
+        "while leaving the audiovisual media untouched.",
     )
     mode = reprocess.add_mutually_exclusive_group()
     mode.add_argument("--stt-only", action="store_true", help="Regenerate only the original transcription")
     mode.add_argument("--translate-only", action="store_true", help="Regenerate only the translated VTT")
-    reprocess.add_argument("--output-folder", default=None, help="Existing output folder to process. Default: select by other selectors or --all")
-    reprocess.add_argument("--all", dest="reprocess_all", action="store_true", help="Process all eligible output folders; cannot be combined with other selectors")
-    reprocess.add_argument("--video", dest="video_name", default=None, help="Video/source name selector inside the output set. Default: none")
-    reprocess.add_argument("--source", default=None, help="Source URI or source selector used by the reprocessor. Default: none")
-    reprocess.add_argument("--scheduled", action="store_true", help="Use saved provider configuration without interactive provider overrides")
-    reprocess.add_argument("--provider", choices=["local", "google_drive", "gdrive", "rclone"], default=None, help="Storage provider override. Default: active configured provider")
-    reprocess.add_argument("--target", default=None, help="Target storage URI override. Default: active configured target")
-    sub.add_parser("prefetch-whisper", help="Download/initialize the automatically selected Whisper model", description="Initialize the configured Whisper/STT model so subsequent processing can use it without first downloading it.")
-    sub.add_parser("doctor", help="Check interactive and unattended runtime readiness", description="Check configuration, Python, FFmpeg, Whisper/runtime and provider readiness.")
-    sub.add_parser("init", help="Create runtime directories", description="Create the runtime directories required by the pipeline.")
+    reprocess.add_argument(
+        "--output-folder",
+        default=None,
+        help="Existing output folder to process. Default: select by other selectors or --all",
+    )
+    reprocess.add_argument(
+        "--all",
+        dest="reprocess_all",
+        action="store_true",
+        help="Process all eligible output folders; cannot be combined with other selectors",
+    )
+    reprocess.add_argument(
+        "--video",
+        dest="video_name",
+        default=None,
+        help="Video/source name selector inside the output set. Default: none",
+    )
+    reprocess.add_argument(
+        "--source", default=None, help="Source URI or source selector used by the reprocessor. Default: none"
+    )
+    reprocess.add_argument(
+        "--scheduled",
+        action="store_true",
+        help="Use saved provider configuration without interactive provider overrides",
+    )
+    reprocess.add_argument(
+        "--provider",
+        choices=["local", "google_drive", "gdrive", "rclone"],
+        default=None,
+        help="Storage provider override. Default: active configured provider",
+    )
+    reprocess.add_argument(
+        "--target", default=None, help="Target storage URI override. Default: active configured target"
+    )
+    sub.add_parser(
+        "prefetch-whisper",
+        help="Download/initialize the automatically selected Whisper model",
+        description="Initialize the configured Whisper/STT model "
+        "so subsequent processing can use it without first downloading it.",
+    )
+    sub.add_parser(
+        "doctor",
+        help="Check interactive and unattended runtime readiness",
+        description="Check configuration, Python, FFmpeg, Whisper/runtime and provider readiness.",
+    )
+    sub.add_parser(
+        "init",
+        help="Create runtime directories",
+        description="Create the runtime directories required by the pipeline.",
+    )
     return parser
 
 

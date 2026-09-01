@@ -11,10 +11,7 @@ def _run_option_names() -> set[str]:
     parser = build_main_parser()
     run_parser = parser._subparsers._group_actions[0].choices["run"]
     return {
-        option
-        for action in run_parser._actions
-        for option in action.option_strings
-        if option not in {"-h", "--help"}
+        option for action in run_parser._actions for option in action.option_strings if option not in {"-h", "--help"}
     }
 
 
