@@ -92,9 +92,8 @@ def resolve_initial_prompt(value: str, base_dir: Path | None = None) -> tuple[st
     else:
         path = _candidate_path(raw, base_dir)
         if path is None:
-            if (
-                Path(raw).suffix.lower() in SUPPORTED_EXTENSIONS
-                or Path(raw).name.lower().startswith("palabras_contexto.")
+            if Path(raw).suffix.lower() in SUPPORTED_EXTENSIONS or Path(raw).name.lower().startswith(
+                "palabras_contexto."
             ):
                 raise FileNotFoundError(f"Whisper context file not found: {raw}")
             return re.sub(r"\s+", " ", raw).strip(), "literal"
