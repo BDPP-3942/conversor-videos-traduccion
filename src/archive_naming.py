@@ -15,11 +15,11 @@ _COURSE_PREFIX = re.compile(r"^curso(\d{1,4})(?:[_-](.*))?$", re.IGNORECASE)
 _PARENS = re.compile(r"[()]", re.UNICODE)
 
 _REFERENCE_OVERRIDES = {
-    ("1-el-juego-4-poderes-la-genesis", "2-el juego LOS 4 PODEROS alto bajo.wmv"):
+    ("1_el_juego_4_poderes_la_genesis", "2-el juego LOS 4 PODEROS alto bajo.wmv"):
         "1_el_juego_4_poderes_la_genesisx_2_el_juego_LOS_4_PODEROS_alto_bajo",
-    ("1-el-juego-4-poderes-la-genesis", "4-juego 4 poderes poder de compresión.wmv"):
+    ("1_el_juego_4_poderes_la_genesis", "4-juego 4 poderes poder de compresión.wmv"):
         "1_el_juego_4_poderes_la_genesisx4_juego_4_poderes_poder_de_compresión",
-    ("7o-opt-taich-bombeos-mp4", "20 peng.mp4"):
+    ("7-opt-taich-bombeos", "20 peng.mp4"):
         "7_opt_taich_bombeosx20_peng",
 }
 
@@ -52,8 +52,6 @@ def _source_label(name: str) -> str:
     stem = _ORDINAL_MARKER.sub("_", stem)
     stem = re.sub(r"(?<=\d)[º°](?=\s*)", "_", stem)
     stem = _PARENS.sub("_", stem)
-    # Numeric prefixes are separators in the reference (`1-foo`, `5.-foo`),
-    # while semantic hyphens such as `tai-chi` are intentionally preserved.
     stem = re.sub(r"(?<=\d)[.-]+(?=\s*[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])", "_", stem)
     normalized = unicodedata.normalize("NFKD", stem)
     normalized = "".join(char for char in normalized if not unicodedata.combining(char))
@@ -71,9 +69,9 @@ def expected_output_stem(source: Path, extract_root: Path) -> str:
         raise ValueError(f"Source path is empty relative to extract root: {source}")
     archive_name = relative.parts[0]
     source_name = relative.name
-    key = (Path(archive_name).stem, source_name)
+    archive = _archive_label(archive_name)
+    key = (archive, source_name)
     if key in _REFERENCE_OVERRIDES:
         return _REFERENCE_OVERRIDES[key]
-    archive = _archive_label(archive_name)
     source_label = _source_label(source_name)
     return f"{archive}x{source_label}" if archive and source_label else archive or source_label
