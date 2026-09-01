@@ -24,9 +24,7 @@ python main.py run --scheduled
 
 Useful processing overrides include `--provider`, `--source`, `--target`, `--no-resume`, `--parallel-videos`, `--translation-batch-size`, `--whisper-beam-size`, `--whisper-cpu-threads`, `--no-ffmpeg-copy`, `--generate-webm` and `--no-webm`. Run `python main.py run --help` for the authoritative list.
 
-`--parallel-videos` controls the configured upper bound for concurrent video processing. In the current implementation, `0` means AUTO: the effective concurrency is calculated conservatively from the resolved Whisper configuration and available CPU/RAM resources, and GPU memory when CUDA is selected. Positive values may be clamped to the safe hardware ceiling; `1` remains single-worker execution.
-
-This resource-aware behavior was introduced after the published `1.2.2` release by PR #20 and is therefore documented as current `main` behavior rather than as part of `1.2.2`.
+`--parallel-videos` follows the release contract `0 = AUTO`, `1 = exactly one worker`, and `N > 1 = requested upper bound`. Every explicit value is passed through the same hardware-safe calculation used by the normal pipeline; an explicit value can never exceed the safe ceiling. For example, `--parallel-videos 999` is clamped to the calculated effective limit.
 
 ### Clean regeneration
 
@@ -45,7 +43,7 @@ video-translation-regenerate \
   --target local://storage/output
 ```
 
-This operation is different from `run --no-resume`: regeneration first locates existing results, moves registered output folders to a temporary backup, runs the common `MediaPipeline` from the source, and removes the backups only after successful completion. The source is preserved. If processing fails, previous outputs are restored where the storage backend supports the required rename operation.
+This operation is different from `run --no-resume`: regeneration first locates existing results, moves registered output folders through the public `StorageProvider` backup contract, runs the common `MediaPipeline` from the source, and removes the backups only after successful completion. The source is preserved. If processing fails, previous outputs and the previous manifest are restored where the storage backend supports the required operations.
 
 See [`REGENERATION.md`](REGENERATION.md) for provider-specific guarantees and limitations.
 
@@ -88,6 +86,7 @@ Administrative setup commands include `provider setup-google`, `provider setup-r
 ```bash
 video-subtitle-qa --help
 video-translation-tts --help
+video-translation-regenerate --help
 ```
 
 These are installed by `pyproject.toml`; their detailed options should be obtained from their own `--help` output rather than duplicated here.

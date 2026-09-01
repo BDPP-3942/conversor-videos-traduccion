@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from types import SimpleNamespace
 
 import src.regeneration as regeneration
 from src.storage.base import StorageFile
@@ -35,6 +34,14 @@ class FakeStorage(LocalStorageProvider):
         old.rename(new)
         return {old_name: new_name}
 
+    def delete_folder(self, parent: str, name: str) -> None:
+        del parent
+        folder = self.target / name
+        if folder.exists():
+            import shutil
+
+            shutil.rmtree(folder)
+
     def close(self) -> None:
         return None
 
@@ -52,7 +59,9 @@ class FakePipeline:
         del settings
         self.storage = storage
 
-    def run(self, source: str, target: str):
+    def run(self, source: str, target: str, *, force_reprocess: bool = False, finalize_source: bool = True):
+        assert force_reprocess is True
+        assert finalize_source is False
         del source, target
         output = self.storage.target / "lesson"
         output.mkdir()
@@ -60,15 +69,11 @@ class FakePipeline:
         return {"status": "success", "videos": [{"output_folder": "lesson"}]}
 
 
-def _settings(storage):
-    return SimpleNamespace(
-        provider="local",
-        original_transcript_subdir="original_transcriptions",
-        storage=storage,
-    )
+def _settings():
+    return FakeSettings()
 
 
-def _patch(monkeypatch, tmp_path, manifest_dir, storage, pipeline):
+def _patch(monkeypatch, tmp_path, manifest_dir, storage):
     monkeypatch.setattr(regeneration, "create_storage_provider", lambda provider, settings: storage)
     monkeypatch.setattr(
         regeneration,
@@ -80,10 +85,10 @@ def _patch(monkeypatch, tmp_path, manifest_dir, storage, pipeline):
         "_manifest_local_path",
         lambda name: manifest_dir / f"{Path(name).stem}.json",
     )
-    monkeypatch.setattr("src.pipeline.MediaPipeline", pipeline)
+    monkeypatch.setattr("src.pipeline.MediaPipeline", FakePipeline)
 
 
-def test_regeneration_removes_stale_artifacts_and_preserves_source(monkeypatch, tmp_path):
+def test_regeneration_success_uses_common_pipeline_and_cleans_backup(monkeypatch, tmp_path):
     storage = FakeStorage(tmp_path)
     old = storage.target / "lesson"
     old.mkdir()
@@ -95,15 +100,9 @@ def test_regeneration_removes_stale_artifacts_and_preserves_source(monkeypatch, 
         '{"entries":[{"source":"lesson.mp4","status":"success","output_folder":"lesson"}]}',
         encoding="utf-8",
     )
+    _patch(monkeypatch, tmp_path, manifest_dir, storage)
 
-    class Pipeline(FakePipeline):
-        def run(self, source, target):
-            assert self._try_resume(None, target, "lesson.mp4") is None
-            assert self._find_media_duplicate(None, "lesson", []) is None
-            return super().run(source, target)
-
-    _patch(monkeypatch, tmp_path, manifest_dir, storage, Pipeline)
-    result = regeneration.regenerate("input", "output", _settings(storage))
+    result = regeneration.regenerate("input", "output", _settings())
 
     assert result["status"] == "success"
     assert result["source_preserved"] is True
@@ -113,7 +112,7 @@ def test_regeneration_removes_stale_artifacts_and_preserves_source(monkeypatch, 
     assert not any(storage.target.glob(".regeneration-backup-*"))
 
 
-def test_regeneration_restores_previous_output_on_failure(monkeypatch, tmp_path):
+def test_regeneration_failure_restores_previous_output(monkeypatch, tmp_path):
     storage = FakeStorage(tmp_path)
     old = storage.target / "lesson"
     old.mkdir()
@@ -127,14 +126,21 @@ def test_regeneration_restores_previous_output_on_failure(monkeypatch, tmp_path)
     )
 
     class FailingPipeline(FakePipeline):
-        def run(self, source, target):
-            del source, target
+        def run(self, source, target, *, force_reprocess=False, finalize_source=True):
+            assert force_reprocess is True
+            assert finalize_source is False
             return {"status": "error"}
 
-    _patch(monkeypatch, tmp_path, manifest_dir, storage, FailingPipeline)
+    monkeypatch.setattr(regeneration, "create_storage_provider", lambda provider, settings: storage)
+    monkeypatch.setattr(
+        regeneration,
+        "_manifest_local_path",
+        lambda name: manifest_dir / f"{Path(name).stem}.json",
+    )
+    monkeypatch.setattr("src.pipeline.MediaPipeline", FailingPipeline)
 
     try:
-        regeneration.regenerate("input", "output", _settings(storage))
+        regeneration.regenerate("input", "output", _settings())
     except regeneration.RegenerationError:
         pass
     else:

@@ -23,12 +23,7 @@ class StorageProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def upload_file(
-        self,
-        local_path: Path,
-        location: str,
-        mime_type: str | None = None,
-    ) -> StorageFile:
+    def upload_file(self, local_path: Path, location: str, mime_type: str | None = None) -> StorageFile:
         raise NotImplementedError
 
     @abstractmethod
@@ -39,31 +34,51 @@ class StorageProvider(ABC):
         return False
 
     def file_exists(self, parent: str, name: str) -> bool:
-        """Return whether a file exists below a storage folder."""
         return False
 
     def list_children(self, parent: str) -> list[StorageFile]:
-        """List direct child files/folders using the provider-native identifiers."""
         return []
 
     def rename_output_folder(
         self, target: str, old_name: str, new_name: str, original_transcript_subdir: str
     ) -> dict[str, str]:
-        """Rename an already processed output folder and its generated artifact stems."""
         return {}
 
+    def delete_folder(self, parent: str, name: str) -> None:
+        """Delete a complete output folder using provider-native storage operations."""
+        raise NotImplementedError("This storage provider does not support folder deletion")
+
+    def backup_output_folder(self, target: str, folder: str, backup_name: str, original_transcript_subdir: str) -> bool:
+        """Move an existing output folder into a provider-managed regeneration backup."""
+        if not self.folder_exists(target, folder):
+            return False
+        if self.folder_exists(target, backup_name):
+            raise FileExistsError(f"Regeneration backup already exists: {backup_name}")
+        self.rename_output_folder(target, folder, backup_name, original_transcript_subdir)
+        return True
+
+    def restore_output_backup(
+        self, target: str, backup_name: str, folder: str, original_transcript_subdir: str
+    ) -> bool:
+        """Restore a regeneration backup when the original output path is free."""
+        if not self.folder_exists(target, backup_name) or self.folder_exists(target, folder):
+            return False
+        self.rename_output_folder(target, backup_name, folder, original_transcript_subdir)
+        return True
+
+    def delete_output_backup(self, target: str, backup_name: str) -> None:
+        """Commit a successful regeneration by deleting its obsolete backup."""
+        if self.folder_exists(target, backup_name):
+            self.delete_folder(target, backup_name)
+
     def normalize_existing_output_names(self, target: str, original_transcript_subdir: str) -> dict[str, str]:
-        """Best-effort migration hook for output names created by older versions."""
         return {}
 
     def source_fingerprint(self, file: StorageFile) -> dict[str, Any]:
-        """Optional source identity used to make resume decisions safer."""
         return {"id": file.id, "name": file.name}
 
     def finalize_source(self, file: StorageFile, status: str, output_folders: list[str] | None = None) -> None:
-        """Hook opcional para retirar fuentes procesadas del buzón de entrada."""
         return None
 
     def close(self) -> None:
-        """Hook opcional para liberar recursos del proveedor."""
         return None

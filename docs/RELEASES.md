@@ -22,8 +22,20 @@ La versión del proyecto no debe incrementarse por cada commit de formato o CI. 
 | Corrección de instalación de assets TTS en Windows y consistencia multiplataforma | `1.2.1` |
 | Limpieza de timestamps técnicos en naming | `1.2.2` |
 | Concurrencia de vídeo adaptada a recursos (CPU/RAM/GPU) | `1.3.0` |
+| Regeneración limpia explícita de resultados existentes | `1.4.0` |
 
 ## Releases publicadas
+
+### 1.3.0 — Safe Resource-Aware Video Concurrency
+
+**Tipo:** `MINOR`.
+
+**Commit/tag publicado:** `620af6acbe3fca7d42ccd57f3585b3952cccf0a7` / `v1.3.0`.
+
+- `max_parallel_videos = 0` significa AUTO.
+- El límite efectivo se calcula de forma conservadora según CPU/RAM/GPU.
+- Los valores positivos actúan como límites superiores sujetos al techo seguro.
+- Se incorporan las PR #20, #21 y #22 como conjunto funcional preparado por la PR #23.
 
 ### 1.2.2 — Naming Timestamp Cleanup
 
@@ -34,7 +46,6 @@ Publicado el 28 de agosto de 2026.
 - Evita incorporar metadatos de fecha/hora de ZIP, carpetas extraídas o nombres de origen en la descripción del curso.
 - Amplía la limpieza de formatos de fecha y datetime antes de extraer números/descripciones de curso y lección.
 - Mantiene la convención `[course_number]_[course_description]x[lesson_number]_[lesson_description]` cuando la información está disponible.
-- Incluye regresiones de naming, limpieza de timestamps y las validaciones habituales de CI.
 
 ### 1.2.1 — TTS Installation Fix
 
@@ -43,9 +54,7 @@ Publicado el 28 de agosto de 2026.
 Publicado el 28 de agosto de 2026.
 
 - Corrige la instalación de modelos TTS en Windows cuando un archivo temporal estaba todavía abierto (`WinError 32`).
-- Cierra correctamente los archivos temporales antes de moverlos a su ubicación final.
 - Hace consistente la instalación de recursos TTS entre Windows, Linux y macOS.
-- Mantiene la reutilización de modelos existentes y los paths/configuración de TTS.
 
 ### 1.2.0 — Naming and TTS Improvements
 
@@ -53,11 +62,8 @@ Publicado el 28 de agosto de 2026.
 
 Publicado el 28 de agosto de 2026.
 
-- Introduce la convención de nombres más descriptiva y resistente a colisiones para curso/lección.
-- Mejora la detección de información de curso y lección y la migración de resultados existentes.
-- Completa el bootstrap de TTS para preparar los assets Kokoro cuando TTS está habilitado.
-- Valida explícitamente los hosts de descarga de recursos TTS.
-- Permite completar artefactos TTS faltantes en resultados existentes.
+- Introduce la convención de nombres descriptiva para curso/lección.
+- Mejora la detección de información de curso y lección y el bootstrap de assets Kokoro.
 
 ### 1.1.0 — Reparación de VTT e integración TTS
 
@@ -67,15 +73,12 @@ Publicado el 28 de agosto de 2026.
 - Regeneración selectiva de STT o traducción sin regenerar el vídeo normal.
 - Validación final de timestamps después de segmentación STT.
 - Integración de TTS en el pipeline común.
-- Reutilización de TTS válido y backups de VTT antes de reemplazo.
 
 ### 1.0.1 — Documentación de instalación y mantenimiento
 
 **Tipo:** `PATCH`.
 
-- Añade la guía de instalación.
-- Corrige la navegación documental del README.
-- Documenta dependencias opcionales, FFmpeg, TTS, almacenamiento cloud, ejecución programada y actualización.
+- Añade la guía de instalación y corrige la navegación documental.
 
 ### 1.0.0 — Primera release estable
 
@@ -83,41 +86,47 @@ Publicado el 28 de agosto de 2026.
 
 **Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
 
-Incluye el pipeline audiovisual, FFmpeg, Whisper/faster-whisper, VTT y traducción con fallback, almacenamiento local/Google Drive/rclone, manifests/resume, deduplicación, TTS sincronizado, ejecución programada, packaging, seguridad, tests y auditorías.
+## Candidata 1.4.0
 
-## Cambios incorporados en 1.3.0
+### PR #24 — Explicit clean video regeneration
 
-### PR #20 — Safe video concurrency
+**Tipo:** `FEATURE`.
 
-**Tipo de cambio:** funcional/performance/estabilidad.
+- Añade `src.regeneration` y `video-translation-regenerate`.
+- Localiza resultados registrados mediante manifest.
+- Aparta los resultados anteriores mediante backup antes de regenerar.
+- Reutiliza `MediaPipeline` para el procesamiento desde la fuente.
+- Limpia backups solo después del éxito.
+- Intenta restaurar backups ante fallo.
+- Mantiene la fuente original intacta.
 
-- `max_parallel_videos = 0` significa **AUTO**.
-- Se resuelve primero el dispositivo/modelo efectivo de Whisper.
-- Se calcula un techo conservador según CPU y RAM disponibles.
-- Se tiene en cuenta la memoria GPU disponible cuando se utiliza CUDA.
-- Los valores positivos actúan como límite superior y se recortan si superan la capacidad segura.
-- `max_parallel_videos = 1` continúa garantizando un único worker.
-- Se incorporan regresiones para AUTO, clamping por hardware y single-worker.
+### PR #25 — Repository governance and hygiene
 
-### PR #21 — Package metadata alignment
+**Tipo:** `GOVERNANCE / DOCUMENTATION`.
 
-**Tipo de cambio:** packaging/metadata.
+- Añade reglas de branches, Conventional Commits, PRs y release hygiene.
+- Retira el workflow one-off de formato.
+- Mantiene CI como comprobación de formato sin escritura en ramas.
 
-- Alinea inicialmente `project.version` con la última release publicada antes de preparar `1.3.0`.
-- No introduce funcionalidad de producto independiente.
+### Hardening de release — PR #26
 
-### PR #22 — Documentation update
+**Tipo:** `FIX / SECURITY / QA / ARCHITECTURE`.
 
-**Tipo de cambio:** documentación.
+- El cálculo efectivo de concurrencia permanece sujeto al límite seguro de recursos incluso con overrides CLI.
+- La regeneración usa el contrato explícito de `StorageProvider` para la limpieza de resultados.
+- Local, Google Drive y rclone mantienen sus operaciones destructivas dentro de sus adaptadores.
+- Se validan los caminos de éxito y rollback de regeneración.
+- Se incorporan comprobaciones E2E/CLI de los contratos de release.
 
-- Registra los cambios posteriores a `1.2.2` incorporados en `main`.
-- Actualiza la documentación para mantener trazabilidad de los cambios antes de la nueva release.
+## Estado de la candidata
+
+La rama `release/1.4.0-hardening` prepara `1.4.0` y todavía no está publicada. La publicación requiere que el commit final de la rama tenga CI verde y que PR #26 se mezcle sin cambios posteriores de release.
 
 ## Política de tags
 
 Los tags de release utilizan el formato `vMAJOR.MINOR.PATCH` y no deben reutilizarse ni moverse después de publicar una release.
 
-`v1.2.2` permanece asociado al estado publicado de `1.2.2`. La nueva release se publicará con un tag independiente, `v1.3.0`.
+`v1.3.0` permanece asociado a `620af6acbe3fca7d42ccd57f3585b3952cccf0a7` y no debe modificarse. `v1.4.0` debe crearse únicamente sobre el commit final resultante del merge validado de PR #26.
 
 ## Historial anterior
 

@@ -16,6 +16,7 @@ from src.file_naming import (
     normalize_filename,
 )
 from src.path_limits import fit_component
+from src.resource_profile import safe_parallelism
 from src.storage.base import StorageFile, StorageProvider
 
 logger = logging.getLogger(__name__)
@@ -52,8 +53,10 @@ class MediaPipeline:
             self._thread_local.translator = TextTranslator(self.settings)
         return self._thread_local.stt_engine, self._thread_local.translator
 
-    def run(self, source: str, target: str) -> dict[str, Any]:
-        if getattr(getattr(self, "settings", None), "normalize_legacy_names", True):
+    def run(
+        self, source: str, target: str, *, force_reprocess: bool = False, finalize_source: bool = True
+    ) -> dict[str, Any]:
+        if not force_reprocess and getattr(getattr(self, "settings", None), "normalize_legacy_names", True):
             try:
                 normalize_outputs = getattr(self.storage, "normalize_existing_output_names", None)
                 migration = (
@@ -71,7 +74,11 @@ class MediaPipeline:
         results = []
         for zip_file in zips:
             try:
-                if hasattr(self.storage, "is_processed") and self.storage.is_processed(zip_file):
+                if (
+                    not force_reprocess
+                    and hasattr(self.storage, "is_processed")
+                    and self.storage.is_processed(zip_file)
+                ):
                     result = (
                         self._rename_processed_zip(zip_file, target)
                         if getattr(self.settings, "rename_processed_duplicates", True)
@@ -81,14 +88,14 @@ class MediaPipeline:
                             "reason": "same source name and SHA-256 already processed",
                         }
                     )
-                    if result.get("status") == "success" and result.get("rename_only"):
+                    if finalize_source and result.get("status") == "success" and result.get("rename_only"):
                         try:
                             self.storage.finalize_source(zip_file, "success", result.get("output_folders", []))
                         except FileNotFoundError as exc:
                             logger.warning("Source unavailable during rename-only finalization: %s", exc)
                 else:
-                    result = self._process_zip(zip_file, target)
-                    if result["status"] == "success":
+                    result = self._process_zip(zip_file, target, force_reprocess=force_reprocess)
+                    if finalize_source and result["status"] == "success":
                         try:
                             self.storage.finalize_source(zip_file, "success", result.get("output_folders", []))
                         except FileNotFoundError as exc:
@@ -135,7 +142,7 @@ class MediaPipeline:
         except (FileNotFoundError, OSError):
             return {"id": zip_file.id, "name": zip_file.name}
 
-    def _process_zip(self, zip_file: StorageFile, target: str) -> dict[str, Any]:
+    def _process_zip(self, zip_file: StorageFile, target: str, *, force_reprocess: bool = False) -> dict[str, Any]:
         work_base = local_storage_paths()["work"]
         work_base.mkdir(parents=True, exist_ok=True)
         temp_prefix = fit_component(f"{Path(zip_file.name).stem}_", work_base)
@@ -190,7 +197,7 @@ class MediaPipeline:
                 relative_source = str(source_path.relative_to(extract_root).as_posix())
                 existing_entry = previous_entries.get(relative_source)
                 metadata_item = FileNameFormatter.resolve_source_metadata(source_path, extract_root)
-                if self.settings.resume_enabled:
+                if not force_reprocess and self.settings.resume_enabled:
                     resumed = self._try_resume(existing_entry, target, relative_source)
                     if resumed:
                         resumed = self._rename_existing_entry_if_needed(resumed, metadata_item, target, used_stems)
@@ -211,7 +218,11 @@ class MediaPipeline:
 
             pending = []
             for source_path, relative_source, metadata_item, normalized_name in normalized_candidates:
-                duplicate = self._find_media_duplicate(source_path, normalized_name, media_registry)
+                duplicate = (
+                    None
+                    if force_reprocess
+                    else self._find_media_duplicate(source_path, normalized_name, media_registry)
+                )
                 if duplicate:
                     duplicate_entry = {
                         "source": relative_source,
@@ -338,10 +349,9 @@ class MediaPipeline:
             return result
 
     def _effective_parallelism(self) -> int:
-        configured = max(1, int(self.settings.max_parallel_videos))
         if self.settings.provider.lower() not in {"local"}:
             return 1
-        return configured
+        return safe_parallelism(self.settings)
 
     def _record_failure(self, zip_file, source_path, relative_source, exc, failed):
         logger.exception("Media processing failed: %s", source_path.name)
@@ -452,9 +462,9 @@ class MediaPipeline:
         return {
             "source": str(source_path.relative_to(extract_root)),
             "video": artifacts.mp4_path.name,
-            "secondary_video": artifacts.secondary_video_path.name
-            if artifacts.secondary_video_path is not None
-            else "",
+            "secondary_video": (
+                artifacts.secondary_video_path.name if artifacts.secondary_video_path is not None else ""
+            ),
             "translated_vtt": translated_path.name,
             "original_transcription": original_path.name,
             "output_folder": stem,
@@ -645,8 +655,6 @@ class MediaPipeline:
     def _find_media_duplicate(self, source_path: Path, normalized_name: str, registry: list[dict[str, Any]]):
         from src.storage.processed_registry import sha256_file
 
-        # Exact duplicates are resolved with one sequential SHA-256 pass, avoiding
-        # the much more expensive ffmpeg probe + visual/audio sampling path.
         digest = sha256_file(source_path)
         for entry in registry:
             if entry.get("sha256") == digest and entry.get("output_folder"):

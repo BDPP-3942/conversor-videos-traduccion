@@ -83,12 +83,13 @@ class RcloneStorageProvider(StorageProvider):
     def list_children(self, parent: str) -> list[StorageFile]:
         return [
             StorageFile(
-                id=f"{parent.rstrip('/')}/{item['Name']}",
-                name=item["Name"],
-                is_directory=bool(item.get("IsDir")),
+                id=f"{parent.rstrip('/')}/{item['Name']}", name=item["Name"], is_directory=bool(item.get("IsDir"))
             )
             for item in self._items(parent)
         ]
+
+    def delete_folder(self, parent: str, name: str) -> None:
+        self._run(["purge", f"{self.remote}:{parent.rstrip('/')}/{name}"])
 
     def rename_output_folder(
         self, target: str, old_name: str, new_name: str, original_transcript_subdir: str

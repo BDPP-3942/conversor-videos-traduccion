@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.4.0] — Clean Video Regeneration and Release Hardening
+
+**Tipo:** MINOR — nueva operación de regeneración limpia compatible con el pipeline existente, acompañada de endurecimiento de release, gobernanza y packaging/documentación.
+
+### Added
+
+- `video-translation-regenerate` como entry point para regenerar resultados de vídeo existentes desde la fuente original.
+- Regeneración limpia basada en el `MediaPipeline` común, sin crear un pipeline audiovisual alternativo.
+- Backup previo de resultados derivados y restauración ante fallo cuando el backend permite rename.
+- Limpieza de backups únicamente después de una regeneración exitosa.
+- Validación del entry point de regeneración en CI y packaging.
+- Reglas de gobernanza del repositorio mediante `CONTRIBUTING.md`.
+
+### Fixed / Hardened
+
+- Se retira el workflow puntual de formateo que modificaba ramas; el formateo queda como comprobación de CI.
+- Se alinea la metadata del paquete con `1.4.0` para la candidata de release.
+
+### Validation status
+
+Esta entrada describe el contenido previsto de la release candidata. La aprobación definitiva requiere que el SHA candidato tenga una ejecución CI completa y satisfactoria y que los gates de seguridad, tests, packaging, documentación y versionado estén cerrados.
+
 ## [1.3.0] — Safe Resource-Aware Video Concurrency
 
 **Tipo:** MINOR — nueva gestión adaptativa de concurrencia compatible hacia atrás.

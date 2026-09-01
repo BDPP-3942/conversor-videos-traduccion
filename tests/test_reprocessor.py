@@ -56,6 +56,13 @@ class FakeStorage(StorageProvider):
             for item in sorted(path.iterdir(), key=lambda item: item.name)
         ]
 
+    def delete_folder(self, parent: str, name: str) -> None:
+        import shutil
+
+        folder = self._path(parent) / name
+        if folder.is_dir():
+            shutil.rmtree(folder)
+
 
 def _settings() -> AppSettings:
     return AppSettings(
@@ -192,8 +199,6 @@ def test_invalid_timestamps_do_not_replace_previous_vtt(tmp_path: Path):
 
 
 def test_duplicate_structural_inventory_example_is_self_contained():
-    # This mirrors the relevant real-world case without depending on an
-    # external file that may not exist in CI.
     inventory = """
     wetransfer_curso37_7o-opt-taich-bombeos-mp4_2026-07-20_1135.zip
         20 peng.mp4
@@ -285,9 +290,6 @@ def test_reprocess_all_continues_after_one_folder_failure(tmp_path: Path):
         calls = 0
 
         def transcribe(self, media_path: Path):
-            # reprocess_all() deliberately isolates folders. Make the first
-            # candidate succeed and the second fail so the test verifies that
-            # one bad folder does not abort the batch.
             type(self).calls += 1
             if type(self).calls == 1:
                 return [{"start": 0, "end": 1, "text": "ok"}]

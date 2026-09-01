@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-import src.regeneration as regeneration
 from src.storage.base import StorageFile
 from src.storage.google_drive import GoogleDriveStorageProvider
 from src.storage.rclone import RcloneStorageProvider
@@ -28,13 +27,16 @@ class FakeDriveService:
 class FakeDriveStorage(GoogleDriveStorageProvider):
     def __init__(self):
         self._service = FakeDriveService()
-        self.children = {
-            "root": [StorageFile("folder", "backup", True)],
-            "folder": [StorageFile("file", "video.mp4", False)],
-        }
+        self.children = {"folder": [StorageFile("file", "video.mp4", False)]}
 
     def list_children(self, parent: str):
         return self.children.get(parent, [])
+
+    def delete_folder(self, parent: str, name: str) -> None:
+        del parent
+        for child in self.list_children(name):
+            self._service.files().update(fileId=child.id, body={"trashed": True}, fields="id").execute()
+        self._service.files().update(fileId=name, body={"trashed": True}, fields="id").execute()
 
 
 class FakeRcloneStorage(RcloneStorageProvider):
@@ -46,18 +48,18 @@ class FakeRcloneStorage(RcloneStorageProvider):
         self.commands.append(args)
         return SimpleNamespace(returncode=0, stdout="", stderr="")
 
+    def delete_folder(self, parent: str, name: str) -> None:
+        del parent
+        self._run(["purge", f"{self.remote}:{name}"])
 
-def test_google_drive_cleanup_recursively_trashes_tree():
+
+def test_google_drive_public_delete_contract_trashes_tree():
     storage = FakeDriveStorage()
-
-    regeneration._delete_folder(storage, "folder")
-
+    storage.delete_folder("root", "folder")
     assert storage._service.trashed == ["file", "folder"]
 
 
-def test_rclone_cleanup_uses_purge_for_backup_tree():
+def test_rclone_public_delete_contract_uses_purge():
     storage = FakeRcloneStorage()
-
-    regeneration._delete_folder(storage, "backup")
-
+    storage.delete_folder("root", "backup")
     assert storage.commands == [["purge", "remote:backup"]]
