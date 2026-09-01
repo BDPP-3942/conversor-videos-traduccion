@@ -82,7 +82,7 @@ def _fixture(tmp_path: Path, invalid_original: bool, invalid_translation: bool):
     (folder / "37x02_Tema.mp4").write_bytes(b"mp4")
     if invalid_original:
         (original_dir / "37x02_Tema_original.vtt").write_text(
-            "WEBVTT\n\n00:00:00.000 --> 00:00:00.000\nhola\n",
+            "WEBVTT\n\n00:00:01.000 --> 00:00:00.000\nhola\n",
             encoding="utf-8",
         )
     else:
@@ -164,3 +164,14 @@ def test_valid_subtitles_are_not_regenerated(tmp_path: Path, monkeypatch):
     assert result["status"] == "valid"
     assert result["original_repaired"] is False
     assert result["translated_repaired"] is False
+
+
+def test_zero_duration_cue_is_accepted_by_repair_validation(tmp_path: Path):
+    storage, folder = _fixture(tmp_path, False, False)
+    original = folder / "original_transcriptions" / "37x02_Tema_original.vtt"
+    original.write_text("WEBVTT\n\n00:00:01.000 --> 00:00:01.000\nhola\n", encoding="utf-8")
+
+    result = repair_output_subtitles(storage, _settings(), str(folder))
+
+    assert result["status"] == "valid"
+    assert result["original_repaired"] is False
