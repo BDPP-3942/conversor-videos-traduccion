@@ -109,6 +109,29 @@ def _run_regeneration(config: Path, storage_dir: Path) -> _ProcessResult:
     return _spawn([executable, "--config", str(config)], _env(storage_dir))
 
 
+def _run_regeneration_wrapper(config: Path, storage_dir: Path) -> _ProcessResult:
+    if os.name == "nt":
+        pytest.skip("POSIX wrapper E2E requires a POSIX shell")
+    script = ROOT / "scripts" / "run_local.sh"
+    venv = ROOT / ".venv"
+    python_link = venv / "bin" / "python"
+    created = False
+    try:
+        if not python_link.exists():
+            python_link.parent.mkdir(parents=True, exist_ok=True)
+            python_link.symlink_to(Path(sys.executable))
+            created = True
+        return _spawn([str(script), "regenerate", "--config", str(config)], _env(storage_dir))
+    finally:
+        if created:
+            python_link.unlink(missing_ok=True)
+            try:
+                python_link.parent.rmdir()
+                venv.rmdir()
+            except OSError:
+                pass
+
+
 def _json_output(result: _ProcessResult) -> dict:
     starts = [
         index
@@ -239,7 +262,7 @@ def test_e2e_real_pipeline_and_regeneration_success(tmp_path: Path):
     output = outputs[0]
     old_mtime = output.stat().st_mtime_ns
 
-    regenerated = _run_regeneration(config, tmp_path / "storage")
+    regenerated = _run_regeneration_wrapper(config, tmp_path / "storage")
 
     assert regenerated.returncode == 0, regenerated.stdout
     payload = _json_output(regenerated)

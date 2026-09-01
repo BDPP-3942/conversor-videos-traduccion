@@ -1,40 +1,35 @@
-# Release Scope — 1.4.0
+# Release Scope — 1.4.1
 
 ## Previous release
 
-`v1.3.0` → `620af6acbe3fca7d42ccd57f3585b3952cccf0a7`.
+`v1.4.0` → `ce1da6ea69a89f5a789c0670b200d6038f1a746d`.
 
 The tag is historical and MUST NOT be moved, deleted, or reused.
 
-## Changes since v1.3.0
+## Changes since v1.4.0
 
-The 1.4.0 release candidate is the coherent set of changes represented by PR #24, PR #25 and PR #26, including the hardening required by #27 and #28.
+The 1.4.1 corrective release is intentionally narrow. PR #29 already integrated the existing clean-regeneration operation into the local execution wrappers. The final release-validation PR aligns the release evidence with that implementation and adds direct subprocess coverage for the POSIX wrapper.
 
-## Features entering 1.4.0
+## Corrective scope
 
-- Explicit clean regeneration from the original source through the common `MediaPipeline`.
-- Backup-before-regeneration and rollback-on-failure semantics where the storage backend supports the required operations.
-- `video-translation-regenerate` package entry point.
-- Repository governance and release hygiene.
-
-## Fixes / hardening entering 1.4.0
-
-- Safe concurrency enforcement for CLI overrides.
-- Regeneration safety and provider consistency.
-- Security/static-analysis quality.
-- Reproducible packaging and documentation/version convergence.
+- `scripts/run_local.sh regenerate` dispatches to the existing `src.regeneration` implementation.
+- `scripts/run_local.bat regenerate` dispatches to the same existing implementation on Windows.
+- Regeneration continues to use the common `MediaPipeline` and public `StorageProvider` contract.
+- Existing hardware-safe concurrency remains authoritative through `safe_parallelism()`; scripts do not duplicate it.
+- Release E2E documentation and candidate evidence are aligned with the actual 1.4.1 code.
 
 ## Validation state
 
-- `pyproject.toml` declares version `1.4.0`.
-- README and release/versioning documentation identify `1.3.0` as the previous published release and `1.4.0` as the current candidate.
-- #27 and #28 are resolved and closed after validation.
-- CI has validated the candidate branch head with the complete configured release checks.
-- No `v1.4.0` tag exists until the release gate is satisfied.
+- `pyproject.toml` declares version `1.4.1`.
+- README, CHANGELOG and release documentation identify `v1.4.0` as the previous published release and `1.4.1` as the corrective release.
+- #27 and #28 are resolved and closed after their demonstrated validation.
+- CI must validate the final release candidate on the exact final commit SHA.
+- No `v1.4.1` tag exists until the release gate is satisfied.
 
 ## Excluded
 
-- No changes to `v1.3.0`.
-- No retroactive reinterpretation of historical releases.
-- No speculative architecture rewrite.
-- No unrelated product feature.
+- No changes to `v1.4.0`.
+- No new media pipeline.
+- No alternative storage or rollback implementation.
+- No second concurrency algorithm.
+- No unrelated product feature or broad refactor.
