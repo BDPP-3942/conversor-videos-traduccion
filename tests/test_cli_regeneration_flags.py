@@ -10,7 +10,12 @@ from src.regeneration import build_parser
 def _run_option_names() -> set[str]:
     parser = build_main_parser()
     run_parser = parser._subparsers._group_actions[0].choices["run"]
-    return {option for action in run_parser._actions for option in action.option_strings}
+    return {
+        option
+        for action in run_parser._actions
+        for option in action.option_strings
+        if option not in {"-h", "--help"}
+    }
 
 
 def test_every_run_option_is_classified_for_regeneration() -> None:
@@ -67,8 +72,8 @@ def test_regeneration_reuses_run_help_contract() -> None:
     for option in REGENERATE_RUN_OPTIONS:
         assert option in help_text
 
-    assert "Generate the secondary WebM output" in help_text
-    assert "Do not generate the secondary WebM output" in help_text
+    assert "Force generation of the secondary WebM output" in help_text
+    assert "Prevent generation of the secondary WebM output" in help_text
 
 
 def test_run_only_options_are_not_accepted_by_regeneration() -> None:
