@@ -73,7 +73,11 @@ resume_enabled = true
 [runtime]
 auto_tune_resources = false
 run_lock_file = "{lock}"
-""".format(source=source, target=target, lock=storage / "run.lock"),
+""".format(
+            source=source.as_posix(),
+            target=target.as_posix(),
+            lock=(storage / "run.lock").as_posix(),
+        ),
         encoding="utf-8",
     )
     return config
@@ -183,9 +187,7 @@ def _fixture_dirs(config: Path) -> tuple[Path, Path]:
 def test_e2e_real_cli_dry_run_has_no_processing_side_effects(tmp_path: Path):
     config = _config(tmp_path)
     source, target = _fixture_dirs(config)
-
     result = _run("run", "--dry-run", config=config, storage_dir=tmp_path / "storage")
-
     assert result.returncode == 0, result.stdout
     assert _json_output(result)["status"] == "ready"
     assert list(source.iterdir()) == []
@@ -197,24 +199,8 @@ def test_e2e_real_cli_dry_run_has_no_processing_side_effects(tmp_path: Path):
 
 def test_e2e_real_cli_concurrency_override_is_clamped(tmp_path: Path):
     config = _config(tmp_path)
-
-    auto = _run(
-        "run",
-        "--dry-run",
-        "--parallel-videos",
-        "0",
-        config=config,
-        storage_dir=tmp_path / "storage",
-    )
-    excessive = _run(
-        "run",
-        "--dry-run",
-        "--parallel-videos",
-        "999",
-        config=config,
-        storage_dir=tmp_path / "storage",
-    )
-
+    auto = _run("run", "--dry-run", "--parallel-videos", "0", config=config, storage_dir=tmp_path / "storage")
+    excessive = _run("run", "--dry-run", "--parallel-videos", "999", config=config, storage_dir=tmp_path / "storage")
     assert auto.returncode == 0, auto.stdout
     assert excessive.returncode == 0, excessive.stdout
     auto_payload = _json_output(auto)
@@ -226,14 +212,7 @@ def test_e2e_real_cli_concurrency_override_is_clamped(tmp_path: Path):
 
 def test_e2e_real_cli_scheduled_mode_uses_same_entry_point(tmp_path: Path):
     config = _config(tmp_path)
-    result = _run(
-        "run",
-        "--scheduled",
-        "--dry-run",
-        config=config,
-        storage_dir=tmp_path / "storage",
-    )
-
+    result = _run("run", "--scheduled", "--dry-run", config=config, storage_dir=tmp_path / "storage")
     assert result.returncode == 0, result.stdout
     assert _json_output(result)["status"] == "ready"
 
@@ -243,19 +222,12 @@ def test_e2e_real_pipeline_and_regeneration_success(tmp_path: Path):
     source, target = _fixture_dirs(config)
     archive = _make_video_zip(tmp_path)
     shutil.copy2(archive, source / archive.name)
-
-    first = _run(
-        "run",
-        "--no-retain-sources",
-        config=config,
-        storage_dir=tmp_path / "storage",
-    )
+    first = _run("run", "--no-retain-sources", config=config, storage_dir=tmp_path / "storage")
     assert first.returncode == 0, first.stdout
     outputs = [path for folder in target.iterdir() if folder.is_dir() for path in folder.glob("*.mp4")]
     assert len(outputs) == 1
     output = outputs[0]
     old_mtime = output.stat().st_mtime_ns
-
     regenerated = _run_regeneration_wrapper(config, tmp_path / "storage")
     assert regenerated.returncode == 0, regenerated.stdout
     payload = _json_output(regenerated)
@@ -272,22 +244,14 @@ def test_e2e_real_regeneration_failure_rolls_back_previous_output(tmp_path: Path
     source, target = _fixture_dirs(config)
     archive = _make_video_zip(tmp_path, "rollback.zip")
     shutil.copy2(archive, source / archive.name)
-
-    first = _run(
-        "run",
-        "--no-retain-sources",
-        config=config,
-        storage_dir=tmp_path / "storage",
-    )
+    first = _run("run", "--no-retain-sources", config=config, storage_dir=tmp_path / "storage")
     assert first.returncode == 0, first.stdout
     outputs = [path for folder in target.iterdir() if folder.is_dir() for path in folder.glob("*.mp4")]
     assert len(outputs) == 1
     output = outputs[0]
     old_bytes = output.read_bytes()
-
     (source / archive.name).write_bytes(b"not a zip")
     failed = _run_regeneration(config, tmp_path / "storage")
-
     assert failed.returncode != 0
     assert output.is_file()
     assert output.read_bytes() == old_bytes
