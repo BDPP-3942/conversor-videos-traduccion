@@ -2,8 +2,21 @@ from __future__ import annotations
 
 import pytest
 
+from main import build_parser as build_main_parser
 from src.cli_run_options import REGENERATE_RUN_OPTIONS, RUN_ONLY_OPTIONS
 from src.regeneration import build_parser
+
+
+def _run_option_names() -> set[str]:
+    parser = build_main_parser()
+    run_parser = parser._subparsers._group_actions[0].choices["run"]
+    return {option for action in run_parser._actions for option in action.option_strings}
+
+
+def test_every_run_option_is_classified_for_regeneration() -> None:
+    run_options = _run_option_names()
+    classified = REGENERATE_RUN_OPTIONS | RUN_ONLY_OPTIONS
+    assert run_options - classified == set()
 
 
 def test_regeneration_accepts_all_shared_run_options() -> None:
