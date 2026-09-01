@@ -74,7 +74,11 @@ class MediaPipeline:
         results = []
         for zip_file in zips:
             try:
-                if not force_reprocess and hasattr(self.storage, "is_processed") and self.storage.is_processed(zip_file):
+                if (
+                    not force_reprocess
+                    and hasattr(self.storage, "is_processed")
+                    and self.storage.is_processed(zip_file)
+                ):
                     result = (
                         self._rename_processed_zip(zip_file, target)
                         if getattr(self.settings, "rename_processed_duplicates", True)
@@ -215,7 +219,9 @@ class MediaPipeline:
             pending = []
             for source_path, relative_source, metadata_item, normalized_name in normalized_candidates:
                 duplicate = (
-                    None if force_reprocess else self._find_media_duplicate(source_path, normalized_name, media_registry)
+                    None
+                    if force_reprocess
+                    else self._find_media_duplicate(source_path, normalized_name, media_registry)
                 )
                 if duplicate:
                     duplicate_entry = {
@@ -457,9 +463,7 @@ class MediaPipeline:
             "source": str(source_path.relative_to(extract_root)),
             "video": artifacts.mp4_path.name,
             "secondary_video": (
-                artifacts.secondary_video_path.name
-                if artifacts.secondary_video_path is not None
-                else ""
+                artifacts.secondary_video_path.name if artifacts.secondary_video_path is not None else ""
             ),
             "translated_vtt": translated_path.name,
             "original_transcription": original_path.name,
