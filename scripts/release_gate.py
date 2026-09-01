@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 import sys
 import tomllib
@@ -8,7 +9,15 @@ from pathlib import Path
 
 
 def _git(*args: str) -> str:
-    return subprocess.check_output(["git", *args], text=True).strip()
+    git_executable = shutil.which("git")
+    if git_executable is None:
+        raise RuntimeError("git executable was not found on PATH")
+    # Arguments are passed as an argv list (never through a shell); the callers
+    # below use only fixed git subcommands and validated release metadata.
+    return subprocess.check_output(  # noqa: S603
+        [git_executable, *args],
+        text=True,
+    ).strip()
 
 
 def _fail(message: str) -> None:
