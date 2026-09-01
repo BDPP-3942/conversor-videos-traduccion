@@ -24,6 +24,16 @@ def test_every_run_option_is_classified_for_regeneration() -> None:
     assert run_options - classified == set()
 
 
+def test_run_and_regeneration_expose_builtin_help() -> None:
+    main_parser = build_main_parser()
+    run_parser = main_parser._subparsers._group_actions[0].choices["run"]
+    regeneration_parser = build_parser()
+
+    for parser in (run_parser, regeneration_parser):
+        help_action = next(action for action in parser._actions if action.dest == "help")
+        assert set(help_action.option_strings) == {"-h", "--help"}
+
+
 def test_regeneration_accepts_all_shared_run_options() -> None:
     parser = build_parser()
     args = parser.parse_args(
