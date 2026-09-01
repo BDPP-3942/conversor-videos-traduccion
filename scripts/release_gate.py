@@ -12,8 +12,7 @@ def _git(*args: str) -> str:
     git_executable = shutil.which("git")
     if git_executable is None:
         raise RuntimeError("git executable was not found on PATH")
-    # Arguments are passed as an argv list (never through a shell); the callers
-    # below use only fixed git subcommands and validated release metadata.
+    # Keep subprocess invocation shell-free; Ruff S603 is suppressed only here.
     return subprocess.check_output(  # noqa: S603
         [git_executable, *args],
         text=True,
