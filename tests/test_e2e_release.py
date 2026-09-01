@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 import os
-import pty
 import shutil
+import subprocess
 import sys
 import zipfile
 from dataclasses import dataclass
@@ -21,22 +21,14 @@ class _ProcessResult:
 
 
 def _spawn(argv: list[str], env: dict[str, str]) -> _ProcessResult:
-    output = bytearray()
-    previous = os.environ.copy()
-    os.environ.clear()
-    os.environ.update(env)
-
-    def _read(fd: int) -> bytes:
-        chunk = os.read(fd, 4096)
-        output.extend(chunk)
-        return chunk
-
-    try:
-        status = pty.spawn(argv, _read)
-    finally:
-        os.environ.clear()
-        os.environ.update(previous)
-    return _ProcessResult(os.waitstatus_to_exitcode(status), output.decode(errors="replace"))
+    result = subprocess.run(
+        argv,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return _ProcessResult(result.returncode, result.stdout + result.stderr)
 
 
 def _config(tmp_path: Path) -> Path:
@@ -92,7 +84,9 @@ def _env(storage_dir: Path) -> dict[str, str]:
     env.pop("STORAGE_PROVIDER", None)
     env.pop("SOURCE_URI", None)
     env.pop("TARGET_URI", None)
-    env["PYTHONPATH"] = os.pathsep.join([str(ROOT / "tests" / "e2e_support"), str(ROOT), env.get("PYTHONPATH", "")])
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(ROOT / "tests" / "e2e_support"), str(ROOT), env.get("PYTHONPATH", "")]
+    )
     env["E2E_STORAGE_DIR"] = str(storage_dir)
     return env
 
