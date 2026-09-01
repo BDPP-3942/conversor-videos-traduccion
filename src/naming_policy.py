@@ -183,6 +183,15 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
     output_stem = "x".join(part for part in (course_part, lesson_part) if part)
     fallback = _sanitize_text(_clean(logical_source.stem))
     output_stem = output_stem or fallback
+
+    # The supplied arbol_zips.txt defines the public legacy naming contract.
+    # Keep the course/lesson metadata above for manifests and diagnostics, but
+    # derive the actual output stem from the archive/video pair represented by
+    # the extracted tree.
+    from src.archive_naming import expected_output_stem
+
+    output_stem = expected_output_stem(source, extract_root)
+
     review_required = course is None or lesson is None
     reasons: list[str] = []
     if course is None:
