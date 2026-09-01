@@ -34,8 +34,8 @@ def test_docx_context_reads_paragraph_text_without_external_dependency(tmp_path:
     document_xml = (
         b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         b'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
-        b'<w:body><w:p><w:r><w:t>Tai Chi</w:t></w:r></w:p>'
-        b'<w:p><w:r><w:t>Taijiquan</w:t></w:r></w:p></w:body></w:document>'
+        b"<w:body><w:p><w:r><w:t>Tai Chi</w:t></w:r></w:p>"
+        b"<w:p><w:r><w:t>Taijiquan</w:t></w:r></w:p></w:body></w:document>"
     )
     with ZipFile(path, "w") as archive:
         archive.writestr("word/document.xml", document_xml)
