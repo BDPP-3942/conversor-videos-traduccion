@@ -33,6 +33,7 @@ El VTT original es la fuente de verdad temporal. La traducción conserva `start/
 - Entrada/salida local, Google Drive y backends de rclone.
 - Normalización y generación audiovisual con FFmpeg.
 - STT con Whisper/faster-whisper y segmentación basada en silencios.
+- Prompt inicial de Whisper mediante texto literal o archivos `txt`, `md`, `csv` y `docx`.
 - Validación final de intervalos después de la segmentación.
 - Traducción con proveedores configurables y fallback.
 - VTT, diagnóstico y recuperación de resultados existentes.
@@ -42,7 +43,7 @@ El VTT original es la fuente de verdad temporal. La traducción conserva `start/
 - Deduplicación conservadora.
 - Concurrencia de vídeo adaptada a los recursos disponibles.
 - Regeneración limpia explícita de resultados existentes mediante el pipeline común.
-- CLI, wrappers, ejecutable y ejecución programada.
+- CLI, wrappers multiplataforma, ejecutable y ejecución programada.
 - CI, auditoría de seguridad y auditoría de dependencias.
 
 No es un editor audiovisual interactivo ni sustituye la revisión humana de traducciones o locuciones.
@@ -63,6 +64,26 @@ Para operación desatendida:
 python main.py run --scheduled
 ```
 
+## Wrappers locales
+
+Los wrappers comparten un único dispatcher para conservar exactamente los argumentos recibidos en Windows y POSIX:
+
+### Linux / macOS
+
+```bash
+./scripts/run_local.sh run --config ./config/app.toml
+./scripts/run_local.sh regenerate --config ./config/app.toml --no-webm
+```
+
+### Windows
+
+```powershell
+.\scripts\run_local.bat run --config .\config\app.toml
+.\scripts\run_local.bat regenerate --config .\config\app.toml --no-webm
+```
+
+`regenerate` elimina únicamente el subcomando del wrapper antes de invocar `src.regeneration`; no se reenvía como argumento adicional al parser Python.
+
 ## Regeneración completa
 
 Cuando necesitas volver a generar un vídeo cuyo resultado ya existe utilizando **la implementación actual completa del pipeline**, utiliza la operación explícita `REGENERATE FROM ZERO`:
@@ -74,18 +95,24 @@ video-translation-regenerate
 Los wrappers locales también exponen esta misma operación sin duplicarla:
 
 ```bash
-scripts/run_local.sh regenerate --config config/app.toml
+./scripts/run_local.sh regenerate --config config/app.toml
 ```
 
 En Windows:
 
 ```text
-scripts\run_local.bat regenerate --config config\app.toml
+.\scripts\run_local.bat regenerate --config config\app.toml
 ```
 
 La regeneración no es `resume` ni una recuperación selectiva. Localiza los resultados registrados, los aparta temporalmente mediante backup, fuerza el procesamiento desde la fuente a través de `MediaPipeline` y elimina los backups anteriores únicamente después de completar correctamente la regeneración. La fuente original se conserva. Si el procesamiento falla, los backups se restauran cuando el backend permite la operación de rename.
 
 Consulta [`docs/REGENERATION.md`](docs/REGENERATION.md) para las garantías y limitaciones específicas de local, Google Drive y rclone.
+
+## Naming de vídeos
+
+El nombre final se deriva de forma determinista del ZIP y del nombre del vídeo extraído. La política de la release se valida contra el conjunto completo de ejemplos de `arbol_zips.txt`, incluyendo cursos numéricos, cursos con prefijo textual, vídeos exclusivamente numéricos, ordinales, mayúsculas/minúsculas y nombres con caracteres especiales.
+
+Los nombres externos se convierten siempre en componentes de filesystem; la extracción ZIP ya rechaza rutas inseguras y symlinks antes de que el naming las procese.
 
 ## Reprocesado y recuperación de VTT
 
@@ -120,6 +147,8 @@ Consulta [`docs/TTS.md`](docs/TTS.md).
 
 La configuración actual usa `max_parallel_videos = 0` como AUTO. El runtime calcula un límite conservador teniendo en cuenta la configuración efectiva de Whisper, CPU, RAM disponible y, cuando corresponde, memoria GPU. Un valor positivo es un máximo solicitado y puede reducirse si supera el límite seguro; `1` mantiene un único worker.
 
+Cuando Whisper usa CUDA, el proyecto utiliza GPU para la inferencia y CPU para el trabajo auxiliar de CTranslate2; la paralelización adicional se realiza entre vídeos independientes cuando el presupuesto de recursos lo permite. No se presenta como una partición de una misma inferencia entre CPU y GPU.
+
 Esta lógica forma parte del código central y no se duplica en los scripts de ejecución.
 
 ## Almacenamiento y ejecución programada
@@ -151,7 +180,7 @@ python -m build
 pip-audit
 ```
 
-La CI además comprueba packaging, entry points, seguridad y dependencias. Consulta [`docs/CI_CD.md`](docs/CI_CD.md).
+La CI además comprueba packaging, entry points, seguridad y dependencias en Linux, Windows y macOS para Python 3.11, 3.12 y 3.13. Consulta [`docs/CI_CD.md`](docs/CI_CD.md).
 
 ## Documentación canónica
 
@@ -186,9 +215,9 @@ Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` 
 
 ## Versionado
 
-La release publicada anterior es `1.4.0` (`v1.4.0`). Esta rama prepara `1.4.1`, una patch release centrada en corregir la integración de los wrappers locales con la regeneración ya existente.
+La release publicada actual es `1.4.2` (`v1.4.2`). La siguiente release de esta rama se reservará para `1.5.0` si el Release Gate confirma la nueva capacidad de wrappers, naming y contexto Whisper como cambios compatibles de funcionalidad.
 
-`v1.4.0` apunta al commit histórico `ce1da6ea69a89f5a789c0670b200d6038f1a746d` y no se modifica.
+No se modifica el historial de releases anteriores.
 
 ## Seguridad y licencias
 
