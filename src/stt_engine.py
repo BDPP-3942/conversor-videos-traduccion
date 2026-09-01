@@ -6,7 +6,7 @@ import math
 from pathlib import Path
 from typing import Any
 
-from config.settings import AppSettings, BASE_DIR
+from config.settings import BASE_DIR, AppSettings
 from src.whisper_prompt import resolve_initial_prompt
 
 logger = logging.getLogger(__name__)
