@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import pty
 import sys
 from pathlib import Path
 
@@ -10,9 +9,9 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX shell wrapper is not executable on Windows")
 def test_run_local_regeneration_dispatches_to_existing_module():
-    if os.name == "nt":
-        pytest.skip("Shell wrapper is POSIX-specific")
+    import pty
 
     script = ROOT / "scripts" / "run_local.sh"
     venv = ROOT / ".venv"
