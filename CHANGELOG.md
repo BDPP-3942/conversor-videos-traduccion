@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.5.0] — Multiplatform wrappers, reference naming and Whisper context
+
+**Tipo:** MINOR — nuevas capacidades compatibles de ejecución multiplataforma, naming determinista basado en el árbol de referencia y configuración de contexto externo para Whisper.
+
+### Added
+
+- Dispatcher común para `run_local.sh` y `run_local.bat`, preservando exactamente los argumentos después de eliminar únicamente el subcomando del wrapper.
+- Soporte coherente de `run` y `regenerate` mediante los entry points existentes y el `MediaPipeline` común.
+- Política de naming basada en el par ZIP/vídeo extraído y validada contra el conjunto completo de ejemplos suministrado en `arbol_zips.txt`.
+- `whisper_initial_prompt` puede seguir siendo un prompt literal o apuntar a `txt`, `md`, `csv` y `docx`.
+- Soporte convencional de `palabras_contexto.<extensión>` y empaquetado del recurso de contexto.
+- CI de tests sobre Linux, Windows y macOS para Python 3.11, 3.12 y 3.13.
+
+### Whisper / hardware
+
+- Se documenta explícitamente la estrategia real de GPU+CPU: CTranslate2 ejecuta la inferencia en CUDA cuando corresponde, mientras los hilos CPU realizan trabajo auxiliar y el pipeline paraleliza vídeos independientes dentro del presupuesto de CPU/RAM/VRAM.
+- No se declara como soportada una partición de una misma inferencia Whisper entre CPU y GPU.
+- Se conserva el fallback controlado CUDA → CPU existente.
+
+### Security
+
+- Los nombres derivados de archivos externos continúan tratándose como componentes de filesystem; la extracción ZIP mantiene las validaciones contra traversal y symlinks.
+- Los archivos de contexto están limitados a 2 MiB y el lector DOCX rechaza DTD/entity declarations.
+
+### Tests / validation
+
+- Regresiones parametrizadas para todos los casos del archivo de referencia de naming.
+- Tests para forwarding de wrappers y eliminación correcta de `regenerate`/`run`.
+- Tests para contexto TXT, Markdown, CSV y DOCX.
+- CI multiplataforma y multiversión ampliada.
+
 ## [1.4.2] — Regeneration CLI contract and help alignment
 
 **Tipo:** MINOR — ampliación compatible del contrato de CLI de regeneración y documentación completa del help público.
@@ -178,33 +209,3 @@ No cambia el formato de modelos TTS, las variables de configuración, los format
 
 - Añadida la guía de instalación referenciada desde `README.md`.
 - Corregidos enlaces del índice de documentación.
-- Aclarados requisitos, dependencias opcionales, FFmpeg, TTS, modelos, proveedores, cloud, scheduler y packaging.
-- Documentado el procedimiento de actualización.
-
-## [1.0.0] — Primera release estable
-
-**Tipo:** primera release estable de esta línea.
-
-**Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
-
-### Added
-
-- Pipeline completo de procesamiento audiovisual.
-- Normalización mediante FFmpeg.
-- Transcripción con Whisper/faster-whisper.
-- Segmentación consciente de silencios y timestamps preservados.
-- Generación y reprocesado de VTT.
-- Traducción con proveedores configurables y fallback.
-- Almacenamiento local, Google Drive y rclone.
-- Manifests, reanudación e idempotencia.
-- Deduplicación conservadora.
-- TTS opcional basado en el VTT traducido y corregido.
-- Audio TTS por cue sincronizado con los intervalos del VTT.
-- MP4 TTS y WebM TTS opcional.
-- Validación de artefactos antes de completar etapas.
-- CLI, wrappers, ejecución programada y packaging.
-- Auditorías de seguridad y dependencias.
-
-## Historial anterior
-
-Antes de establecer la línea de releases de producto `1.x`, el repositorio utilizó versiones internas `4.x` y `5.x`. Esas entradas se conservan en el historial Git y no se reinterpretan retroactivamente como versiones `1.x`.
