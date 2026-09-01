@@ -35,24 +35,60 @@ No equivale a `resume`. El modo normal mantiene la idempotencia, resume y dedupl
 Después de instalar el paquete:
 
 ```bash
+video-translation-regenerate --help
 video-translation-regenerate
 ```
 
-También admite ubicaciones explícitas:
+La regeneración reutiliza el contrato de opciones de `run` para las opciones que conservan exactamente la misma semántica en `MediaPipeline`.
+
+### Opciones compartidas con `run`
+
+| Flag | Valor / default | Aplicabilidad |
+|---|---|---|
+| `--provider` | `local`, `google_drive`, `gdrive` o `rclone` | Compartida. Selecciona el backend de almacenamiento y exige URIs compatibles. Si se omite usa el provider activo de configuración. |
+| `--source` | URI | Compartida. Sustituye la fuente configurada; si se omite se usa la fuente activa. |
+| `--target` | URI | Compartida. Sustituye el destino configurado; si se omite se usa el destino activo. |
+| `--no-name-migration` | flag | Compartida. Desactiva la normalización de nombres heredados durante esta ejecución. |
+| `--parallel-videos N` | entero; `0 = AUTO` | Compartida. Solicita el máximo de workers; se aplica el mismo cálculo seguro por hardware que en `run`. |
+| `--translation-batch-size N` | entero | Compartida. Define el tamaño de lote de traducción; valores menores que 1 se normalizan al mínimo válido por el contrato común. |
+| `--whisper-beam-size N` | entero | Compartida. Ajusta el beam size de Whisper; se aplica la misma normalización que en `run`. |
+| `--whisper-cpu-threads N` | entero | Compartida. Ajusta los hilos CPU de Whisper; `0` mantiene la selección automática del runtime. |
+| `--no-ffmpeg-copy` | flag | Compartida. Desactiva el intento de conservar streams mediante copy y fuerza la configuración de reencode correspondiente. |
+| `--generate-webm` / `--no-webm` | flags mutuamente excluyentes | Compartidas. Fuerzan, respectivamente, la generación o no generación del WebM secundario. |
+
+Las definiciones anteriores no se mantienen manualmente en dos parsers: regeneración reutiliza las acciones argparse de `run`, incluyendo tipo, choices, defaults y texto de ayuda, y reutiliza la misma función de aplicación de overrides.
+
+### Opciones deliberadamente exclusivas de `run`
+
+| Flag | Motivo |
+|---|---|
+| `--scheduled` | Es un modo de ejecución desatendida del comando `run`; la regeneración ya es un entry point explícito y no necesita cambiar su contrato mediante esta flag. |
+| `--dry-run` | No existe un modo de regeneración que ejecute solamente readiness y omita la operación; aceptar la flag sin regenerar produciría una semántica distinta a `run`. |
+| `--no-retain-sources` | Contradice una garantía fundamental de regeneración: la fuente original se conserva siempre. |
+| `--no-resume` | La regeneración ya ejecuta `MediaPipeline.run(..., force_reprocess=True)`; aceptar esta flag sería redundante y podría sugerir una semántica de resume que no aplica. |
+
+Las flags exclusivas de `run` se rechazan como argumentos desconocidos por el parser de regeneración; no se aceptan y se ignoran silenciosamente.
+
+## Ejemplos
 
 ```bash
 video-translation-regenerate \
+  --provider local \
   --source local://storage/input \
-  --target local://storage/output
+  --target local://storage/output \
+  --parallel-videos 1 \
+  --translation-batch-size 10 \
+  --whisper-beam-size 5 \
+  --generate-webm
 ```
 
-La configuración del proveedor activo sigue siendo la misma que utiliza el pipeline normal.
+La configuración persistente sigue siendo la misma que utiliza el pipeline normal. Los overrides solo afectan a esta ejecución.
 
 ## Qué se conserva
 
 - El ZIP/vídeo fuente nunca se elimina ni se mueve como consecuencia de la regeneración.
 - Si la regeneración falla, los resultados anteriores se restauran cuando el proveedor permite rename.
-- La regeneración utiliza `MediaPipeline`, por lo que no existe un pipeline paralelo que omita STT, VTT, traducción, QA, TTS o generación audiovisual.
+- La regeneración utiliza `MediaPipeline`, por lo que no existe un pipeline audiovisual paralelo que omita STT, VTT, traducción, QA, TTS o generación audiovisual.
 
 ## Contrato de StorageProvider
 
