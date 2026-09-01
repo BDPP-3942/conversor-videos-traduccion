@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased] — Regeneration CLI contract and help alignment
+
+### Added
+
+- Regeneration now accepts the `run` flags whose semantics remain valid for the common `MediaPipeline`: provider, source/target, legacy-name migration, video concurrency, translation batching, Whisper beam/CPU settings, FFmpeg copy behavior and WebM selection.
+- Regeneration reuses the existing `run` argparse actions and `_apply_run_overrides` implementation instead of defining a parallel flag/configuration contract.
+- Regression coverage verifies shared flags, inherited help text, mutually exclusive WebM flags and rejection of run-only options.
+
+### Documentation
+
+- Expanded the CLI reference with the `run` flag contract and the regeneration shared/excluded classification.
+- Expanded regeneration documentation with defaults, constraints and rationale for run-only exclusions.
+
 ## [1.4.1] — Corrective Script Integration
 
 **Tipo:** PATCH — correcciones compatibles y adaptación de los scripts de ejecución a los entry points existentes.
