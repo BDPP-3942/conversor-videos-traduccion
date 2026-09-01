@@ -7,8 +7,16 @@ from scripts.run_local import main
 
 
 def test_run_local_explicit_run_preserves_arguments() -> None:
-    with patch("main.main", return_value=0) as application:
+    observed_argv: list[list[str]] = []
+
+    def _application_main() -> int:
+        observed_argv.append(sys.argv.copy())
+        return 0
+
+    with patch("main.main", side_effect=_application_main) as application:
         assert main(["run", "--config", "config/app.toml", "--no-webm"]) == 0
+
+    assert observed_argv == [["main.py", "run", "--config", "config/app.toml", "--no-webm"]]
     application.assert_called_once_with()
 
 
