@@ -61,6 +61,9 @@ def add_regenerate_run_options(parser: argparse.ArgumentParser) -> None:
         group = parser.add_mutually_exclusive_group()
         for action in webm_actions:
             group._add_action(copy.deepcopy(action))
+        # run explicitly uses None to mean "do not override the configured
+        # WebM behavior". Preserve that semantic in the regeneration parser.
+        parser.set_defaults(generate_webm=None)
 
     added: set[str] = set()
     for action in actions:
