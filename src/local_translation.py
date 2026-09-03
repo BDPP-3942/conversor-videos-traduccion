@@ -121,6 +121,10 @@ class LocalTranslationProvider:
 
     def __init__(self, settings, model_manager: LocalTranslationModelManager | None = None) -> None:
         self.settings = settings
+        configured_id = str(getattr(settings, "local_translation_model_id", MODEL_REPOSITORY))
+        configured_revision = str(getattr(settings, "local_translation_model_revision", MODEL_REVISION))
+        if configured_id != MODEL_REPOSITORY or configured_revision != MODEL_REVISION:
+            raise ValueError("The local translation provider only accepts its pinned model repository and revision")
         self.manager = model_manager or LocalTranslationModelManager(getattr(settings, "local_translation_model_dir", None))
         self.model_path = self.manager.ensure(confirm=self._confirm_download)
         self.device, self.compute_type = self._resolve_runtime()
