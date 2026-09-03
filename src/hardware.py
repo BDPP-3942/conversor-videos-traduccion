@@ -45,17 +45,12 @@ def _memory_info() -> tuple[float, float]:
 
             class MemoryStatus(ctypes.Structure):
                 _fields_ = [
-                    ("length", ctypes.c_ulong),
-                    ("memory_load", ctypes.c_ulong),
-                    ("total_phys", ctypes.c_ulonglong),
-                    ("avail_phys", ctypes.c_ulonglong),
-                    ("total_page", ctypes.c_ulonglong),
-                    ("avail_page", ctypes.c_ulonglong),
-                    ("total_virtual", ctypes.c_ulonglong),
-                    ("avail_virtual", ctypes.c_ulonglong),
+                    ("length", ctypes.c_ulong), ("memory_load", ctypes.c_ulong),
+                    ("total_phys", ctypes.c_ulonglong), ("avail_phys", ctypes.c_ulonglong),
+                    ("total_page", ctypes.c_ulonglong), ("avail_page", ctypes.c_ulonglong),
+                    ("total_virtual", ctypes.c_ulonglong), ("avail_virtual", ctypes.c_ulonglong),
                     ("avail_ext_virtual", ctypes.c_ulonglong),
                 ]
-
             status = MemoryStatus()
             status.length = ctypes.sizeof(MemoryStatus)
             if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
@@ -72,8 +67,7 @@ def _memory_info() -> tuple[float, float]:
                 return values["MemTotal:"] / 1024**2, available / 1024**2
         elif system == "Darwin":
             page_size = int(os.sysconf("SC_PAGE_SIZE"))
-            physical_pages = int(os.sysconf("SC_PHYS_PAGES"))
-            total = page_size * physical_pages / 1024**3
+            total = int(os.sysconf("SC_PHYS_PAGES")) * page_size / 1024**3
             return total, _darwin_available_memory(page_size, total)
     except (OSError, ValueError, AttributeError):
         pass
@@ -115,7 +109,7 @@ def _physical_cpus() -> int | None:
 
 
 def _probe_ctranslate2_gpu(device_index: int = 0) -> tuple[bool, str | None, str | None, str | None]:
-    """Probe the actual CTranslate2 GPU runtime instead of trusting the driver alone."""
+    """Probe the actual CTranslate2 CUDA runtime instead of trusting the driver alone."""
     try:
         import ctranslate2
     except ImportError:
@@ -141,13 +135,7 @@ def _nvidia_gpu() -> GPUInfo:
     if not binary:
         return GPUInfo(False, vendor="NVIDIA", reason="nvidia-smi not available")
     try:
-        result = subprocess.run(
-            [binary, "--query-gpu=index,name,memory.total,memory.free,driver_version", "--format=csv,noheader,nounits"],
-            capture_output=True,
-            text=True,
-            timeout=3,
-            check=True,
-        )
+        result = subprocess.run([binary, "--query-gpu=index,name,memory.total,memory.free,driver_version", "--format=csv,noheader,nounits"], capture_output=True, text=True, timeout=3, check=True)
         rows = [line.strip() for line in result.stdout.splitlines() if line.strip()]
         if not rows:
             return GPUInfo(False, vendor="NVIDIA", reason="nvidia-smi returned no GPU")
@@ -162,6 +150,7 @@ def _nvidia_gpu() -> GPUInfo:
 
 
 def _amd_gpu() -> GPUInfo | None:
+    """Detect AMD/ROCm hardware without pretending that CUDA validates a ROCm backend."""
     binary = shutil.which("rocm-smi")
     rocminfo = shutil.which("rocminfo")
     if not binary and not rocminfo:
@@ -192,8 +181,7 @@ def _amd_gpu() -> GPUInfo | None:
                     break
         except (OSError, subprocess.SubprocessError):
             pass
-    usable, runtime, backend, reason = _probe_ctranslate2_gpu(0)
-    return GPUInfo(True, "AMD", model, 0, 1, total, free, runtime=runtime, backend="rocm", usable_for_whisper=usable, reason=reason or "ROCm GPU capability verified by CTranslate2", memory_model="dedicated", memory_shared_with_system=False, whisper_device="cuda" if usable else None)
+    return GPUInfo(True, "AMD", model, 0, 1, total, free, backend="rocm", usable_for_whisper=False, reason="ROCm detected; CTranslate2/faster-whisper ROCm path is not verified", memory_model="dedicated", memory_shared_with_system=False)
 
 
 def _intel_gpu() -> GPUInfo | None:
@@ -213,8 +201,7 @@ def detect_gpu() -> GPUInfo:
     intel = _intel_gpu()
     if intel is not None:
         return intel
-    system = platform.system()
-    if system == "Darwin" and platform.machine().lower() in {"arm64", "aarch64"}:
+    if platform.system() == "Darwin" and platform.machine().lower() in {"arm64", "aarch64"}:
         return GPUInfo(True, "Apple", "Apple Silicon GPU", 0, 1, backend="metal", usable_for_whisper=False, reason="CTranslate2/faster-whisper Metal backend is not verified", memory_model="unified", memory_shared_with_system=True, whisper_device=None)
     return GPUInfo(False, reason="no supported GPU runtime detected")
 
