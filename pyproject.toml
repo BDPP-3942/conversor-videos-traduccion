@@ -4,11 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "video-translation-pipeline"
-version = "1.5.1"
+version = "1.5.2"
 description = "Local and pluggable video/audio transcription, translation and synchronized TTS pipeline"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-    "faster-whisper>=1,<2",
+    "faster-whisper>=1.2.1,<1.3",
+    "ctranslate2>=4.8.2,<4.9",
+    "sentencepiece>=0.2,<0.3",
     "webvtt-py>=0.4,<1",
     "imageio-ffmpeg>=0.6,<1",
     "python-dotenv>=1,<2",
@@ -51,6 +53,7 @@ known-first-party = ["config", "src"]
 "tests/test_media_identity.py" = ["S603"]
 "src/reprocessor.py" = ["S101"]
 "src/subtitle_qa.py" = ["S310"]
+"src/hardware.py" = ["S603"]
 
 [tool.ruff.format]
 exclude = [
