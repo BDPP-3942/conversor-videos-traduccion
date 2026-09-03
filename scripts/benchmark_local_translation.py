@@ -9,9 +9,7 @@ from src.local_translation import LocalTranslationModelManager, LocalTranslation
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Benchmark the prepared offline local translation model"
-    )
+    parser = argparse.ArgumentParser(description="Benchmark the prepared offline local translation model")
     parser.add_argument("--sentences", type=int, default=100)
     args = parser.parse_args()
     if args.sentences < 1:
@@ -28,9 +26,7 @@ def main() -> int:
     load_start = time.perf_counter()
     provider = LocalTranslationProvider(settings, manager)
     load_time = time.perf_counter() - load_start
-    texts = [
-        "Hola, ¿cómo estás? Esta es una frase de prueba para medir la traducción local."
-    ] * args.sentences
+    texts = ["Hola, ¿cómo estás? Esta es una frase de prueba para medir la traducción local."] * args.sentences
     start = time.perf_counter()
     outputs = provider.translate_batch(texts)
     total = time.perf_counter() - start

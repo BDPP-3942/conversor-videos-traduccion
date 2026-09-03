@@ -85,9 +85,7 @@ def _darwin_available_memory(page_size: int, total_gb: float) -> float:
     if not binary:
         return max(0.0, total_gb * 0.5)
     try:
-        output = subprocess.check_output(
-            [binary], text=True, stderr=subprocess.DEVNULL, timeout=2
-        )
+        output = subprocess.check_output([binary], text=True, stderr=subprocess.DEVNULL, timeout=2)
         pages: dict[str, int] = {}
         for line in output.splitlines():
             if ":" not in line:
@@ -96,9 +94,7 @@ def _darwin_available_memory(page_size: int, total_gb: float) -> float:
             value = value.strip().rstrip(".")
             if value.isdigit():
                 pages[key] = int(value)
-        free_pages = sum(
-            pages.get(key, 0) for key in ("Pages free", "Pages inactive", "Pages speculative")
-        )
+        free_pages = sum(pages.get(key, 0) for key in ("Pages free", "Pages inactive", "Pages speculative"))
         return max(0.0, min(total_gb, free_pages * page_size / 1024**3))
     except (OSError, ValueError, subprocess.SubprocessError):
         return max(0.0, total_gb * 0.5)
@@ -111,14 +107,8 @@ def _physical_cpus() -> int | None:
     if not binary:
         return None
     try:
-        output = subprocess.check_output(
-            [binary, "-p=CORE"], text=True, stderr=subprocess.DEVNULL, timeout=2
-        )
-        cores = {
-            line.strip()
-            for line in output.splitlines()
-            if line.strip() and not line.startswith("#")
-        }
+        output = subprocess.check_output([binary, "-p=CORE"], text=True, stderr=subprocess.DEVNULL, timeout=2)
+        cores = {line.strip() for line in output.splitlines() if line.strip() and not line.startswith("#")}
         return len(cores) or None
     except (OSError, ValueError, subprocess.SubprocessError):
         return None
@@ -217,9 +207,7 @@ def _amd_gpu() -> GPUInfo | None:
             pass
     if model is None and rocminfo:
         try:
-            output = subprocess.check_output(
-                [rocminfo], text=True, stderr=subprocess.DEVNULL, timeout=4
-            )
+            output = subprocess.check_output([rocminfo], text=True, stderr=subprocess.DEVNULL, timeout=4)
             for line in output.splitlines():
                 stripped = line.strip()
                 if stripped.startswith("Name:") and "gfx" not in stripped.lower():

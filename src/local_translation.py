@@ -106,10 +106,8 @@ class LocalTranslationModelManager:
             return status.path
         if confirm is None or not confirm(status):
             raise RuntimeError(
-                f"Local translation model is not ready ({status.reason}). "
-                f"Resource: {MODEL_REPOSITORY}@{MODEL_REVISION}; "
-                f"approximate size: {MODEL_SIZE_BYTES / 1024**2:.1f} MiB; "
-                f"destination: {self.model_dir}; license: {MODEL_LICENSE}. "
+                f"Local translation model is not ready ({status.reason}). Resource: {MODEL_REPOSITORY}@{MODEL_REVISION}; "
+                f"approximate size: {MODEL_SIZE_BYTES / 1024**2:.1f} MiB; destination: {self.model_dir}; license: {MODEL_LICENSE}. "
                 "Prepare it explicitly before offline processing."
             )
         self.download()
@@ -122,15 +120,10 @@ class LocalTranslationModelManager:
         if self.model_dir.is_symlink():
             raise RuntimeError(f"Refusing to replace symlinked model directory: {self.model_dir}")
         self.model_dir.parent.mkdir(parents=True, exist_ok=True)
-        temp_dir = Path(
-            tempfile.mkdtemp(prefix=f".{self.model_dir.name}-", dir=self.model_dir.parent)
-        )
+        temp_dir = Path(tempfile.mkdtemp(prefix=f".{self.model_dir.name}-", dir=self.model_dir.parent))
         try:
             for name in (*MODEL_FILES, *SMALL_MODEL_FILES):
-                url = (
-                    f"https://huggingface.co/{MODEL_REPOSITORY}/resolve/"
-                    f"{MODEL_REVISION}/{name}?download=true"
-                )
+                url = f"https://huggingface.co/{MODEL_REPOSITORY}/resolve/{MODEL_REVISION}/{name}?download=true"
                 _download_file(url, temp_dir / name, MODEL_MAX_DOWNLOAD_BYTES)
             for name, (expected_hash, expected_size) in MODEL_FILES.items():
                 path = temp_dir / name
@@ -142,9 +135,7 @@ class LocalTranslationModelManager:
                 "license": MODEL_LICENSE,
                 "files": MODEL_FILES,
             }
-            (temp_dir / "model.json").write_text(
-                json.dumps(metadata, indent=2), encoding="utf-8"
-            )
+            (temp_dir / "model.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
             if self.model_dir.exists():
                 if not self.model_dir.is_dir():
                     raise RuntimeError(f"Managed model path is not a directory: {self.model_dir}")
@@ -202,9 +193,7 @@ class LocalTranslationProvider:
             )
         )
         if configured_id != MODEL_REPOSITORY or configured_revision != MODEL_REVISION:
-            raise ValueError(
-                "The local translation provider only accepts its pinned model repository and revision"
-            )
+            raise ValueError("The local translation provider only accepts its pinned model repository and revision")
         model_dir = getattr(settings, "local_translation_model_dir", None)
         self.manager = model_manager or LocalTranslationModelManager(model_dir)
         self.model_path = self.manager.ensure(confirm=self._confirm_download)
@@ -234,20 +223,28 @@ class LocalTranslationProvider:
         return True
 
     def _resolve_runtime(self) -> tuple[str, str, int]:
-        requested_device = str(
-            getattr(
-                self.settings,
-                "local_translation_device",
-                os.getenv("LOCAL_TRANSLATION_DEVICE", "auto"),
+        requested_device = (
+            str(
+                getattr(
+                    self.settings,
+                    "local_translation_device",
+                    os.getenv("LOCAL_TRANSLATION_DEVICE", "auto"),
+                )
             )
-        ).lower().strip()
-        requested_compute = str(
-            getattr(
-                self.settings,
-                "local_translation_compute_type",
-                os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto"),
+            .lower()
+            .strip()
+        )
+        requested_compute = (
+            str(
+                getattr(
+                    self.settings,
+                    "local_translation_compute_type",
+                    os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto"),
+                )
             )
-        ).lower().strip()
+            .lower()
+            .strip()
+        )
         device_index = max(0, int(getattr(self.settings, "detected_gpu_index", 0)))
         if requested_device not in {"auto", "cpu", "cuda"}:
             raise ValueError("local_translation_device must be one of: auto, cpu, cuda")
@@ -261,9 +258,7 @@ class LocalTranslationProvider:
 
                 supported = ctranslate2.get_supported_compute_types("cuda", device_index)
                 if requested_compute not in supported:
-                    requested_compute = (
-                        "float16" if "float16" in supported else next(iter(supported))
-                    )
+                    requested_compute = "float16" if "float16" in supported else next(iter(supported))
             except (ImportError, AttributeError, RuntimeError, TypeError) as exc:
                 logger.warning("Local translation CUDA unavailable; falling back to CPU: %s", exc)
                 return "cpu", "int8", 0
@@ -298,9 +293,7 @@ class LocalTranslationProvider:
                 tokens_out = tokens_out[: tokens_out.index("</s>")]
             outputs.append(self._target.decode(tokens_out).strip())
         if len(outputs) != len(texts):
-            raise RuntimeError(
-                f"Local translation returned {len(outputs)} results for {len(texts)} inputs"
-            )
+            raise RuntimeError(f"Local translation returned {len(outputs)} results for {len(texts)} inputs")
         return outputs
 
 

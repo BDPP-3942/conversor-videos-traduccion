@@ -6,11 +6,7 @@ def test_amd_detection_does_not_probe_or_select_cuda(monkeypatch) -> None:
         return "/usr/bin/rocm-smi" if name == "rocm-smi" else None
 
     monkeypatch.setattr(hardware.shutil, "which", which)
-    output = (
-        "Card series: Radeon Test\n"
-        "Total Memory (B): 17179869184\n"
-        "Used Memory (B): 4294967296\n"
-    )
+    output = "Card series: Radeon Test\nTotal Memory (B): 17179869184\nUsed Memory (B): 4294967296\n"
     monkeypatch.setattr(
         hardware.subprocess,
         "check_output",
@@ -34,9 +30,7 @@ def test_nvidia_probe_requires_ct2_cuda_capability(monkeypatch) -> None:
     monkeypatch.setattr(
         hardware.subprocess,
         "run",
-        lambda *args, **kwargs: type(
-            "Result", (), {"stdout": "0, RTX Test, 8192, 4096, 555.00\n"}
-        )(),
+        lambda *args, **kwargs: type("Result", (), {"stdout": "0, RTX Test, 8192, 4096, 555.00\n"})(),
     )
     monkeypatch.setattr(
         hardware,
