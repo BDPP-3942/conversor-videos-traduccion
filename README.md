@@ -236,7 +236,9 @@ Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` 
 
 ## Versionado
 
-La release publicada actual es `1.5.0` (`v1.5.0`). La versión `1.5.1` corresponde a la siguiente candidata de mantenimiento y endurecimiento de ZIP/filesystem/naming. No se considera publicada hasta que exista un tag/release verificable.
+La release publicada actual es `1.5.1` (`v1.5.1`). La candidata `1.5.2` corresponde al trabajo de traducción local y endurecimiento del runtime GPU/CPU y no se considera publicada hasta que exista un tag/release verificable.
+
+La release `1.5.1` corresponde al endurecimiento de extracción ZIP y componentes de filesystem multiplataforma. El tag `v1.5.1` apunta al commit `06ee8d265b57214596f079f3bb426b9b27042b1e`.
 
 No se modifica el historial de releases anteriores.
 
