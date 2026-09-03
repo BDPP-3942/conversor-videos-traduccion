@@ -121,6 +121,7 @@ class FileNameFormatter:
     @classmethod
     def resolve_source_metadata(cls, source: Path, extract_root: Path) -> SourceNameMetadata:
         from src.naming_policy import resolve
+
         return resolve(source, extract_root)
 
     @classmethod
