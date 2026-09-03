@@ -12,7 +12,12 @@ FFmpeg is supplied through the `imageio-ffmpeg` dependency unless an explicit ex
 
 ## Install
 
-Clone the repository and create the Python environment using the setup scripts or the manual virtual-environment procedure below.
+Clone the repository:
+
+```bash
+git clone https://github.com/BDPP-3942/conversor-videos-traduccion.git
+cd conversor-videos-traduccion
+```
 
 ### macOS/Linux
 
@@ -21,13 +26,15 @@ chmod +x scripts/setup_env.sh
 ./scripts/setup_env.sh
 ```
 
+The setup script accepts exactly these optional flags: `--cloud`, `--rclone`, `--tts` and `--prefetch-whisper`.
+
 ### Windows
 
 ```bat
 scripts\setup_env.bat
 ```
 
-The setup scripts accept `--cloud`, `--rclone`, `--tts` and `--prefetch-whisper`.
+The Windows setup script accepts the same four optional flags: `--cloud`, `--rclone`, `--tts` and `--prefetch-whisper`.
 
 ### Manual virtual environment
 
@@ -41,19 +48,32 @@ python -m pip install --upgrade pip
 python -m pip install -e .
 ```
 
-## NVIDIA / Whisper
+Optional extras are declared in `pyproject.toml`:
 
-NVIDIA support is optional. The project does not assume that `nvidia-smi` alone means that Whisper can use the GPU.
+```bash
+python -m pip install -e ".[dev]"
+python -m pip install -e ".[google]"
+python -m pip install -e ".[tts]"
+python -m pip install -e ".[package]"
+```
 
-On a machine with an NVIDIA GPU, `WHISPER_DEVICE=auto` performs a runtime check of the NVIDIA driver, CUDA libraries and CTranslate2 before selecting CUDA. The project currently uses `faster-whisper>=1.2.1,<1.3` with `ctranslate2>=4.8.2,<4.9`, and the supported GPU runtime path requires CUDA 12 plus cuBLAS CUDA 12 and cuDNN 9 CUDA 12.
+They can be combined, for example `.[tts,google,dev,package]`.
 
-A full CUDA Toolkit is not required just to run the inference runtime. If the required runtime libraries are missing, an interactive Whisper initialization reports the requirements and proposed managed location (`tools/cuda/python/`) and asks for explicit confirmation before installing the NVIDIA Python runtime packages. The driver is never replaced by this installation.
+## NVIDIA/CUDA and Whisper
 
-See [`docs/CUDA.md`](CUDA.md) for the complete compatibility, diagnostic and cleanup procedure.
+NVIDIA acceleration is optional. The current project pins `faster-whisper>=1.2.1,<1.3` and `ctranslate2>=4.8.2,<4.9`. For this stack the GPU runtime path requires CUDA 12, cuBLAS for CUDA 12 and cuDNN 9 for CUDA 12.
+
+`WHISPER_DEVICE=auto` does not treat the presence of `nvidia-smi` as sufficient. At Whisper initialization the project checks the NVIDIA driver, searches for an installed CUDA Toolkit, checks the required NVIDIA runtime libraries and asks CTranslate2 whether a CUDA device and supported compute types are actually available.
+
+If an NVIDIA GPU is detected but the runtime is incomplete, an interactive execution reports the detected versions, requirements, approximate installation location and reason for failure, then asks whether the managed NVIDIA runtime should be installed. The managed libraries are placed under `tools/cuda/python/`; the NVIDIA driver is not replaced and a full CUDA Toolkit is not installed by this operation. In unattended execution no installation prompt is shown and the existing CPU fallback is used.
+
+A CUDA Toolkit installed globally is not automatically replaced or removed. It may be used when compatible, while the managed runtime can provide the required user-space libraries without modifying the global Toolkit.
+
+See [`docs/CUDA.md`](CUDA.md) for diagnostics, compatibility and cleanup.
 
 ## Configuration
 
-The default configuration is in `config/app.toml`. `.env.default` supplies environment defaults and `.env.example` documents overrides.
+The default configuration is in `config/app.toml`. `.env.default` supplies environment defaults and `.env.example` documents environment overrides.
 
 ```bash
 cp .env.example .env
@@ -67,38 +87,85 @@ copy .env.example .env
 
 Do not commit `.env`, credentials, provider profiles or model weights.
 
-## Local translation model
+## Naming and existing output migration
 
-The optional local Spanish→English model is prepared explicitly:
+The naming policy is part of the application core rather than an installation option. It separates logical course/resource metadata from physical filesystem names.
+
+The physical form is:
+
+```text
+<curso_o_contenedor>x<nombre_sanitizado>
+```
+
+`x` is the scope separator and `_` is the word separator. Physical names normalize whitespace and separator hyphens, incompatible punctuation and controls, Unicode diacritics, Windows reserved names and filesystem length. Existing output migration is controlled by the current `normalize_legacy_names` workflow setting and is designed to preserve content while moving only the affected output paths.
+
+## Runtime directories
+
+The runtime layout is:
+
+```text
+storage/
+├── input/
+├── work/
+├── output/
+│   └── _manifests/
+├── archive/
+├── failures/
+├── logs/
+└── state/
+```
+
+If a checkout lacks a directory, create it under `storage/`; logs are written to `storage/logs/pipeline.log`.
+
+Managed optional model/runtime resources are kept under `tools/` and are deliberately separate from project data.
+
+## Translation providers
+
+The default processing configuration uses the provider declared in `config/app.toml` (currently Mistral in the repository baseline) with the configured fallback chain. Provider credentials are configured through environment/profile mechanisms. See [TRANSLATION_PROVIDERS.md](TRANSLATION_PROVIDERS.md).
+
+For the optional offline local provider, prepare the pinned Spanish→English model with:
 
 ```bash
 python scripts/manage_local_translation.py status
 python scripts/manage_local_translation.py download
 ```
 
-It is stored under `tools/models/translation/`. See [`docs/LOCAL_TRANSLATION.md`](LOCAL_TRANSLATION.md) for model integrity, licensing and offline operation.
-
-## Naming and existing output migration
-
-The naming policy is part of the application core rather than an installation option. It separates logical course/resource metadata from physical filesystem names.
-
-The physical form is `<curso_o_contenedor>x<nombre_sanitizado>`, where `x` is the scope separator and `_` is the word separator. Physical names normalize whitespace and separator hyphens, incompatible punctuation and controls, Unicode diacritics, Windows reserved names and filesystem length.
-
-## Runtime directories
-
-The runtime layout includes `storage/input/`, `storage/work/`, `storage/output/`, `storage/archive/`, `storage/failures/`, `storage/logs/` and `storage/state/`. Optional managed resources are kept outside those data directories under `tools/`.
-
-## Translation providers
-
-The default processing configuration uses the provider declared in `config/app.toml` with the configured fallback chain. See `docs/TRANSLATION_PROVIDERS.md`.
+The model is stored below `tools/models/translation/`. See [LOCAL_TRANSLATION.md](LOCAL_TRANSLATION.md).
 
 ## TTS
 
-TTS is disabled by default. When enabled, install the `[tts]` extra and prepare the configured Kokoro assets. See `docs/TTS.md`.
+TTS is disabled by default. When enabled, the local provider is Kokoro through `kokoro-onnx`. The setup helper prepares the default assets when TTS is enabled:
+
+```text
+tools/tts/kokoro-v1.0.onnx
+tools/tts/voices-v1.0.bin
+```
+
+Equivalent explicit installation:
+
+```bash
+python -m pip install -e ".[tts]"
+python scripts/setup_tts.py --enable
+```
+
+Custom asset locations can be configured with `TTS_MODEL_PATH` and `TTS_VOICES_PATH`.
 
 ## Google Drive and rclone
 
-Google Drive requires the `[google]` extra and a provider profile. rclone is managed separately under `tools/rclone/` and its configuration is stored under `secrets/rclone/` by default.
+Google Drive requires the `[google]` extra and a provider profile. The interactive setup is exposed by:
+
+```bash
+python main.py provider setup-google --help
+```
+
+rclone is not a Python dependency. The project can bootstrap its managed rclone binary and then configure a remote through the provider CLI:
+
+```bash
+python main.py provider bootstrap
+python main.py provider setup-rclone --help
+```
+
+The managed binary is stored under `tools/rclone/`; its configuration is under `secrets/rclone/rclone.conf` by default.
 
 ## Validate installation
 
@@ -106,6 +173,7 @@ Google Drive requires the `[google]` extra and a provider profile. rclone is man
 python main.py doctor
 python main.py --help
 python main.py run --help
+python main.py reprocess-subtitles --help
 python main.py run --dry-run
 ```
 
@@ -120,23 +188,41 @@ python -m compileall .
 
 ## First run
 
-For local processing, place a supported video or ZIP in `storage/input/` and run `python main.py run`.
+For local processing, place a supported video or ZIP in `storage/input/` and run:
 
-## Cleanup / uninstall
+```bash
+python main.py run
+```
 
-Managed resources can be removed independently:
+The wrapper equivalents are `scripts/run_local.sh` and `scripts\\run_local.bat`.
+
+## Existing results
+
+Do not blindly reinsert already processed sources. Inspect the existing output and use the duplicate/subtitle recovery workflows when appropriate:
+
+```bash
+python main.py duplicates scan
+python main.py duplicates analyze
+python main.py reprocess-subtitles --help
+```
+
+See [RESUME.md](RESUME.md) and [SUBTITLES.md](SUBTITLES.md).
+
+## Cleanup and uninstall
+
+Project-managed resources can be removed independently:
 
 ```bash
 python scripts/manage_runtime_resources.py translation-model cleanup
 python scripts/manage_runtime_resources.py cuda cleanup
 ```
 
-These commands do not uninstall a global NVIDIA driver or CUDA Toolkit and do not delete project data. See [`docs/UNINSTALLATION.md`](UNINSTALLATION.md) for the complete procedure.
+These commands do not delete `storage/` data, source code, manifests or credentials. The CUDA cleanup only removes the project's `tools/cuda/` directory; it does not uninstall a global NVIDIA driver or CUDA Toolkit. See [UNINSTALLATION.md](UNINSTALLATION.md).
 
 ## Upgrade
 
 1. Stop scheduled execution.
-2. Back up outputs, manifests, state and provider profiles.
+2. Back up `storage/output`, `storage/archive`, `storage/state`, manifests and provider profiles.
 3. Update source with `git pull`.
 4. Update/recreate the Python environment if dependencies changed.
 5. Run `python main.py doctor` and `python main.py run --dry-run`.
@@ -147,4 +233,18 @@ Do not delete manifests or outputs during an upgrade unless a documented migrati
 
 ## Packaging
 
-See `docs/PACKAGING.md` for Windows and Linux packaging procedures and optional resource handling.
+The repository currently provides packaging scripts for Windows and Linux:
+
+```bash
+python -m pip install -e ".[package]"
+./scripts/build_linux.sh
+```
+
+Windows:
+
+```bat
+python -m pip install -e ".[package]"
+scripts\build_windows.bat
+```
+
+There is no repository packaging script for macOS at present. See [PACKAGING.md](PACKAGING.md).
