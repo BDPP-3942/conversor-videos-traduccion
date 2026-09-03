@@ -26,6 +26,14 @@ class TranslationRateLimitError(RuntimeError):
     """Provider temporarily rejected a request because of rate limiting."""
 
 
+class TranslationConfigurationError(RuntimeError):
+    """Provider cannot run because its configuration is invalid or incomplete."""
+
+
+class TranslationResourceError(RuntimeError):
+    """Provider cannot run because a required local resource is unavailable or invalid."""
+
+
 class _HttpBatchProvider:
     def __init__(self, source: str, target: str) -> None:
         self.source = source
@@ -77,14 +85,7 @@ class MistralBatchProvider(_HttpBatchProvider):
             "model": self.model,
             "temperature": 0,
             "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        f"Translate each input from {self.source} to {self.target}. Return JSON only as an object with a 'translations' array. "
-                        "The array must contain exactly one string for every input, in the same order. Do not merge, split, omit, explain, "
-                        "or add commentary. Preserve names, numbers and formatting."
-                    ),
-                },
+                {"role": "system", "content": f"Translate each input from {self.source} to {self.target}. Return JSON only as an object with a 'translations' array. The array must contain exactly one string for every input, in the same order. Do not merge, split, omit, explain, or add commentary. Preserve names, numbers and formatting."},
                 {"role": "user", "content": json.dumps(items, ensure_ascii=False)},
             ],
             "response_format": {"type": "json_object"},
@@ -238,29 +239,34 @@ def build_translation_provider(name: str, settings: AppSettings) -> TranslationP
     target = _language_code(settings.target_lang)
     if provider in {"local", "local_model", "ct2", "opus_mt"}:
         if source != "es" or target != "en":
-            raise ValueError("The bundled local translation model currently supports only es→en")
+            raise TranslationConfigurationError("The bundled local translation model currently supports only es→en")
         from src.local_translation import LocalTranslationProvider
-        return LocalTranslationProvider(settings)
+        try:
+            return LocalTranslationProvider(settings)
+        except TranslationConfigurationError:
+            raise
+        except Exception as exc:
+            raise TranslationResourceError(f"Local translation resource/runtime is unavailable: {exc}") from exc
     if provider == "mistral":
         api_key = os.getenv("MISTRAL_API_KEY", "").strip()
         if not api_key:
-            raise RuntimeError("Mistral provider requires MISTRAL_API_KEY")
+            raise TranslationConfigurationError("Mistral provider requires MISTRAL_API_KEY")
         return MistralBatchProvider(source, target, api_key, os.getenv("MISTRAL_MODEL", ""))
     if provider == "google":
         api_key = os.getenv("GOOGLE_TRANSLATE_API_KEY", "").strip()
         if not api_key:
-            raise RuntimeError("Google provider requires GOOGLE_TRANSLATE_API_KEY")
+            raise TranslationConfigurationError("Google provider requires GOOGLE_TRANSLATE_API_KEY")
         return GoogleCloudBatchProvider(source, target, api_key)
     if provider == "deepl":
         api_key = os.getenv("DEEPL_API_KEY", "").strip()
         if not api_key:
-            raise RuntimeError("DeepL provider requires DEEPL_API_KEY")
+            raise TranslationConfigurationError("DeepL provider requires DEEPL_API_KEY")
         return DeepLBatchProvider(source, target, api_key)
     if provider == "microsoft":
         api_key = os.getenv("MICROSOFT_TRANSLATOR_API_KEY", "").strip()
         if not api_key:
-            raise RuntimeError("Microsoft provider requires MICROSOFT_TRANSLATOR_API_KEY")
+            raise TranslationConfigurationError("Microsoft provider requires MICROSOFT_TRANSLATOR_API_KEY")
         return MicrosoftBatchProvider(source, target, api_key, os.getenv("MICROSOFT_TRANSLATOR_REGION", ""))
     if provider in {"mymemory", "my_memory"}:
         return MyMemoryBatchProvider(source, target, os.getenv("MYMEMORY_EMAIL", ""))
-    raise ValueError(f"Unsupported translation provider: {name}")
+    raise TranslationConfigurationError(f"Unsupported translation provider: {name}")
