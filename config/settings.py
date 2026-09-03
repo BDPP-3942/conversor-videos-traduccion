@@ -36,7 +36,7 @@ class AppSettings:
     whisper_initial_prompt: str = ""
     whisper_cpu_threads: int = 0
     translation_provider: str = "mistral"
-    translation_fallback_providers: tuple[str, ...] = ("deepl", "mymemory")
+    translation_fallback_providers: tuple[str, ...] = ("local", "deepl", "mymemory")
     translation_retries: int = 3
     translation_max_retries_per_provider: int = 3
     translation_batch_size: int = 25
@@ -45,6 +45,13 @@ class AppSettings:
     translation_max_backoff_seconds: float = 16.0
     translation_max_parallel_requests: int = 2
     translation_provider_max_parallel_requests: int = 0
+    local_translation_model_dir: Path = BASE_DIR / "tools" / "models" / "translation" / "opus-mt-es-en-ct2-int8"
+    local_translation_model_id: str = "Prukario/opus-mt-es-en-ct2-int8"
+    local_translation_model_revision: str = "ad91ad1697ea1761111ff4c179400796d085b347"
+    local_translation_device: str = "auto"
+    local_translation_compute_type: str = "auto"
+    local_translation_beam_size: int = 2
+    local_translation_auto_download: bool = False
     max_zip_depth: int = 5
     max_extracted_files: int = 10_000
     max_extracted_size_gb: float = 10.0
@@ -139,34 +146,27 @@ class AppSettings:
             whisper_compute_type=os.getenv("WHISPER_COMPUTE_TYPE", cls.whisper_compute_type),
             whisper_beam_size=int(os.getenv("WHISPER_BEAM_SIZE", cls.whisper_beam_size)),
             whisper_vad_filter=os.getenv("WHISPER_VAD_FILTER", "true").lower() == "true",
-            whisper_min_silence_duration_ms=int(
-                os.getenv("WHISPER_MIN_SILENCE_DURATION_MS", cls.whisper_min_silence_duration_ms)
-            ),
+            whisper_min_silence_duration_ms=int(os.getenv("WHISPER_MIN_SILENCE_DURATION_MS", cls.whisper_min_silence_duration_ms)),
             whisper_condition_on_previous_text=condition_env.lower() == "true",
             whisper_initial_prompt=os.getenv("WHISPER_INITIAL_PROMPT", cls.whisper_initial_prompt),
             whisper_cpu_threads=int(os.getenv("WHISPER_CPU_THREADS", cls.whisper_cpu_threads)),
             translation_provider=os.getenv("TRANSLATION_PROVIDER", cls.translation_provider),
             translation_fallback_providers=fallback,
             translation_retries=int(os.getenv("TRANSLATION_RETRIES", cls.translation_retries)),
-            translation_max_retries_per_provider=int(
-                os.getenv("TRANSLATION_MAX_RETRIES_PER_PROVIDER", cls.translation_max_retries_per_provider)
-            ),
+            translation_max_retries_per_provider=int(os.getenv("TRANSLATION_MAX_RETRIES_PER_PROVIDER", cls.translation_max_retries_per_provider)),
             translation_batch_size=int(os.getenv("TRANSLATION_BATCH_SIZE", cls.translation_batch_size)),
-            translation_retry_delay_seconds=float(
-                os.getenv("TRANSLATION_RETRY_DELAY_SECONDS", cls.translation_retry_delay_seconds)
-            ),
-            translation_min_request_interval_seconds=float(
-                os.getenv("TRANSLATION_MIN_REQUEST_INTERVAL_SECONDS", cls.translation_min_request_interval_seconds)
-            ),
-            translation_max_backoff_seconds=float(
-                os.getenv("TRANSLATION_MAX_BACKOFF_SECONDS", cls.translation_max_backoff_seconds)
-            ),
-            translation_max_parallel_requests=int(
-                os.getenv("TRANSLATION_MAX_PARALLEL_REQUESTS", cls.translation_max_parallel_requests)
-            ),
-            translation_provider_max_parallel_requests=int(
-                os.getenv("TRANSLATION_PROVIDER_MAX_PARALLEL_REQUESTS", cls.translation_provider_max_parallel_requests)
-            ),
+            translation_retry_delay_seconds=float(os.getenv("TRANSLATION_RETRY_DELAY_SECONDS", cls.translation_retry_delay_seconds)),
+            translation_min_request_interval_seconds=float(os.getenv("TRANSLATION_MIN_REQUEST_INTERVAL_SECONDS", cls.translation_min_request_interval_seconds)),
+            translation_max_backoff_seconds=float(os.getenv("TRANSLATION_MAX_BACKOFF_SECONDS", cls.translation_max_backoff_seconds)),
+            translation_max_parallel_requests=int(os.getenv("TRANSLATION_MAX_PARALLEL_REQUESTS", cls.translation_max_parallel_requests)),
+            translation_provider_max_parallel_requests=int(os.getenv("TRANSLATION_PROVIDER_MAX_PARALLEL_REQUESTS", cls.translation_provider_max_parallel_requests)),
+            local_translation_model_dir=Path(os.getenv("LOCAL_TRANSLATION_MODEL_DIR", cls.local_translation_model_dir)),
+            local_translation_model_id=os.getenv("LOCAL_TRANSLATION_MODEL_ID", cls.local_translation_model_id),
+            local_translation_model_revision=os.getenv("LOCAL_TRANSLATION_MODEL_REVISION", cls.local_translation_model_revision),
+            local_translation_device=os.getenv("LOCAL_TRANSLATION_DEVICE", cls.local_translation_device),
+            local_translation_compute_type=os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", cls.local_translation_compute_type),
+            local_translation_beam_size=int(os.getenv("LOCAL_TRANSLATION_BEAM_SIZE", cls.local_translation_beam_size)),
+            local_translation_auto_download=os.getenv("LOCAL_TRANSLATION_AUTO_DOWNLOAD", "false").lower() == "true",
             max_zip_depth=int(os.getenv("MAX_ZIP_DEPTH", cls.max_zip_depth)),
             max_extracted_files=int(os.getenv("MAX_EXTRACTED_FILES", cls.max_extracted_files)),
             max_extracted_size_gb=float(os.getenv("MAX_EXTRACTED_SIZE_GB", cls.max_extracted_size_gb)),
@@ -195,15 +195,9 @@ class AppSettings:
             rename_processed_duplicates=os.getenv("RENAME_PROCESSED_DUPLICATES", "true").lower() == "true",
             automatic_output_deduplication=os.getenv("AUTOMATIC_OUTPUT_DEDUPLICATION", "false").lower() == "true",
             max_parallel_videos=int(os.getenv("MAX_PARALLEL_VIDEOS", cls.max_parallel_videos)),
-            duplicate_name_similarity_threshold=float(
-                os.getenv("DUPLICATE_NAME_SIMILARITY_THRESHOLD", cls.duplicate_name_similarity_threshold)
-            ),
-            duplicate_duration_tolerance_seconds=float(
-                os.getenv("DUPLICATE_DURATION_TOLERANCE_SECONDS", cls.duplicate_duration_tolerance_seconds)
-            ),
-            duplicate_visual_similarity_threshold=float(
-                os.getenv("DUPLICATE_VISUAL_SIMILARITY_THRESHOLD", cls.duplicate_visual_similarity_threshold)
-            ),
+            duplicate_name_similarity_threshold=float(os.getenv("DUPLICATE_NAME_SIMILARITY_THRESHOLD", cls.duplicate_name_similarity_threshold)),
+            duplicate_duration_tolerance_seconds=float(os.getenv("DUPLICATE_DURATION_TOLERANCE_SECONDS", cls.duplicate_duration_tolerance_seconds)),
+            duplicate_visual_similarity_threshold=float(os.getenv("DUPLICATE_VISUAL_SIMILARITY_THRESHOLD", cls.duplicate_visual_similarity_threshold)),
             ffmpeg_avoid_reencode=os.getenv("FFMPEG_AVOID_REENCODE", "true").lower() == "true",
             tts_enabled=os.getenv("TTS_ENABLED", "false").lower() == "true",
             tts_required=os.getenv("TTS_REQUIRED", "false").lower() == "true",
