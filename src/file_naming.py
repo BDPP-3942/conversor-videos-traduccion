@@ -74,8 +74,27 @@ class FileNameFormatter:
         re.compile(r"[_\-]+copy\s*$", re.IGNORECASE),
     )
     GENERIC_TOKENS = {
-        "mp4", "wmv", "video", "videos", "audio", "media", "file", "files", "archivo", "archivos", "download",
-        "downloads", "descarga", "descargas", "compressed", "compression", "archive", "archivo_comprimido", "zip", "rar", "7z",
+        "mp4",
+        "wmv",
+        "video",
+        "videos",
+        "audio",
+        "media",
+        "file",
+        "files",
+        "archivo",
+        "archivos",
+        "download",
+        "downloads",
+        "descarga",
+        "descargas",
+        "compressed",
+        "compression",
+        "archive",
+        "archivo_comprimido",
+        "zip",
+        "rar",
+        "7z",
     }
     FILENAME_ARTIFACT_PATTERN = re.compile(
         r"(?:^|[_\- .])(?:\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?)(?:[_\- .]|$)",
@@ -293,7 +312,12 @@ def normalized_name_similarity(left: str, right: str) -> float:
     return 0.65 * sequence_score + 0.35 * token_score
 
 
-def fit_output_stem(stem: str, parent: Path, unique_suffix: str | None = None, reserve_suffixes: tuple[str, ...] = ()) -> str:
+def fit_output_stem(
+    stem: str,
+    parent: Path,
+    unique_suffix: str | None = None,
+    reserve_suffixes: tuple[str, ...] = (),
+) -> str:
     """Sanitize and fit a generated output stem to the host filesystem.
 
     This is the final physical-name boundary for generated output. The caller may
