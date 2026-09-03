@@ -1,4 +1,5 @@
 from pathlib import Path
+from warnings import catch_warnings, simplefilter
 from zipfile import ZipFile
 
 import pytest
@@ -53,8 +54,10 @@ def test_case_and_unicode_normalization_collision_is_rejected(tmp_path: Path) ->
 
 def test_duplicate_logical_paths_are_rejected(tmp_path: Path) -> None:
     archive = tmp_path / "duplicate.zip"
-    with ZipFile(archive, "w") as handle:
-        handle.writestr("lesson.txt", b"first")
-        handle.writestr("lesson.txt", b"second")
+    with catch_warnings():
+        simplefilter("ignore", UserWarning)
+        with ZipFile(archive, "w") as handle:
+            handle.writestr("lesson.txt", b"first")
+            handle.writestr("lesson.txt", b"second")
     with pytest.raises(ValueError, match="ZIP path collision"):
-        extractor().extract_zip(archive, tmp_path / "out")
+        extractor().extract_zip(archive, tmp_path / "dupout")
