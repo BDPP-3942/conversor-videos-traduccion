@@ -3,72 +3,102 @@
 La configuración predeterminada del proyecto es:
 
 ```text
-Mistral → Local CTranslate2 → DeepL → MyMemory
+Mistral → DeepL → MyMemory
 ```
 
-El provider local es autocontenido para el caso `es→en`: no requiere API, Ollama ni LM Studio una vez preparado el modelo. Los proveedores remotos continúan disponibles como alternativas configurables.
-
-## Proveedor local
-
-Modelo seleccionado y fijado:
-
-```text
-Repository: Prukario/opus-mt-es-en-ct2-int8
-Revision: ad91ad1697ea1761111ff4c179400796d085b347
-Runtime: CTranslate2 4.8.x + SentencePiece
-Quantization: INT8
-Idiomas: es → en
-Tamaño aproximado: 82.5 MB
-Licencia publicada del modelo: CC-BY-4.0
-```
-
-La conversión publicada es de Helsinki-NLP `opus-mt-es-en`; el modelo base oficial figura bajo Apache-2.0, mientras que la conversión distribuida seleccionada declara CC-BY-4.0. La distribución del modelo convertido debe conservar la atribución correspondiente.
-
-Los ficheros principales `model.bin`, `source.spm` y `target.spm` se validan mediante tamaño y SHA-256 antes de cargarse. También se exige la presencia de los metadatos de CTranslate2 necesarios. Los recursos se guardan bajo:
-
-```text
-tools/models/translation/opus-mt-es-en-ct2-int8/
-```
-
-Preparación:
-
-```bash
-python scripts/manage_local_translation.py status
-python scripts/manage_local_translation.py download
-```
-
-La descarga se realiza únicamente desde HTTPS en el repositorio/revisión fijados. Se descarga a un directorio temporal y se reemplaza atómicamente el modelo anterior solo después de completar la descarga. Las descargas parciales se conservan en `.part` para permitir reanudación cuando el servidor soporte Range.
+El objetivo es que una instalación personal pueda funcionar sin Google Cloud ni Azure. Las credenciales son opcionales por proveedor: Mistral necesita `MISTRAL_API_KEY`, DeepL necesita `DEEPL_API_KEY` y MyMemory puede funcionar sin clave.
 
 ## Configuración
 
 ```env
 TRANSLATION_PROVIDER=mistral
-TRANSLATION_FALLBACK_PROVIDERS=local,deepl,mymemory
-LOCAL_TRANSLATION_MODEL_DIR=tools/models/translation/opus-mt-es-en-ct2-int8
-LOCAL_TRANSLATION_DEVICE=auto
-LOCAL_TRANSLATION_COMPUTE_TYPE=auto
-LOCAL_TRANSLATION_BEAM_SIZE=2
-LOCAL_TRANSLATION_AUTO_DOWNLOAD=false
+TRANSLATION_FALLBACK_PROVIDERS=deepl,mymemory
+MISTRAL_API_KEY=...
+MISTRAL_MODEL=mistral-small-latest
+DEEPL_API_KEY=...
+MYMEMORY_EMAIL=...
 ```
 
-`LOCAL_TRANSLATION_AUTO_DOWNLOAD=false` es intencionado: la ejecución normal no inicia una descarga costosa sin consentimiento. En una sesión interactiva puede habilitarse y el provider pedirá confirmación mostrando recurso, revisión, tamaño, destino, motivo y licencia. Para preparación explícita se recomienda el script de gestión.
+`MYMEMORY_EMAIL` es opcional. Si se proporciona, el cliente envía el parámetro `de` de MyMemory y el control local utiliza la cuota registrada conservadora; si no se proporciona, utiliza la cuota anónima conservadora.
 
-## Ollama y LM Studio
+## Límites locales
 
-Ollama y LM Studio no son requisitos ni forman parte del provider local incorporado. Pueden añadirse como providers HTTP independientes en el futuro, pero su ausencia no impide utilizar la traducción local autocontenida.
+El proyecto no intenta adivinar límites que el proveedor pueda cambiar. Los límites de volumen que sí son suficientemente estables para proteger los planes gratuitos se controlan localmente:
 
-## Fallback
+| Proveedor | Control local | Valor conservador | Ventana |
+|---|---|---:|---|
+| Mistral | rate/concurrency | 2 requests concurrentes | continuo |
+| DeepL | caracteres | 500.000 caracteres | mes |
+| DeepL | rate/concurrency | 2 requests concurrentes | continuo |
+| MyMemory anónimo | requests | 100 requests | día |
+| MyMemory con email | requests | 1.000 requests | día |
+| MyMemory | rate/concurrency | 1 request concurrente | continuo |
 
-El orden de fallback se configura mediante `TRANSLATION_FALLBACK_PROVIDERS`. El orquestador mantiene el mapping por índice de segmento: un provider puede traducir solo los segmentos que permanecen sin resolver y el resultado se vuelve a asociar al cue original. Los errores de cuota, rate limit, timeout y servicio temporal se registran de forma diferenciada; los errores permanentes también pueden provocar el siguiente provider cuando el contrato del orquestador los clasifica como recuperables.
+Los valores de concurrencia son **límites de seguridad del cliente**, no una afirmación de que el proveedor garantice exactamente ese número de requests paralelas. Se pueden reducir si una cuenta recibe 429.
 
-## Providers remotos
+## Batching
 
-Las credenciales son específicas por proveedor: Mistral necesita `MISTRAL_API_KEY`, DeepL necesita `DEEPL_API_KEY` y MyMemory puede funcionar sin clave. Google y Microsoft siguen disponibles mediante su configuración existente.
+El pipeline traduce en lotes para reducir el número de requests:
 
-## Batching y concurrencia
+- Mistral: hasta 25 segmentos por request por defecto.
+- DeepL: hasta 25 segmentos por request por defecto.
+- MyMemory: 1 segmento por request.
 
-El pipeline traduce en lotes y reutiliza la instancia del provider durante la ejecución. El mapping por índice evita depender del orden de finalización de requests concurrentes. Los límites conservadores por proveedor continúan aplicándose a los servicios remotos; el provider local no necesita rate limiting de red.
+El parámetro global es:
+
+```env
+TRANSLATION_BATCH_SIZE=25
+```
+
+El cliente nunca permite que esta opción supere su límite seguro específico de proveedor.
+
+## Concurrencia
+
+Hay dos controles:
+
+```env
+TRANSLATION_MAX_PARALLEL_REQUESTS=2
+TRANSLATION_PROVIDER_MAX_PARALLEL_REQUESTS=0
+```
+
+El primero limita la concurrencia global de traducción. El segundo, cuando es mayor que `0`, sustituye el límite conservador por proveedor.
+
+Por defecto:
+
+```text
+Mistral   2
+DeepL     2
+MyMemory  1
+```
+
+No se recomienda aumentar `TRANSLATION_PROVIDER_MAX_PARALLEL_REQUESTS` en una cuenta gratuita sin comprobar primero los límites actuales del proveedor.
+
+## Rate limiting y retry
+
+Cada proveedor mantiene su propio reloj de intervalo mínimo. Los errores `429` se distinguen de errores de cuota/autorización. Los reintentos utilizan backoff exponencial con jitter y, si el proveedor sigue sin estar disponible, el lote pasa al siguiente proveedor.
+
+La configuración predeterminada es:
+
+```env
+TRANSLATION_RETRIES=3
+TRANSLATION_MAX_RETRIES_PER_PROVIDER=3
+TRANSLATION_RETRY_DELAY_SECONDS=1.5
+TRANSLATION_MIN_REQUEST_INTERVAL_SECONDS=0.5
+TRANSLATION_MAX_BACKOFF_SECONDS=16
+```
+
+## Persistencia de cuota
+
+El consumo reservado se guarda en:
+
+```text
+storage/state/translation_quotas.json
+```
+
+Esto evita que una segunda ejecución del proceso ignore el consumo realizado por una ejecución anterior. Las reservas se hacen antes de enviar una request y se mantienen de forma conservadora si esa request termina fallando.
 
 ## Privacidad
 
-El provider local procesa los textos dentro de la máquina. Los providers remotos solo reciben el texto necesario para traducir; timestamps y estructura VTT se conservan localmente.
+El proyecto no envía timestamps ni estructura VTT al proveedor como datos de control. Se envía únicamente el texto de los segmentos necesario para traducirlo y la respuesta se vuelve a asociar a los segmentos originales. Los timestamps `start`/`end` se conservan localmente.
+
+La política de privacidad concreta de cada proveedor debe comprobarse antes de utilizarlo con contenido sensible; este documento describe el comportamiento técnico del cliente y no sustituye los términos del proveedor.

@@ -48,7 +48,7 @@ def test_detected_gpu_without_runtime_is_not_selected():
     assert profile.whisper_device == "cpu"
 
 
-def test_amd_gpu_detection_remains_informational_without_verified_whisper_backend():
+def test_amd_gpu_can_be_selected_when_runtime_probe_is_successful():
     gpu = GPUInfo(
         available=True,
         vendor="AMD",
@@ -59,14 +59,13 @@ def test_amd_gpu_detection_remains_informational_without_verified_whisper_backen
         vram_free_gb=12.0,
         runtime="test",
         backend="rocm",
-        usable_for_whisper=False,
-        whisper_device=None,
-        reason="AMD/ROCm detected, but Whisper GPU backend is not verified",
+        usable_for_whisper=True,
+        whisper_device="cuda",
     )
     settings = AppSettings(whisper_model="medium", whisper_device="auto", whisper_compute_type="auto")
     profile = build_profile(settings, hardware(gpu=gpu))
-    assert profile.whisper_device == "cpu"
-    assert profile.whisper_compute_type == "int8"
+    assert profile.whisper_device == "cuda"
+    assert profile.whisper_compute_type == "float16"
 
 
 def test_apple_unified_memory_is_not_double_counted_as_vram():
