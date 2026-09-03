@@ -209,7 +209,7 @@ def _download_file(url: str, destination: Path, max_bytes: int) -> None:
         headers["Range"] = f"bytes={offset}-"
     request = urllib.request.Request(url, headers=headers)
     try:
-        with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310
+        with urllib.request.urlopen(request, timeout=60) as response:
             resumed = offset > 0 and getattr(response, "status", None) == 206
             if not resumed:
                 offset = 0
