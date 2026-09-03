@@ -106,8 +106,10 @@ class LocalTranslationModelManager:
             return status.path
         if confirm is None or not confirm(status):
             raise RuntimeError(
-                f"Local translation model is not ready ({status.reason}). Resource: {MODEL_REPOSITORY}@{MODEL_REVISION}; "
-                f"approximate size: {MODEL_SIZE_BYTES / 1024**2:.1f} MiB; destination: {self.model_dir}; license: {MODEL_LICENSE}. "
+                f"Local translation model is not ready ({status.reason}). "
+                f"Resource: {MODEL_REPOSITORY}@{MODEL_REVISION}; "
+                f"approximate size: {MODEL_SIZE_BYTES / 1024**2:.1f} MiB; "
+                f"destination: {self.model_dir}; license: {MODEL_LICENSE}. "
                 "Prepare it explicitly before offline processing."
             )
         self.download()
