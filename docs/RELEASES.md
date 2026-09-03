@@ -25,121 +25,71 @@ La versión del proyecto no debe incrementarse por cada commit de formato o CI. 
 | Regeneración limpia explícita de resultados existentes | `1.4.0` |
 | Integración de la regeneración existente en los wrappers locales | `1.4.1` |
 | Wrappers multiplataforma con forwarding exacto, naming de referencia y contexto externo de Whisper | `1.5.0` |
-
-## Candidata 1.5.0
-
-**Tipo propuesto:** `MINOR`.
-
-**Estado:** candidata en PR #33; no publicada hasta completar el Release Gate.
-
-Alcance funcional:
-
-- dispatcher común para `run_local.sh` y `run_local.bat`;
-- forwarding exacto de argumentos y soporte explícito de `run`/`regenerate`;
-- política de naming validada contra el árbol completo de `arbol_zips.txt`;
-- `whisper_initial_prompt` mediante prompt literal o `txt`, `md`, `csv` y `docx`;
-- documentación de la estrategia real de CPU/GPU de CTranslate2 sin afirmar partición de una inferencia entre ambos dispositivos;
-- CI de tests sobre Linux, Windows y macOS para Python 3.11, 3.12 y 3.13;
-- packaging del recurso `palabras_contexto.*`.
-
-La versión `1.5.0` solo se considera publicada cuando un único SHA final tenga CI, tests, seguridad, packaging y documentación completos y el tag correspondiente apunte exactamente a ese SHA.
+| Endurecimiento de extracción ZIP y componentes de filesystem | `1.5.1` |
+| Traducción local CTranslate2, recursos reproducibles y runtime Whisper controlado | `1.5.2` |
 
 ## Releases publicadas
 
-### 1.4.0 — Clean Video Regeneration & Release Hardening
+### 1.5.0 — Multiplatform Whisper, Context & Packaging
 
 **Tipo:** `MINOR`.
 
-**Commit/tag publicado:** `ce1da6ea69a89f5a789c0670b200d6038f1a746d` / `v1.4.0`.
+**Commit/tag publicado:** `261f4b475f452b98880815f722aa8f8f43d28097` / `v1.5.0`.
 
-- Regeneración limpia mediante el `MediaPipeline` común.
-- Contrato público de `StorageProvider` para backup, restore y eliminación.
-- Concurrencia segura también para overrides CLI.
-- CI, packaging, seguridad y E2E de release validados.
+- Dispatcher común para wrappers.
+- Naming basado en referencia.
+- Contexto externo de Whisper.
+- CI multiplataforma y packaging.
 
-### 1.3.0 — Safe Resource-Aware Video Concurrency
-
-**Tipo:** `MINOR`.
-
-**Commit/tag publicado:** `620af6acbe3fca7d42ccd57f3585b3952cccf0a7` / `v1.3.0`.
-
-- `max_parallel_videos = 0` significa AUTO.
-- El límite efectivo se calcula de forma conservadora según CPU/RAM/GPU.
-- Los valores positivos actúan como límites superiores sujetos al techo seguro.
-- Se incorporan las PR #20, #21 y #22 como conjunto funcional preparado por la PR #23.
-
-### 1.2.2 — Naming Timestamp Cleanup
+## Candidata 1.5.1 — PR1 ZIP / Unicode / Filesystem
 
 **Tipo:** `PATCH`.
 
-Publicado el 28 de agosto de 2026.
+**Estado:** PR #34 fue integrada en `main` mediante el merge commit `7705987c90c6ff0b63b549c9083e43c9a6d56108`. La validación de release no debe cerrarse todavía porque la auditoría posterior detectó que el límite de naming físico debía aplicarse también de forma centralizada a los artefactos generados; esa corrección está en la PR #36.
 
-- Evita incorporar metadatos de fecha/hora de ZIP, carpetas extraídas o nombres de origen en la descripción del curso.
-- Amplía la limpieza de formatos de fecha y datetime antes de extraer números/descripciones de curso y lección.
-- Mantiene la convención `[course_number]_[course_description]x[lesson_number]_[lesson_description]` cuando la información está disponible.
+**Alcance:**
 
-### 1.2.1 — TTS Installation Fix
+- extracción ZIP segura frente a traversal, rutas absolutas/UNC y symlinks;
+- nombres reservados de Windows;
+- colisiones por case/Unicode y entradas duplicadas;
+- aplicación de la política física de naming a carpetas y artefactos generados en PR #36;
+- preservación separada del nombre lógico y físico;
+- documentación y regresiones.
 
-**Tipo:** `PATCH`.
+**Release gate:** el tag `v1.5.1` no debe crearse hasta que PR #36 esté integrada y el SHA final tenga CI, tests, seguridad, packaging y documentación completos.
 
-Publicado el 28 de agosto de 2026.
-
-- Corrige la instalación de modelos TTS en Windows cuando un archivo temporal estaba todavía abierto (`WinError 32`).
-- Hace consistente la instalación de recursos TTS entre Windows, Linux y macOS.
-
-### 1.2.0 — Naming and TTS Improvements
-
-**Tipo:** `MINOR`.
-
-Publicado el 28 de agosto de 2026.
-
-- Introduce la convención de nombres descriptiva para curso/lección.
-- Mejora la detección de información de curso y lección y el bootstrap de assets Kokoro.
-
-### 1.1.0 — Reparación de VTT e integración TTS
-
-**Tipo:** `MINOR`.
-
-- Recuperación de VTT originales/traducidos inválidos o ausentes.
-- Regeneración selectiva de STT o traducción sin regenerar el vídeo normal.
-- Validación final de timestamps después de segmentación STT.
-- Integración de TTS en el pipeline común.
-
-### 1.0.1 — Documentación de instalación y mantenimiento
+## Candidata 1.5.2 — PR2 CUDA / Whisper / Local Translation
 
 **Tipo:** `PATCH`.
 
-- Añade la guía de instalación y corrige la navegación documental.
+**Estado:** PR #35 abierta. No publicada.
 
-### 1.0.0 — Primera release estable
+**Dependencia:** debe integrarse después de la release 1.5.1 y utilizar esa versión como baseline. PR #35 no debe mezclarse con ZIP/naming.
 
-**Tipo:** primera release de producto de esta línea.
+**Alcance implementado en la candidata:**
 
-**Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
+- control explícito de versiones de `faster-whisper` y CTranslate2;
+- detección NVIDIA basada en `nvidia-smi` + capacidad real de CTranslate2;
+- CPU como fallback de primera clase;
+- AMD/ROCm detectado sin fingir compatibilidad CUDA no verificada;
+- provider local `es→en` con CTranslate2 + SentencePiece;
+- modelo convertido OPUS-MT fijado a revisión inmutable;
+- descarga HTTPS, confirmación previa, límite de tamaño, temporales, atomicidad, `.part` y verificación SHA-256;
+- recursos bajo `tools/models/translation/`;
+- cleanup explícito del recurso gestionado;
+- Ollama y LM Studio opcionales/no requeridos;
+- fallback configurable;
+- batching y reutilización del modelo;
+- tests aislados de Internet/GPU/modelos reales;
+- documentación de instalación, STT, translation y packaging.
 
-## Candidata 1.4.1
-
-### Alcance
-
-**Tipo:** `PATCH`.
-
-La candidata 1.4.1 no añade un pipeline nuevo. Integra en `scripts/run_local.sh` y `scripts/run_local.bat` la operación de regeneración ya existente mediante `src.regeneration` / `video-translation-regenerate`.
-
-### PR de release
-
-- Rama: `release/1.4.1-correction`.
-- Base: `main`, sobre la release publicada `v1.4.0`.
-- Nueva PR específica de la release; no reutiliza PR #26.
-
-### Estado
-
-La candidata no debe considerarse publicada hasta completar el Release Gate, CI, E2E, packaging, seguridad y validación de un único SHA final. El tag `v1.4.1` no se crea durante la preparación de la candidata.
+**Estado de validación:** CI, packaging real, integración con un modelo descargado y benchmark CPU/GPU sobre el SHA final permanecen `NO VERIFICADO` hasta ejecutar esas validaciones.
 
 ## Política de tags
 
 Los tags de release utilizan el formato `vMAJOR.MINOR.PATCH` y no deben reutilizarse ni moverse después de publicar una release.
 
-`v1.3.0` permanece asociado a `620af6acbe3fca7d42ccd57f3585b3952cccf0a7` y no debe modificarse. `v1.4.0` permanece asociado al commit de `main` `ce1da6ea69a89f5a789c0670b200d6038f1a746d` y tampoco debe modificarse.
+`v1.5.0` permanece asociado a `261f4b475f452b98880815f722aa8f8f43d28097` y no debe modificarse.
 
 ## Historial anterior
 
