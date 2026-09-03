@@ -85,9 +85,7 @@ def _darwin_available_memory(page_size: int, total_gb: float) -> float:
     if not binary:
         return max(0.0, total_gb * 0.5)
     try:
-        output = subprocess.check_output(  # noqa: S603 - executable comes from shutil.which
-            [binary], text=True, stderr=subprocess.DEVNULL, timeout=2
-        )
+        output = subprocess.check_output([binary], text=True, stderr=subprocess.DEVNULL, timeout=2)
         pages: dict[str, int] = {}
         for line in output.splitlines():
             if ":" not in line:
@@ -109,9 +107,7 @@ def _physical_cpus() -> int | None:
     if not binary:
         return None
     try:
-        output = subprocess.check_output(  # noqa: S603 - executable comes from shutil.which
-            [binary, "-p=CORE"], text=True, stderr=subprocess.DEVNULL, timeout=2
-        )
+        output = subprocess.check_output([binary, "-p=CORE"], text=True, stderr=subprocess.DEVNULL, timeout=2)
         cores = {line.strip() for line in output.splitlines() if line.strip() and not line.startswith("#")}
         return len(cores) or None
     except (OSError, ValueError, subprocess.SubprocessError):
@@ -145,7 +141,7 @@ def _nvidia_gpu() -> GPUInfo:
     if not binary:
         return GPUInfo(False, vendor="NVIDIA", reason="nvidia-smi not available")
     try:
-        result = subprocess.run(  # noqa: S603 - executable comes from shutil.which
+        result = subprocess.run(
             [binary, "--query-gpu=index,name,memory.total,memory.free,driver_version", "--format=csv,noheader,nounits"],
             capture_output=True,
             text=True,
@@ -160,23 +156,7 @@ def _nvidia_gpu() -> GPUInfo:
             return GPUInfo(False, vendor="NVIDIA", reason="invalid nvidia-smi output")
         index, total, free = int(first[0]), float(first[2]) / 1024, float(first[3]) / 1024
         usable, runtime, backend, reason = _probe_ctranslate2_gpu(index)
-        return GPUInfo(
-            True,
-            "NVIDIA",
-            first[1],
-            index,
-            len(rows),
-            total,
-            free,
-            first[4],
-            runtime,
-            backend,
-            usable,
-            reason,
-            "dedicated",
-            False,
-            "cuda" if usable else None,
-        )
+        return GPUInfo(True, "NVIDIA", first[1], index, len(rows), total, free, first[4], runtime, backend, usable, reason, "dedicated", False, "cuda" if usable else None)
     except (OSError, ValueError, subprocess.SubprocessError):
         return GPUInfo(False, vendor="NVIDIA", reason="nvidia-smi query failed")
 
@@ -190,12 +170,7 @@ def _amd_gpu() -> GPUInfo | None:
     total = free = 0.0
     if binary:
         try:
-            output = subprocess.check_output(  # noqa: S603 - executable comes from shutil.which
-                [binary, "--showproductname", "--showmeminfo", "vram"],
-                text=True,
-                stderr=subprocess.DEVNULL,
-                timeout=4,
-            )
+            output = subprocess.check_output([binary, "--showproductname", "--showmeminfo", "vram"], text=True, stderr=subprocess.DEVNULL, timeout=4)
             for line in output.splitlines():
                 low = line.lower()
                 if "card series" in low or "product name" in low:
@@ -209,9 +184,7 @@ def _amd_gpu() -> GPUInfo | None:
             pass
     if model is None and rocminfo:
         try:
-            output = subprocess.check_output(  # noqa: S603 - executable comes from shutil.which
-                [rocminfo], text=True, stderr=subprocess.DEVNULL, timeout=4
-            )
+            output = subprocess.check_output([rocminfo], text=True, stderr=subprocess.DEVNULL, timeout=4)
             for line in output.splitlines():
                 stripped = line.strip()
                 if stripped.startswith("Name:") and "gfx" not in stripped.lower():
@@ -220,37 +193,14 @@ def _amd_gpu() -> GPUInfo | None:
         except (OSError, subprocess.SubprocessError):
             pass
     usable, runtime, backend, reason = _probe_ctranslate2_gpu(0)
-    return GPUInfo(
-        True,
-        "AMD",
-        model,
-        0,
-        1,
-        total,
-        free,
-        runtime=runtime,
-        backend="rocm",
-        usable_for_whisper=usable,
-        reason=reason or "ROCm GPU capability verified by CTranslate2",
-        memory_model="dedicated",
-        memory_shared_with_system=False,
-        whisper_device="cuda" if usable else None,
-    )
+    return GPUInfo(True, "AMD", model, 0, 1, total, free, runtime=runtime, backend="rocm", usable_for_whisper=usable, reason=reason or "ROCm GPU capability verified by CTranslate2", memory_model="dedicated", memory_shared_with_system=False, whisper_device="cuda" if usable else None)
 
 
 def _intel_gpu() -> GPUInfo | None:
     binary = shutil.which("xpu-smi") or shutil.which("intel_gpu_top")
     if not binary:
         return None
-    return GPUInfo(
-        True,
-        "Intel",
-        backend="xpu",
-        usable_for_whisper=False,
-        reason="Intel GPU detected but Whisper GPU backend is not verified",
-        memory_model="shared_or_dedicated",
-        memory_shared_with_system=False,
-    )
+    return GPUInfo(True, "Intel", backend="xpu", usable_for_whisper=False, reason="Intel GPU detected but Whisper GPU backend is not verified", memory_model="shared_or_dedicated", memory_shared_with_system=False)
 
 
 def detect_gpu() -> GPUInfo:
@@ -265,19 +215,7 @@ def detect_gpu() -> GPUInfo:
         return intel
     system = platform.system()
     if system == "Darwin" and platform.machine().lower() in {"arm64", "aarch64"}:
-        return GPUInfo(
-            True,
-            "Apple",
-            "Apple Silicon GPU",
-            0,
-            1,
-            backend="metal",
-            usable_for_whisper=False,
-            reason="CTranslate2/faster-whisper Metal backend is not verified",
-            memory_model="unified",
-            memory_shared_with_system=True,
-            whisper_device=None,
-        )
+        return GPUInfo(True, "Apple", "Apple Silicon GPU", 0, 1, backend="metal", usable_for_whisper=False, reason="CTranslate2/faster-whisper Metal backend is not verified", memory_model="unified", memory_shared_with_system=True, whisper_device=None)
     return GPUInfo(False, reason="no supported GPU runtime detected")
 
 
