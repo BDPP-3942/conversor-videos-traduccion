@@ -110,9 +110,19 @@ Consulta [`docs/REGENERATION.md`](docs/REGENERATION.md) para las garantías y li
 
 ## Naming de vídeos
 
-El nombre final se deriva de forma determinista del ZIP y del nombre del vídeo extraído. La política de la release se valida contra el conjunto completo de ejemplos de `arbol_zips.txt`, incluyendo cursos numéricos, cursos con prefijo textual, vídeos exclusivamente numéricos, ordinales, mayúsculas/minúsculas y nombres con caracteres especiales.
+El sistema separa el nombre lógico derivado de la información del curso/vídeo de su representación física. El texto original no se modifica; el componente físico pasa por una política determinista antes de crear carpetas y artefactos.
 
-Los nombres externos se convierten siempre en componentes de filesystem; la extracción ZIP ya rechaza rutas inseguras y symlinks antes de que el naming las procese.
+La convención física es:
+
+```text
+<curso_o_contenedor>x<nombre_sanitizado>
+```
+
+Dentro de cada bloque se utiliza `_` como separador de palabras. Los espacios, guiones usados como separadores, puntuación incompatible, controles y caracteres problemáticos se normalizan de forma determinista. Los acentos se transliteran para el nombre físico y los nombres reservados de Windows se protegen. La longitud se ajusta al filesystem de destino y las colisiones se resuelven de forma determinista sin sobrescritura silenciosa.
+
+La extracción ZIP valida primero las rutas, symlinks, nombres reservados y colisiones. Después, `MediaPipeline` aplica la misma política al nombre de la carpeta de salida y a los nombres de los artefactos generados (MP4/WebM/VTT), de modo que el control no termina en la extracción.
+
+La estructura lógica de curso/recurso se conserva en metadata/manifest y no depende de buscar cualquier carácter `x` dentro de un nombre.
 
 ## Reprocesado y recuperación de VTT
 
@@ -215,10 +225,6 @@ Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` 
 
 ## Versionado
 
-La release publicada actual es `1.4.2` (`v1.4.2`). La siguiente release de esta rama se reservará para `1.5.0` si el Release Gate confirma la nueva capacidad de wrappers, naming y contexto Whisper como cambios compatibles de funcionalidad.
+La release publicada actual es `1.5.0` (`v1.5.0`). La versión `1.5.1` corresponde a la siguiente candidata de mantenimiento y endurecimiento de ZIP/filesystem/naming. No se considera publicada hasta que exista un tag/release verificable.
 
 No se modifica el historial de releases anteriores.
-
-## Seguridad y licencias
-
-No versionar secretos, tokens ni claves. Los modelos, pesos y voces TTS pueden tener licencias diferentes de las librerías que los ejecutan. Antes de redistribuir el ejecutable o usarlo comercialmente debe revisarse la licencia concreta de cada componente.
