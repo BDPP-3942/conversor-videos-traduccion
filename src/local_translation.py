@@ -15,7 +15,6 @@ from typing import Callable
 from config.settings import BASE_DIR
 
 logger = logging.getLogger(__name__)
-
 MODEL_REPOSITORY = "Prukario/opus-mt-es-en-ct2-int8"
 MODEL_REVISION = "ad91ad1697ea1761111ff4c179400796d085b347"
 MODEL_LICENSE = "CC-BY-4.0"
@@ -48,7 +47,8 @@ class LocalTranslationModelManager:
         self.model_dir = Path(model_dir or configured or (BASE_DIR / "tools" / "models" / "translation" / "opus-mt-es-en-ct2-int8"))
 
     def status(self) -> LocalModelStatus:
-        missing = [name for name in MODEL_FILES if not (self.model_dir / name).is_file()]
+        required = (*MODEL_FILES, *SMALL_MODEL_FILES)
+        missing = [name for name in required if not (self.model_dir / name).is_file()]
         if missing:
             return LocalModelStatus(False, self.model_dir, MODEL_REPOSITORY, MODEL_REVISION, MODEL_SIZE_BYTES, MODEL_LICENSE, f"missing files: {', '.join(missing)}")
         for name, (expected_hash, expected_size) in MODEL_FILES.items():
@@ -87,10 +87,7 @@ class LocalTranslationModelManager:
                 if path.stat().st_size != expected_size or _sha256(path) != expected_hash:
                     raise RuntimeError(f"Integrity validation failed for downloaded model file: {name}")
             (temp_dir / "model.json").write_text(
-                json.dumps(
-                    {"repository": MODEL_REPOSITORY, "revision": MODEL_REVISION, "license": MODEL_LICENSE, "files": MODEL_FILES},
-                    indent=2,
-                ),
+                json.dumps({"repository": MODEL_REPOSITORY, "revision": MODEL_REVISION, "license": MODEL_LICENSE, "files": MODEL_FILES}, indent=2),
                 encoding="utf-8",
             )
             if self.model_dir.exists():
@@ -173,9 +170,7 @@ class LocalTranslationProvider:
         if not texts:
             return []
         tokens = [self._source.encode(text, out_type=str) + ["</s>"] for text in texts]
-        results = self._translator.translate_batch(
-            tokens, beam_size=max(1, int(getattr(self.settings, "local_translation_beam_size", 2)))
-        )
+        results = self._translator.translate_batch(tokens, beam_size=max(1, int(getattr(self.settings, "local_translation_beam_size", 2))))
         outputs: list[str] = []
         for result in results:
             hypotheses = getattr(result, "hypotheses", None) or []
@@ -202,14 +197,25 @@ def _sha256(path: Path) -> str:
 def _download_file(url: str, destination: Path, max_bytes: int) -> None:
     if not url.startswith("https://huggingface.co/"):
         raise ValueError("Model downloads are restricted to the pinned Hugging Face origin")
-    request = urllib.request.Request(url, headers={"User-Agent": "video-translation-pipeline/1.5"})
+    partial = destination.with_suffix(destination.suffix + ".part")
+    offset = partial.stat().st_size if partial.exists() else 0
+    headers = {"User-Agent": "video-translation-pipeline/1.5"}
+    if offset:
+        headers["Range"] = f"bytes={offset}-"
+    request = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(request, timeout=60) as response:
+            resumed = offset > 0 and getattr(response, "status", None) == 206
+            if not resumed:
+                offset = 0
+                partial.unlink(missing_ok=True)
             length = response.headers.get("Content-Length")
-            if length and int(length) > max_bytes:
-                raise RuntimeError(f"Refusing oversized model download: {length} bytes")
-            written = 0
-            with destination.open("wb") as handle:
+            expected = offset + int(length) if length else None
+            if expected and expected > max_bytes:
+                raise RuntimeError(f"Refusing oversized model download: {expected} bytes")
+            mode = "ab" if resumed else "wb"
+            written = offset
+            with partial.open(mode) as handle:
                 while True:
                     chunk = response.read(1024 * 1024)
                     if not chunk:
@@ -218,6 +224,6 @@ def _download_file(url: str, destination: Path, max_bytes: int) -> None:
                     if written > max_bytes:
                         raise RuntimeError("Model download exceeded the configured size limit")
                     handle.write(chunk)
+            partial.replace(destination)
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        destination.unlink(missing_ok=True)
         raise RuntimeError(f"Model download failed: {exc}") from exc
