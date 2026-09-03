@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import unicodedata
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from zipfile import ZipFile
 
 MEDIA_EXTENSIONS = {".mp4", ".mp3", ".wmv", ".mov", ".mkv", ".avi"}
@@ -51,7 +52,9 @@ class ZipExtractor:
         result.max_depth_reached = max(result.max_depth_reached, depth)
 
         current_dir = extract_to / self._safe_directory_name(zip_path.stem)
-        current_dir.mkdir(parents=True, exist_ok=True)
+        if current_dir.exists():
+            raise ValueError(f"ZIP extraction directory collision: {current_dir.name}")
+        current_dir.mkdir(parents=True, exist_ok=False)
 
         with ZipFile(zip_path, "r") as archive:
             members = [m for m in archive.infolist() if not self._is_ignored_name(m.filename)]
@@ -61,7 +64,7 @@ class ZipExtractor:
         for member in members:
             if member.is_dir():
                 continue
-            extracted_path = (current_dir / member.filename).resolve()
+            extracted_path = (current_dir / self._normalized_member_name(member.filename)).resolve()
             suffix = extracted_path.suffix.lower()
             if suffix in MEDIA_EXTENSIONS:
                 result.media.append(extracted_path)
@@ -79,12 +82,19 @@ class ZipExtractor:
 
     def _validate_archive(self, members, destination: Path, result: ExtractionResult) -> None:
         destination = destination.resolve()
+        seen_targets: set[str] = set()
         for member in members:
-            target = (destination / member.filename).resolve()
+            name = self._normalized_member_name(member.filename)
+            self._validate_member_name(name)
+            target = (destination / name).resolve()
             if not target.is_relative_to(destination):
                 raise ValueError(f"Unsafe ZIP path detected: {member.filename}")
             if self._is_symlink(member):
                 raise ValueError(f"Symlink entries are not allowed in ZIPs: {member.filename}")
+            collision_key = unicodedata.normalize("NFC", target.as_posix()).casefold()
+            if collision_key in seen_targets:
+                raise ValueError(f"ZIP path collision detected: {member.filename}")
+            seen_targets.add(collision_key)
             if member.is_dir():
                 continue
             result.extracted_files += 1
@@ -94,16 +104,32 @@ class ZipExtractor:
             if result.extracted_bytes > self.max_total_size:
                 raise ValueError(f"Maximum extracted ZIP size exceeded: {self.max_total_size} bytes")
 
+    @classmethod
+    def _validate_member_name(cls, name: str) -> None:
+        if not name or "\x00" in name:
+            raise ValueError(f"Unsafe ZIP path detected: {name!r}")
+        if PurePosixPath(name).is_absolute() or PureWindowsPath(name).is_absolute():
+            raise ValueError(f"Unsafe ZIP path detected: {name}")
+        if PureWindowsPath(name).drive or PureWindowsPath(name).root:
+            raise ValueError(f"Unsafe ZIP path detected: {name}")
+        components = [part for part in name.split("/") if part not in {"", "."}]
+        if any(part == ".." for part in components):
+            raise ValueError(f"Unsafe ZIP path detected: {name}")
+        for part in components:
+            if cls._is_windows_reserved_component(part):
+                raise ValueError(f"Reserved Windows ZIP path component is not allowed: {name}")
+
     @staticmethod
     def _extract_members(archive: ZipFile, members, destination: Path) -> None:
         destination = destination.resolve()
         for member in members:
-            target = (destination / member.filename).resolve()
+            name = ZipExtractor._normalized_member_name(member.filename)
+            target = (destination / name).resolve()
             if member.is_dir():
                 target.mkdir(parents=True, exist_ok=True)
                 continue
             target.parent.mkdir(parents=True, exist_ok=True)
-            with archive.open(member, "r") as source, target.open("wb") as output:
+            with archive.open(member, "r") as source, target.open("xb") as output:
                 while chunk := source.read(1024 * 1024):
                     output.write(chunk)
 
@@ -117,7 +143,21 @@ class ZipExtractor:
         return normalized.startswith("__MACOSX/") or "/__MACOSX/" in normalized or normalized.endswith(".DS_Store")
 
     @staticmethod
+    def _normalized_member_name(name: str) -> str:
+        return name.replace("\\", "/")
+
+    @staticmethod
+    def _is_windows_reserved_component(name: str) -> bool:
+        stem = name.rstrip(" .").split(".", 1)[0].upper()
+        return stem in {"CON", "PRN", "AUX", "NUL"} or (
+            len(stem) == 4 and stem[:3] in {"COM", "LPT"} and stem[3].isdigit() and stem[3] != "0"
+        )
+
+    @staticmethod
     def _safe_directory_name(name: str) -> str:
         invalid = '<>:"/\\|?*'
         sanitized = "".join("_" if char in invalid else char for char in name)
-        return sanitized.strip() or "archive"
+        sanitized = sanitized.rstrip(" .")
+        if ZipExtractor._is_windows_reserved_component(sanitized):
+            sanitized = f"_{sanitized}"
+        return sanitized or "archive"
