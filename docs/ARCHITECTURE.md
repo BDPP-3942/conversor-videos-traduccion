@@ -41,7 +41,7 @@ CLI / wrappers / executable / scheduler
 - `src/resource_profile.py`: hardware/resource detection, Whisper resolution and safe video concurrency.
 - `src/file_naming.py`: shared logical/physical filename normalization and filesystem-boundary enforcement.
 - `src/naming_policy.py`: inference of course/lesson metadata and logical output stems.
-- `src/archive_naming.py`: ZIP/reference-tree naming interpretation used by the naming policy.
+- `src/archive_naming.py`: ZIP naming interpretation used by the naming policy.
 - `src/subtitle_qa.py` and `src/subtitle_repair.py`: subtitle validation/repair.
 - `src/translator.py` and `src/translation_providers.py`: translation orchestration and providers.
 - `src/tts_pipeline.py`: cue-level synchronized TTS.
@@ -62,7 +62,7 @@ The physical contract is:
 
 `x` is the scope separator and `_` is the internal word separator. Physical normalization is deterministic: whitespace and separator hyphens become `_`, accents/diacritics are transliterated, incompatible punctuation and control characters are removed/replaced, Windows reserved names are protected, and filesystem length limits are applied. The logical metadata remains separate from the physical name.
 
-The reference tree `arbol_zips(1).txt` is an external functional/structural reference. It is not a runtime dependency. Its examples are covered by focused tests where the expected mapping is stable; the final physical boundary still applies the project-wide cross-platform policy.
+The naming policy is covered by focused functional cases; the final physical boundary applies the project-wide cross-platform policy.
 
 ZIP extraction performs its own security validation before writing, including traversal, absolute/UNC paths, symlinks, reserved components and Unicode/case collisions. Generated output folders and artifacts pass through the same physical naming boundary afterwards.
 

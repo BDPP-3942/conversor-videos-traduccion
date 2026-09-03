@@ -133,7 +133,7 @@ La normalización física se aplica de forma centralizada en el límite de creac
 
 La extracción ZIP aplica además validación de rutas absolutas/UNC, traversal, symlinks, nombres reservados y colisiones Unicode/case antes de escribir. El mismo contrato físico debe respetarse posteriormente en carpetas y artefactos generados (MP4/WebM/VTT), evitando que una entrada segura del ZIP produzca después un nombre físico inseguro.
 
-Los ejemplos suministrados en `arbol_zips(1).txt` se utilizan como referencia funcional/estructural. No son una dependencia del runtime. Por ejemplo, el árbol exige resultados como `19x2_POSTURAS_FIJAS`, `35x17` y `37_7-opt-taich-bombeosx8_OPT_TAICH_pendulos_abanicos_lanzamientos`; cualquier regla adicional debe implementarse en la política, no mediante excepciones arbitrarias dispersas.
+La política se valida mediante casos funcionales representativos de las estructuras de nombres soportadas por el proyecto. Estos casos no constituyen una dependencia del runtime y cualquier regla adicional debe implementarse en la política, no mediante excepciones arbitrarias dispersas.
 
 ## Reprocesado y recuperación de VTT
 

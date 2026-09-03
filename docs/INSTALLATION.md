@@ -87,8 +87,6 @@ The physical form is:
 
 `x` is the scope separator and `_` is the word separator. Physical names normalize whitespace and separator hyphens, incompatible punctuation and controls, Unicode diacritics, Windows reserved names and filesystem length. Existing output migration is controlled by the current `normalize_legacy_names` workflow setting and is designed to preserve content while moving only the affected output paths.
 
-The supplied `arbol_zips(1).txt` is a reference for the expected logical/structural mapping; it is not required at runtime.
-
 ## Runtime directories
 
 The runtime layout is:

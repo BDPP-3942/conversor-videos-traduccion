@@ -1,6 +1,12 @@
 from pathlib import Path
 
-from src.file_naming import FileNameFormatter, fit_output_stem, normalize_comparison_key, normalize_component, normalize_filename
+from src.file_naming import (
+    FileNameFormatter,
+    fit_output_stem,
+    normalize_comparison_key,
+    normalize_component,
+    normalize_filename,
+)
 
 
 def test_course_number_and_description_are_preserved(tmp_path: Path) -> None:
