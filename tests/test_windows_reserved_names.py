@@ -18,7 +18,8 @@ def test_reserved_component_is_prefixed(name: str) -> None:
     assert not is_windows_reserved_component(safe)
 
 
-def test_fit_component_never_returns_reserved_name(tmp_path: Path) -> None:
-    for name in ("CON", "PRN", "AUX", "NUL", "COM1", "LPT9"):
-        result = fit_component(name, tmp_path)
-        assert not is_windows_reserved_component(result)
+@pytest.mark.parametrize("name", ["CON", "CON.txt", "PRN.log", "COM1"])
+def test_fit_component_never_returns_reserved_name(tmp_path: Path, name: str) -> None:
+    result = fit_component(name, tmp_path)
+    assert not is_windows_reserved_component(result)
+    assert result.startswith("_")
