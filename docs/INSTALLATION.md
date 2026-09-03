@@ -75,6 +75,18 @@ copy .env.example .env
 
 Do not commit `.env`, credentials, provider profiles or model weights.
 
+## Naming and existing output migration
+
+The naming policy is part of the application core rather than an installation option. It separates logical course/resource metadata from physical filesystem names.
+
+The physical form is:
+
+```text
+<curso_o_contenedor>x<nombre_sanitizado>
+```
+
+`x` is the scope separator and `_` is the word separator. Physical names normalize whitespace and separator hyphens, incompatible punctuation and controls, Unicode diacritics, Windows reserved names and filesystem length. Existing output migration is controlled by the current `normalize_legacy_names` workflow setting and is designed to preserve content while moving only the affected output paths.
+
 ## Runtime directories
 
 The runtime layout is:
@@ -95,7 +107,7 @@ If a checkout lacks a directory, create it under `storage/`; logs are written to
 
 ## Translation providers
 
-The default processing configuration uses Mistral with DeepL and MyMemory fallback. Provider credentials are configured through environment/profile mechanisms. See [TRANSLATION_PROVIDERS.md](TRANSLATION_PROVIDERS.md).
+The default processing configuration uses the provider declared in `config/app.toml` (currently Mistral in the repository baseline) with the configured fallback chain. Provider credentials are configured through environment/profile mechanisms. See [TRANSLATION_PROVIDERS.md](TRANSLATION_PROVIDERS.md).
 
 ## TTS
 

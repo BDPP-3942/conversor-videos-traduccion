@@ -110,9 +110,30 @@ Consulta [`docs/REGENERATION.md`](docs/REGENERATION.md) para las garantías y li
 
 ## Naming de vídeos
 
-El nombre final se deriva de forma determinista del ZIP y del nombre del vídeo extraído. La política de la release se valida contra el conjunto completo de ejemplos de `arbol_zips.txt`, incluyendo cursos numéricos, cursos con prefijo textual, vídeos exclusivamente numéricos, ordinales, mayúsculas/minúsculas y nombres con caracteres especiales.
+El naming distingue explícitamente entre información lógica y representación física. El texto/contenido original se conserva; la representación física se genera mediante una política determinista y segura antes de crear carpetas o artefactos.
 
-Los nombres externos se convierten siempre en componentes de filesystem; la extracción ZIP ya rechaza rutas inseguras y symlinks antes de que el naming las procese.
+La nomenclatura física de referencia es:
+
+```text
+<curso_o_contenedor>x<nombre_sanitizado>
+```
+
+`x` es exclusivamente el separador de ámbito entre contenedor/curso y recurso. Dentro de cada bloque, `_` es el separador de palabras; no se utiliza `-` como separador de palabras. La estructura lógica no debe recuperarse buscando cualquier `x` dentro del nombre: debe conservarse en metadata/manifest.
+
+La normalización física se aplica de forma centralizada en el límite de creación del recurso. Incluye, de forma determinista:
+
+- espacios y separadores de palabras → `_`;
+- eliminación de espacios iniciales/finales y separadores repetidos;
+- eliminación/control de caracteres de filesystem (`\\ / : * ? " < > |`) y puntuación problemática, incluidos paréntesis, corchetes y comillas;
+- conversión de enumeraciones como `1. Introducción` a `1_Introduccion` en la representación física;
+- normalización Unicode y transliteración de diacríticos para nombres físicos (`ñ` → `n`, `á` → `a`, etc.);
+- protección de nombres reservados de Windows (`CON`, `PRN`, `AUX`, `NUL`, `COM1`…`LPT9`);
+- ajuste a los límites de componente/ruta del filesystem de destino;
+- detección de colisiones antes de sobrescribir y uso de una estrategia determinista cuando el flujo necesita reservar un nombre.
+
+La extracción ZIP aplica además validación de rutas absolutas/UNC, traversal, symlinks, nombres reservados y colisiones Unicode/case antes de escribir. El mismo contrato físico debe respetarse posteriormente en carpetas y artefactos generados (MP4/WebM/VTT), evitando que una entrada segura del ZIP produzca después un nombre físico inseguro.
+
+La política se valida mediante casos funcionales representativos de las estructuras de nombres soportadas por el proyecto. Estos casos no constituyen una dependencia del runtime y cualquier regla adicional debe implementarse en la política, no mediante excepciones arbitrarias dispersas.
 
 ## Reprocesado y recuperación de VTT
 
@@ -215,7 +236,7 @@ Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` 
 
 ## Versionado
 
-La release publicada actual es `1.4.2` (`v1.4.2`). La siguiente release de esta rama se reservará para `1.5.0` si el Release Gate confirma la nueva capacidad de wrappers, naming y contexto Whisper como cambios compatibles de funcionalidad.
+La release publicada actual es `1.5.0` (`v1.5.0`). La versión `1.5.1` corresponde a la siguiente candidata de mantenimiento y endurecimiento de ZIP/filesystem/naming. No se considera publicada hasta que exista un tag/release verificable.
 
 No se modifica el historial de releases anteriores.
 

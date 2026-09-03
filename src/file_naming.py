@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
 
-from src.path_limits import fit_component
+from src.path_limits import fit_component, safe_filesystem_component
 
 
 @dataclass(frozen=True)
@@ -237,10 +237,6 @@ def _sanitize_text(value: str) -> str:
     return clean_for_filename(value)
 
 
-# Supported timestamp noise:
-# YYYYMMDD, YYYYMMDD_HHMMSS, YYYYMMDD_HH_MM, YYYY-MM-DD_HH:MM:SS,
-# YYYY/MM/DD, DD/MM/YYYY, MM/DD/YYYY and equivalent -, _, . forms.
-# The time portion is optional and may use :, _, -, ., or no separators.
 _DATE_ARTIFACT_PATTERN = re.compile(
     r"(?<!\d)(?:"
     r"(?:19|20)\d{2}[-_/.]\d{1,2}[-_/.]\d{1,2}|"
@@ -260,10 +256,16 @@ def strip_date_artifacts(value: str) -> str:
 
 
 def clean_for_filename(value: str) -> str:
-    """Sanitize logical names with a stable cross-platform separator policy."""
+    """Normalize a logical/physical name with deterministic, cross-platform separators.
+
+    Unicode compatibility normalization removes accents deterministically for physical
+    names, while incompatible punctuation and filesystem separators become `_`.
+    Parentheses, brackets and quote marks are treated as punctuation rather than part
+    of the physical naming contract. Repeated separators are collapsed at the end.
+    """
     normalized = unicodedata.normalize("NFKD", value)
     normalized = "".join(char for char in normalized if not unicodedata.combining(char))
-    normalized = re.sub(r"[<>:\"/\\|?*\x00-\x1f]", "_", normalized)
+    normalized = re.sub(r"[<>:\"/\\|?*()\[\]{}'“”‘’`´,;!¡¿@#$%^&=+~\x00-\x1f]", "_", normalized)
     normalized = re.sub(r"[\s\-_.—–−‒―]+", "_", normalized)
     return normalized.strip("_.-")
 
@@ -277,18 +279,14 @@ def _split_filename_extension(filename: str) -> tuple[str, str]:
 
 
 def normalize_filename(filename: str) -> str:
-    """Normalize a filename-like value before platform path parsing.
-
-    Input received from archives/providers may contain '/' as part of a noisy
-    timestamp. Treating it as a filesystem separator before timestamp removal
-    would discard the beginning of the logical filename on POSIX.
-    """
+    """Normalize a filename-like value before platform path parsing."""
     stem, extension = _split_filename_extension(filename)
     return f"{clean_for_filename(strip_date_artifacts(stem))}{extension}"
 
 
 def normalize_component(value: str) -> str:
-    return _sanitize_text(value)
+    """Return the physical filesystem-safe form of a generated component."""
+    return safe_filesystem_component(_sanitize_text(value))
 
 
 def normalize_comparison_key(filename: str) -> str:
@@ -316,11 +314,20 @@ def normalized_name_similarity(left: str, right: str) -> float:
 
 
 def fit_output_stem(
-    stem: str, parent: Path, unique_suffix: str | None = None, reserve_suffixes: tuple[str, ...] = ()
+    stem: str,
+    parent: Path,
+    unique_suffix: str | None = None,
+    reserve_suffixes: tuple[str, ...] = (),
 ) -> str:
-    """Fit an output stem to the host filesystem, reserving artifact suffix space."""
+    """Sanitize and fit a generated output stem to the host filesystem.
+
+    This is the final physical-name boundary for generated output. The caller may
+    keep a richer logical stem in metadata, but anything returned here is safe for
+    the destination filesystem and uses the project separator policy.
+    """
+    physical_stem = normalize_component(stem)
     suffix = f"__{unique_suffix}" if unique_suffix else ""
-    candidate = fit_component(stem, parent, suffix=suffix)
+    candidate = fit_component(physical_stem, parent, suffix=suffix)
     if not reserve_suffixes:
         return candidate
     from src.path_limits import get_filesystem_limits
@@ -337,7 +344,7 @@ def fit_output_stem(
         try:
             prefix = raw.decode("utf-8").rstrip(" ._-")
             if prefix:
-                return prefix
+                return safe_filesystem_component(prefix)
         except UnicodeDecodeError:
             raw = raw[:-1]
             continue
