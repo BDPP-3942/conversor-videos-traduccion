@@ -43,12 +43,7 @@ class _HttpBatchProvider:
         return self.translate_batch([text])[0]
 
     @staticmethod
-    def _request(
-        url: str,
-        headers: dict[str, str],
-        payload: object,
-        method: str = "POST",
-    ) -> object:
+    def _request(url: str, headers: dict[str, str], payload: object, method: str = "POST") -> object:
         if urllib.parse.urlsplit(url).scheme != "https":
             raise ValueError("Translation provider URL must use HTTPS")
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -63,9 +58,7 @@ class _HttpBatchProvider:
                     f"translation provider quota/authorization response {exc.code}: {detail}"
                 ) from exc
             if exc.code == 429:
-                raise TranslationRateLimitError(
-                    f"translation provider rate limit response 429: {detail}"
-                ) from exc
+                raise TranslationRateLimitError(f"translation provider rate limit response 429: {detail}") from exc
             raise RuntimeError(f"translation provider HTTP {exc.code}: {detail}") from exc
         except (urllib.error.URLError, TimeoutError) as exc:
             raise RuntimeError(f"translation provider connection failed: {exc}") from exc
@@ -244,22 +237,16 @@ class MyMemoryBatchProvider(_HttpBatchProvider):
             params = {"q": text, "langpair": f"{self.source}|{self.target}"}
             if self.email:
                 params["de"] = self.email
-            request = urllib.request.Request(
-                f"{self.url}?{urllib.parse.urlencode(params)}", method="GET"
-            )
+            request = urllib.request.Request(f"{self.url}?{urllib.parse.urlencode(params)}", method="GET")
             try:
                 with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
                     result = json.loads(response.read().decode("utf-8"))
             except urllib.error.HTTPError as exc:
                 detail = exc.read().decode("utf-8", errors="replace")
                 if exc.code in {402, 403, 456}:
-                    raise TranslationQuotaError(
-                        f"MyMemory quota/authorization response {exc.code}: {detail}"
-                    ) from exc
+                    raise TranslationQuotaError(f"MyMemory quota/authorization response {exc.code}: {detail}") from exc
                 if exc.code == 429:
-                    raise TranslationRateLimitError(
-                        f"MyMemory rate limit response 429: {detail}"
-                    ) from exc
+                    raise TranslationRateLimitError(f"MyMemory rate limit response 429: {detail}") from exc
                 raise RuntimeError(f"MyMemory HTTP {exc.code}: {detail}") from exc
             except (urllib.error.URLError, TimeoutError) as exc:
                 raise RuntimeError(f"MyMemory connection failed: {exc}") from exc
@@ -292,9 +279,7 @@ def build_translation_provider(name: str, settings: AppSettings) -> TranslationP
     target = _language_code(settings.target_lang)
     if provider in {"local", "local_model", "ct2", "opus_mt"}:
         if source != "es" or target != "en":
-            raise TranslationConfigurationError(
-                "The bundled local translation model currently supports only es→en"
-            )
+            raise TranslationConfigurationError("The bundled local translation model currently supports only es→en")
         from src.local_translation import LocalTranslationProvider
 
         try:
@@ -304,9 +289,7 @@ def build_translation_provider(name: str, settings: AppSettings) -> TranslationP
         except ValueError as exc:
             raise TranslationConfigurationError(str(exc)) from exc
         except Exception as exc:
-            raise TranslationResourceError(
-                f"Local translation resource/runtime is unavailable: {exc}"
-            ) from exc
+            raise TranslationResourceError(f"Local translation resource/runtime is unavailable: {exc}") from exc
     if provider == "mistral":
         api_key = os.getenv("MISTRAL_API_KEY", "").strip()
         if not api_key:
