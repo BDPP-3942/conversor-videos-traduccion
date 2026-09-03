@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.5.1] — ZIP extraction and cross-platform filesystem hardening
+
+**Tipo:** PATCH — correcciones compatibles de seguridad e integridad de archivos.
+
+### Fixed
+
+- La extracción ZIP rechaza rutas absolutas POSIX/Windows, rutas UNC y traversal mediante separadores `/` o `\\`.
+- Se rechazan componentes de ruta reservados por Windows (`CON`, `PRN`, `AUX`, `NUL`, `COM1`...`COM9`, `LPT1`...`LPT9`).
+- Se detectan colisiones de rutas antes de escribir cuando difieren únicamente por case o normalización Unicode.
+- Las entradas ZIP duplicadas ya no pueden sobrescribir silenciosamente un archivo previamente extraído.
+- Se detectan colisiones del directorio de extracción antes de reutilizar una ubicación existente.
+- Los componentes de filesystem generados por la aplicación se protegen frente a nombres reservados de Windows.
+
+### Security
+
+- La validación de miembros ZIP se realiza antes de la escritura y exige que los destinos permanezcan dentro del workspace de extracción.
+- Las entradas simbólicas ZIP siguen siendo rechazadas.
+
+### Tests / validation
+
+- Añadidos tests de regresión para rutas absolutas Windows, UNC, traversal con backslashes, nombres reservados, colisiones Unicode/case y entradas duplicadas.
+- Añadidos tests para componentes de salida reservados por Windows.
+
 ## [1.5.0] — Multiplatform wrappers, reference naming and Whisper context
 
 **Tipo:** MINOR — nuevas capacidades compatibles de ejecución multiplataforma, naming determinista basado en el árbol de referencia y configuración de contexto externo para Whisper.
