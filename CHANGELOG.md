@@ -12,23 +12,32 @@
 - Verificación de tamaño y SHA-256 de los ficheros principales del modelo.
 - Descarga HTTPS a temporales con límite de tamaño, reemplazo atómico y reanudación mediante `.part` cuando el servidor admite Range.
 - Script `scripts/manage_local_translation.py` para `status`, `download` y `cleanup`.
+- Gestión de runtime NVIDIA bajo `tools/cuda/` para cuBLAS CUDA 12 y cuDNN 9 CUDA 12.
+- Diagnóstico de NVIDIA/CUDA/CTranslate2 antes de seleccionar GPU para Whisper.
+- Instalación interactiva y explícita de las bibliotecas NVIDIA runtime cuando faltan.
+- Fallback CPU conservador cuando CUDA no puede validarse.
 - Fallback de traducción local configurable sin dependencia de Ollama ni LM Studio.
 - Control explícito de `faster-whisper` y CTranslate2 mediante rangos de versiones compatibles.
 
 ### Changed
 
 - La cadena de fallback predeterminada incluye el provider local antes de los proveedores remotos secundarios.
+- `WHISPER_DEVICE=auto` ya no interpreta la mera presencia de `nvidia-smi` como capacidad CUDA válida.
 - La configuración permite seleccionar dispositivo y compute type del provider local.
+- Un CUDA Toolkit global no se modifica ni se desinstala automáticamente; el runtime gestionado puede coexistir con él.
 
 ### Security
 
 - No se ejecutan binarios descargados como parte de la preparación del modelo.
 - Los recursos locales se validan antes de cargarse y no se sustituyen por una descarga parcial.
 - La descarga está restringida al origen HTTPS y revisión fijados.
+- La instalación CUDA gestionada no modifica el driver NVIDIA ni un CUDA Toolkit global.
+- La limpieza CUDA elimina exclusivamente `tools/cuda/`; la limpieza del modelo elimina exclusivamente su directorio gestionado.
 
 ### Documentation
 
 - Actualizadas instalación, STT, traducción, providers, packaging y releases para explicar CPU/GPU, modelo local, licencia, recursos y cleanup.
+- Añadidas `docs/CUDA.md` y `docs/UNINSTALLATION.md`.
 
 ### Validation
 
@@ -60,13 +69,13 @@
 
 ## [1.5.0] — Multiplatform wrappers, reference naming and Whisper context
 
-**Tipo:** MINOR — nuevas capacidades compatibles de ejecución multiplataforma, naming determinista basado en el árbol de referencia y configuración de contexto externo para Whisper.
+**Tipo:** MINOR — nuevas capacidades compatibles de ejecución multiplataforma, naming determinista basado en reglas de normalización y configuración de contexto externo para Whisper.
 
 ### Added
 
 - Dispatcher común para `run_local.sh` y `run_local.bat`, preservando exactamente los argumentos después de eliminar únicamente el subcomando del wrapper.
 - Soporte coherente de `run` y `regenerate` mediante los entry points existentes y el `MediaPipeline` común.
-- Política de naming basada en el par ZIP/vídeo extraído y validada contra el conjunto completo de ejemplos suministrado en `arbol_zips.txt`.
+- Política de naming basada en el par ZIP/vídeo extraído y validada mediante casos representativos de las estructuras soportadas.
 - `whisper_initial_prompt` puede seguir siendo un prompt literal o apuntar a `txt`, `md`, `csv` y `docx`.
 - Soporte convencional de `palabras_contexto.<extensión>` y empaquetado del recurso de contexto.
 - CI de tests sobre Linux, Windows y macOS para Python 3.11, 3.12 y 3.13.
@@ -84,7 +93,7 @@
 
 ### Tests / validation
 
-- Regresiones parametrizadas para todos los casos del archivo de referencia de naming.
+- Regresiones parametrizadas para los casos representativos de naming.
 - Tests para forwarding de wrappers y eliminación correcta de `regenerate`/`run`.
 - Tests para contexto TXT, Markdown, CSV y DOCX.
 - CI multiplataforma y multiversión ampliada.
