@@ -86,10 +86,7 @@ class LocalTranslationModelManager:
                 path = temp_dir / name
                 if path.stat().st_size != expected_size or _sha256(path) != expected_hash:
                     raise RuntimeError(f"Integrity validation failed for downloaded model file: {name}")
-            (temp_dir / "model.json").write_text(
-                json.dumps({"repository": MODEL_REPOSITORY, "revision": MODEL_REVISION, "license": MODEL_LICENSE, "files": MODEL_FILES}, indent=2),
-                encoding="utf-8",
-            )
+            (temp_dir / "model.json").write_text(json.dumps({"repository": MODEL_REPOSITORY, "revision": MODEL_REVISION, "license": MODEL_LICENSE, "files": MODEL_FILES}, indent=2), encoding="utf-8")
             if self.model_dir.exists():
                 backup = self.model_dir.with_name(f".{self.model_dir.name}.old")
                 if backup.exists():
@@ -121,24 +118,28 @@ class LocalTranslationProvider:
 
     def __init__(self, settings, model_manager: LocalTranslationModelManager | None = None) -> None:
         self.settings = settings
-        configured_id = str(getattr(settings, "local_translation_model_id", MODEL_REPOSITORY))
-        configured_revision = str(getattr(settings, "local_translation_model_revision", MODEL_REVISION))
+        configured_id = str(getattr(settings, "local_translation_model_id", os.getenv("LOCAL_TRANSLATION_MODEL_ID", MODEL_REPOSITORY)))
+        configured_revision = str(getattr(settings, "local_translation_model_revision", os.getenv("LOCAL_TRANSLATION_MODEL_REVISION", MODEL_REVISION)))
         if configured_id != MODEL_REPOSITORY or configured_revision != MODEL_REVISION:
             raise ValueError("The local translation provider only accepts its pinned model repository and revision")
-        self.manager = model_manager or LocalTranslationModelManager(getattr(settings, "local_translation_model_dir", None))
+        model_dir = getattr(settings, "local_translation_model_dir", None)
+        self.manager = model_manager or LocalTranslationModelManager(model_dir)
         self.model_path = self.manager.ensure(confirm=self._confirm_download)
-        self.device, self.compute_type = self._resolve_runtime()
+        self.device, self.compute_type, self.device_index = self._resolve_runtime()
         try:
             import ctranslate2
             import sentencepiece as spm
         except ImportError as exc:
             raise RuntimeError("Local translation requires ctranslate2 and sentencepiece") from exc
-        self._translator = ctranslate2.Translator(str(self.model_path), device=self.device, compute_type=self.compute_type)
+        translator_kwargs = {"device": self.device, "compute_type": self.compute_type}
+        if self.device == "cuda":
+            translator_kwargs["device_index"] = self.device_index
+        self._translator = ctranslate2.Translator(str(self.model_path), **translator_kwargs)
         self._source = spm.SentencePieceProcessor(model_file=str(self.model_path / "source.spm"))
         self._target = spm.SentencePieceProcessor(model_file=str(self.model_path / "target.spm"))
 
     def _confirm_download(self, status: LocalModelStatus) -> bool:
-        if not bool(getattr(self.settings, "local_translation_auto_download", False)):
+        if not bool(getattr(self.settings, "local_translation_auto_download", os.getenv("LOCAL_TRANSLATION_AUTO_DOWNLOAD", "false").lower() == "true")):
             return False
         answer = input(
             f"Local translation model {status.repository}@{status.revision} is missing. "
@@ -146,9 +147,10 @@ class LocalTranslationProvider:
         ).strip().lower()
         return answer in {"y", "yes"}
 
-    def _resolve_runtime(self) -> tuple[str, str]:
-        requested_device = str(getattr(self.settings, "local_translation_device", "auto")).lower().strip()
-        requested_compute = str(getattr(self.settings, "local_translation_compute_type", "auto")).lower().strip()
+    def _resolve_runtime(self) -> tuple[str, str, int]:
+        requested_device = str(getattr(self.settings, "local_translation_device", os.getenv("LOCAL_TRANSLATION_DEVICE", "auto"))).lower().strip()
+        requested_compute = str(getattr(self.settings, "local_translation_compute_type", os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto"))).lower().strip()
+        device_index = max(0, int(getattr(self.settings, "detected_gpu_index", 0)))
         if requested_device not in {"auto", "cpu", "cuda"}:
             raise ValueError("local_translation_device must be one of: auto, cpu, cuda")
         if requested_device == "auto":
@@ -158,14 +160,13 @@ class LocalTranslationProvider:
         if requested_device == "cuda":
             try:
                 import ctranslate2
-                index = max(0, int(getattr(self.settings, "detected_gpu_index", 0)))
-                supported = ctranslate2.get_supported_compute_types("cuda", index)
+                supported = ctranslate2.get_supported_compute_types("cuda", device_index)
                 if requested_compute not in supported:
                     requested_compute = "float16" if "float16" in supported else next(iter(supported))
             except (ImportError, AttributeError, RuntimeError, TypeError) as exc:
                 logger.warning("Local translation CUDA unavailable; falling back to CPU: %s", exc)
-                return "cpu", "int8"
-        return requested_device, requested_compute
+                return "cpu", "int8", 0
+        return requested_device, requested_compute, device_index
 
     def translate(self, text: str) -> str:
         return self.translate_batch([text])[0]
@@ -174,7 +175,7 @@ class LocalTranslationProvider:
         if not texts:
             return []
         tokens = [self._source.encode(text, out_type=str) + ["</s>"] for text in texts]
-        results = self._translator.translate_batch(tokens, beam_size=max(1, int(getattr(self.settings, "local_translation_beam_size", 2))))
+        results = self._translator.translate_batch(tokens, beam_size=max(1, int(getattr(self.settings, "local_translation_beam_size", os.getenv("LOCAL_TRANSLATION_BEAM_SIZE", 2)))))
         outputs: list[str] = []
         for result in results:
             hypotheses = getattr(result, "hypotheses", None) or []
@@ -208,7 +209,7 @@ def _download_file(url: str, destination: Path, max_bytes: int) -> None:
         headers["Range"] = f"bytes={offset}-"
     request = urllib.request.Request(url, headers=headers)
     try:
-        with urllib.request.urlopen(request, timeout=60) as response:
+        with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310
             resumed = offset > 0 and getattr(response, "status", None) == 206
             if not resumed:
                 offset = 0
