@@ -6,9 +6,15 @@ from src.local_translation import LocalTranslationModelManager
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Manage the pinned offline local translation model")
+    parser = argparse.ArgumentParser(
+        description="Manage the pinned offline local translation model"
+    )
     parser.add_argument("action", choices=("status", "download", "cleanup"))
-    parser.add_argument("--yes", action="store_true", help="confirm the model download without an interactive prompt")
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="confirm the model download without an interactive prompt",
+    )
     args = parser.parse_args()
 
     manager = LocalTranslationModelManager()

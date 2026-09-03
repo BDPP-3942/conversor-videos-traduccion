@@ -26,6 +26,7 @@ La versión del proyecto no debe incrementarse por cada commit de formato o CI. 
 | Integración de la regeneración existente en los wrappers locales | `1.4.1` |
 | Wrappers multiplataforma con forwarding exacto, naming de referencia y contexto externo de Whisper | `1.5.0` |
 | Endurecimiento de extracción ZIP y componentes de filesystem multiplataforma | `1.5.1` |
+| Traducción local opcional, runtime GPU/CPU endurecido y gestión reproducible de recursos | `1.5.2` |
 
 ## Releases publicadas
 
@@ -112,6 +113,28 @@ Publicado el 28 de agosto de 2026.
 **Tipo:** primera release de producto de esta línea.
 
 **Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
+
+## Candidata 1.5.2
+
+### Alcance
+
+**Tipo:** `PATCH`.
+
+La candidata 1.5.2 añade un proveedor opcional de traducción local, endurece la detección y selección del runtime GPU/CPU y hace reproducible la preparación de los recursos locales. No requiere NVIDIA/CUDA/Internet/Ollama/LM Studio para la ejecución CPU normal una vez preparados los recursos necesarios.
+
+### Cambios
+
+- Proveedor local español→inglés basado en CTranslate2 + SentencePiece.
+- Modelo y revisión fijados con validación de tamaño y SHA-256.
+- Descarga HTTPS controlada, temporales, reanudación cuando es posible y reemplazo atómico.
+- Fallback configurable ante ausencia/corrupción del recurso local.
+- Detección NVIDIA condicionada a capacidad CUDA real de CTranslate2; AMD/Intel/Apple no se declaran compatibles sin un backend verificado.
+- Selección automática CPU `int8` cuando CUDA no está disponible o falla su inicialización.
+- Scripts explícitos para preparar, inspeccionar y limpiar el recurso local.
+
+### Estado
+
+La candidata no debe considerarse publicada hasta completar CI, tests, seguridad, packaging, documentación y validación de un único SHA final. El tag `v1.5.2` no se crea durante la preparación de la candidata.
 
 ## Candidata 1.5.1
 

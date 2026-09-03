@@ -12,7 +12,11 @@ def _small_model_files(monkeypatch):
         "target.spm": (hashlib.sha256(b"target").hexdigest(), 6),
     }
     monkeypatch.setattr(local_translation, "MODEL_FILES", files)
-    monkeypatch.setattr(local_translation, "SMALL_MODEL_FILES", ("config.json", "shared_vocabulary.json", "tokenizer_config.json"))
+    monkeypatch.setattr(
+        local_translation,
+        "SMALL_MODEL_FILES",
+        ("config.json", "shared_vocabulary.json", "tokenizer_config.json"),
+    )
     monkeypatch.setattr(local_translation, "MODEL_SIZE_BYTES", 17)
     return files
 
