@@ -37,12 +37,26 @@ See `.env.example` for the complete currently supported environment-variable sur
 
 ## Provider selection
 
-The default active provider is local. Cloud providers use persistent profiles and runtime state. Use the provider CLI rather than manually editing secrets:
+The default active provider is configured in `config/app.toml` and may be overridden by `TRANSLATION_PROVIDER`. Provider credentials are configured through the existing profile/environment mechanisms. Use the provider CLI rather than manually editing secrets:
 
 ```bash
 python main.py provider list
 python main.py provider use --help
 ```
+
+## Naming configuration and policy
+
+Naming is deliberately not configured through a free-form replacement template. The application owns a deterministic policy so that ZIP extraction, generated output folders and generated artifacts use the same physical filesystem rules.
+
+The logical naming contract is represented as:
+
+```text
+<curso_o_contenedor>x<nombre_sanitizado>
+```
+
+`x` separates scope; `_` separates words inside each block. The physical boundary applies whitespace/separator normalization, punctuation/control-character handling, Unicode/diacritic normalization, Windows reserved-name protection and filesystem length limits. Logical metadata is preserved separately from the physical name.
+
+The `normalize_legacy_names` workflow setting controls migration of already existing output names. It does not change the naming rules themselves. When enabled, migration is performed before normal processing and must not silently overwrite an existing destination.
 
 ## Video concurrency
 

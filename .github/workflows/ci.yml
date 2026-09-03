@@ -6,14 +6,13 @@ on:
     branches:
       - main
       - release/**
-      - fix/**
-      - feat/**
   pull_request:
     branches: [main]
 
 permissions:
   contents: read
 
+# Avoid wasting private-repository Actions minutes when a newer commit supersedes an older run.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -26,7 +25,8 @@ env:
 jobs:
   test:
     strategy:
-      fail-fast: false
+      # Cancel the remaining matrix jobs after the first failure; the same final SHA can be rerun after the fix.
+      fail-fast: true
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ['3.11', '3.12', '3.13']

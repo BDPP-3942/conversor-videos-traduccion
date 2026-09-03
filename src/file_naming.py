@@ -157,7 +157,9 @@ class FileNameFormatter:
         return None
 
     @classmethod
-    def _build_description(cls, stem: str, *, course: int | None, lesson: int | None, course_name: str | None, lesson_name: str | None) -> str:
+    def _build_description(
+        cls, stem: str, *, course: int | None, lesson: int | None, course_name: str | None, lesson_name: str | None
+    ) -> str:
         value = stem
         if course is not None:
             value = cls._remove_number(value, course)
@@ -234,10 +236,16 @@ def strip_date_artifacts(value: str) -> str:
 
 
 def clean_for_filename(value: str) -> str:
-    """Sanitize logical names with a stable cross-platform separator policy."""
+    """Normalize a logical/physical name with deterministic, cross-platform separators.
+
+    Unicode compatibility normalization removes accents deterministically for physical
+    names, while incompatible punctuation and filesystem separators become `_`.
+    Parentheses, brackets and quote marks are treated as punctuation rather than part
+    of the physical naming contract. Repeated separators are collapsed at the end.
+    """
     normalized = unicodedata.normalize("NFKD", value)
     normalized = "".join(char for char in normalized if not unicodedata.combining(char))
-    normalized = re.sub(r"[<>:\"/\\|?*\x00-\x1f]", "_", normalized)
+    normalized = re.sub(r"[<>:\"/\\|?*()\[\]{}'“”‘’`´,;!¡¿@#$%^&=+~\x00-\x1f]", "_", normalized)
     normalized = re.sub(r"[\s\-_.—–−‒―]+", "_", normalized)
     return normalized.strip("_.-")
 
@@ -286,7 +294,12 @@ def normalized_name_similarity(left: str, right: str) -> float:
 
 
 def fit_output_stem(stem: str, parent: Path, unique_suffix: str | None = None, reserve_suffixes: tuple[str, ...] = ()) -> str:
-    """Sanitize and fit a generated output stem to the host filesystem."""
+    """Sanitize and fit a generated output stem to the host filesystem.
+
+    This is the final physical-name boundary for generated output. The caller may
+    keep a richer logical stem in metadata, but anything returned here is safe for
+    the destination filesystem and uses the project separator policy.
+    """
     physical_stem = normalize_component(stem)
     suffix = f"__{unique_suffix}" if unique_suffix else ""
     candidate = fit_component(physical_stem, parent, suffix=suffix)

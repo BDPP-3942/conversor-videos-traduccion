@@ -110,19 +110,30 @@ Consulta [`docs/REGENERATION.md`](docs/REGENERATION.md) para las garantías y li
 
 ## Naming de vídeos
 
-El sistema separa el nombre lógico derivado de la información del curso/vídeo de su representación física. El texto original no se modifica; el componente físico pasa por una política determinista antes de crear carpetas y artefactos.
+El naming distingue explícitamente entre información lógica y representación física. El texto/contenido original se conserva; la representación física se genera mediante una política determinista y segura antes de crear carpetas o artefactos.
 
-La convención física es:
+La nomenclatura física de referencia es:
 
 ```text
 <curso_o_contenedor>x<nombre_sanitizado>
 ```
 
-Dentro de cada bloque se utiliza `_` como separador de palabras. Los espacios, guiones usados como separadores, puntuación incompatible, controles y caracteres problemáticos se normalizan de forma determinista. Los acentos se transliteran para el nombre físico y los nombres reservados de Windows se protegen. La longitud se ajusta al filesystem de destino y las colisiones se resuelven de forma determinista sin sobrescritura silenciosa.
+`x` es exclusivamente el separador de ámbito entre contenedor/curso y recurso. Dentro de cada bloque, `_` es el separador de palabras; no se utiliza `-` como separador de palabras. La estructura lógica no debe recuperarse buscando cualquier `x` dentro del nombre: debe conservarse en metadata/manifest.
 
-La extracción ZIP valida primero las rutas, symlinks, nombres reservados y colisiones. Después, `MediaPipeline` aplica la misma política al nombre de la carpeta de salida y a los nombres de los artefactos generados (MP4/WebM/VTT), de modo que el control no termina en la extracción.
+La normalización física se aplica de forma centralizada en el límite de creación del recurso. Incluye, de forma determinista:
 
-La estructura lógica de curso/recurso se conserva en metadata/manifest y no depende de buscar cualquier carácter `x` dentro de un nombre.
+- espacios y separadores de palabras → `_`;
+- eliminación de espacios iniciales/finales y separadores repetidos;
+- eliminación/control de caracteres de filesystem (`\\ / : * ? " < > |`) y puntuación problemática, incluidos paréntesis, corchetes y comillas;
+- conversión de enumeraciones como `1. Introducción` a `1_Introduccion` en la representación física;
+- normalización Unicode y transliteración de diacríticos para nombres físicos (`ñ` → `n`, `á` → `a`, etc.);
+- protección de nombres reservados de Windows (`CON`, `PRN`, `AUX`, `NUL`, `COM1`…`LPT9`);
+- ajuste a los límites de componente/ruta del filesystem de destino;
+- detección de colisiones antes de sobrescribir y uso de una estrategia determinista cuando el flujo necesita reservar un nombre.
+
+La extracción ZIP aplica además validación de rutas absolutas/UNC, traversal, symlinks, nombres reservados y colisiones Unicode/case antes de escribir. El mismo contrato físico debe respetarse posteriormente en carpetas y artefactos generados (MP4/WebM/VTT), evitando que una entrada segura del ZIP produzca después un nombre físico inseguro.
+
+Los ejemplos suministrados en `arbol_zips(1).txt` se utilizan como referencia funcional/estructural. No son una dependencia del runtime. Por ejemplo, el árbol exige resultados como `19x2_POSTURAS_FIJAS`, `35x17` y `37_7-opt-taich-bombeosx8_OPT_TAICH_pendulos_abanicos_lanzamientos`; cualquier regla adicional debe implementarse en la política, no mediante excepciones arbitrarias dispersas.
 
 ## Reprocesado y recuperación de VTT
 
@@ -228,3 +239,7 @@ Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` 
 La release publicada actual es `1.5.0` (`v1.5.0`). La versión `1.5.1` corresponde a la siguiente candidata de mantenimiento y endurecimiento de ZIP/filesystem/naming. No se considera publicada hasta que exista un tag/release verificable.
 
 No se modifica el historial de releases anteriores.
+
+## Seguridad y licencias
+
+No versionar secretos, tokens ni claves. Los modelos, pesos y voces TTS pueden tener licencias diferentes de las librerías que los ejecutan. Antes de redistribuir el ejecutable o usarlo comercialmente debe revisarse la licencia concreta de cada componente.
