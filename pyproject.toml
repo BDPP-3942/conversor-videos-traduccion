@@ -49,11 +49,12 @@ known-first-party = ["config", "src"]
 "src/media_identity.py" = ["S603"]
 "src/storage/rclone.py" = ["S603"]
 "src/translation_providers.py" = ["S310"]
+"src/hardware.py" = ["S603"]
+"src/local_translation.py" = ["S310"]
 "tests/test_media_converter.py" = ["S603"]
 "tests/test_media_identity.py" = ["S603"]
 "src/reprocessor.py" = ["S101"]
 "src/subtitle_qa.py" = ["S310"]
-"src/hardware.py" = ["S603"]
 
 [tool.ruff.format]
 exclude = [
