@@ -25,26 +25,22 @@ La versión del proyecto no debe incrementarse por cada commit de formato o CI. 
 | Regeneración limpia explícita de resultados existentes | `1.4.0` |
 | Integración de la regeneración existente en los wrappers locales | `1.4.1` |
 | Wrappers multiplataforma con forwarding exacto, naming de referencia y contexto externo de Whisper | `1.5.0` |
-
-## Candidata 1.5.0
-
-**Tipo propuesto:** `MINOR`.
-
-**Estado:** candidata en PR #33; no publicada hasta completar el Release Gate.
-
-Alcance funcional:
-
-- dispatcher común para `run_local.sh` y `run_local.bat`;
-- forwarding exacto de argumentos y soporte explícito de `run`/`regenerate`;
-- política de naming validada contra el árbol completo de `arbol_zips.txt`;
-- `whisper_initial_prompt` mediante prompt literal o `txt`, `md`, `csv` y `docx`;
-- documentación de la estrategia real de CPU/GPU de CTranslate2 sin afirmar partición de una inferencia entre ambos dispositivos;
-- CI de tests sobre Linux, Windows y macOS para Python 3.11, 3.12 y 3.13;
-- packaging del recurso `palabras_contexto.*`.
-
-La versión `1.5.0` solo se considera publicada cuando un único SHA final tenga CI, tests, seguridad, packaging y documentación completos y el tag correspondiente apunte exactamente a ese SHA.
+| Endurecimiento de extracción ZIP y componentes de filesystem multiplataforma | `1.5.1` |
 
 ## Releases publicadas
+
+### 1.5.0 — Multiplatform Whisper, Context & Packaging
+
+**Tipo:** `MINOR`.
+
+**Commit/tag publicado:** `261f4b475f452b98880815f722aa8f8f43d28097` / `v1.5.0`.
+
+- Dispatcher común para `run_local.sh` y `run_local.bat`.
+- Política de naming validada contra el árbol de referencia.
+- Soporte de `whisper_initial_prompt` mediante texto literal y archivos de contexto.
+- Estrategia documentada de ejecución CPU/GPU con CTranslate2.
+- Validación multiplataforma de tests, packaging y entry points.
+- Release publicada el 1 de septiembre de 2026.
 
 ### 1.4.0 — Clean Video Regeneration & Release Hardening
 
@@ -117,6 +113,26 @@ Publicado el 28 de agosto de 2026.
 
 **Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
 
+## Candidata 1.5.1
+
+### Alcance
+
+**Tipo:** `PATCH`.
+
+La candidata 1.5.1 endurece exclusivamente la extracción ZIP y la generación de componentes de filesystem. No introduce una segunda pipeline ni modifica CUDA, Whisper, translation providers o TTS.
+
+### Cambios
+
+- Protección contra rutas absolutas, UNC y traversal con separadores multiplataforma.
+- Protección contra symlinks y nombres reservados de Windows.
+- Detección preventiva de colisiones por case y normalización Unicode.
+- Prevención de sobrescritura silenciosa de entradas ZIP duplicadas.
+- Sanitización de componentes de filesystem generados por la aplicación.
+
+### Estado
+
+La candidata no debe considerarse publicada hasta completar CI, tests, seguridad, packaging, documentación y validación de un único SHA final. El tag `v1.5.1` no se crea durante la preparación de la candidata.
+
 ## Candidata 1.4.1
 
 ### Alcance
@@ -139,7 +155,7 @@ La candidata no debe considerarse publicada hasta completar el Release Gate, CI,
 
 Los tags de release utilizan el formato `vMAJOR.MINOR.PATCH` y no deben reutilizarse ni moverse después de publicar una release.
 
-`v1.3.0` permanece asociado a `620af6acbe3fca7d42ccd57f3585b3952cccf0a7` y no debe modificarse. `v1.4.0` permanece asociado al commit de `main` `ce1da6ea69a89f5a789c0670b200d6038f1a746d` y tampoco debe modificarse.
+`v1.3.0` permanece asociado a `620af6acbe3fca7d42ccd57f3585b3952cccf0a7`, `v1.4.0` permanece asociado a `ce1da6ea69a89f5a789c0670b200d6038f1a746d` y `v1.5.0` permanece asociado a `261f4b475f452b98880815f722aa8f8f43d28097`. Ninguno debe modificarse.
 
 ## Historial anterior
 
