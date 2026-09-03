@@ -1,45 +1,53 @@
+import hashlib
 from pathlib import Path
 
-from src.local_translation import (
-    MODEL_FILES,
-    MODEL_LICENSE,
-    MODEL_REPOSITORY,
-    MODEL_REVISION,
-    LocalTranslationModelManager,
-    LocalTranslationProvider,
-)
+from src import local_translation
+from src.local_translation import LocalTranslationModelManager, LocalTranslationProvider
 
 
-def _write_valid_model_files(path: Path) -> None:
-    for name, (_, size) in MODEL_FILES.items():
-        path.joinpath(name).write_bytes(b"x" * size)
+def _small_model_files(monkeypatch):
+    files = {
+        "model.bin": (hashlib.sha256(b"model").hexdigest(), 5),
+        "source.spm": (hashlib.sha256(b"source").hexdigest(), 6),
+        "target.spm": (hashlib.sha256(b"target").hexdigest(), 6),
+    }
+    monkeypatch.setattr(local_translation, "MODEL_FILES", files)
+    monkeypatch.setattr(local_translation, "MODEL_SIZE_BYTES", 17)
+    return files
 
 
 def test_model_status_reports_missing_resource(tmp_path: Path) -> None:
     status = LocalTranslationModelManager(tmp_path).status()
     assert not status.available
     assert "missing files" in status.reason
-    assert status.repository == MODEL_REPOSITORY
-    assert status.revision == MODEL_REVISION
-    assert status.license == MODEL_LICENSE
+    assert status.repository == local_translation.MODEL_REPOSITORY
+    assert status.revision == local_translation.MODEL_REVISION
+    assert status.license == local_translation.MODEL_LICENSE
 
 
-def test_model_status_rejects_wrong_size_before_loading(tmp_path: Path) -> None:
-    tmp_path.joinpath("model.bin").write_bytes(b"invalid")
+def test_model_status_accepts_verified_files(monkeypatch, tmp_path: Path) -> None:
+    files = _small_model_files(monkeypatch)
+    tmp_path.joinpath("model.bin").write_bytes(b"model")
+    tmp_path.joinpath("source.spm").write_bytes(b"source")
+    tmp_path.joinpath("target.spm").write_bytes(b"target")
     status = LocalTranslationModelManager(tmp_path).status()
-    assert not status.available
-    assert "missing files" in status.reason
+    assert status.available
+    assert status.path == tmp_path
+    assert files["model.bin"][0] == hashlib.sha256(b"model").hexdigest()
 
 
-def test_model_status_rejects_wrong_hash(tmp_path: Path) -> None:
-    for name, (_, size) in MODEL_FILES.items():
-        tmp_path.joinpath(name).write_bytes(b"x" * size)
+def test_model_status_rejects_wrong_hash(monkeypatch, tmp_path: Path) -> None:
+    _small_model_files(monkeypatch)
+    tmp_path.joinpath("model.bin").write_bytes(b"wrong")
+    tmp_path.joinpath("source.spm").write_bytes(b"source")
+    tmp_path.joinpath("target.spm").write_bytes(b"target")
     status = LocalTranslationModelManager(tmp_path).status()
     assert not status.available
     assert "SHA-256 mismatch" in status.reason
 
 
-def test_model_ensure_does_not_download_without_explicit_confirmation(tmp_path: Path) -> None:
+def test_model_ensure_does_not_download_without_explicit_confirmation(monkeypatch, tmp_path: Path) -> None:
+    _small_model_files(monkeypatch)
     manager = LocalTranslationModelManager(tmp_path)
     try:
         manager.ensure(confirm=lambda _status: False)
