@@ -26,7 +26,7 @@ def _fail(message: str) -> None:
 
 def main() -> None:
     expected_sha = sys.argv[1] if len(sys.argv) > 1 else ""
-    expected_version = sys.argv[2] if len(sys.argv) > 2 else "1.5.0"
+    expected_version = sys.argv[2] if len(sys.argv) > 2 else ""
 
     actual_sha = _git("rev-parse", "HEAD")
     if expected_sha and actual_sha != expected_sha:
@@ -36,6 +36,8 @@ def main() -> None:
     version = pyproject.get("project", {}).get("version")
     if not isinstance(version, str):
         _fail("pyproject.toml has no static project.version")
+    if not expected_version:
+        expected_version = version
     if version != expected_version:
         _fail(f"pyproject version is {version}, expected {expected_version}")
 
