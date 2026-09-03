@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from src.file_naming import FileNameFormatter, normalize_comparison_key, normalize_filename
+from src.file_naming import FileNameFormatter, fit_output_stem, normalize_comparison_key, normalize_component, normalize_filename
 
 
 def test_course_number_and_description_are_preserved(tmp_path: Path) -> None:
@@ -90,3 +90,24 @@ def test_calendar_date_time_suffix_is_removed_from_source_output(tmp_path: Path)
         assert metadata.lesson == 7
         assert "2026" not in metadata.output_stem
         assert "10_24" not in metadata.output_stem
+
+
+def test_generated_output_stem_is_sanitized_for_physical_filesystem(tmp_path: Path) -> None:
+    result = fit_output_stem("Curso-03: Niño / CON?", tmp_path)
+    assert result == "Curso_03_Nino_CON"
+    assert "-" not in result
+    assert "/" not in result
+    assert ":" not in result
+    assert "?" not in result
+
+
+def test_generated_output_stem_handles_reserved_name_after_normalization(tmp_path: Path) -> None:
+    assert normalize_component("CON") == "_CON"
+    assert fit_output_stem("CON", tmp_path) == "_CON"
+
+
+def test_generated_output_stem_keeps_scope_separator_and_sanitizes_each_block(tmp_path: Path) -> None:
+    result = fit_output_stem("19x2-POSTURAS (FIJAS)", tmp_path)
+    assert result == "19x2_POSTURAS_FIJAS"
+    assert result.count("x") == 1
+    assert "-" not in result
