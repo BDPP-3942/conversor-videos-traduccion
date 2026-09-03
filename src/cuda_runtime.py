@@ -7,6 +7,7 @@ import platform
 import shutil
 import subprocess
 import sys
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -14,11 +15,13 @@ from config.settings import BASE_DIR
 
 CUDA_MAJOR = 12
 CUDNN_MAJOR = 9
-CUBLAS_SPEC = "nvidia-cublas-cu12>=12.8,<13"
+CUBLAS_SPEC = "nvidia-cublas-cu12>=12,<13"
 CUDNN_SPEC = "nvidia-cudnn-cu12>=9,<10"
 MANAGED_DIR = BASE_DIR / "tools" / "cuda"
 MANAGED_PYTHON_DIR = MANAGED_DIR / "python"
 MANIFEST = MANAGED_DIR / "runtime.json"
+_prompt_lock = threading.Lock()
+_interactive_decision: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -51,17 +54,17 @@ def _version_tuple(value: str | None) -> tuple[int, ...]:
     return tuple(result)
 
 
+def _add_managed_python_path() -> None:
+    if MANAGED_PYTHON_DIR.is_dir() and str(MANAGED_PYTHON_DIR) not in sys.path:
+        sys.path.insert(0, str(MANAGED_PYTHON_DIR))
+
+
 def _package_version(name: str) -> str | None:
     _add_managed_python_path()
     try:
         return importlib.metadata.version(name)
     except importlib.metadata.PackageNotFoundError:
         return None
-
-
-def _add_managed_python_path() -> None:
-    if MANAGED_PYTHON_DIR.is_dir() and str(MANAGED_PYTHON_DIR) not in sys.path:
-        sys.path.insert(0, str(MANAGED_PYTHON_DIR))
 
 
 def _run(command: list[str]) -> tuple[int, str]:
@@ -104,8 +107,7 @@ def _library_candidates() -> tuple[list[Path], list[Path]]:
         if cuda_path:
             roots.append(Path(cuda_path) / "bin")
         managed = MANAGED_PYTHON_DIR / "nvidia"
-        roots.append(managed / "cublas" / "bin")
-        roots.append(managed / "cudnn" / "bin")
+        roots += [managed / "cublas" / "bin", managed / "cudnn" / "bin"]
         cublas = [root / name for root in roots for name in ("cublas64_12.dll", "cublasLt64_12.dll")]
         cudnn = [root / "cudnn64_9.dll" for root in roots]
     else:
@@ -194,18 +196,25 @@ def install_managed_cuda_runtime() -> CUDARuntimeStatus:
 
 
 def ensure_cuda_runtime(*, interactive: bool = True) -> CUDARuntimeStatus:
+    global _interactive_decision
     status = inspect_cuda_runtime()
     if not status.nvidia_gpu or status.compatible:
         return status
     if not interactive or not sys.stdin.isatty():
         return status
-    print("\nNVIDIA GPU detected, but the CUDA runtime required by the pinned faster-whisper/CTranslate2 stack is not ready.")
-    print(f"Reason: {status.reason}")
-    print(f"Requirements: CUDA {CUDA_MAJOR}.x + cuBLAS for CUDA 12 + cuDNN {CUDNN_MAJOR} for CUDA 12.")
-    print(f"Managed installation: {MANAGED_DIR}")
-    print(f"Runtime libraries will be installed into: {MANAGED_PYTHON_DIR}")
-    print("The NVIDIA driver is not replaced. A full CUDA Toolkit is optional and is not installed by this operation.")
-    answer = input("Install the managed NVIDIA runtime libraries now? [y/N]: ").strip().lower()
-    if answer not in {"y", "yes"}:
-        return status
+    with _prompt_lock:
+        if _interactive_decision is False:
+            return status
+        if _interactive_decision is None:
+            print("\nNVIDIA GPU detected, but the CUDA runtime required by the pinned faster-whisper/CTranslate2 stack is not ready.")
+            print(f"Reason: {status.reason}")
+            print(f"Detected driver: {status.driver_version or 'unknown'}; advertised CUDA: {status.driver_cuda_max or 'unknown'}")
+            print(f"Requirements: CUDA {CUDA_MAJOR}.x + cuBLAS for CUDA 12 + cuDNN {CUDNN_MAJOR} for CUDA 12.")
+            print(f"Managed installation: {MANAGED_DIR}")
+            print(f"Runtime libraries will be installed into: {MANAGED_PYTHON_DIR}")
+            print("The NVIDIA driver is not replaced. A full CUDA Toolkit is optional and is not installed by this operation.")
+            answer = input("Install the managed NVIDIA runtime libraries now? [y/N]: ").strip().lower()
+            _interactive_decision = answer in {"y", "yes"}
+        if not _interactive_decision:
+            return status
     return install_managed_cuda_runtime()
