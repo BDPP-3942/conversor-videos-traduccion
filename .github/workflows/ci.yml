@@ -12,7 +12,6 @@ on:
 permissions:
   contents: read
 
-# Avoid wasting private-repository Actions minutes when a newer commit supersedes an older run.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -22,20 +21,16 @@ env:
   PYTHONWARNINGS: error
   CHECKOUT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
-# The CI is intentionally split into:
-#   - quality: checks that do not need a platform/version matrix;
-#   - compatibility: runtime tests that genuinely need each supported OS/Python pair;
-#   - packaging/audits: single-environment jobs.
-#
-# Self-hosted labels expected on the private development machine:
+# Self-hosted runner labels expected on the private development machine:
 #   Windows host: [self-hosted, windows, x64]
 #   WSL2 Ubuntu:  [self-hosted, linux, x64]
 # macOS remains GitHub-hosted because it cannot be reproduced faithfully on the Windows tower.
+# Quality, packaging and dependency audits are not OS-matrix checks and therefore run once on Linux.
 
 jobs:
   quality:
     name: Quality / static checks
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     steps:
       - name: Checkout exact branch head
         uses: actions/checkout@v5
@@ -97,6 +92,7 @@ jobs:
       - name: Verify Windows local wrapper
         shell: pwsh
         run: |
+          if (Test-Path .venv) { Remove-Item -Recurse -Force .venv }
           python -m venv --system-site-packages .venv
           cmd /c "scripts\run_local.bat regenerate --help"
 
@@ -179,7 +175,7 @@ jobs:
           bash -n scripts/run_scheduled.sh
 
   packaging:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     steps:
       - name: Checkout exact branch head
         uses: actions/checkout@v5
@@ -210,7 +206,7 @@ jobs:
           /tmp/package-check/bin/video-translation-tts --help
 
   dependency-audit:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     steps:
       - name: Checkout exact branch head
         uses: actions/checkout@v5
@@ -235,7 +231,7 @@ jobs:
         run: python -m pip_audit --strict
 
   tts-dependency-audit:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     steps:
       - name: Checkout exact branch head
         uses: actions/checkout@v5
