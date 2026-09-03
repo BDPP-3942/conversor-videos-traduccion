@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from config.settings import BASE_DIR
+from src.hardware import detect_hardware
 
 logger = logging.getLogger(__name__)
 MODEL_REPOSITORY = "Prukario/opus-mt-es-en-ct2-int8"
@@ -60,45 +61,14 @@ class LocalTranslationModelManager:
         required = (*MODEL_FILES, *SMALL_MODEL_FILES)
         missing = [name for name in required if not (self.model_dir / name).is_file()]
         if missing:
-            return LocalModelStatus(
-                False,
-                self.model_dir,
-                MODEL_REPOSITORY,
-                MODEL_REVISION,
-                MODEL_SIZE_BYTES,
-                MODEL_LICENSE,
-                f"missing files: {', '.join(missing)}",
-            )
+            return LocalModelStatus(False, self.model_dir, MODEL_REPOSITORY, MODEL_REVISION, MODEL_SIZE_BYTES, MODEL_LICENSE, f"missing files: {', '.join(missing)}")
         for name, (expected_hash, expected_size) in MODEL_FILES.items():
             path = self.model_dir / name
             if path.stat().st_size != expected_size:
-                return LocalModelStatus(
-                    False,
-                    self.model_dir,
-                    MODEL_REPOSITORY,
-                    MODEL_REVISION,
-                    MODEL_SIZE_BYTES,
-                    MODEL_LICENSE,
-                    f"size mismatch: {name}",
-                )
+                return LocalModelStatus(False, self.model_dir, MODEL_REPOSITORY, MODEL_REVISION, MODEL_SIZE_BYTES, MODEL_LICENSE, f"size mismatch: {name}")
             if _sha256(path) != expected_hash:
-                return LocalModelStatus(
-                    False,
-                    self.model_dir,
-                    MODEL_REPOSITORY,
-                    MODEL_REVISION,
-                    MODEL_SIZE_BYTES,
-                    MODEL_LICENSE,
-                    f"SHA-256 mismatch: {name}",
-                )
-        return LocalModelStatus(
-            True,
-            self.model_dir,
-            MODEL_REPOSITORY,
-            MODEL_REVISION,
-            MODEL_SIZE_BYTES,
-            MODEL_LICENSE,
-        )
+                return LocalModelStatus(False, self.model_dir, MODEL_REPOSITORY, MODEL_REVISION, MODEL_SIZE_BYTES, MODEL_LICENSE, f"SHA-256 mismatch: {name}")
+        return LocalModelStatus(True, self.model_dir, MODEL_REPOSITORY, MODEL_REVISION, MODEL_SIZE_BYTES, MODEL_LICENSE)
 
     def ensure(self, *, confirm: Callable[[LocalModelStatus], bool] | None = None) -> Path:
         status = self.status()
@@ -107,10 +77,8 @@ class LocalTranslationModelManager:
         if confirm is None or not confirm(status):
             raise RuntimeError(
                 f"Local translation model is not ready ({status.reason}). "
-                f"Resource: {MODEL_REPOSITORY}@{MODEL_REVISION}; "
-                f"approximate size: {MODEL_SIZE_BYTES / 1024**2:.1f} MiB; "
-                f"destination: {self.model_dir}; license: {MODEL_LICENSE}. "
-                "Prepare it explicitly before offline processing."
+                f"Resource: {MODEL_REPOSITORY}@{MODEL_REVISION}; approximate size: {MODEL_SIZE_BYTES / 1024**2:.1f} MiB; "
+                f"destination: {self.model_dir}; license: {MODEL_LICENSE}. Prepare it explicitly before offline processing."
             )
         self.download()
         final = self.status()
@@ -131,12 +99,7 @@ class LocalTranslationModelManager:
                 path = temp_dir / name
                 if path.stat().st_size != expected_size or _sha256(path) != expected_hash:
                     raise RuntimeError(f"Integrity validation failed for downloaded model file: {name}")
-            metadata = {
-                "repository": MODEL_REPOSITORY,
-                "revision": MODEL_REVISION,
-                "license": MODEL_LICENSE,
-                "files": MODEL_FILES,
-            }
+            metadata = {"repository": MODEL_REPOSITORY, "revision": MODEL_REVISION, "license": MODEL_LICENSE, "files": MODEL_FILES}
             (temp_dir / "model.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
             if self.model_dir.exists():
                 if not self.model_dir.is_dir():
@@ -174,26 +137,10 @@ class LocalTranslationProvider:
     source_lang = "es"
     target_lang = "en"
 
-    def __init__(
-        self,
-        settings,
-        model_manager: LocalTranslationModelManager | None = None,
-    ) -> None:
+    def __init__(self, settings, model_manager: LocalTranslationModelManager | None = None) -> None:
         self.settings = settings
-        configured_id = str(
-            getattr(
-                settings,
-                "local_translation_model_id",
-                os.getenv("LOCAL_TRANSLATION_MODEL_ID", MODEL_REPOSITORY),
-            )
-        )
-        configured_revision = str(
-            getattr(
-                settings,
-                "local_translation_model_revision",
-                os.getenv("LOCAL_TRANSLATION_MODEL_REVISION", MODEL_REVISION),
-            )
-        )
+        configured_id = str(getattr(settings, "local_translation_model_id", os.getenv("LOCAL_TRANSLATION_MODEL_ID", MODEL_REPOSITORY)))
+        configured_revision = str(getattr(settings, "local_translation_model_revision", os.getenv("LOCAL_TRANSLATION_MODEL_REVISION", MODEL_REVISION)))
         if configured_id != MODEL_REPOSITORY or configured_revision != MODEL_REVISION:
             raise ValueError("The local translation provider only accepts its pinned model repository and revision")
         model_dir = getattr(settings, "local_translation_model_dir", None)
@@ -213,57 +160,57 @@ class LocalTranslationProvider:
         self._target = spm.SentencePieceProcessor(model_file=str(self.model_path / "target.spm"))
 
     def _confirm_download(self, status: LocalModelStatus) -> bool:
-        auto_download = bool(
-            getattr(
-                self.settings,
-                "local_translation_auto_download",
-                os.getenv("LOCAL_TRANSLATION_AUTO_DOWNLOAD", "false").lower() == "true",
-            )
-        )
-        if not auto_download:
-            return False
-        return True
+        return bool(getattr(self.settings, "local_translation_auto_download", os.getenv("LOCAL_TRANSLATION_AUTO_DOWNLOAD", "false").lower() == "true"))
 
     def _resolve_runtime(self) -> tuple[str, str, int]:
-        requested_device = (
-            str(
-                getattr(
-                    self.settings,
-                    "local_translation_device",
-                    os.getenv("LOCAL_TRANSLATION_DEVICE", "auto"),
-                )
-            )
-            .lower()
-            .strip()
-        )
-        requested_compute = (
-            str(
-                getattr(
-                    self.settings,
-                    "local_translation_compute_type",
-                    os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto"),
-                )
-            )
-            .lower()
-            .strip()
-        )
-        device_index = max(0, int(getattr(self.settings, "detected_gpu_index", 0)))
+        requested_device = str(getattr(self.settings, "local_translation_device", os.getenv("LOCAL_TRANSLATION_DEVICE", "auto"))).lower().strip()
+        requested_compute = str(getattr(self.settings, "local_translation_compute_type", os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto"))).lower().strip()
         if requested_device not in {"auto", "cpu", "cuda"}:
             raise ValueError("local_translation_device must be one of: auto, cpu, cuda")
+
+        hardware = detect_hardware()
+        detected_gpu = hardware.gpu
+        configured_index = getattr(self.settings, "detected_gpu_index", None)
+        device_index = max(0, int(configured_index)) if configured_index is not None and int(configured_index) >= 0 else max(0, detected_gpu.device_index or 0)
+
         if requested_device == "auto":
-            requested_device = "cuda" if bool(getattr(self.settings, "detected_gpu_usable", False)) else "cpu"
+            requested_device = "cuda" if detected_gpu.usable_for_whisper else "cpu"
+            if requested_device == "cuda":
+                logger.info(
+                    "Local translation selected CUDA automatically: GPU=%s, index=%d, VRAM free=%.2f GB, CTranslate2 runtime=%s",
+                    detected_gpu.model or "unknown",
+                    device_index,
+                    detected_gpu.vram_free_gb,
+                    detected_gpu.runtime or "unknown",
+                )
+            else:
+                logger.info("Local translation selected CPU automatically: no verified usable CTranslate2 CUDA runtime detected")
+
         if requested_compute == "auto":
             requested_compute = "float16" if requested_device == "cuda" else "int8"
+
         if requested_device == "cuda":
+            if not detected_gpu.usable_for_whisper:
+                logger.warning(
+                    "Local translation CUDA requested but no verified CTranslate2 CUDA GPU is available; falling back to CPU"
+                )
+                return "cpu", "int8", 0
             try:
                 import ctranslate2
-
                 supported = ctranslate2.get_supported_compute_types("cuda", device_index)
-                if requested_compute not in supported:
-                    requested_compute = "float16" if "float16" in supported else next(iter(supported))
             except (ImportError, AttributeError, RuntimeError, TypeError) as exc:
-                logger.warning("Local translation CUDA unavailable; falling back to CPU: %s", exc)
+                logger.warning("Local translation CUDA capability check failed; falling back to CPU: %s", exc)
                 return "cpu", "int8", 0
+            if requested_compute not in supported:
+                if "float16" in supported:
+                    requested_compute = "float16"
+                elif "int8_float16" in supported:
+                    requested_compute = "int8_float16"
+                elif supported:
+                    requested_compute = sorted(supported)[0]
+                else:
+                    logger.warning("CTranslate2 reports no CUDA compute types; falling back to CPU")
+                    return "cpu", "int8", 0
         return requested_device, requested_compute, device_index
 
     def translate(self, text: str) -> str:
@@ -273,16 +220,7 @@ class LocalTranslationProvider:
         if not texts:
             return []
         tokens = [self._source.encode(text, out_type=str) + ["</s>"] for text in texts]
-        beam_size = max(
-            1,
-            int(
-                getattr(
-                    self.settings,
-                    "local_translation_beam_size",
-                    os.getenv("LOCAL_TRANSLATION_BEAM_SIZE", 2),
-                )
-            ),
-        )
+        beam_size = max(1, int(getattr(self.settings, "local_translation_beam_size", os.getenv("LOCAL_TRANSLATION_BEAM_SIZE", 2))))
         results = self._translator.translate_batch(tokens, beam_size=beam_size)
         outputs: list[str] = []
         for result in results:
