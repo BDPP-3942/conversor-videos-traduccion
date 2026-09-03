@@ -3,8 +3,8 @@
 ## Requirements
 
 - Python 3.11, 3.12 or 3.13 (`>=3.11,<3.14`).
-- Internet access for package/model/provider downloads as applicable.
-- Disk space for media, Whisper/TTS assets and generated output.
+- Internet access only when packages, Whisper models, local translation models or remote providers need to be prepared/used.
+- Disk space for media, Whisper/TTS assets, the optional local translation model and generated output.
 - Optional Google dependency for Google Drive.
 - rclone is an external executable; the project can bootstrap and manage its own binary under `tools/rclone/`.
 
@@ -12,34 +12,17 @@ FFmpeg is supplied through the `imageio-ffmpeg` dependency unless an explicit ex
 
 ## Install
 
-Clone the repository:
+Clone the repository and install the project in a virtual environment:
 
 ```bash
 git clone https://github.com/BDPP-3942/conversor-videos-traduccion.git
 cd conversor-videos-traduccion
-```
-
-### macOS/Linux
-
-```bash
-chmod +x scripts/setup_env.sh
-./scripts/setup_env.sh
-```
-
-The setup script accepts exactly these optional flags: `--cloud`, `--rclone`, `--tts` and `--prefetch-whisper`.
-
-### Windows
-
-```bat
-scripts\setup_env.bat
-```
-
-The Windows setup script accepts the same four optional flags: `--cloud`, `--rclone`, `--tts` and `--prefetch-whisper`.
-
-### Manual virtual environment
-
-```bash
 python -m venv .venv
+```
+
+Activate the environment and install:
+
+```bash
 # macOS/Linux
 source .venv/bin/activate
 # Windows PowerShell
@@ -47,6 +30,8 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e .
 ```
+
+The project pins the tested minor lines for `faster-whisper` and CTranslate2. The CPU installation does not require NVIDIA or the CUDA Toolkit.
 
 Optional extras are declared in `pyproject.toml`:
 
@@ -58,6 +43,18 @@ python -m pip install -e ".[package]"
 ```
 
 They can be combined, for example `.[tts,google,dev,package]`.
+
+## NVIDIA/CUDA
+
+NVIDIA support is optional. The runtime is validated in this order:
+
+```text
+NVIDIA driver → CUDA dependencies → CTranslate2 → faster-whisper
+```
+
+Do not install the complete CUDA Toolkit solely because the application detects an NVIDIA GPU. The selected CTranslate2 build must have a compatible CUDA runtime. If GPU initialization fails, Whisper falls back once to CPU `int8` when CPU fallback is enabled by the runtime policy.
+
+The application does not automatically modify the global `PATH`. Managed resources, when introduced, remain under the application resource directory.
 
 ## Configuration
 
@@ -75,6 +72,39 @@ copy .env.example .env
 
 Do not commit `.env`, credentials, provider profiles or model weights.
 
+## Local translation model
+
+The bundled offline provider currently supports Spanish→English using a pinned CTranslate2 INT8 OPUS-MT conversion. It is optional at runtime but is part of the fallback chain when configured.
+
+Prepare it explicitly:
+
+```bash
+python scripts/manage_local_translation.py status
+python scripts/manage_local_translation.py download
+```
+
+The download process reports repository/revision, approximate size (~82.5 MiB), destination, reason and license before confirmation. It uses HTTPS, a pinned revision, temporary files, size limits and SHA-256 verification for the large model files. Existing valid copies are reused.
+
+After preparation, the pipeline can run without Internet for the local translation step:
+
+```env
+TRANSLATION_PROVIDER=local
+TRANSLATION_FALLBACK_PROVIDERS=deepl,mymemory
+LOCAL_TRANSLATION_MODEL_DIR=tools/models/translation/opus-mt-es-en-ct2-int8
+LOCAL_TRANSLATION_DEVICE=auto
+LOCAL_TRANSLATION_COMPUTE_TYPE=auto
+```
+
+Ollama and LM Studio are not required.
+
+Cleanup is explicit:
+
+```bash
+python scripts/manage_local_translation.py cleanup
+```
+
+This removes only the managed local translation model.
+
 ## Runtime directories
 
 The runtime layout is:
@@ -89,48 +119,26 @@ storage/
 ├── failures/
 ├── logs/
 └── state/
+
+tools/
+├── models/
+│   └── translation/
+└── ...
 ```
 
-If a checkout lacks a directory, create it under `storage/`; logs are written to `storage/logs/pipeline.log`.
+Do not place credentials in `tools/`.
 
 ## Translation providers
 
-The default processing configuration uses Mistral with DeepL and MyMemory fallback. Provider credentials are configured through environment/profile mechanisms. See [TRANSLATION_PROVIDERS.md](TRANSLATION_PROVIDERS.md).
+See [TRANSLATION_PROVIDERS.md](TRANSLATION_PROVIDERS.md) for local/remote providers, fallback and batching.
 
 ## TTS
 
-TTS is disabled by default. When enabled, the local provider is Kokoro through `kokoro-onnx`. The setup helper prepares the default assets when TTS is enabled:
-
-```text
-tools/tts/kokoro-v1.0.onnx
-tools/tts/voices-v1.0.bin
-```
-
-Equivalent explicit installation:
-
-```bash
-python -m pip install -e ".[tts]"
-python scripts/setup_tts.py --enable
-```
-
-Custom asset locations can be configured with `TTS_MODEL_PATH` and `TTS_VOICES_PATH`.
+TTS is disabled by default. When enabled, the local provider is Kokoro through `kokoro-onnx`.
 
 ## Google Drive and rclone
 
-Google Drive requires the `[google]` extra and a provider profile. The interactive setup is exposed by:
-
-```bash
-python main.py provider setup-google --help
-```
-
-rclone is not a Python dependency. The project can bootstrap its managed rclone binary and then configure a remote through the provider CLI:
-
-```bash
-python main.py provider bootstrap
-python main.py provider setup-rclone --help
-```
-
-The managed binary is stored under `tools/rclone/`; its configuration is under `secrets/rclone/rclone.conf` by default.
+Google Drive requires the `[google]` extra and a provider profile. rclone remains an external managed executable as documented in the existing provider setup.
 
 ## Validate installation
 
@@ -147,8 +155,10 @@ For development checks:
 ```bash
 pytest
 ruff check .
+ruff check . --select S
 ruff format --check .
 python -m compileall .
+python -m pip check
 ```
 
 ## First run
@@ -163,15 +173,7 @@ The wrapper equivalents are `scripts/run_local.sh` and `scripts\run_local.bat`.
 
 ## Existing results
 
-Do not blindly reinsert already processed sources. Inspect the existing output and use the duplicate/subtitle recovery workflows when appropriate:
-
-```bash
-python main.py duplicates scan
-python main.py duplicates analyze
-python main.py reprocess-subtitles --help
-```
-
-See [RESUME.md](RESUME.md) and [SUBTITLES.md](SUBTITLES.md).
+Do not blindly reinsert already processed sources. Inspect the existing output and use the duplicate/subtitle recovery workflows when appropriate.
 
 ## Upgrade
 
@@ -180,8 +182,9 @@ See [RESUME.md](RESUME.md) and [SUBTITLES.md](SUBTITLES.md).
 3. Update source with `git pull`.
 4. Update/recreate the Python environment if dependencies changed.
 5. Run `python main.py doctor` and `python main.py run --dry-run`.
-6. Test a representative input.
-7. Re-enable scheduling.
+6. Validate local model status if it is part of the configured provider chain.
+7. Test a representative input.
+8. Re-enable scheduling.
 
 Do not delete manifests or outputs during an upgrade unless a documented migration requires it.
 
@@ -201,4 +204,4 @@ python -m pip install -e ".[package]"
 scripts\build_windows.bat
 ```
 
-There is no repository packaging script for macOS at present. See [PACKAGING.md](PACKAGING.md).
+The local translation model is not bundled into the Python wheel; it is managed as an external resource under `tools/models/translation/`.
