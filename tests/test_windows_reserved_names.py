@@ -8,7 +8,7 @@ from src.path_limits import fit_component, is_windows_reserved_component, safe_f
 @pytest.mark.parametrize("name", ["CON", "con.txt", "PRN", "AUX.log", "NUL", "COM1", "LPT9"])
 def test_windows_reserved_names_are_detected(name: str) -> None:
     assert is_windows_reserved_component(name)
-    assert not is_windows_reserved_component(f"{name}_safe")
+    assert not is_windows_reserved_component(f"safe_{name}")
 
 
 @pytest.mark.parametrize("name", ["CON", "PRN.txt", "AUX", "COM1"])
