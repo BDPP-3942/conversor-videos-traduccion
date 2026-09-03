@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.5.2] — Local translation and runtime hardening
+
+**Tipo:** PATCH — infraestructura opcional de traducción local, control reproducible de runtime y fallback sin servicios externos.
+
+### Added
+
+- Proveedor de traducción local autocontenido basado en CTranslate2 + SentencePiece.
+- Modelo español→inglés OPUS-MT CTranslate2 INT8 fijado a la revisión `ad91ad1697ea1761111ff4c179400796d085b347`.
+- Gestión explícita del modelo bajo `tools/models/translation/`.
+- Verificación de tamaño y SHA-256 de los ficheros principales del modelo.
+- Descarga HTTPS a temporales con límite de tamaño, reemplazo atómico y reanudación mediante `.part` cuando el servidor admite Range.
+- Script `scripts/manage_local_translation.py` para `status`, `download` y `cleanup`.
+- Fallback de traducción local configurable sin dependencia de Ollama ni LM Studio.
+- Control explícito de `faster-whisper` y CTranslate2 mediante rangos de versiones compatibles.
+
+### Changed
+
+- La cadena de fallback predeterminada incluye el provider local antes de los proveedores remotos secundarios.
+- La configuración permite seleccionar dispositivo y compute type del provider local.
+
+### Security
+
+- No se ejecutan binarios descargados como parte de la preparación del modelo.
+- Los recursos locales se validan antes de cargarse y no se sustituyen por una descarga parcial.
+- La descarga está restringida al origen HTTPS y revisión fijados.
+
+### Documentation
+
+- Actualizadas instalación, STT, traducción, providers, packaging y releases para explicar CPU/GPU, modelo local, licencia, recursos y cleanup.
+
+### Validation
+
+- Añadidos tests para recurso ausente, hash incorrecto, aceptación de recursos verificados, cancelación sin confirmación y fallback CUDA→CPU.
+- La validación completa sobre el SHA final queda pendiente de CI, packaging, integración con el modelo y benchmark del hardware; no se considera verificado ningún benchmark GPU/CPU hasta ejecutarlo.
+
 ## [1.5.1] — ZIP extraction and cross-platform filesystem hardening
 
 **Tipo:** PATCH — correcciones compatibles de seguridad e integridad de archivos.
@@ -126,7 +161,7 @@
 
 ### Validation status
 
-La release publicada valida el contenido integrado en `main`. La aprobación definitiva de futuras releases requiere que el SHA candidato tenga una ejecución CI completa y satisfactoria y que los gates de seguridad, tests, packaging, documentación y versionado estén cerrados.
+La release publicada valida el contenido integrado en `main`. La aprobación definitiva de futuras releases requiere que el SHA candidato tenga CI completa y satisfactoria y que los gates de seguridad, tests, packaging, documentación y versionado estén cerrados.
 
 ## [1.3.0] — Safe Resource-Aware Video Concurrency
 
