@@ -12,8 +12,14 @@ def _small_model_files(monkeypatch):
         "target.spm": (hashlib.sha256(b"target").hexdigest(), 6),
     }
     monkeypatch.setattr(local_translation, "MODEL_FILES", files)
+    monkeypatch.setattr(local_translation, "SMALL_MODEL_FILES", ("config.json", "shared_vocabulary.json", "tokenizer_config.json"))
     monkeypatch.setattr(local_translation, "MODEL_SIZE_BYTES", 17)
     return files
+
+
+def _write_small_metadata(path: Path) -> None:
+    for name in local_translation.SMALL_MODEL_FILES:
+        path.joinpath(name).write_text("{}", encoding="utf-8")
 
 
 def test_model_status_reports_missing_resource(tmp_path: Path) -> None:
@@ -30,6 +36,7 @@ def test_model_status_accepts_verified_files(monkeypatch, tmp_path: Path) -> Non
     tmp_path.joinpath("model.bin").write_bytes(b"model")
     tmp_path.joinpath("source.spm").write_bytes(b"source")
     tmp_path.joinpath("target.spm").write_bytes(b"target")
+    _write_small_metadata(tmp_path)
     status = LocalTranslationModelManager(tmp_path).status()
     assert status.available
     assert status.path == tmp_path
@@ -41,6 +48,7 @@ def test_model_status_rejects_wrong_hash(monkeypatch, tmp_path: Path) -> None:
     tmp_path.joinpath("model.bin").write_bytes(b"wrong")
     tmp_path.joinpath("source.spm").write_bytes(b"source")
     tmp_path.joinpath("target.spm").write_bytes(b"target")
+    _write_small_metadata(tmp_path)
     status = LocalTranslationModelManager(tmp_path).status()
     assert not status.available
     assert "SHA-256 mismatch" in status.reason
