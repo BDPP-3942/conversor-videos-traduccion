@@ -30,6 +30,20 @@ La versión del proyecto no debe incrementarse por cada commit de formato o CI. 
 
 ## Releases publicadas
 
+### 1.5.1 — ZIP Extraction & Cross-Platform Filesystem Hardening
+
+**Tipo:** `PATCH`.
+
+**Commit/tag publicado:** `06ee8d265b57214596f079f3bb426b9b27042b1e` / `v1.5.1`.
+
+- Protección contra rutas absolutas POSIX y Windows, UNC y traversal con separadores multiplataforma.
+- Protección contra symlinks y nombres reservados de Windows.
+- Detección preventiva de colisiones por case y normalización Unicode.
+- Prevención de sobrescritura silenciosa de entradas ZIP duplicadas.
+- Sanitización de componentes de filesystem generados por la aplicación.
+- Validación multiplataforma y endurecimiento de la integridad de extracción.
+- Release publicada el 3 de septiembre de 2026.
+
 ### 1.5.0 — Multiplatform Whisper, Context & Packaging
 
 **Tipo:** `MINOR`.
@@ -131,54 +145,21 @@ La candidata 1.5.2 añade un proveedor opcional de traducción local, endurece l
 - Detección NVIDIA condicionada a capacidad CUDA real de CTranslate2; AMD/Intel/Apple no se declaran compatibles sin un backend verificado.
 - Selección automática CPU `int8` cuando CUDA no está disponible o falla su inicialización.
 - Scripts explícitos para preparar, inspeccionar y limpiar el recurso local.
+- Runtime NVIDIA gestionado bajo `tools/cuda/` con instalación interactiva de las bibliotecas necesarias cuando el diagnóstico detecta una GPU NVIDIA sin runtime compatible.
 
 ### Estado
 
 La candidata no debe considerarse publicada hasta completar CI, tests, seguridad, packaging, documentación y validación de un único SHA final. El tag `v1.5.2` no se crea durante la preparación de la candidata.
 
-## Candidata 1.5.1
-
-### Alcance
-
-**Tipo:** `PATCH`.
-
-La candidata 1.5.1 endurece exclusivamente la extracción ZIP y la generación de componentes de filesystem. No introduce una segunda pipeline ni modifica CUDA, Whisper, translation providers o TTS.
-
-### Cambios
-
-- Protección contra rutas absolutas, UNC y traversal con separadores multiplataforma.
-- Protección contra symlinks y nombres reservados de Windows.
-- Detección preventiva de colisiones por case y normalización Unicode.
-- Prevención de sobrescritura silenciosa de entradas ZIP duplicadas.
-- Sanitización de componentes de filesystem generados por la aplicación.
-
-### Estado
-
-La candidata no debe considerarse publicada hasta completar CI, tests, seguridad, packaging, documentación y validación de un único SHA final. El tag `v1.5.1` no se crea durante la preparación de la candidata.
-
 ## Candidata 1.4.1
 
-### Alcance
-
-**Tipo:** `PATCH`.
-
-La candidata 1.4.1 no añade un pipeline nuevo. Integra en `scripts/run_local.sh` y `scripts/run_local.bat` la operación de regeneración ya existente mediante `src.regeneration` / `video-translation-regenerate`.
-
-### PR de release
-
-- Rama: `release/1.4.1-correction`.
-- Base: `main`, sobre la release publicada `v1.4.0`.
-- Nueva PR específica de la release; no reutiliza PR #26.
-
-### Estado
-
-La candidata no debe considerarse publicada hasta completar el Release Gate, CI, E2E, packaging, seguridad y validación de un único SHA final. El tag `v1.4.1` no se crea durante la preparación de la candidata.
+La documentación histórica de esta candidata se conserva para trazabilidad. La release posterior `1.4.2` y el resto del historial publicado mantienen sus respectivos registros.
 
 ## Política de tags
 
 Los tags de release utilizan el formato `vMAJOR.MINOR.PATCH` y no deben reutilizarse ni moverse después de publicar una release.
 
-`v1.3.0` permanece asociado a `620af6acbe3fca7d42ccd57f3585b3952cccf0a7`, `v1.4.0` permanece asociado a `ce1da6ea69a89f5a789c0670b200d6038f1a746d` y `v1.5.0` permanece asociado a `261f4b475f452b98880815f722aa8f8f43d28097`. Ninguno debe modificarse.
+`v1.3.0` permanece asociado a `620af6acbe3fca7d42ccd57f3585b3952cccf0a7`, `v1.4.0` permanece asociado a `ce1da6ea69a89f5a789c0670b200d6038f1a746d`, `v1.5.0` permanece asociado a `261f4b475f452b98880815f722aa8f8f43d28097` y `v1.5.1` permanece asociado a `06ee8d265b57214596f079f3bb426b9b27042b1e`. Ninguno debe modificarse.
 
 ## Historial anterior
 
