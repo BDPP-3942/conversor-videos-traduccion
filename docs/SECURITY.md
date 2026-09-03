@@ -10,6 +10,14 @@
 - El binario rclone gestionado se verifica con SHA-256 antes de instalarse.
 - La ejecución desatendida nunca intenta abrir un navegador; una pérdida de autorización produce `not_ready` para que el problema quede visible en scheduler/monitorización.
 
+## ZIP y nombres de filesystem
+
+La seguridad del ZIP y la seguridad del naming son capas distintas. La extracción rechaza traversal, rutas absolutas/UNC, symlinks, nombres reservados y colisiones Unicode/case antes de escribir. Posteriormente, cualquier carpeta o artefacto generado vuelve a pasar por el límite físico de nombres.
+
+La representación física aplica una política determinista que convierte separadores de palabras a `_`, elimina/reemplaza puntuación incompatible y controles, normaliza diacríticos para el nombre físico, protege nombres reservados de Windows y respeta los límites del filesystem. La información lógica de curso/recurso se mantiene en metadata/manifest y no se reconstruye buscando cualquier `x` dentro del nombre.
+
+Las colisiones no se resuelven sobrescribiendo silenciosamente. El pipeline reserva el nombre físico y, cuando necesita desambiguar una entrada válida, utiliza un sufijo determinista derivado del contenido/identidad de la fuente.
+
 ## Ejecución desatendida y OAuth
 
 Google Drive y rclone no deben iniciar OAuth interactivo durante `run --scheduled`.
