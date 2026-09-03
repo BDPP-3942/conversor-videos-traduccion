@@ -5,7 +5,7 @@ import time
 
 from config.loader import load_settings
 from src.hardware import detect_hardware
-from src.local_translation import LocalTranslationProvider, LocalTranslationModelManager
+from src.local_translation import LocalTranslationModelManager, LocalTranslationProvider
 
 
 def main() -> int:
@@ -22,11 +22,11 @@ def main() -> int:
         return 2
 
     settings = load_settings()
-    provider = LocalTranslationProvider(settings, manager)
-    texts = ["Hola, ¿cómo estás? Esta es una frase de prueba para medir la traducción local."] * args.sentences
     hardware = detect_hardware()
-    start = time.perf_counter()
-    load_time = time.perf_counter() - start
+    load_start = time.perf_counter()
+    provider = LocalTranslationProvider(settings, manager)
+    load_time = time.perf_counter() - load_start
+    texts = ["Hola, ¿cómo estás? Esta es una frase de prueba para medir la traducción local."] * args.sentences
     start = time.perf_counter()
     outputs = provider.translate_batch(texts)
     total = time.perf_counter() - start
