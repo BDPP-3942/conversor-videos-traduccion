@@ -52,6 +52,7 @@ def _version_tuple(value: str | None) -> tuple[int, ...]:
 
 
 def _package_version(name: str) -> str | None:
+    _add_managed_python_path()
     try:
         return importlib.metadata.version(name)
     except importlib.metadata.PackageNotFoundError:
@@ -78,7 +79,8 @@ def _detect_toolkit() -> tuple[str | None, str | None]:
         if code == 0:
             for line in output.splitlines():
                 if "release " in line.lower():
-                    return line.lower().split("release ", 1)[1].split(",", 1)[0].strip(), str(Path(nvcc).resolve().parent.parent)
+                    version = line.lower().split("release ", 1)[1].split(",", 1)[0].strip()
+                    return version, str(Path(nvcc).resolve().parent.parent)
     cuda_path = os.getenv("CUDA_PATH") or os.getenv("CUDA_HOME")
     if cuda_path:
         path = Path(cuda_path)
@@ -102,8 +104,10 @@ def _library_candidates() -> tuple[list[Path], list[Path]]:
         if cuda_path:
             roots.append(Path(cuda_path) / "bin")
         managed = MANAGED_PYTHON_DIR / "nvidia"
-        cublas = [root / name for root in roots + [managed / "cublas" / "bin"] for name in ("cublas64_12.dll", "cublasLt64_12.dll")]
-        cudnn = [root / "cudnn64_9.dll" for root in roots + [managed / "cudnn" / "bin"]]
+        roots.append(managed / "cublas" / "bin")
+        roots.append(managed / "cudnn" / "bin")
+        cublas = [root / name for root in roots for name in ("cublas64_12.dll", "cublasLt64_12.dll")]
+        cudnn = [root / "cudnn64_9.dll" for root in roots]
     else:
         roots = [Path(item) for item in os.getenv("LD_LIBRARY_PATH", "").split(os.pathsep) if item]
         roots += [Path("/usr/local/cuda/lib64"), Path("/usr/local/cuda/lib")]
@@ -160,11 +164,7 @@ def inspect_cuda_runtime() -> CUDARuntimeStatus:
     if not nvidia_gpu:
         return CUDARuntimeStatus(False, driver_version, driver_cuda_max, toolkit_version, toolkit_path, cublas_pkg, cudnn_pkg, cublas_available, cudnn_available, ct2, fw, False, "No NVIDIA GPU detected", str(MANAGED_DIR))
     if driver_cuda_max and _version_tuple(driver_cuda_max) and _version_tuple(driver_cuda_max)[0] < CUDA_MAJOR:
-        reason = f"NVIDIA driver advertises CUDA {driver_cuda_max}; CUDA {CUDA_MAJOR}.x is required"
-        return CUDARuntimeStatus(True, driver_version, driver_cuda_max, toolkit_version, toolkit_path, cublas_pkg, cudnn_pkg, cublas_available, cudnn_available, ct2, fw, False, reason, str(MANAGED_DIR))
-    if toolkit_version and _version_tuple(toolkit_version) and _version_tuple(toolkit_version)[0] != CUDA_MAJOR:
-        reason = f"Installed CUDA Toolkit is {toolkit_version}; the pinned runtime requires CUDA {CUDA_MAJOR}.x"
-        return CUDARuntimeStatus(True, driver_version, driver_cuda_max, toolkit_version, toolkit_path, cublas_pkg, cudnn_pkg, cublas_available, cudnn_available, ct2, fw, False, reason, str(MANAGED_DIR))
+        return CUDARuntimeStatus(True, driver_version, driver_cuda_max, toolkit_version, toolkit_path, cublas_pkg, cudnn_pkg, cublas_available, cudnn_available, ct2, fw, False, f"NVIDIA driver advertises CUDA {driver_cuda_max}; CUDA {CUDA_MAJOR}.x is required", str(MANAGED_DIR))
     if not cublas_available or not cudnn_available:
         missing = ", ".join(name for name, ok in (("cuBLAS CUDA 12", cublas_available), ("cuDNN 9 CUDA 12", cudnn_available)) if not ok)
         return CUDARuntimeStatus(True, driver_version, driver_cuda_max, toolkit_version, toolkit_path, cublas_pkg, cudnn_pkg, cublas_available, cudnn_available, ct2, fw, False, f"Missing NVIDIA runtime libraries: {missing}", str(MANAGED_DIR))
@@ -204,7 +204,7 @@ def ensure_cuda_runtime(*, interactive: bool = True) -> CUDARuntimeStatus:
     print(f"Requirements: CUDA {CUDA_MAJOR}.x + cuBLAS for CUDA 12 + cuDNN {CUDNN_MAJOR} for CUDA 12.")
     print(f"Managed installation: {MANAGED_DIR}")
     print(f"Runtime libraries will be installed into: {MANAGED_PYTHON_DIR}")
-    print("The NVIDIA driver is not replaced. A full CUDA Toolkit is not installed by this operation.")
+    print("The NVIDIA driver is not replaced. A full CUDA Toolkit is optional and is not installed by this operation.")
     answer = input("Install the managed NVIDIA runtime libraries now? [y/N]: ").strip().lower()
     if answer not in {"y", "yes"}:
         return status
