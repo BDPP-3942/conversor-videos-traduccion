@@ -65,9 +65,8 @@ class LocalTranslationModelManager:
             return status.path
         if confirm is None or not confirm(status):
             raise RuntimeError(
-                f"Local translation model is not ready ({status.reason}). "
-                f"Resource: {MODEL_REPOSITORY}@{MODEL_REVISION}; approximate size: {MODEL_SIZE_BYTES / 1024**2:.1f} MiB; "
-                f"destination: {self.model_dir}; license: {MODEL_LICENSE}. "
+                f"Local translation model is not ready ({status.reason}). Resource: {MODEL_REPOSITORY}@{MODEL_REVISION}; "
+                f"approximate size: {MODEL_SIZE_BYTES / 1024**2:.1f} MiB; destination: {self.model_dir}; license: {MODEL_LICENSE}. "
                 "Prepare it explicitly before offline processing."
             )
         self.download()
@@ -82,21 +81,14 @@ class LocalTranslationModelManager:
         try:
             for name in (*MODEL_FILES, *SMALL_MODEL_FILES):
                 url = f"https://huggingface.co/{MODEL_REPOSITORY}/resolve/{MODEL_REVISION}/{name}?download=true"
-                destination = temp_dir / name
-                _download_file(url, destination, MODEL_MAX_DOWNLOAD_BYTES)
+                _download_file(url, temp_dir / name, MODEL_MAX_DOWNLOAD_BYTES)
             for name, (expected_hash, expected_size) in MODEL_FILES.items():
                 path = temp_dir / name
                 if path.stat().st_size != expected_size or _sha256(path) != expected_hash:
                     raise RuntimeError(f"Integrity validation failed for downloaded model file: {name}")
-            marker = temp_dir / "model.json"
-            marker.write_text(
+            (temp_dir / "model.json").write_text(
                 json.dumps(
-                    {
-                        "repository": MODEL_REPOSITORY,
-                        "revision": MODEL_REVISION,
-                        "license": MODEL_LICENSE,
-                        "files": MODEL_FILES,
-                    },
+                    {"repository": MODEL_REPOSITORY, "revision": MODEL_REVISION, "license": MODEL_LICENSE, "files": MODEL_FILES},
                     indent=2,
                 ),
                 encoding="utf-8",
@@ -132,7 +124,7 @@ class LocalTranslationProvider:
 
     def __init__(self, settings, model_manager: LocalTranslationModelManager | None = None) -> None:
         self.settings = settings
-        self.manager = model_manager or LocalTranslationModelManager()
+        self.manager = model_manager or LocalTranslationModelManager(getattr(settings, "local_translation_model_dir", None))
         self.model_path = self.manager.ensure(confirm=self._confirm_download)
         self.device, self.compute_type = self._resolve_runtime()
         try:
@@ -140,16 +132,12 @@ class LocalTranslationProvider:
             import sentencepiece as spm
         except ImportError as exc:
             raise RuntimeError("Local translation requires ctranslate2 and sentencepiece") from exc
-        self._translator = ctranslate2.Translator(
-            str(self.model_path), device=self.device, compute_type=self.compute_type
-        )
+        self._translator = ctranslate2.Translator(str(self.model_path), device=self.device, compute_type=self.compute_type)
         self._source = spm.SentencePieceProcessor(model_file=str(self.model_path / "source.spm"))
         self._target = spm.SentencePieceProcessor(model_file=str(self.model_path / "target.spm"))
 
     def _confirm_download(self, status: LocalModelStatus) -> bool:
-        if os.getenv("LOCAL_TRANSLATION_AUTO_DOWNLOAD", "false").strip().lower() != "true":
-            return False
-        if not hasattr(__import__("builtins"), "input"):
+        if not bool(getattr(self.settings, "local_translation_auto_download", False)):
             return False
         answer = input(
             f"Local translation model {status.repository}@{status.revision} is missing. "
@@ -162,19 +150,21 @@ class LocalTranslationProvider:
         requested_compute = str(getattr(self.settings, "local_translation_compute_type", "auto")).lower().strip()
         if requested_device not in {"auto", "cpu", "cuda"}:
             raise ValueError("local_translation_device must be one of: auto, cpu, cuda")
+        if requested_device == "auto":
+            requested_device = "cuda" if bool(getattr(self.settings, "detected_gpu_usable", False)) else "cpu"
         if requested_compute == "auto":
-            requested_compute = "int8" if requested_device != "cuda" else "float16"
+            requested_compute = "float16" if requested_device == "cuda" else "int8"
         if requested_device == "cuda":
             try:
                 import ctranslate2
-                supported = ctranslate2.get_supported_compute_types("cuda", int(getattr(self.settings, "detected_gpu_index", 0)))
-                if not supported:
-                    raise RuntimeError("CTranslate2 reports no supported CUDA compute types for local translation")
+                index = max(0, int(getattr(self.settings, "detected_gpu_index", 0)))
+                supported = ctranslate2.get_supported_compute_types("cuda", index)
+                if requested_compute not in supported:
+                    requested_compute = "float16" if "float16" in supported else next(iter(supported))
             except (ImportError, AttributeError, RuntimeError, TypeError) as exc:
                 logger.warning("Local translation CUDA unavailable; falling back to CPU: %s", exc)
                 return "cpu", "int8"
-            return "cuda", requested_compute
-        return "cpu", requested_compute
+        return requested_device, requested_compute
 
     def translate(self, text: str) -> str:
         return self.translate_batch([text])[0]
@@ -184,8 +174,7 @@ class LocalTranslationProvider:
             return []
         tokens = [self._source.encode(text, out_type=str) + ["</s>"] for text in texts]
         results = self._translator.translate_batch(
-            tokens,
-            beam_size=max(1, int(getattr(self.settings, "local_translation_beam_size", 2))),
+            tokens, beam_size=max(1, int(getattr(self.settings, "local_translation_beam_size", 2)))
         )
         outputs: list[str] = []
         for result in results:
