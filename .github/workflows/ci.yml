@@ -1,12 +1,13 @@
 name: CI
 
-# Release candidate validation runs directly on the release branch head.
+# PRs and release/feature branches are validated against the actual branch head, not the synthetic merge ref.
 on:
   push:
     branches:
       - main
-      - release/1.4.0-hardening
-      - release/1.4.1-correction
+      - release/**
+      - fix/**
+      - feat/**
   pull_request:
     branches: [main]
 
@@ -20,6 +21,7 @@ concurrency:
 env:
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
   PYTHONWARNINGS: error
+  CHECKOUT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   test:
@@ -30,8 +32,10 @@ jobs:
         python-version: ['3.11', '3.12', '3.13']
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout
+      - name: Checkout exact branch head
         uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CHECKOUT_SHA }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -91,8 +95,10 @@ jobs:
   packaging:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout exact branch head
         uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CHECKOUT_SHA }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -126,8 +132,10 @@ jobs:
   dependency-audit:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout exact branch head
         uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CHECKOUT_SHA }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -155,8 +163,10 @@ jobs:
   tts-dependency-audit:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout exact branch head
         uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CHECKOUT_SHA }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
