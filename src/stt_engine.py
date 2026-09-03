@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from config.settings import BASE_DIR, AppSettings
+from src.cuda_runtime import ensure_cuda_runtime
 from src.whisper_prompt import resolve_initial_prompt
 
 logger = logging.getLogger(__name__)
@@ -17,10 +18,23 @@ class STTEngine:
         self.settings = settings
         self.device = settings.whisper_device
         self.compute_type = settings.whisper_compute_type
+        if self.device in {"auto", "cuda"}:
+            cuda_status = ensure_cuda_runtime(interactive=not getattr(settings, "unattended_mode", False))
+            if self.device == "auto" and cuda_status.compatible:
+                self.device = "cuda"
+                self.compute_type = self.compute_type if self.compute_type != "auto" else "float16"
+            elif self.device == "auto":
+                self.device = "cpu"
+                self.compute_type = self.compute_type if self.compute_type not in {"auto", "float16"} else "int8"
+            elif self.device == "cuda" and not cuda_status.compatible:
+                logger.warning("Whisper CUDA runtime is not ready; using CPU fallback: %s", cuda_status.reason)
+                self.device = "cpu"
+                self.compute_type = "int8"
+        if self.compute_type == "auto":
+            self.compute_type = "float16" if self.device == "cuda" else "int8"
         self.model = self._load_model(self.device, self.compute_type)
         logger.info(
-            "Whisper ready: profile=%s cpu=%d ram=%.1fGB available_ram=%.1fGB gpu=%s gpu_index=%d vram_free=%.1fGB "
-            "model=%s device=%s compute=%s cpu_threads=%d beam=%d vad=%s",
+            "Whisper ready: profile=%s cpu=%d ram=%.1fGB available_ram=%.1fGB gpu=%s gpu_index=%d vram_free=%.1fGB model=%s device=%s compute=%s cpu_threads=%d beam=%d vad=%s",
             settings.resource_profile,
             settings.detected_logical_cpus,
             settings.detected_memory_gb,
@@ -43,32 +57,16 @@ class STTEngine:
             raise RuntimeError("STT support requires the faster-whisper package") from exc
         threads = self.settings.whisper_cpu_threads if self.settings.whisper_cpu_threads > 0 else 4
         try:
-            return WhisperModel(
-                self.settings.whisper_model,
-                device=device,
-                compute_type=compute_type,
-                cpu_threads=threads,
-                num_workers=1,
-            )
+            return WhisperModel(self.settings.whisper_model, device=device, compute_type=compute_type, cpu_threads=threads, num_workers=1)
         except Exception:
             if device != "cuda":
                 raise
             logger.exception("Whisper CUDA initialization failed; falling back once to CPU")
             self.model = None
             gc.collect()
-            cpu_compute = "int8"
             self.device = "cpu"
-            self.compute_type = cpu_compute
-            try:
-                return WhisperModel(
-                    self.settings.whisper_model,
-                    device="cpu",
-                    compute_type=cpu_compute,
-                    cpu_threads=threads,
-                    num_workers=1,
-                )
-            except Exception as cpu_exc:
-                raise RuntimeError("Whisper failed on CUDA and controlled CPU fallback also failed") from cpu_exc
+            self.compute_type = "int8"
+            return WhisperModel(self.settings.whisper_model, device="cpu", compute_type="int8", cpu_threads=threads, num_workers=1)
 
     @staticmethod
     def _valid_interval(start: float, end: float) -> bool:
@@ -111,17 +109,7 @@ class STTEngine:
         vad_parameters = None
         if self.settings.whisper_vad_filter:
             vad_parameters = {"min_silence_duration_ms": max(100, self.settings.whisper_min_silence_duration_ms)}
-        transcribe_kwargs = {
-            "language": self.settings.source_lang,
-            "task": "transcribe",
-            "beam_size": max(1, self.settings.whisper_beam_size),
-            "best_of": 1,
-            "temperature": 0,
-            "condition_on_previous_text": self.settings.whisper_condition_on_previous_text,
-            "vad_filter": self.settings.whisper_vad_filter,
-            "vad_parameters": vad_parameters,
-            "word_timestamps": True,
-        }
+        transcribe_kwargs = {"language": self.settings.source_lang, "task": "transcribe", "beam_size": max(1, self.settings.whisper_beam_size), "best_of": 1, "temperature": 0, "condition_on_previous_text": self.settings.whisper_condition_on_previous_text, "vad_filter": self.settings.whisper_vad_filter, "vad_parameters": vad_parameters, "word_timestamps": True}
         prompt, prompt_source = resolve_initial_prompt(self.settings.whisper_initial_prompt, BASE_DIR)
         if prompt:
             transcribe_kwargs["initial_prompt"] = prompt
@@ -138,11 +126,5 @@ class STTEngine:
                 split_count += len(split_segments) - 1
             result.extend(split_segments)
         result.sort(key=lambda item: (float(item["start"]), float(item["end"])))
-        logger.info(
-            "STT completed: %d subtitle segments from %d Whisper segments; split %d; discarded %d",
-            len(result),
-            raw_count,
-            split_count,
-            discarded_count,
-        )
+        logger.info("STT completed: %d subtitle segments from %d Whisper segments; split %d; discarded %d", len(result), raw_count, split_count, discarded_count)
         return result
