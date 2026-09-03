@@ -106,8 +106,27 @@ def _truncate_by_utf8_bytes(value: str, max_bytes: int) -> str:
     return "".join(result)
 
 
+_WINDOWS_RESERVED = re.compile(
+    r"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?$",
+    re.IGNORECASE,
+)
+
+
+def is_windows_reserved_component(value: str) -> bool:
+    """Return whether a filename/directory component is reserved by Windows."""
+    return bool(_WINDOWS_RESERVED.fullmatch(value.rstrip(" .")))
+
+
+def safe_filesystem_component(value: str) -> str:
+    """Make a component safe for Windows reserved-name semantics."""
+    if is_windows_reserved_component(value):
+        return f"_{value}"
+    return value
+
+
 def fit_component(name: str, parent: Path, *, suffix: str = "") -> str:
     """Fit a filename/directory component to the actual host filesystem."""
+    name = safe_filesystem_component(name)
     limits = get_filesystem_limits(parent)
     max_component = max(1, limits.max_component)
     requested = f"{name}_{suffix}" if suffix else name
@@ -133,7 +152,7 @@ def fit_component(name: str, parent: Path, *, suffix: str = "") -> str:
             else:
                 candidate = _truncate_by_utf8_bytes(candidate, available).rstrip(" .")
 
-    return candidate or "_"
+    return safe_filesystem_component(candidate) or "_"
 
 
 def path_is_within_limit(path: Path) -> bool:
@@ -146,9 +165,3 @@ def path_is_within_limit(path: Path) -> bool:
     )
     path_ok = limits.max_path is None or len(encoded) <= limits.max_path
     return component_ok and path_ok
-
-
-_WINDOWS_RESERVED = re.compile(
-    r"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?$",
-    re.IGNORECASE,
-)

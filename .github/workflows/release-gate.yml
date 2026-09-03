@@ -8,7 +8,6 @@ on:
       expected_version:
         description: "Candidate SemVer"
         required: true
-        default: "1.5.0"
 
 permissions:
   contents: read
@@ -49,7 +48,7 @@ jobs:
       - name: Verify release metadata and repository invariants
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          EXPECTED_VERSION: ${{ github.event.inputs.expected_version || '1.5.0' }}
+          EXPECTED_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.expected_version || '' }}
         run: python scripts/release_gate.py "$EXPECTED_SHA" "$EXPECTED_VERSION"
 
       - name: Build distributions
