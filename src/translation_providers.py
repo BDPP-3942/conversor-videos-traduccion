@@ -35,12 +35,7 @@ class _HttpBatchProvider:
         return self.translate_batch([text])[0]
 
     @staticmethod
-    def _request(
-        url: str,
-        headers: dict[str, str],
-        payload: object,
-        method: str = "POST",
-    ) -> object:
+    def _request(url: str, headers: dict[str, str], payload: object, method: str = "POST") -> object:
         if urllib.parse.urlsplit(url).scheme != "https":
             raise ValueError("Translation provider URL must use HTTPS")
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -51,11 +46,9 @@ class _HttpBatchProvider:
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
             if exc.code in {402, 403, 456}:
-                message = f"translation provider quota/authorization response {exc.code}: {detail}"
-                raise TranslationQuotaError(message) from exc
+                raise TranslationQuotaError(f"translation provider quota/authorization response {exc.code}: {detail}") from exc
             if exc.code == 429:
-                message = f"translation provider rate limit response 429: {detail}"
-                raise TranslationRateLimitError(message) from exc
+                raise TranslationRateLimitError(f"translation provider rate limit response 429: {detail}") from exc
             raise RuntimeError(f"translation provider HTTP {exc.code}: {detail}") from exc
         except (urllib.error.URLError, TimeoutError) as exc:
             raise RuntimeError(f"translation provider connection failed: {exc}") from exc
@@ -87,25 +80,16 @@ class MistralBatchProvider(_HttpBatchProvider):
                 {
                     "role": "system",
                     "content": (
-                        f"Translate each input from {self.source} to {self.target}. "
-                        "Return JSON only as an object with a 'translations' array. "
-                        "The array must contain exactly one string for every input, "
-                        "in the same order. Do not merge, split, omit, explain, or "
-                        "add commentary. Preserve names, numbers and formatting."
+                        f"Translate each input from {self.source} to {self.target}. Return JSON only as an object with a 'translations' array. "
+                        "The array must contain exactly one string for every input, in the same order. Do not merge, split, omit, explain, "
+                        "or add commentary. Preserve names, numbers and formatting."
                     ),
                 },
                 {"role": "user", "content": json.dumps(items, ensure_ascii=False)},
             ],
             "response_format": {"type": "json_object"},
         }
-        result = self._request(
-            self.URL,
-            {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
-            payload,
-        )
+        result = self._request(self.URL, {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}, payload)
         try:
             content = result["choices"][0]["message"]["content"]
             parsed = json.loads(content) if isinstance(content, str) else content
@@ -135,8 +119,7 @@ class GoogleCloudBatchProvider(_HttpBatchProvider):
         if len(texts) > self.MAX_ITEMS or sum(len(text) for text in texts) > self.MAX_CHARS:
             raise ValueError("Google batch exceeds the configured request size limit")
         params = urllib.parse.urlencode({"key": self.api_key})
-        payload = {"q": texts, "source": self.source, "target": self.target, "format": "text"}
-        result = self._request(f"{self.url}?{params}", {"Content-Type": "application/json"}, payload)
+        result = self._request(f"{self.url}?{params}", {"Content-Type": "application/json"}, {"q": texts, "source": self.source, "target": self.target, "format": "text"})
         try:
             translations = result["data"]["translations"]
         except (KeyError, TypeError) as exc:
@@ -162,15 +145,7 @@ class DeepLBatchProvider(_HttpBatchProvider):
             return []
         if len(texts) > self.MAX_ITEMS or sum(len(text) for text in texts) > self.MAX_CHARS:
             raise ValueError("DeepL batch exceeds the configured request size limit")
-        payload = {"text": texts, "source_lang": self.source, "target_lang": self.target}
-        result = self._request(
-            f"{self.base_url}/translate",
-            {
-                "Authorization": f"DeepL-Auth-Key {self.api_key}",
-                "Content-Type": "application/json",
-            },
-            payload,
-        )
+        result = self._request(f"{self.base_url}/translate", {"Authorization": f"DeepL-Auth-Key {self.api_key}", "Content-Type": "application/json"}, {"text": texts, "source_lang": self.source, "target_lang": self.target})
         translations = result.get("translations", []) if isinstance(result, dict) else []
         if len(translations) != len(texts):
             raise RuntimeError(f"DeepL returned {len(translations)} translations for {len(texts)} inputs")
@@ -227,9 +202,7 @@ class MyMemoryBatchProvider(_HttpBatchProvider):
             params = {"q": text, "langpair": f"{self.source}|{self.target}"}
             if self.email:
                 params["de"] = self.email
-            query = urllib.parse.urlencode(params)
-            url = f"{self.url}?{query}"
-            request = urllib.request.Request(url, method="GET")
+            request = urllib.request.Request(f"{self.url}?{urllib.parse.urlencode(params)}", method="GET")
             try:
                 with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
                     result = json.loads(response.read().decode("utf-8"))
@@ -259,10 +232,15 @@ def _language_code(language: str) -> str:
 
 
 def build_translation_provider(name: str, settings: AppSettings) -> TranslationProvider:
-    """Build a provider using official HTTP APIs and standard-library networking."""
+    """Build a provider using official HTTP APIs and the optional offline local model."""
     provider = name.strip().lower().replace("-", "_")
     source = _language_code(settings.source_lang)
     target = _language_code(settings.target_lang)
+    if provider in {"local", "local_model", "ct2", "opus_mt"}:
+        if source != "es" or target != "en":
+            raise ValueError("The bundled local translation model currently supports only es→en")
+        from src.local_translation import LocalTranslationProvider
+        return LocalTranslationProvider(settings)
     if provider == "mistral":
         api_key = os.getenv("MISTRAL_API_KEY", "").strip()
         if not api_key:
