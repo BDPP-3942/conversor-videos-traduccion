@@ -13,7 +13,10 @@ def _git(*args: str) -> str:
     if git_executable is None:
         raise RuntimeError("git executable was not found on PATH")
     # The command and arguments are fixed internally; no shell is involved.
-    return subprocess.check_output([git_executable, *args], text=True).strip()  # noqa: S603
+    return subprocess.check_output(  # noqa: S603
+        [git_executable, *args],
+        text=True,
+    ).strip()
 
 
 def _fail(message: str) -> None:
@@ -58,7 +61,10 @@ def main() -> None:
     if remote_refs and require_tag_absent:
         _fail(f"release tag v{expected_version} already exists on origin")
     if remote_refs:
-        print(f"PR validation: release tag v{expected_version} already exists; continuing because this is not a release invocation.")
+        print(
+            "PR validation: release tag "
+            f"v{expected_version} already exists; continuing because this is not a release invocation."
+        )
     else:
         print(f"Tag v{expected_version}: absent")
 
