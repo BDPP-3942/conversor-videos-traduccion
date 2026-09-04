@@ -173,24 +173,34 @@ class STTEngine:
         return list(segments)
 
     def _candidate_segments(self, media_path: Path, start: float, end: float) -> list[Any]:
+        retries = max(0, int(self.settings.whisper_recovery_retries))
+        if retries == 0:
+            return []
+        temperatures = tuple(self.settings.whisper_recovery_temperatures) or (0.0,)
         candidates: list[Any] = []
-        temperatures = tuple(self.settings.whisper_recovery_temperatures)
-        for temperature in temperatures:
+        for retry_index in range(retries):
+            temperature = temperatures[retry_index % len(temperatures)]
             kwargs = self._transcribe_kwargs(
                 condition_on_previous_text=True,
                 temperature=temperature,
                 clip_timestamps=[{"start": start, "end": end}],
             )
-            candidates.extend(self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0]))
-        if candidates and not all(self._is_suspicious(segment) for segment in candidates):
-            return candidates
+            attempt_candidates = self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0])
+            candidates.extend(attempt_candidates)
+            if attempt_candidates and not all(self._is_suspicious(segment) for segment in attempt_candidates):
+                return candidates
 
-        kwargs = self._transcribe_kwargs(
-            condition_on_previous_text=False,
-            temperature=temperatures[-1] if temperatures else 0,
-            clip_timestamps=[{"start": start, "end": end}],
-        )
-        candidates.extend(self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0]))
+            kwargs = self._transcribe_kwargs(
+                condition_on_previous_text=False,
+                temperature=temperature,
+                clip_timestamps=[{"start": start, "end": end}],
+            )
+            context_free_candidates = self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0])
+            candidates.extend(context_free_candidates)
+            if context_free_candidates and not all(
+                self._is_suspicious(segment) for segment in context_free_candidates
+            ):
+                return candidates
         return candidates
 
     def _is_suspicious(self, segment: Any) -> bool:
@@ -211,25 +221,24 @@ class STTEngine:
             return []
         candidates = self._candidate_segments(media_path, start, end)
         selected = self._select_candidate(candidates)
-        if selected is None:
-            return []
-        metrics = quality_metrics(selected)
-        reasons = suspicious_reasons(metrics, self._quality_thresholds)
+        metrics = quality_metrics(selected) if selected is not None else None
+        reasons = suspicious_reasons(metrics, self._quality_thresholds) if metrics is not None else ()
         logger.info(
-            "STT recovery: start=%.3f end=%.3f candidates=%d "
-            "selected_suspicious=%s reasons=%s repetition=%.3f "
+            "STT recovery: start=%.3f end=%.3f retries=%d candidates=%d "
+            "selected_suspicious=%s reasons=%s repetition=%s "
             "compression=%s avg_logprob=%s no_speech=%s",
             start,
             end,
+            max(0, int(self.settings.whisper_recovery_retries)),
             len(candidates),
             bool(reasons),
             ",".join(reasons) or "none",
-            metrics.repetition_score,
-            metrics.compression_ratio,
-            metrics.avg_logprob,
-            metrics.no_speech_prob,
+            metrics.repetition_score if metrics is not None else None,
+            metrics.compression_ratio if metrics is not None else None,
+            metrics.avg_logprob if metrics is not None else None,
+            metrics.no_speech_prob if metrics is not None else None,
         )
-        return [selected] if not reasons else []
+        return [selected] if selected is not None and not reasons else []
 
     def transcribe(self, media_path: Path):
         logger.info(
