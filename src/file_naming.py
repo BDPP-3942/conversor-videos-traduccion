@@ -30,6 +30,16 @@ class SourceNameMetadata:
     lesson_name: str | None = None
 
 
+@dataclass(frozen=True)
+class LegacyNameAnalysis:
+    """Describe whether an output stem uses the pre-underscore naming contract."""
+
+    original_stem: str
+    canonical_stem: str
+    is_legacy: bool
+    reasons: tuple[str, ...] = ()
+
+
 class FileNameFormatter:
     """Infer course/lesson labels and build stable output names."""
 
@@ -270,18 +280,73 @@ def clean_for_filename(value: str) -> str:
     return normalized.strip("_.-")
 
 
-def _split_filename_extension(filename: str) -> tuple[str, str]:
-    """Split a logical filename without treating '/' as a path separator."""
-    match = re.match(r"^(.*?)(\.[A-Za-z0-9]{2,8})$", filename, re.DOTALL)
-    if not match:
-        return filename, ""
-    return match.group(1), match.group(2).lower()
+def canonicalize_output_stem(stem: str) -> str:
+    """Return the canonical physical output stem using `_` as the sole separator.
+
+    Older logical stems used `x` between course/scope and lesson/resource blocks.
+    The conversion only treats that `x` as a scope separator when the right-hand
+    block starts with a lesson number or when the left block is a numeric course.
+    This deliberately avoids changing ordinary words such as ``boxeo``.
+    """
+    normalized = clean_for_filename(stem)
+    legacy_scope = re.compile(r"^(?P<left>.+)x(?P<right>\d{1,4}(?:_|$).*)$", re.IGNORECASE)
+    numeric_scope = re.compile(r"^(?P<left>\d{1,4})x(?P<right>[A-Za-z0-9_].*)$", re.IGNORECASE)
+    match = legacy_scope.match(normalized) or numeric_scope.match(normalized)
+    if match:
+        normalized = f"{match.group('left')}_{match.group('right')}"
+    return clean_for_filename(normalized)
 
 
-def normalize_filename(filename: str) -> str:
-    """Normalize a filename-like value before platform path parsing."""
-    stem, extension = _split_filename_extension(filename)
-    return f"{clean_for_filename(strip_date_artifacts(stem))}{extension}"
+def analyze_legacy_output_stem(stem: str) -> LegacyNameAnalysis:
+    """Analyze and, when safe, adapt a legacy output stem to the canonical form."""
+    canonical = canonicalize_output_stem(stem)
+    reasons: list[str] = []
+    if "-" in stem:
+        reasons.append("hyphen separator")
+    if re.search(r"^(?:\d{1,4}|.+)x(?:\d{1,4}(?:_|$)|[A-Za-z])", clean_for_filename(stem), re.IGNORECASE):
+        if canonical != clean_for_filename(stem):
+            reasons.append("legacy scope separator `x`")
+    is_legacy = canonical != clean_for_filename(stem)
+    return LegacyNameAnalysis(stem, canonical, is_legacy, tuple(reasons))
+
+
+def fit_output_stem(
+    stem: str,
+    parent: Path,
+    unique_suffix: str | None = None,
+    reserve_suffixes: tuple[str, ...] = (),
+) -> str:
+    """Sanitize and fit a generated output stem to the host filesystem.
+
+    This is the final physical-name boundary for generated output. The caller may
+    keep a richer logical stem in metadata, but anything returned here is safe for
+    the destination filesystem and uses the project separator policy.
+    """
+    physical_stem = canonicalize_output_stem(stem)
+    suffix = f"__{unique_suffix}" if unique_suffix else ""
+    candidate = fit_component(physical_stem, parent, suffix=suffix)
+    if not reserve_suffixes:
+        return candidate
+    from src.path_limits import get_filesystem_limits
+
+    limits = get_filesystem_limits(parent)
+    max_component = max(1, limits.max_component)
+    extra = max((len(item.encode("utf-8")) for item in reserve_suffixes), default=0)
+    current = candidate.encode("utf-8")
+    allowed = max(1, max_component - extra)
+    if len(current) <= allowed:
+        return candidate
+    raw = candidate.encode("utf-8")[:allowed]
+    while raw:
+        try:
+            prefix = raw.decode("utf-8").rstrip(" ._-")
+            if prefix:
+                return safe_filesystem_component(prefix)
+        except UnicodeDecodeError:
+            raw = raw[:-1]
+            continue
+        raw = raw[:-1]
+    return "_"
 
 
 def normalize_component(value: str) -> str:
@@ -311,42 +376,3 @@ def normalized_name_similarity(left: str, right: str) -> float:
     union = left_tokens | right_tokens
     token_score = len(left_tokens & right_tokens) / len(union) if union else 0.0
     return 0.65 * sequence_score + 0.35 * token_score
-
-
-def fit_output_stem(
-    stem: str,
-    parent: Path,
-    unique_suffix: str | None = None,
-    reserve_suffixes: tuple[str, ...] = (),
-) -> str:
-    """Sanitize and fit a generated output stem to the host filesystem.
-
-    This is the final physical-name boundary for generated output. The caller may
-    keep a richer logical stem in metadata, but anything returned here is safe for
-    the destination filesystem and uses the project separator policy.
-    """
-    physical_stem = normalize_component(stem)
-    suffix = f"__{unique_suffix}" if unique_suffix else ""
-    candidate = fit_component(physical_stem, parent, suffix=suffix)
-    if not reserve_suffixes:
-        return candidate
-    from src.path_limits import get_filesystem_limits
-
-    limits = get_filesystem_limits(parent)
-    max_component = max(1, limits.max_component)
-    extra = max((len(item.encode("utf-8")) for item in reserve_suffixes), default=0)
-    current = candidate.encode("utf-8")
-    allowed = max(1, max_component - extra)
-    if len(current) <= allowed:
-        return candidate
-    raw = candidate.encode("utf-8")[:allowed]
-    while raw:
-        try:
-            prefix = raw.decode("utf-8").rstrip(" ._-")
-            if prefix:
-                return safe_filesystem_component(prefix)
-        except UnicodeDecodeError:
-            raw = raw[:-1]
-            continue
-        raw = raw[:-1]
-    return "_"
