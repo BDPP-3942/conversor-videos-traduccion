@@ -113,9 +113,9 @@ def test_normalize_existing_outputs_fits_old_long_names(tmp_path: Path, monkeypa
 
     monkeypatch.setattr(settings_module, "BASE_DIR", tmp_path)
     monkeypatch.setattr(settings_module, "STORAGE_DIR", tmp_path / "storage")
-    # Keep the physical fixture below Windows MAX_PATH; simulate an old/smaller
-    # filesystem component limit at the code under test instead of creating an
-    # OS-invalid path.
+    # Simulate a conservative Windows filesystem limit without creating an
+    # OS-invalid fixture. Keep the fixture ASCII so Windows and POSIX measure
+    # the same component length for this test.
     monkeypatch.setattr(
         path_limits,
         "get_filesystem_limits",
@@ -123,24 +123,16 @@ def test_normalize_existing_outputs_fits_old_long_names(tmp_path: Path, monkeypa
     )
     root = tmp_path / "storage" / "output"
     root.mkdir(parents=True)
-    long_unicode = "Vídeo_" + ("á" * 18)
-    folder = root / long_unicode
+    long_name = "Video_" + ("a" * 70)
+    folder = root / long_name
     folder.mkdir()
-    (folder / f"{long_unicode}.mp4").write_bytes(b"video")
-    (folder / f"{long_unicode}.mp3").write_bytes(b"audio")
-    (folder / f"{long_unicode}_en.vtt").write_text("WEBVTT\n", encoding="utf-8")
+    (folder / f"{long_name}.mp4").write_bytes(b"video")
+    (folder / f"{long_name}.mp3").write_bytes(b"audio")
+    (folder / f"{long_name}_en.vtt").write_text("WEBVTT\n", encoding="utf-8")
     original = folder / "original_transcriptions"
     original.mkdir()
-    (original / f"{long_unicode}_original.vtt").write_text("WEBVTT\n", encoding="utf-8")
+    (original / f"{long_name}_original.vtt").write_text("WEBVTT\n", encoding="utf-8")
 
-    from src import path_limits
-
-    real_fit_component = path_limits.fit_component
-
-    def constrained_fit_component(name: str, parent: Path, *, suffix: str = "") -> str:
-        return real_fit_component(name, parent, suffix=suffix)[:60]
-
-    monkeypatch.setattr("src.storage.local.fit_component", constrained_fit_component)
     provider = LocalStorageProvider()
     mapping = provider.normalize_existing_output_names("storage/output", "original_transcriptions")
 
