@@ -11,6 +11,19 @@ def make_zip(path: Path, name: str, data: bytes = b"data") -> None:
         archive.writestr(name, data)
 
 
+def make_cp437_zip(path: Path, name: str, data: bytes = b"data") -> None:
+    """Create a ZIP whose member name is encoded with the ZIP legacy CP437 rule."""
+    placeholder = "niZo.wmv"
+    assert len(name) == len(placeholder)
+    with ZipFile(path, "w") as archive:
+        archive.writestr(placeholder, data)
+    raw = path.read_bytes()
+    encoded_placeholder = placeholder.encode("ascii")
+    encoded_name = name.encode("cp437")
+    assert len(encoded_placeholder) == len(encoded_name)
+    path.write_bytes(raw.replace(encoded_placeholder, encoded_name))
+
+
 def extractor(**overrides):
     values = dict(max_depth=3, max_files=10_000, max_total_size=10_000_000)
     values.update(overrides)
@@ -111,10 +124,8 @@ def test_unicode_normalization_collision_is_rejected_case_insensitively(tmp_path
         extractor().extract_zip(archive_path, tmp_path / "out")
 
 
-def test_zip_uses_specified_cp437_for_non_utf8_member_names(tmp_path: Path) -> None:
+def test_zip_uses_cp437_for_legacy_non_utf8_member_names(tmp_path: Path) -> None:
     archive_path = tmp_path / "cp437.zip"
-    # Python's zipfile writes non-UTF-8 names according to the ZIP legacy
-    # encoding rules when the UTF-8 flag is not requested.
-    make_zip(archive_path, "niño.wmv")
+    make_cp437_zip(archive_path, "niño.wmv")
     result = extractor().extract_zip(archive_path, tmp_path / "out")
     assert result.media[0].name == "niño.wmv"
