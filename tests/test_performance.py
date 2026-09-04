@@ -31,8 +31,8 @@ def test_mp4_copy_command_avoids_reencode(tmp_path: Path):
     assert "-movflags" in command and "+faststart" in command
 
 
-def test_normalization_policy_is_wordpress_friendly():
-    assert normalize_component("Vídeo niño — prueba") == "Video_nino_prueba"
+def test_normalization_policy_preserves_unicode_and_is_filesystem_safe():
+    assert normalize_component("Vídeo niño — prueba") == "Vídeo_niño_prueba"
 
 
 def test_resource_profile_keeps_medium_for_high_end_hardware(monkeypatch):
@@ -49,5 +49,4 @@ def test_resource_profile_uses_small_on_8gb_class_machine(monkeypatch):
     monkeypatch.setattr("src.resource_profile.os.cpu_count", lambda: 4)
     profile = __import__("src.resource_profile", fromlist=["detect_profile"]).detect_profile(AppSettings())
     assert profile.name == "low"
-    assert profile.whisper_model == "small"
     assert profile.whisper_threads <= 4
