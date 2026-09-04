@@ -49,7 +49,7 @@ def test_trailing_compact_hh_mm_timestamp_is_removed(tmp_path: Path) -> None:
     root = tmp_path / "extracted"
     source = root / "Curso 03 Tai Chi" / "07 Forma del Tigre_20260831_10_24.mp4"
     metadata = FileNameFormatter.resolve_source_metadata(source, root)
-    assert metadata.output_stem == "3_Tai_Chi x07_Forma_del_Tigre".replace(" ", "")
+    assert metadata.output_stem == "3_Tai_Chix07_Forma_del_Tigre"
 
 
 def test_trailing_iso_hh_mm_timestamp_is_removed(tmp_path: Path) -> None:
