@@ -59,6 +59,9 @@ known-first-party = ["config", "src"]
 "src/reprocessor.py" = ["S101"]
 "src/subtitle_qa.py" = ["S310"]
 
+[tool.ruff.lint.pycodestyle]
+max-line-length = 127
+
 [tool.ruff.format]
 exclude = [
     "src/naming_policy.py",
