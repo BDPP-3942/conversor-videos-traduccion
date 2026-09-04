@@ -49,7 +49,7 @@ def test_local_storage_retains_successful_source_and_records_sha256(tmp_path: Pa
         sha256=digest,
         size=source.stat().st_size,
         archive_name=f"{source.stem}__{digest[:16]}.zip",
-        output_folders=["37_02_OPT_DE_TAICH_LA_GRAN_RUEDA"],
+        output_folders=["37x02_OPT_DE_TAICH_LA_GRAN_RUEDA"],
     )
 
     assert registry.contains_success(source.name, digest)
@@ -90,11 +90,11 @@ def test_local_output_name_migration_normalizes_legacy_unicode_names(tmp_path: P
     provider = LocalStorageProvider(retain_sources=False, input_min_age_seconds=0)
     provider.normalize_existing_output_names(str(output), "original_transcriptions")
 
-    normalized = output / "37_02_Tema_n"
+    normalized = output / "37x02_Tema_n"
     assert normalized.is_dir()
-    assert (normalized / "37_02_Tema_n.mp4").is_file()
-    assert (normalized / "37_02_Tema_n_en.vtt").is_file()
-    assert (normalized / "original_transcriptions" / "37_02_Tema_n_original.vtt").is_file()
+    assert (normalized / "37x02_Tema_n.mp4").is_file()
+    assert (normalized / "37x02_Tema_n_en.vtt").is_file()
+    assert (normalized / "original_transcriptions" / "37x02_Tema_n_original.vtt").is_file()
     assert not legacy.exists()
 
 
@@ -145,8 +145,8 @@ def test_local_storage_rename_output_folder_updates_artifact_stems(tmp_path: Pat
     provider = LocalStorageProvider(retain_sources=False, input_min_age_seconds=0)
     mapping = provider.rename_output_folder(str(output), "Tema_viejo", "37x02_Tema_nuevo", "original_transcriptions")
 
-    assert mapping == {"Tema_viejo": "37_02_Tema_nuevo"}
-    assert (output / "37_02_Tema_nuevo" / "37_02_Tema_nuevo.mp4").is_file()
-    assert (output / "37_02_Tema_nuevo" / "37_02_Tema_nuevo.webm").is_file()
-    assert (output / "37_02_Tema_nuevo" / "37_02_Tema_nuevo_en.vtt").is_file()
-    assert (output / "37_02_Tema_nuevo" / "original_transcriptions" / "37_02_Tema_nuevo_original.vtt").is_file()
+    assert mapping == {"Tema_viejo": "37x02_Tema_nuevo"}
+    assert (output / "37x02_Tema_nuevo" / "37x02_Tema_nuevo.mp4").is_file()
+    assert (output / "37x02_Tema_nuevo" / "37x02_Tema_nuevo.webm").is_file()
+    assert (output / "37x02_Tema_nuevo" / "37x02_Tema_nuevo_en.vtt").is_file()
+    assert (output / "37x02_Tema_nuevo" / "original_transcriptions" / "37x02_Tema_nuevo_original.vtt").is_file()
