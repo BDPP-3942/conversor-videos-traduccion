@@ -197,9 +197,7 @@ class STTEngine:
             )
             context_free_candidates = self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0])
             candidates.extend(context_free_candidates)
-            if context_free_candidates and not all(
-                self._is_suspicious(segment) for segment in context_free_candidates
-            ):
+            if context_free_candidates and not all(self._is_suspicious(segment) for segment in context_free_candidates):
                 return candidates
         return candidates
 
