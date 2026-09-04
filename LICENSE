@@ -1,0 +1,60 @@
+Video Translation Pipeline — Resource-Available License
+Copyright (c) 2026 BDPP-3942
+
+1. Grant of rights
+
+The copyright holder grants every person a worldwide, non-exclusive, royalty-free,
+non-transferable license to:
+
+- view and inspect the source code;
+- download and retain a copy for personal reference and evaluation;
+- create and maintain a GitHub fork for personal review, evaluation, or private
+  development, provided that the fork is not distributed to third parties.
+
+This license is intentionally resource-available and is NOT an Open Source license.
+
+2. Restrictions
+
+Except for the rights expressly granted above, no rights are granted. Without prior
+written permission from the copyright holder, you may NOT:
+
+- publish, distribute, sublicense, sell, rent, lease, or otherwise make the source
+  code available to third parties;
+- distribute, publish, or share a modified fork or other derivative version;
+- commercially use the software or any derivative work;
+- incorporate the source code or substantial portions of it into a commercial product,
+  service, hosted offering, or paid distribution;
+- remove or alter this license notice or copyright notices;
+- represent a modified or redistributed version as an authorized release.
+
+A GitHub fork is permitted only as a private or otherwise non-distributed copy for
+review, evaluation, or development. The technical ability of a hosting service to
+create or expose forks does not grant additional copyright permissions.
+
+3. Contributions
+
+No contribution is accepted under terms broader than this license unless the
+copyright holder explicitly agrees in writing. A contribution submitted to this
+repository is understood to be provided with the permissions necessary for the
+copyright holder to maintain and distribute the project under this license.
+
+4. Third-party components
+
+This license applies only to the project's own code and materials. Third-party
+components, models, datasets, and other materials remain subject to their respective
+licenses and notices. See THIRD_PARTY_NOTICES.md for the project's third-party
+attributions.
+
+5. Warranty and liability
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE, AND NONINFRINGEMENT. TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE COPYRIGHT
+HOLDER SHALL NOT BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM,
+OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.
+
+6. Permission requests
+
+Requests for commercial use, redistribution, publication of modified versions, or
+other rights not granted by this license must be obtained in writing from the
+copyright holder before the relevant activity takes place.
