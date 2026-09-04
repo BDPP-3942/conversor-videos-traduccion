@@ -51,41 +51,26 @@ class FileNameFormatter:
         ),
         re.compile(r"^\s*(\d{1,4})\s*(?:º|°|[._-])\s*", re.IGNORECASE),
     )
-    COURSE_TEXT_PATTERNS = (
-        re.compile(
-            r"\b(?:curso|course)\s*[:\-–—.]?\s*([^|/\\]+)",
-            re.IGNORECASE,
-        ),
-    )
+    COURSE_TEXT_PATTERNS = (re.compile(r"\b(?:curso|course)\s*[:\-–—.]?\s*([^|/\\]+)", re.IGNORECASE),)
     LESSON_TEXT_PATTERNS = (
         re.compile(
-            r"\b(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)"
-            r"\s*[:\-–—.]?\s*([^|/\\]+)",
+            r"\b(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)\s*[:\-–—.]?\s*([^|/\\]+)",
             re.IGNORECASE,
         ),
     )
     NOISE_PATTERNS = (
         re.compile(r"^wetransfer[_\-]+", re.IGNORECASE),
-        re.compile(
-            r"^drive-download[-_][0-9tz\-]+(?:[-_]\d+[-_]\d+)?[-_]",
-            re.IGNORECASE,
-        ),
-        re.compile(
-            r"^(?:zip|rar|7z|archive|compressed|compression|backup|download|descarga)[-_ ]+",
-            re.IGNORECASE,
-        ),
-        re.compile(
-            r"^(?:extract(?:ed)?|unzip(?:ped)?|descomprim(?:ido|ida|idos|idas))[-_ ]+",
-            re.IGNORECASE,
-        ),
+        re.compile(r"^drive-download[-_][0-9tz\-]+(?:[-_]\d+[-_]\d+)?[-_]", re.IGNORECASE),
+        re.compile(r"^(?:zip|rar|7z|archive|compressed|compression|backup|download|descarga)[-_ ]+", re.IGNORECASE),
+        re.compile(r"^(?:extract(?:ed)?|unzip(?:ped)?|descomprim(?:ido|ida|idos|idas))[-_ ]+", re.IGNORECASE),
         re.compile(r"^files?[-_ ]+(?:from|de)[-_ ]+", re.IGNORECASE),
         re.compile(r"\s*\((?:copy|copia|\d+)\)\s*$", re.IGNORECASE),
         re.compile(r"[_\-]+copy\s*$", re.IGNORECASE),
     )
     GENERIC_TOKENS = {
-        "mp4", "wmv", "video", "videos", "audio", "media", "file", "files",
-        "archivo", "archivos", "download", "downloads", "descarga", "descargas",
-        "compressed", "compression", "archive", "archivo_comprimido", "zip", "rar", "7z",
+        "mp4", "wmv", "video", "videos", "audio", "media", "file", "files", "archivo", "archivos",
+        "download", "downloads", "descarga", "descargas", "compressed", "compression", "archive",
+        "archivo_comprimido", "zip", "rar", "7z",
     }
     FILENAME_ARTIFACT_PATTERN = re.compile(
         r"(?:^|[_\- .])(?:\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?)(?:[_\- .]|$)", re.IGNORECASE
@@ -97,12 +82,7 @@ class FileNameFormatter:
         match = cls.LANGUAGE_PATTERN.search(path.name)
         if not match:
             return FileNameInfo(path.name, path.stem, path.suffix.lower())
-        return FileNameInfo(
-            path.name,
-            path.stem[: match.start()],
-            path.suffix.lower(),
-            match.group("language").lower(),
-        )
+        return FileNameInfo(path.name, path.stem[: match.start()], path.suffix.lower(), match.group("language").lower())
 
     @classmethod
     def generate_vtt_name(cls, video_filename: str, target_language: str) -> str:
@@ -187,10 +167,7 @@ class FileNameFormatter:
 
     @classmethod
     def _remove_number(cls, value: str, number: int) -> str:
-        patterns = (
-            re.compile(rf"(?<!\d){number:02d}(?!\d)"),
-            re.compile(rf"(?<!\d){number}(?!\d)"),
-        )
+        patterns = (re.compile(rf"(?<!\d){number:02d}(?!\d)"), re.compile(rf"(?<!\d){number}(?!\d)"))
         for pattern in patterns:
             if pattern.search(value):
                 return pattern.sub("_", value, count=1)
@@ -234,12 +211,7 @@ def _sanitize_text(value: str) -> str:
 
 
 _DATE_ARTIFACT_PATTERN = re.compile(
-    r"(?<!\d)(?:"
-    r"(?:19|20)\d{2}[-_/.]\d{1,2}[-_/.]\d{1,2}|"
-    r"\d{1,2}[-_/.]\d{1,2}[-_/.](?:19|20)\d{2}|"
-    r"(?:19|20)\d{6}|\d{2}\d{2}\d{4}"
-    r")(?:[T _-]?(?:[01]?\d|2[0-3])(?:[:_.-]?[0-5]\d)"
-    r"(?:[:_.-]?[0-5]\d)?(?:Z|[+-]\d{2}:?\d{2})?)?(?!\d)",
+    r"(?<!\d)(?:(?:19|20)\d{2}[-_/.]\d{1,2}[-_/.]\d{1,2}|\d{1,2}[-_/.]\d{1,2}[-_/.](?:19|20)\d{2}|(?:19|20)\d{6}|\d{2}\d{2}\d{4})(?:[T _-]?(?:[01]?\d|2[0-3])(?:[:_.-]?[0-5]\d)(?:[:_.-]?[0-5]\d)?(?:Z|[+-]\d{2}:?\d{2})?)?(?!\d)",
     re.IGNORECASE,
 )
 
@@ -250,20 +222,12 @@ def strip_date_artifacts(value: str) -> str:
 
 
 def _remove_diacritics(value: str) -> str:
-    """Reduce Latin/Greek/Cyrillic diacritics without decomposing other scripts."""
-    result: list[str] = []
-    for char in unicodedata.normalize("NFC", value):
-        name = unicodedata.name(char, "")
-        if char.isalpha() and any(script in name for script in ("LATIN", "GREEK", "CYRILLIC")):
-            decomposed = unicodedata.normalize("NFKD", char)
-            result.extend(
-                part
-                for part in decomposed
-                if not unicodedata.category(part).startswith("M")
-            )
-        else:
-            result.append(char)
-    return "".join(result)
+    """Remove combining diacritical marks with canonical Unicode decomposition."""
+    decomposed = unicodedata.normalize("NFD", value)
+    without_marks = "".join(
+        char for char in decomposed if not unicodedata.category(char).startswith("M")
+    )
+    return unicodedata.normalize("NFC", without_marks)
 
 
 def clean_for_filename(value: str) -> str:
