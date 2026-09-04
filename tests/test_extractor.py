@@ -73,10 +73,7 @@ def test_nested_zip_preserves_source_tree(tmp_path: Path) -> None:
         archive.write(inner, arcname="inner.zip")
     result = extractor().extract_zip(outer, tmp_path / "out")
     assert len(result.media) == 1
-    assert result.media[0].relative_to(tmp_path / "out").parts[-3:-1] == (
-        "outer",
-        "inner",
-    )
+    assert result.media[0].relative_to(tmp_path / "out").parts[-3:-1] == ("outer", "inner")
 
 
 def test_zip_member_unicode_is_canonicalized_to_nfc(tmp_path: Path) -> None:
@@ -112,3 +109,12 @@ def test_unicode_normalization_collision_is_rejected_case_insensitively(tmp_path
         archive.writestr("cafe\u0301.TXT", b"two")
     with pytest.raises(ValueError, match="ZIP path collision"):
         extractor().extract_zip(archive_path, tmp_path / "out")
+
+
+def test_zip_uses_specified_cp437_for_non_utf8_member_names(tmp_path: Path) -> None:
+    archive_path = tmp_path / "cp437.zip"
+    # Python's zipfile writes non-UTF-8 names according to the ZIP legacy
+    # encoding rules when the UTF-8 flag is not requested.
+    make_zip(archive_path, "niño.wmv")
+    result = extractor().extract_zip(archive_path, tmp_path / "out")
+    assert result.media[0].name == "niño.wmv"
