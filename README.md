@@ -132,13 +132,13 @@ Consulta [`docs/REGENERATION.md`](docs/REGENERATION.md) para las garantías y li
 
 El naming distingue explícitamente entre información lógica y representación física. El texto/contenido original se conserva; la representación física se genera mediante una política determinista y segura antes de crear carpetas o artefactos.
 
-La nomenclatura física de referencia es:
+La nomenclatura física canónica es:
 
 ```text
-<curso_o_contenedor>x<nombre_sanitizado>
+<curso_o_contenedor>_<nombre_sanitizado>
 ```
 
-`x` es exclusivamente el separador de ámbito entre contenedor/curso y recurso. Dentro de cada bloque, `_` es el separador de palabras; no se utiliza `-` como separador de palabras. La estructura lógica no debe recuperarse buscando cualquier `x` dentro del nombre: debe conservarse en metadata/manifest.
+`_` es el separador canónico tanto entre el ámbito/curso y el recurso como entre palabras. `-` no se utiliza como separador de palabras en nombres físicos generados. El antiguo separador de ámbito `x` se reconoce únicamente como formato legacy para poder migrar resultados existentes a `_`.
 
 La normalización física se aplica de forma centralizada en el límite de creación del recurso. Incluye, de forma determinista:
 
@@ -150,6 +150,8 @@ La normalización física se aplica de forma centralizada en el límite de creac
 - protección de nombres reservados de Windows (`CON`, `PRN`, `AUX`, `NUL`, `COM1`…`LPT9`);
 - ajuste a los límites de componente/ruta del filesystem de destino;
 - detección de colisiones antes de sobrescribir y uso de una estrategia determinista cuando el flujo necesita reservar un nombre.
+
+Los nombres legacy con `x` entre bloques se analizan mediante la política de compatibilidad y se convierten a `_` cuando el destino canónico es inequívoco. La migración respeta colisiones y no sobrescribe silenciosamente un destino existente. La estructura lógica no debe recuperarse buscando cualquier `x` dentro del nombre: debe conservarse en metadata/manifest.
 
 La extracción ZIP aplica además validación de rutas absolutas/UNC, traversal, symlinks, nombres reservados y colisiones Unicode/case antes de escribir. El mismo contrato físico debe respetarse posteriormente en carpetas y artefactos generados (MP4/WebM/VTT), evitando que una entrada segura del ZIP produzca después un nombre físico inseguro.
 
@@ -267,4 +269,6 @@ No se modifica el historial de releases anteriores.
 
 ## Seguridad y licencias
 
-No versionar secretos, tokens ni claves. Los modelos, pesos y voces TTS pueden tener licencias diferentes de las librerías que los ejecutan. Antes de redistribuir el ejecutable o usarlo comercialmente debe revisarse la licencia concreta de cada componente.
+El proyecto es **Resource-Available**, no Open Source. Consulta [`LICENSE`](LICENSE) para los permisos y restricciones del código del proyecto. Se permite revisar el código y mantener forks para revisión/evaluación/desarrollo privado, pero no distribuir forks modificados ni usar/comercializar el código o derivados sin autorización escrita del titular.
+
+Los modelos, pesos, voces y demás componentes de terceros mantienen sus propias licencias. [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) se mantiene como documento de atribuciones de terceros y no constituye la licencia del proyecto.
