@@ -1,5 +1,6 @@
 import hashlib
 from pathlib import Path
+from types import SimpleNamespace
 
 from src import local_translation
 from src.local_translation import LocalTranslationModelManager, LocalTranslationProvider
@@ -15,15 +16,20 @@ def _small_model_files(monkeypatch):
     monkeypatch.setattr(
         local_translation,
         "SMALL_MODEL_FILES",
-        ("config.json", "shared_vocabulary.json", "tokenizer_config.json"),
+        {
+            "config.json": (1024, ("decoder_start_token", "eos_token")),
+            "shared_vocabulary.json": (4096, ()),
+            "tokenizer_config.json": (1024, ("source_lang", "target_lang")),
+        },
     )
     monkeypatch.setattr(local_translation, "MODEL_SIZE_BYTES", 17)
     return files
 
 
 def _write_small_metadata(path: Path) -> None:
-    for name in local_translation.SMALL_MODEL_FILES:
-        path.joinpath(name).write_text("{}", encoding="utf-8")
+    path.joinpath("config.json").write_text('{"decoder_start_token": "</s>", "eos_token": "</s>"}', encoding="utf-8")
+    path.joinpath("shared_vocabulary.json").write_text("{}", encoding="utf-8")
+    path.joinpath("tokenizer_config.json").write_text('{"source_lang": "spa", "target_lang": "eng"}', encoding="utf-8")
 
 
 def test_model_status_reports_missing_resource(tmp_path: Path) -> None:
@@ -58,6 +64,32 @@ def test_model_status_rejects_wrong_hash(monkeypatch, tmp_path: Path) -> None:
     assert "SHA-256 mismatch" in status.reason
 
 
+def test_model_status_rejects_malformed_metadata(monkeypatch, tmp_path: Path) -> None:
+    _small_model_files(monkeypatch)
+    tmp_path.joinpath("model.bin").write_bytes(b"model")
+    tmp_path.joinpath("source.spm").write_bytes(b"source")
+    tmp_path.joinpath("target.spm").write_bytes(b"target")
+    _write_small_metadata(tmp_path)
+    tmp_path.joinpath("config.json").write_text("not-json", encoding="utf-8")
+    status = LocalTranslationModelManager(tmp_path).status()
+    assert not status.available
+    assert "invalid metadata: config.json" in status.reason
+
+
+def test_model_status_rejects_unsafe_metadata_symlink(monkeypatch, tmp_path: Path) -> None:
+    _small_model_files(monkeypatch)
+    tmp_path.joinpath("model.bin").write_bytes(b"model")
+    tmp_path.joinpath("source.spm").write_bytes(b"source")
+    tmp_path.joinpath("target.spm").write_bytes(b"target")
+    tmp_path.joinpath("config.json").symlink_to(tmp_path.joinpath("outside.json"))
+    tmp_path.joinpath("outside.json").write_text('{"decoder_start_token": "</s>", "eos_token": "</s>"}', encoding="utf-8")
+    tmp_path.joinpath("shared_vocabulary.json").write_text("{}", encoding="utf-8")
+    tmp_path.joinpath("tokenizer_config.json").write_text('{"source_lang": "spa", "target_lang": "eng"}', encoding="utf-8")
+    status = LocalTranslationModelManager(tmp_path).status()
+    assert not status.available
+    assert "symlink" in status.reason
+
+
 def test_model_ensure_does_not_download_without_explicit_confirmation(monkeypatch, tmp_path: Path) -> None:
     _small_model_files(monkeypatch)
     manager = LocalTranslationModelManager(tmp_path)
@@ -70,14 +102,26 @@ def test_model_ensure_does_not_download_without_explicit_confirmation(monkeypatc
 
 
 def test_local_translation_runtime_falls_back_to_cpu_when_cuda_probe_fails(monkeypatch) -> None:
-    class Settings:
-        local_translation_device = "cuda"
-        local_translation_compute_type = "auto"
-        detected_gpu_usable = True
-        detected_gpu_index = 0
-
+    settings = SimpleNamespace(
+        local_translation_device="cuda",
+        local_translation_compute_type="auto",
+        detected_gpu_index=0,
+    )
     provider = LocalTranslationProvider.__new__(LocalTranslationProvider)
-    provider.settings = Settings()
+    provider.settings = settings
+    monkeypatch.setattr(
+        local_translation,
+        "detect_hardware",
+        lambda: SimpleNamespace(
+            gpu=SimpleNamespace(
+                usable_for_whisper=True,
+                device_index=0,
+                model="test-gpu",
+                vram_free_gb=8.0,
+                runtime="cuda",
+            )
+        ),
+    )
 
     class FakeCT2:
         @staticmethod
