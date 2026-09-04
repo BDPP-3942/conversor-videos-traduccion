@@ -31,10 +31,10 @@ Si hay una NVIDIA GPU pero faltan las bibliotecas necesarias, una ejecución int
 - advertencia de que no se sustituye el driver ni se instala el Toolkit completo;
 - confirmación explícita antes de modificar el entorno.
 
-Las dependencias gestionadas son paquetes Python de NVIDIA:
+Las dependencias gestionadas son paquetes Python de NVIDIA y coinciden con las restricciones de `src/cuda_runtime.py`:
 
 ```text
-nvidia-cublas-cu12>=12.8,<13
+nvidia-cublas-cu12>=12,<13
 nvidia-cudnn-cu12>=9,<10
 ```
 
