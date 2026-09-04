@@ -9,7 +9,7 @@ Model: Prukario/opus-mt-es-en-ct2-int8
 Revision: ad91ad1697ea1761111ff4c179400796d085b347
 Task: Spanish → English
 Quantization: INT8
-Approximate download: 82.5 MiB
+Approximate download: 82.5 MB (~78.7 MiB)
 License: CC-BY-4.0
 ```
 
