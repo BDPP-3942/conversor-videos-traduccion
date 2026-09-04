@@ -63,7 +63,7 @@ def test_zip_member_unicode_is_canonicalized_to_nfc(tmp_path: Path) -> None:
     decomposed = "Cafe\u0301/Leccio\u0301n.wmv"
     make_zip(archive_path, decomposed)
     result = extractor().extract_zip(archive_path, tmp_path / "out")
-    assert result.media[0].name == "Lecció n.wmv".replace(" ", "")
+    assert result.media[0].name == "Lección.wmv"
     assert result.media[0].relative_to(tmp_path / "out").parts[-2] == "Café"
 
 
