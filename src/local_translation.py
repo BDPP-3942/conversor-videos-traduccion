@@ -54,7 +54,9 @@ class LocalTranslationModelManager:
 
     def __init__(self, model_dir: Path | None = None) -> None:
         configured = os.getenv("LOCAL_TRANSLATION_MODEL_DIR", "").strip()
-        default_dir = BASE_DIR / "tools" / "models" / "translation" / "opus-mt-es-en-ct2-int8"
+        default_dir = (
+            BASE_DIR / "tools" / "models" / "translation" / "opus-mt-es-en-ct2-int8"
+        )
         self.model_dir = Path(model_dir or configured or default_dir)
 
     def status(self) -> LocalModelStatus:
@@ -117,12 +119,16 @@ class LocalTranslationModelManager:
         self.download()
         final = self.status()
         if not final.available:
-            raise RuntimeError(f"Downloaded local translation model failed validation: {final.reason}")
+            raise RuntimeError(
+                f"Downloaded local translation model failed validation: {final.reason}"
+            )
         return final.path
 
     def download(self) -> Path:
         if self.model_dir.is_symlink():
-            raise RuntimeError(f"Refusing to replace symlinked model directory: {self.model_dir}")
+            raise RuntimeError(
+                f"Refusing to replace symlinked model directory: {self.model_dir}"
+            )
         self.model_dir.parent.mkdir(parents=True, exist_ok=True)
         temp_dir = Path(
             tempfile.mkdtemp(
@@ -132,12 +138,17 @@ class LocalTranslationModelManager:
         )
         try:
             for name in (*MODEL_FILES, *SMALL_MODEL_FILES):
-                url = f"https://huggingface.co/{MODEL_REPOSITORY}/resolve/{MODEL_REVISION}/{name}?download=true"
+                url = (
+                    f"https://huggingface.co/{MODEL_REPOSITORY}/resolve/"
+                    f"{MODEL_REVISION}/{name}?download=true"
+                )
                 _download_file(url, temp_dir / name, MODEL_MAX_DOWNLOAD_BYTES)
             for name, (expected_hash, expected_size) in MODEL_FILES.items():
                 path = temp_dir / name
                 if path.stat().st_size != expected_size or _sha256(path) != expected_hash:
-                    raise RuntimeError(f"Integrity validation failed for downloaded model file: {name}")
+                    raise RuntimeError(
+                        f"Integrity validation failed for downloaded model file: {name}"
+                    )
             metadata = {
                 "repository": MODEL_REPOSITORY,
                 "revision": MODEL_REVISION,
@@ -150,7 +161,9 @@ class LocalTranslationModelManager:
             )
             if self.model_dir.exists():
                 if not self.model_dir.is_dir():
-                    raise RuntimeError(f"Managed model path is not a directory: {self.model_dir}")
+                    raise RuntimeError(
+                        f"Managed model path is not a directory: {self.model_dir}"
+                    )
                 backup = self.model_dir.with_name(f".{self.model_dir.name}.old")
                 if backup.exists() or backup.is_symlink():
                     if backup.is_dir() and not backup.is_symlink():
@@ -173,7 +186,9 @@ class LocalTranslationModelManager:
 
     def cleanup(self) -> None:
         if self.model_dir.is_symlink():
-            raise RuntimeError(f"Refusing to remove symlinked model directory: {self.model_dir}")
+            raise RuntimeError(
+                f"Refusing to remove symlinked model directory: {self.model_dir}"
+            )
         if self.model_dir.exists() and self.model_dir.is_dir():
             shutil.rmtree(self.model_dir)
 
@@ -200,7 +215,9 @@ class LocalTranslationProvider:
             )
         )
         if configured_id != MODEL_REPOSITORY or configured_revision != MODEL_REVISION:
-            raise ValueError("The local translation provider only accepts its pinned model repository and revision")
+            raise ValueError(
+                "The local translation provider only accepts its pinned model repository and revision"
+            )
         self.settings = settings
         model_dir = getattr(settings, "local_translation_model_dir", None)
         self.manager = model_manager or LocalTranslationModelManager(model_dir)
@@ -210,13 +227,21 @@ class LocalTranslationProvider:
             import ctranslate2
             import sentencepiece as spm
         except ImportError as exc:
-            raise RuntimeError("Local translation requires ctranslate2 and sentencepiece") from exc
+            raise RuntimeError(
+                "Local translation requires ctranslate2 and sentencepiece"
+            ) from exc
         translator_kwargs = {"device": self.device, "compute_type": self.compute_type}
         if self.device == "cuda":
             translator_kwargs["device_index"] = self.device_index
-        self._translator = ctranslate2.Translator(str(self.model_path), **translator_kwargs)
-        self._source = spm.SentencePieceProcessor(model_file=str(self.model_path / "source.spm"))
-        self._target = spm.SentencePieceProcessor(model_file=str(self.model_path / "target.spm"))
+        self._translator = ctranslate2.Translator(
+            str(self.model_path), **translator_kwargs
+        )
+        self._source = spm.SentencePieceProcessor(
+            model_file=str(self.model_path / "source.spm")
+        )
+        self._target = spm.SentencePieceProcessor(
+            model_file=str(self.model_path / "target.spm")
+        )
 
     def _confirm_download(self, status: LocalModelStatus) -> bool:
         return bool(
@@ -228,30 +253,24 @@ class LocalTranslationProvider:
         )
 
     def _resolve_runtime(self) -> tuple[str, str, int]:
-        requested_device = (
-            str(
-                getattr(
-                    self.settings,
-                    "local_translation_device",
-                    os.getenv("LOCAL_TRANSLATION_DEVICE", "auto"),
-                )
+        requested_device = str(
+            getattr(
+                self.settings,
+                "local_translation_device",
+                os.getenv("LOCAL_TRANSLATION_DEVICE", "auto"),
             )
-            .lower()
-            .strip()
-        )
-        requested_compute = (
-            str(
-                getattr(
-                    self.settings,
-                    "local_translation_compute_type",
-                    os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto"),
-                )
+        ).lower().strip()
+        requested_compute = str(
+            getattr(
+                self.settings,
+                "local_translation_compute_type",
+                os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto"),
             )
-            .lower()
-            .strip()
-        )
+        ).lower().strip()
         if requested_device not in {"auto", "cpu", "cuda"}:
-            raise ValueError("local_translation_device must be one of: auto, cpu, cuda")
+            raise ValueError(
+                "local_translation_device must be one of: auto, cpu, cuda"
+            )
 
         hardware = detect_hardware()
         detected_gpu = hardware.gpu
@@ -274,7 +293,10 @@ class LocalTranslationProvider:
                     detected_gpu.runtime or "unknown",
                 )
             else:
-                logger.info("Local translation selected CPU automatically: no verified usable CTranslate2 CUDA runtime detected")
+                logger.info(
+                    "Local translation selected CPU automatically: no verified usable "
+                    "CTranslate2 CUDA runtime detected"
+                )
 
         if requested_compute == "auto":
             requested_compute = "float16" if requested_device == "cuda" else "int8"
@@ -304,7 +326,9 @@ class LocalTranslationProvider:
                 elif supported:
                     requested_compute = sorted(supported)[0]
                 else:
-                    logger.warning("CTranslate2 reports no CUDA compute types; falling back to CPU")
+                    logger.warning(
+                        "CTranslate2 reports no CUDA compute types; falling back to CPU"
+                    )
                     return "cpu", "int8", 0
         return requested_device, requested_compute, device_index
 
@@ -337,7 +361,9 @@ class LocalTranslationProvider:
                 tokens_out = tokens_out[: tokens_out.index("</s>")]
             outputs.append(self._target.decode(tokens_out).strip())
         if len(outputs) != len(texts):
-            raise RuntimeError(f"Local translation returned {len(outputs)} results for {len(texts)} inputs")
+            raise RuntimeError(
+                f"Local translation returned {len(outputs)} results for {len(texts)} inputs"
+            )
         return outputs
 
 
@@ -351,7 +377,9 @@ def _sha256(path: Path) -> str:
 
 def _download_file(url: str, destination: Path, max_bytes: int) -> None:
     if not url.startswith("https://huggingface.co/"):
-        raise ValueError("Model downloads are restricted to the pinned Hugging Face origin")
+        raise ValueError(
+            "Model downloads are restricted to the pinned Hugging Face origin"
+        )
     partial = destination.with_suffix(destination.suffix + ".part")
     offset = partial.stat().st_size if partial.exists() else 0
     headers = {"User-Agent": "video-translation-pipeline/1.5"}
@@ -367,7 +395,9 @@ def _download_file(url: str, destination: Path, max_bytes: int) -> None:
             length = response.headers.get("Content-Length")
             expected = offset + int(length) if length else None
             if expected and expected > max_bytes:
-                raise RuntimeError(f"Refusing oversized model download: {expected} bytes")
+                raise RuntimeError(
+                    f"Refusing oversized model download: {expected} bytes"
+                )
             mode = "ab" if resumed else "wb"
             written = offset
             with partial.open(mode) as handle:
@@ -377,7 +407,9 @@ def _download_file(url: str, destination: Path, max_bytes: int) -> None:
                         break
                     written += len(chunk)
                     if written > max_bytes:
-                        raise RuntimeError("Model download exceeded the configured size limit")
+                        raise RuntimeError(
+                            "Model download exceeded the configured size limit"
+                        )
                     handle.write(chunk)
             partial.replace(destination)
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
