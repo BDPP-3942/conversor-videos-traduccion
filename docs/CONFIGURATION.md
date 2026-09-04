@@ -62,15 +62,15 @@ python main.py provider use --help
 
 Naming is deliberately not configured through a free-form replacement template. The application owns a deterministic policy so that ZIP extraction, generated output folders and generated artifacts use the same physical filesystem rules.
 
-The canonical physical naming contract is:
+The logical naming contract is represented as:
 
 ```text
-<curso_o_contenedor>_<nombre_sanitizado>
+<curso_o_contenedor>x<nombre_sanitizado>
 ```
 
-`_` is the canonical separator between scope blocks and between words. Hyphens, whitespace and other incompatible separators are normalized to `_`; accents and unsafe filesystem characters are normalized as part of the physical-name boundary. The historical `x` scope separator is accepted only as legacy input and is migrated to `_` when existing output-name normalization is enabled.
+`x` separates scope; `_` separates words inside each block. The physical boundary applies whitespace/separator normalization, punctuation/control-character handling, Unicode/diacritic normalization, Windows reserved-name protection and filesystem length limits. Logical metadata is preserved separately from the physical name.
 
-The `normalize_legacy_names` workflow setting controls migration of already existing output names. It does not change the naming rules themselves. When enabled, migration is performed before normal processing and must not silently overwrite an existing destination. Legacy names are analyzed conservatively and only renamed when the canonical target is unambiguous.
+The `normalize_legacy_names` workflow setting controls migration of already existing output names. It does not change the naming rules themselves. When enabled, migration is performed before normal processing and must not silently overwrite an existing destination.
 
 ## Video concurrency
 
