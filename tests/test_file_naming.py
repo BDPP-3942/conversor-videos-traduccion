@@ -98,13 +98,19 @@ def test_calendar_date_time_suffix_is_removed_from_source_output(tmp_path: Path)
         assert "10_24" not in metadata.output_stem
 
 
-def test_generated_output_stem_is_sanitized_for_physical_filesystem(tmp_path: Path) -> None:
+def test_generated_output_stem_is_sanitized_without_lossy_unicode_transliteration(tmp_path: Path) -> None:
     result = fit_output_stem("Curso-03: Niño / CON?", tmp_path)
-    assert result == "Curso_03_Nino_CON"
+    assert result == "Curso_03_Niño_CON"
     assert "-" not in result
     assert "/" not in result
     assert ":" not in result
     assert "?" not in result
+
+
+def test_generated_output_stem_normalizes_unicode_to_nfc(tmp_path: Path) -> None:
+    decomposed = "Cafe\u0301xNin\u0303o"
+    assert normalize_component(decomposed) == "CaféxNiño"
+    assert fit_output_stem(decomposed, tmp_path) == "CaféxNiño"
 
 
 def test_generated_output_stem_handles_reserved_name_after_normalization(tmp_path: Path) -> None:
