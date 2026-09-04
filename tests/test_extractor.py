@@ -52,15 +52,18 @@ def test_nested_zip_preserves_source_tree(tmp_path: Path) -> None:
         archive.write(inner, arcname="inner.zip")
     result = extractor().extract_zip(outer, tmp_path / "out")
     assert len(result.media) == 1
-    assert result.media[0].relative_to(tmp_path / "out").parts[-3:-1] == ("outer", "inner")
+    assert result.media[0].relative_to(tmp_path / "out").parts[-3:-1] == (
+        "outer",
+        "inner",
+    )
 
 
 def test_zip_member_unicode_is_canonicalized_to_nfc(tmp_path: Path) -> None:
     archive_path = tmp_path / "unicode.zip"
-    decomposed = "Cafe\u0301/Leccion\u0301.wmv"
+    decomposed = "Cafe\u0301/Leccio\u0301n.wmv"
     make_zip(archive_path, decomposed)
     result = extractor().extract_zip(archive_path, tmp_path / "out")
-    assert result.media[0].name == "Lección.wmv"
+    assert result.media[0].name == "Lecció n.wmv".replace(" ", "")
     assert result.media[0].relative_to(tmp_path / "out").parts[-2] == "Café"
 
 
