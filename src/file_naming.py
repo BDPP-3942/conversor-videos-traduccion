@@ -276,15 +276,22 @@ def strip_date_artifacts(value: str) -> str:
 
 
 def clean_for_filename(value: str) -> str:
-    """Normalize a block name without lossy ASCII transliteration."""
-    normalized = unicodedata.normalize("NFC", value)
-    normalized = re.sub(
-        r"[<>:\"/\\|?*()\[\]{}'“”‘’`´,;!¡¿@#$%^&=+~\x00-\x1f]",
-        "_",
-        normalized,
-    )
-    normalized = re.sub(r"[\s\-_.—–−‒―]+", "_", normalized)
-    return normalized.strip("_.-")
+    """Build a canonical web-safe name: ASCII diacritics removed, lowercase and no emoji."""
+    decomposed = unicodedata.normalize("NFKD", value).casefold()
+    normalized: list[str] = []
+    for char in decomposed:
+        category = unicodedata.category(char)
+        if category.startswith("M"):
+            continue
+        if category[0] in {"L", "N"} or char == "_":
+            normalized.append(char)
+            continue
+        if category.startswith("P") or char.isspace():
+            normalized.append("_")
+            continue
+        # Unicode symbols (including emoji), controls and other non-word
+        # characters are intentionally omitted from URL/metadata names.
+    return re.sub(r"_+", "_", "".join(normalized)).strip("_.-")
 
 
 def _split_filename_extension(filename: str) -> tuple[str, str]:
@@ -302,10 +309,8 @@ def normalize_filename(filename: str) -> str:
 
 
 def normalize_component(value: str) -> str:
-    """Normalize words while preserving the canonical x block separator."""
-    blocks = value.split("x")
-    normalized = "x".join(_sanitize_text(block) for block in blocks)
-    return safe_filesystem_component(normalized)
+    """Normalize a filesystem/URL component to the canonical lowercase form."""
+    return safe_filesystem_component(clean_for_filename(value))
 
 
 def normalize_comparison_key(filename: str) -> str:
