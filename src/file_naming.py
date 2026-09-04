@@ -275,9 +275,8 @@ def strip_date_artifacts(value: str) -> str:
 
 
 def clean_for_filename(value: str) -> str:
-    """Normalize a block name using underscore word separators."""
-    normalized = unicodedata.normalize("NFKD", value)
-    normalized = "".join(char for char in normalized if not unicodedata.combining(char))
+    """Normalize a block name without lossy ASCII transliteration."""
+    normalized = unicodedata.normalize("NFC", value)
     normalized = re.sub(
         r"[<>:\"/\\|?*()\[\]{}'“”‘’`´,;!¡¿@#$%^&=+~\x00-\x1f]",
         "_",
@@ -314,7 +313,7 @@ def normalize_comparison_key(filename: str) -> str:
     value = FileNameFormatter._clean_context(path.stem)
     value = strip_date_artifacts(value)
     value = FileNameFormatter._remove_generic_tokens(value)
-    value = re.sub(r"[^a-zA-Z0-9]+", " ", _sanitize_text(value)).lower().strip()
+    value = re.sub(r"[^\w]+", " ", _sanitize_text(value), flags=re.UNICODE).casefold().strip()
     return re.sub(r"\s+", " ", value)
 
 
