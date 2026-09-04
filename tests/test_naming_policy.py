@@ -7,7 +7,7 @@ def test_zip_number_becomes_course_and_video_number_becomes_lesson():
     metadata = resolve(Path("Curso_03/07_Forma_del_Tigre.mp4"), Path("."))
     assert metadata.course == 3
     assert metadata.lesson == 7
-    assert metadata.output_stem == "3_07_Forma_del_Tigre"
+    assert metadata.output_stem == "3x07_Forma_del_Tigre"
 
 
 def test_without_numbers_uses_container_text_as_code():
@@ -15,7 +15,7 @@ def test_without_numbers_uses_container_text_as_code():
     assert metadata.course is None
     assert metadata.lesson is None
     assert metadata.course_name == "Taichi_Intermedio"
-    assert metadata.output_stem == "Taichi_Intermedio_Respiracion_y_movimiento"
+    assert metadata.output_stem == "Taichi_IntermedioxRespiracion_y_movimiento"
 
 
 def test_without_container_uses_video_title_only():
@@ -26,7 +26,10 @@ def test_without_container_uses_video_title_only():
 
 
 def test_download_noise_does_not_become_course_number():
-    metadata = resolve(Path("wetransfer_20260826T120000Z_Curso_03/07_Forma_del_Tigre.mp4"), Path("."))
+    metadata = resolve(
+        Path("wetransfer_20260826T120000Z_Curso_03/07_Forma_del_Tigre.mp4"),
+        Path("."),
+    )
     assert metadata.course == 3
     assert metadata.lesson == 7
 
@@ -44,18 +47,18 @@ def test_date_noise_formats_are_ignored_without_removing_course_or_lesson():
         metadata = resolve(Path(noisy_folder) / "07_Forma_del_Tigre.mp4", Path("."))
         assert metadata.course == 3
         assert metadata.lesson == 7
-        assert metadata.output_stem == "3_07_Forma_del_Tigre"
+        assert metadata.output_stem == "3x07_Forma_del_Tigre"
 
 
-def test_textual_course_and_numeric_lesson_use_underscore_separator():
+def test_textual_course_and_numeric_lesson_use_x_scope_separator():
     metadata = resolve(Path("Taichi_Intermedio/02_Forma.mp4"), Path("."))
     assert metadata.course_name == "Taichi_Intermedio"
     assert metadata.lesson == 2
-    assert metadata.output_stem == "Taichi_Intermedio_02_Forma"
+    assert metadata.output_stem == "Taichi_Intermediox02_Forma"
 
 
-def test_numeric_course_and_textual_lesson_use_underscore_separator():
+def test_numeric_course_and_textual_lesson_use_x_scope_separator():
     metadata = resolve(Path("Curso_03/Forma_del_Tigre.mp4"), Path("."))
     assert metadata.course == 3
     assert metadata.lesson is None
-    assert metadata.output_stem == "3_Forma_del_Tigre"
+    assert metadata.output_stem == "3xForma_del_Tigre"
