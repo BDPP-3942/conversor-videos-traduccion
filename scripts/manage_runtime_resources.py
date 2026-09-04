@@ -9,9 +9,7 @@ from src.local_translation import LocalTranslationModelManager
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Inspect and remove project-managed optional runtime resources"
-    )
+    parser = argparse.ArgumentParser(description="Inspect and remove project-managed optional runtime resources")
     parser.add_argument("resource", choices=("translation-model", "cuda", "all"))
     parser.add_argument("action", choices=("status", "cleanup"))
     args = parser.parse_args()
