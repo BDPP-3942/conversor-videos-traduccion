@@ -184,9 +184,15 @@ class LocalTranslationProvider:
     target_lang = "en"
 
     def __init__(self, settings, model_manager: LocalTranslationModelManager | None = None) -> None:
-        configured_id = str(getattr(settings, "local_translation_model_id", os.getenv("LOCAL_TRANSLATION_MODEL_ID", MODEL_REPOSITORY)))
+        configured_id = str(
+            getattr(settings, "local_translation_model_id", os.getenv("LOCAL_TRANSLATION_MODEL_ID", MODEL_REPOSITORY))
+        )
         configured_revision = str(
-            getattr(settings, "local_translation_model_revision", os.getenv("LOCAL_TRANSLATION_MODEL_REVISION", MODEL_REVISION))
+            getattr(
+                settings,
+                "local_translation_model_revision",
+                os.getenv("LOCAL_TRANSLATION_MODEL_REVISION", MODEL_REVISION),
+            )
         )
         if configured_id != MODEL_REPOSITORY or configured_revision != MODEL_REVISION:
             raise ValueError("The local translation provider only accepts its pinned model repository and revision")
@@ -208,17 +214,39 @@ class LocalTranslationProvider:
         self._target = spm.SentencePieceProcessor(model_file=str(self.model_path / "target.spm"))
 
     def _confirm_download(self, status: LocalModelStatus) -> bool:
-        return bool(getattr(self.settings, "local_translation_auto_download", os.getenv("LOCAL_TRANSLATION_AUTO_DOWNLOAD", "false").lower() == "true"))
+        return bool(
+            getattr(
+                self.settings,
+                "local_translation_auto_download",
+                os.getenv("LOCAL_TRANSLATION_AUTO_DOWNLOAD", "false").lower() == "true",
+            )
+        )
 
     def _resolve_runtime(self) -> tuple[str, str, int]:
-        requested_device = str(getattr(self.settings, "local_translation_device", os.getenv("LOCAL_TRANSLATION_DEVICE", "auto"))).lower().strip()
-        requested_compute = str(getattr(self.settings, "local_translation_compute_type", os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto"))).lower().strip()
+        requested_device = (
+            str(getattr(self.settings, "local_translation_device", os.getenv("LOCAL_TRANSLATION_DEVICE", "auto")))
+            .lower()
+            .strip()
+        )
+        requested_compute = (
+            str(
+                getattr(
+                    self.settings, "local_translation_compute_type", os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto")
+                )
+            )
+            .lower()
+            .strip()
+        )
         if requested_device not in {"auto", "cpu", "cuda"}:
             raise ValueError("local_translation_device must be one of: auto, cpu, cuda")
         hardware = detect_hardware()
         detected_gpu = hardware.gpu
         configured_index = getattr(self.settings, "detected_gpu_index", None)
-        device_index = max(0, int(configured_index)) if configured_index is not None and int(configured_index) >= 0 else max(0, detected_gpu.device_index or 0)
+        device_index = (
+            max(0, int(configured_index))
+            if configured_index is not None and int(configured_index) >= 0
+            else max(0, detected_gpu.device_index or 0)
+        )
         if requested_device == "auto":
             requested_device = "cuda" if detected_gpu.usable_for_whisper else "cpu"
             logger.info("Local translation selected %s automatically", requested_device.upper())
@@ -226,10 +254,14 @@ class LocalTranslationProvider:
             requested_compute = "float16" if requested_device == "cuda" else "int8"
         if requested_device == "cuda":
             if not detected_gpu.usable_for_whisper:
-                logger.warning("Local translation CUDA requested but no verified CTranslate2 CUDA GPU is available; falling back to CPU")
+                logger.warning(
+                    "Local translation CUDA requested but no verified CTranslate2 CUDA GPU is available; "
+                    "falling back to CPU"
+                )
                 return "cpu", "int8", 0
             try:
                 import ctranslate2
+
                 supported = ctranslate2.get_supported_compute_types("cuda", device_index)
             except (ImportError, AttributeError, RuntimeError, TypeError) as exc:
                 logger.warning("Local translation CUDA capability check failed; falling back to CPU: %s", exc)
@@ -252,7 +284,9 @@ class LocalTranslationProvider:
         if not texts:
             return []
         tokens = [self._source.encode(text, out_type=str) + ["</s>"] for text in texts]
-        beam_size = max(1, int(getattr(self.settings, "local_translation_beam_size", os.getenv("LOCAL_TRANSLATION_BEAM_SIZE", 2))))
+        beam_size = max(
+            1, int(getattr(self.settings, "local_translation_beam_size", os.getenv("LOCAL_TRANSLATION_BEAM_SIZE", 2)))
+        )
         results = self._translator.translate_batch(tokens, beam_size=beam_size)
         outputs: list[str] = []
         for result in results:
