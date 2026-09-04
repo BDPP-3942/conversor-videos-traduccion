@@ -6,15 +6,51 @@ from src.file_naming import FileNameFormatter
 
 
 REFERENCE_CASES = [
-    ("wetransfer_1-el-juego-4-poderes-la-genesis-wmv_2026-07-21_1515.zip", "1-el juego 4 poderes la genesis.wmv", "1_el_juego_4_poderes_la_genesisx1_el_juego_4_poderes_la_genesis"),
-    ("wetransfer_1-el-juego-4-poderes-la-genesis-wmv_2026-07-21_1515.zip", "2-el juego LOS 4 PODEROS alto bajo.wmv", "1_el_juego_4_poderes_la_genesisx2_el_juego_LOS_4_PODEROS_alto_bajo"),
-    ("wetransfer_1-el-juego-4-poderes-la-genesis-wmv_2026-07-21_1515.zip", "4-juego 4 poderes poder de compresión.wmv", "1_el_juego_4_poderes_la_genesisx4_juego_4_poderes_poder_de_compresión"),
-    ("wetransfer_estas-son-promocinales-son-6_2026-07-28_1039.zip", "COMPRENDIENDO EL PEQUEÑO TAICHI 1 (An).mp4", "estas_son_promocinales_son_6xCOMPRENDIENDO_EL_PEQUEÑO_TAICHI_1_An"),
-    ("wetransfer_estas-son-promocinales-son-6_2026-07-28_1039.zip", "ESTILO LIBRE (lan Que Wei) improvisación de ejemplos.mp4", "estas_son_promocinales_son_6xESTILO_LIBRE_lan_Que_Wei_improvisación_de_ejemplos"),
-    ("wetransfer_estas-son-promocinales-son-6_2026-07-28_1039.zip", "LAS 8 POSICIONES BÁSICAS DEL TAICHI.mp4", "estas_son_promocinales_son_6xLAS_8_POSICIONES_BÁSICAS_DEL_TAICHI"),
-    ("wetransfer_estas-son-promocinales-son-6_2026-07-28_1039.zip", "TAICHI CHINNA (Cuello de dragón)2º parte.mp4", "estas_son_promocinales_son_6xTAICHI_CHINNA_Cuello_de_dragón_2_parte"),
-    ("wetransfer_curso19-basic_2026-07-19_0916.zip", "5.-posturas fijas del taichi desde 0.mp4", "19x5_posturas_fijas_del_taichi_desde_0"),
-    ("wetransfer_curso35_2026-07-19_1416.zip", "17.mp4", "35x17"),
+    (
+        "wetransfer_1-el-juego-4-poderes-la-genesis-wmv_2026-07-21_1515.zip",
+        "1-el juego 4 poderes la genesis.wmv",
+        "1_el_juego_4_poderes_la_genesisx1_el_juego_4_poderes_la_genesis",
+    ),
+    (
+        "wetransfer_1-el-juego-4-poderes-la-genesis-wmv_2026-07-21_1515.zip",
+        "2-el juego LOS 4 PODEROS alto bajo.wmv",
+        "1_el_juego_4_poderes_la_genesisx2_el_juego_los_4_poderos_alto_bajo",
+    ),
+    (
+        "wetransfer_1-el-juego-4-poderes-la-genesis-wmv_2026-07-21_1515.zip",
+        "4-juego 4 poderes poder de compresión.wmv",
+        "1_el_juego_4_poderes_la_genesisx4_juego_4_poderes_poder_de_compresion",
+    ),
+    (
+        "wetransfer_estas-son-promocinales-son-6_2026-07-28_1039.zip",
+        "COMPRENDIENDO EL PEQUEÑO TAICHI 1 (An).mp4",
+        "estas_son_promocinales_son_6xcomprendiendo_el_pequeno_taichi_1_an",
+    ),
+    (
+        "wetransfer_estas-son-promocinales-son-6_2026-07-28_1039.zip",
+        "ESTILO LIBRE (lan Que Wei) improvisación de ejemplos.mp4",
+        "estas_son_promocinales_son_6xestilo_libre_lan_que_wei_improvisacion_de_ejemplos",
+    ),
+    (
+        "wetransfer_estas-son-promocinales-son-6_2026-07-28_1039.zip",
+        "LAS 8 POSICIONES BÁSICAS DEL TAICHI.mp4",
+        "estas_son_promocinales_son_6xlas_8_posiciones_basicas_del_taichi",
+    ),
+    (
+        "wetransfer_estas-son-promocinales-son-6_2026-07-28_1039.zip",
+        "TAICHI CHINNA (Cuello de dragón)2º parte.mp4",
+        "estas_son_promocinales_son_6xtaichi_chinna_cuello_de_dragon_2_parte",
+    ),
+    (
+        "wetransfer_curso19-basic_2026-07-19_0916.zip",
+        "5.-posturas fijas del taichi desde 0.mp4",
+        "19x5_posturas_fijas_del_taichi_desde_0",
+    ),
+    (
+        "wetransfer_curso35_2026-07-19_1416.zip",
+        "17.mp4",
+        "35x17",
+    ),
 ]
 
 
