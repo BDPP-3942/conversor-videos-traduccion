@@ -295,8 +295,7 @@ def ensure_cuda_runtime(*, interactive: bool = True) -> CUDARuntimeStatus:
                 f"Detected driver: {status.driver_version or 'unknown'}; "
                 f"advertised CUDA: {status.driver_cuda_max or 'unknown'}"
             )
-            print(f"Requirements: CUDA {CUDA_MAJOR}.x + cuBLAS for CUDA 12 + "
-                  f"cuDNN {CUDNN_MAJOR} for CUDA 12.")
+            print(f"Requirements: CUDA {CUDA_MAJOR}.x + cuBLAS for CUDA 12 + cuDNN {CUDNN_MAJOR} for CUDA 12.")
             print(f"Managed installation: {MANAGED_DIR}")
             print(f"Runtime libraries will be installed into: {MANAGED_PYTHON_DIR}")
             print(
