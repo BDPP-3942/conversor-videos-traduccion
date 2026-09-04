@@ -51,9 +51,7 @@ class FileNameFormatter:
         ),
         re.compile(r"^\s*(\d{1,4})\s*(?:º|°|[._-])\s*", re.IGNORECASE),
     )
-    COURSE_TEXT_PATTERNS = (
-        re.compile(r"\b(?:curso|course)\s*[:\-–—.]?\s*([^|/\\]+)", re.IGNORECASE),
-    )
+    COURSE_TEXT_PATTERNS = (re.compile(r"\b(?:curso|course)\s*[:\-–—.]?\s*([^|/\\]+)", re.IGNORECASE),)
     LESSON_TEXT_PATTERNS = (
         re.compile(
             r"\b(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)\s*[:\-–—.]?\s*([^|/\\]+)",
@@ -62,9 +60,7 @@ class FileNameFormatter:
     )
     NOISE_PATTERNS = (
         re.compile(r"^wetransfer[_\-]+", re.IGNORECASE),
-        re.compile(
-            r"^drive-download[-_][0-9tz\-]+(?:[-_]\d+[-_]\d+)?[-_]", re.IGNORECASE
-        ),
+        re.compile(r"^drive-download[-_][0-9tz\-]+(?:[-_]\d+[-_]\d+)?[-_]", re.IGNORECASE),
         re.compile(
             r"^(?:zip|rar|7z|archive|compressed|compression|backup|download|descarga)[-_ ]+",
             re.IGNORECASE,
@@ -246,9 +242,7 @@ class FileNameFormatter:
     @classmethod
     def _remove_generic_tokens(cls, value: str) -> str:
         tokens = [token for token in re.split(r"[_ ]+", value) if token]
-        return "_".join(
-            token for token in tokens if token.lower() not in cls.GENERIC_TOKENS
-        )
+        return "_".join(token for token in tokens if token.lower() not in cls.GENERIC_TOKENS)
 
     @staticmethod
     def _label_or_default(value: str | None, default: str) -> str:
@@ -275,9 +269,7 @@ def strip_date_artifacts(value: str) -> str:
 def _remove_diacritics(value: str) -> str:
     """Remove combining diacritical marks with canonical Unicode decomposition."""
     decomposed = unicodedata.normalize("NFD", value)
-    without_marks = "".join(
-        char for char in decomposed if not unicodedata.category(char).startswith("M")
-    )
+    without_marks = "".join(char for char in decomposed if not unicodedata.category(char).startswith("M"))
     return unicodedata.normalize("NFC", without_marks)
 
 
@@ -321,9 +313,7 @@ def normalize_comparison_key(filename: str) -> str:
     value = FileNameFormatter._clean_context(path.stem)
     value = strip_date_artifacts(value)
     value = FileNameFormatter._remove_generic_tokens(value)
-    value = re.sub(
-        r"[_\W]+", " ", _sanitize_text(value), flags=re.UNICODE
-    ).casefold().strip()
+    value = re.sub(r"[_\W]+", " ", _sanitize_text(value), flags=re.UNICODE).casefold().strip()
     return re.sub(r"\s+", " ", value)
 
 
