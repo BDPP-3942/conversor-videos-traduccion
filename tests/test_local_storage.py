@@ -33,6 +33,18 @@ def test_local_storage_copies_file(tmp_path: Path):
     assert (output_dir / "copy.zip").read_bytes() == b"zip-content"
 
 
+def test_local_storage_zero_age_includes_file_created_immediately(tmp_path: Path):
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    source = input_dir / "sample.zip"
+    source.write_bytes(b"zip-content")
+
+    provider = LocalStorageProvider(retain_sources=False, input_min_age_seconds=0)
+    files = provider.list_zip_files(str(input_dir))
+
+    assert [item.name for item in files] == ["sample.zip"]
+
+
 def test_local_storage_retains_successful_source_and_records_sha256(tmp_path: Path):
     storage_root = tmp_path / "storage"
     input_dir = storage_root / "input"
