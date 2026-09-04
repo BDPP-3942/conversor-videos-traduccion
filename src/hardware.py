@@ -85,9 +85,7 @@ def _darwin_available_memory(page_size: int, total_gb: float) -> float:
     if not binary:
         return max(0.0, total_gb * 0.5)
     try:
-        output = subprocess.check_output(  # noqa: S603 - executable comes from shutil.which
-            [binary], text=True, stderr=subprocess.DEVNULL, timeout=2
-        )
+        output = subprocess.check_output([binary], text=True, stderr=subprocess.DEVNULL, timeout=2)
         pages: dict[str, int] = {}
         for line in output.splitlines():
             if ":" not in line:
@@ -109,9 +107,7 @@ def _physical_cpus() -> int | None:
     if not binary:
         return None
     try:
-        output = subprocess.check_output(  # noqa: S603 - executable comes from shutil.which
-            [binary, "-p=CORE"], text=True, stderr=subprocess.DEVNULL, timeout=2
-        )
+        output = subprocess.check_output([binary, "-p=CORE"], text=True, stderr=subprocess.DEVNULL, timeout=2)
         cores = {line.strip() for line in output.splitlines() if line.strip() and not line.startswith("#")}
         return len(cores) or None
     except (OSError, ValueError, subprocess.SubprocessError):
@@ -119,7 +115,7 @@ def _physical_cpus() -> int | None:
 
 
 def _probe_ctranslate2_gpu(device_index: int = 0) -> tuple[bool, str | None, str | None, str | None]:
-    """Probe the actual CTranslate2 GPU runtime instead of trusting the driver alone."""
+    """Probe the actual CTranslate2 CUDA runtime instead of trusting the driver alone."""
     try:
         import ctranslate2
     except ImportError:
@@ -144,9 +140,10 @@ def _nvidia_gpu() -> GPUInfo:
     binary = shutil.which("nvidia-smi")
     if not binary:
         return GPUInfo(False, vendor="NVIDIA", reason="nvidia-smi not available")
+    query = "--query-gpu=index,name,memory.total,memory.free,driver_version"
     try:
-        result = subprocess.run(  # noqa: S603 - executable comes from shutil.which
-            [binary, "--query-gpu=index,name,memory.total,memory.free,driver_version", "--format=csv,noheader,nounits"],
+        result = subprocess.run(
+            [binary, query, "--format=csv,noheader,nounits"],
             capture_output=True,
             text=True,
             timeout=3,
@@ -182,6 +179,7 @@ def _nvidia_gpu() -> GPUInfo:
 
 
 def _amd_gpu() -> GPUInfo | None:
+    """Detect AMD/ROCm without pretending that CUDA validates a ROCm backend."""
     binary = shutil.which("rocm-smi")
     rocminfo = shutil.which("rocminfo")
     if not binary and not rocminfo:
@@ -190,7 +188,7 @@ def _amd_gpu() -> GPUInfo | None:
     total = free = 0.0
     if binary:
         try:
-            output = subprocess.check_output(  # noqa: S603 - executable comes from shutil.which
+            output = subprocess.check_output(
                 [binary, "--showproductname", "--showmeminfo", "vram"],
                 text=True,
                 stderr=subprocess.DEVNULL,
@@ -209,9 +207,7 @@ def _amd_gpu() -> GPUInfo | None:
             pass
     if model is None and rocminfo:
         try:
-            output = subprocess.check_output(  # noqa: S603 - executable comes from shutil.which
-                [rocminfo], text=True, stderr=subprocess.DEVNULL, timeout=4
-            )
+            output = subprocess.check_output([rocminfo], text=True, stderr=subprocess.DEVNULL, timeout=4)
             for line in output.splitlines():
                 stripped = line.strip()
                 if stripped.startswith("Name:") and "gfx" not in stripped.lower():
@@ -219,7 +215,6 @@ def _amd_gpu() -> GPUInfo | None:
                     break
         except (OSError, subprocess.SubprocessError):
             pass
-    usable, runtime, backend, reason = _probe_ctranslate2_gpu(0)
     return GPUInfo(
         True,
         "AMD",
@@ -228,13 +223,11 @@ def _amd_gpu() -> GPUInfo | None:
         1,
         total,
         free,
-        runtime=runtime,
         backend="rocm",
-        usable_for_whisper=usable,
-        reason=reason or "ROCm GPU capability verified by CTranslate2",
+        usable_for_whisper=False,
+        reason="ROCm detected; CTranslate2/faster-whisper ROCm path is not verified",
         memory_model="dedicated",
         memory_shared_with_system=False,
-        whisper_device="cuda" if usable else None,
     )
 
 
@@ -263,8 +256,7 @@ def detect_gpu() -> GPUInfo:
     intel = _intel_gpu()
     if intel is not None:
         return intel
-    system = platform.system()
-    if system == "Darwin" and platform.machine().lower() in {"arm64", "aarch64"}:
+    if platform.system() == "Darwin" and platform.machine().lower() in {"arm64", "aarch64"}:
         return GPUInfo(
             True,
             "Apple",
@@ -287,4 +279,11 @@ def detect_hardware(path: Path | None = None) -> HardwareInfo:
         disk_free = shutil.disk_usage(path or Path.cwd()).free / 1024**3
     except OSError:
         disk_free = 0.0
-    return HardwareInfo(max(1, os.cpu_count() or 1), _physical_cpus(), total, available, detect_gpu(), disk_free)
+    return HardwareInfo(
+        max(1, os.cpu_count() or 1),
+        _physical_cpus(),
+        total,
+        available,
+        detect_gpu(),
+        disk_free,
+    )

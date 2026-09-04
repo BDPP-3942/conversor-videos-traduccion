@@ -35,6 +35,13 @@ class AppSettings:
     whisper_condition_on_previous_text: bool = True
     whisper_initial_prompt: str = ""
     whisper_cpu_threads: int = 0
+    whisper_repetition_threshold: float = 0.60
+    whisper_compression_ratio_threshold: float = 2.4
+    whisper_log_prob_threshold: float = -1.0
+    whisper_no_speech_threshold: float = 0.6
+    whisper_min_repetition_words: int = 8
+    whisper_recovery_retries: int = 1
+    whisper_recovery_temperatures: tuple[float, ...] = (0.2,)
     translation_provider: str = "mistral"
     translation_fallback_providers: tuple[str, ...] = ("deepl", "mymemory")
     translation_retries: int = 3
@@ -126,6 +133,14 @@ class AppSettings:
         fallback_default = ",".join(cls.translation_fallback_providers)
         fallback_raw = os.getenv("TRANSLATION_FALLBACK_PROVIDERS", fallback_default)
         fallback = tuple(item.strip() for item in fallback_raw.split(",") if item.strip())
+        temperatures = (
+            tuple(
+                float(item.strip())
+                for item in os.getenv("WHISPER_RECOVERY_TEMPERATURES", "0.2").split(",")
+                if item.strip()
+            )
+            or cls.whisper_recovery_temperatures
+        )
         condition_env = os.getenv("WHISPER_CONDITION_ON_PREVIOUS_TEXT", "true")
         return cls(
             provider=os.getenv("STORAGE_PROVIDER", cls.provider),
@@ -145,6 +160,21 @@ class AppSettings:
             whisper_condition_on_previous_text=condition_env.lower() == "true",
             whisper_initial_prompt=os.getenv("WHISPER_INITIAL_PROMPT", cls.whisper_initial_prompt),
             whisper_cpu_threads=int(os.getenv("WHISPER_CPU_THREADS", cls.whisper_cpu_threads)),
+            whisper_repetition_threshold=float(
+                os.getenv("WHISPER_REPETITION_THRESHOLD", cls.whisper_repetition_threshold)
+            ),
+            whisper_compression_ratio_threshold=float(
+                os.getenv("WHISPER_COMPRESSION_RATIO_THRESHOLD", cls.whisper_compression_ratio_threshold)
+            ),
+            whisper_log_prob_threshold=float(os.getenv("WHISPER_LOG_PROB_THRESHOLD", cls.whisper_log_prob_threshold)),
+            whisper_no_speech_threshold=float(
+                os.getenv("WHISPER_NO_SPEECH_THRESHOLD", cls.whisper_no_speech_threshold)
+            ),
+            whisper_min_repetition_words=int(
+                os.getenv("WHISPER_MIN_REPETITION_WORDS", cls.whisper_min_repetition_words)
+            ),
+            whisper_recovery_retries=int(os.getenv("WHISPER_RECOVERY_RETRIES", cls.whisper_recovery_retries)),
+            whisper_recovery_temperatures=temperatures,
             translation_provider=os.getenv("TRANSLATION_PROVIDER", cls.translation_provider),
             translation_fallback_providers=fallback,
             translation_retries=int(os.getenv("TRANSLATION_RETRIES", cls.translation_retries)),

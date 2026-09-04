@@ -15,6 +15,8 @@ Configuration is loaded from `config/app.toml` with environment overrides. `.env
 - `[ffmpeg]`: media generation and WebM settings.
 - `[tts]`: optional Kokoro TTS settings.
 
+The local translation provider has an additional environment-only configuration surface (`LOCAL_TRANSLATION_*`). These settings are intentionally not duplicated in `config/app.toml`; they are consumed as environment overrides by the local provider.
+
 ## Environment overrides
 
 Common variables include:
@@ -26,11 +28,23 @@ TARGET_URI=local://storage/output
 SOURCE_LANG=es
 TARGET_LANG=en
 WHISPER_MODEL=auto
-WHISPER_DEVICE=cpu
-WHISPER_COMPUTE_TYPE=int8
+WHISPER_DEVICE=auto
+WHISPER_COMPUTE_TYPE=auto
 TRANSLATION_PROVIDER=mistral
-TRANSLATION_FALLBACK_PROVIDERS=deepl,mymemory
+TRANSLATION_FALLBACK_PROVIDERS=local,deepl,mymemory
+LOCAL_TRANSLATION_DEVICE=auto
+LOCAL_TRANSLATION_COMPUTE_TYPE=auto
+LOCAL_TRANSLATION_BEAM_SIZE=2
+LOCAL_TRANSLATION_AUTO_DOWNLOAD=false
 TTS_ENABLED=false
+```
+
+The local model identity is pinned and is not an arbitrary configuration value:
+
+```dotenv
+LOCAL_TRANSLATION_MODEL_DIR=tools/models/translation/opus-mt-es-en-ct2-int8
+LOCAL_TRANSLATION_MODEL_ID=Prukario/opus-mt-es-en-ct2-int8
+LOCAL_TRANSLATION_MODEL_REVISION=ad91ad1697ea1761111ff4c179400796d085b347
 ```
 
 See `.env.example` for the complete currently supported environment-variable surface. Do not commit `.env` or provider credentials.
@@ -77,4 +91,10 @@ This behavior was introduced after the `1.2.2` release by PR #20 (`perf: enforce
 - TTS: disabled.
 - WebM generation: enabled.
 - rclone automatic update: disabled.
+- Whisper device: `auto`.
+- Whisper compute type: `auto`.
 - Whisper silence threshold: 1500 ms.
+- Local translation auto-download: disabled.
+- Local translation device: `auto`.
+- Local translation compute type: `auto`.
+- Local translation beam size: 2.

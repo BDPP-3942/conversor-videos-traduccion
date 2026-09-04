@@ -10,6 +10,7 @@ from typing import Any
 
 from config.settings import AppSettings, local_storage_paths
 from src.translation_providers import (
+    TranslationConfigurationError,
     TranslationProvider,
     TranslationQuotaError,
     TranslationRateLimitError,
@@ -200,6 +201,8 @@ class TextTranslator:
                 (local, str(output or ""), "" if str(output or "").strip() else f"{name}: empty translation result")
                 for local, output in zip(chunk, outputs, strict=True)
             ]
+        except TranslationConfigurationError:
+            raise
         except TranslationQuotaExceeded as exc:
             message = str(exc)
             logger.warning("Provider '%s' local free quota exhausted; switching provider", name)

@@ -12,7 +12,6 @@ on:
 permissions:
   contents: read
 
-# Avoid wasting private-repository Actions minutes when a newer commit supersedes an older run.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -23,14 +22,44 @@ env:
   CHECKOUT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
-  test:
+  # Project-wide checks run once. They are not repeated for every OS/interpreter.
+  quality:
+    name: Quality / static checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CHECKOUT_SHA }}
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools wheel
+      - name: Install project with CI dependencies
+        run: python -m pip install ".[dev,google]"
+      - name: Verify dependency consistency
+        run: python -m pip check
+      - name: Verify imports and unused imports
+        run: ruff check . --select F401,I001
+      - name: Ruff lint
+        run: ruff check .
+      - name: Ruff security rules
+        run: ruff check . --select S
+      - name: Ruff format check
+        run: ruff format --check .
+      - name: Python compile check
+        run: python -m compileall .
+
+  windows-test:
+    name: Windows / Python ${{ matrix.python-version }}
     strategy:
-      # Cancel the remaining matrix jobs after the first failure; the same final SHA can be rerun after the fix.
       fail-fast: true
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ['3.11', '3.12', '3.13']
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     steps:
       - name: Checkout exact branch head
         uses: actions/checkout@v5
@@ -56,28 +85,87 @@ jobs:
           video-subtitle-qa --help
           video-translation-tts --help
       - name: Verify Windows local wrapper
-        if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          if (Test-Path .venv) { Remove-Item -Recurse -Force .venv }
           python -m venv --system-site-packages .venv
           cmd /c "scripts\run_local.bat regenerate --help"
+
+  linux-test:
+    name: Linux / Python ${{ matrix.python-version }}
+    strategy:
+      fail-fast: true
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CHECKOUT_SHA }}
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools wheel
+      - name: Install project with CI dependencies
+        run: python -m pip install ".[dev,google]"
+      - name: Verify dependency consistency
+        run: python -m pip check
+      - name: Run tests excluding wheel-only checks
+        run: python -m pytest -q --ignore=tests/test_packaging.py
+      - name: Verify installed entry points
+        run: |
+          video-translation-pipeline --help
+          video-translation-regenerate --help
+          video-subtitle-qa --help
+          video-translation-tts --help
       - name: Verify POSIX local wrapper syntax
-        if: runner.os != 'Windows'
         shell: bash
         run: |
           bash -n scripts/run_local.sh
           bash -n scripts/run_unattended.sh
           bash -n scripts/run_scheduled.sh
-      - name: Verify imports and unused imports
-        run: ruff check . --select F401,I001
-      - name: Ruff lint
-        run: ruff check .
-      - name: Ruff security rules
-        run: ruff check . --select S
-      - name: Ruff format check
-        run: ruff format --check .
-      - name: Python compile check
-        run: python -m compileall .
+
+  macos-test:
+    name: macOS / Python ${{ matrix.python-version }}
+    strategy:
+      fail-fast: true
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    runs-on: macos-latest
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CHECKOUT_SHA }}
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools wheel
+      - name: Install project with CI dependencies
+        run: python -m pip install ".[dev,google]"
+      - name: Verify dependency consistency
+        run: python -m pip check
+      - name: Run tests excluding wheel-only checks
+        run: python -m pytest -q --ignore=tests/test_packaging.py
+      - name: Verify installed entry points
+        run: |
+          video-translation-pipeline --help
+          video-translation-regenerate --help
+          video-subtitle-qa --help
+          video-translation-tts --help
+      - name: Verify POSIX local wrapper syntax
+        shell: bash
+        run: |
+          bash -n scripts/run_local.sh
+          bash -n scripts/run_unattended.sh
+          bash -n scripts/run_scheduled.sh
 
   packaging:
     runs-on: ubuntu-latest

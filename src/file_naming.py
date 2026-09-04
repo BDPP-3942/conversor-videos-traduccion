@@ -51,10 +51,16 @@ class FileNameFormatter:
         ),
         re.compile(r"^\s*(\d{1,4})\s*(?:º|°|[._-])\s*", re.IGNORECASE),
     )
-    COURSE_TEXT_PATTERNS = (re.compile(r"\b(?:curso|course)\s*[:\-–—.]?\s*([^|/\\]+)", re.IGNORECASE),)
+    COURSE_TEXT_PATTERNS = (
+        re.compile(
+            r"\b(?:curso|course)\s*[:\-–—.]?\s*([^|/\\]+)",
+            re.IGNORECASE,
+        ),
+    )
     LESSON_TEXT_PATTERNS = (
         re.compile(
-            r"\b(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)\s*[:\-–—.]?\s*([^|/\\]+)",
+            r"\b(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)"
+            r"\s*[:\-–—.]?\s*([^|/\\]+)",
             re.IGNORECASE,
         ),
     )
@@ -107,7 +113,12 @@ class FileNameFormatter:
         match = cls.LANGUAGE_PATTERN.search(path.name)
         if not match:
             return FileNameInfo(path.name, path.stem, path.suffix.lower())
-        return FileNameInfo(path.name, path.stem[: match.start()], path.suffix.lower(), match.group("language").lower())
+        return FileNameInfo(
+            path.name,
+            path.stem[: match.start()],
+            path.suffix.lower(),
+            match.group("language").lower(),
+        )
 
     @classmethod
     def generate_vtt_name(cls, video_filename: str, target_language: str) -> str:
@@ -178,7 +189,13 @@ class FileNameFormatter:
 
     @classmethod
     def _build_description(
-        cls, stem: str, *, course: int | None, lesson: int | None, course_name: str | None, lesson_name: str | None
+        cls,
+        stem: str,
+        *,
+        course: int | None,
+        lesson: int | None,
+        course_name: str | None,
+        lesson_name: str | None,
     ) -> str:
         value = stem
         if course is not None:
@@ -194,7 +211,10 @@ class FileNameFormatter:
 
     @classmethod
     def _remove_number(cls, value: str, number: int) -> str:
-        patterns = (re.compile(rf"(?<!\d){number:02d}(?!\d)"), re.compile(rf"(?<!\d){number}(?!\d)"))
+        patterns = (
+            re.compile(rf"(?<!\d){number:02d}(?!\d)"),
+            re.compile(rf"(?<!\d){number}(?!\d)"),
+        )
         for pattern in patterns:
             if pattern.search(value):
                 return pattern.sub("_", value, count=1)
@@ -203,7 +223,8 @@ class FileNameFormatter:
     @staticmethod
     def _remove_label(value: str) -> str:
         return re.sub(
-            r"(?:^|[_\- .])(?:curso|course|lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)(?=[_\- .]|$)",
+            r"(?:^|[_\- .])(?:curso|course|lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)"
+            r"(?=[_\- .]|$)",
             "_",
             value,
             flags=re.IGNORECASE,
@@ -243,9 +264,7 @@ _DATE_ARTIFACT_PATTERN = re.compile(
     r"\d{1,2}[-_/.]\d{1,2}[-_/.](?:19|20)\d{2}|"
     r"(?:19|20)\d{6}|"
     r"\d{2}\d{2}\d{4}"
-    r")"
-    r"(?:[T _-]?(?:[01]?\d|2[0-3])(?:[:_.-]?[0-5]\d)(?:[:_.-]?[0-5]\d)?(?:Z|[+-]\d{2}:?\d{2})?)?"
-    r"(?!\d)",
+    r")(?:[T _-]?(?:[01]?\d|2[0-3])(?:[:_.-]?[0-5]\d)(?:[:_.-]?[0-5]\d)?(?:Z|[+-]\d{2}:?\d{2})?)?(?!\d)",
     re.IGNORECASE,
 )
 
@@ -256,16 +275,14 @@ def strip_date_artifacts(value: str) -> str:
 
 
 def clean_for_filename(value: str) -> str:
-    """Normalize a logical/physical name with deterministic, cross-platform separators.
-
-    Unicode compatibility normalization removes accents deterministically for physical
-    names, while incompatible punctuation and filesystem separators become `_`.
-    Parentheses, brackets and quote marks are treated as punctuation rather than part
-    of the physical naming contract. Repeated separators are collapsed at the end.
-    """
+    """Normalize a block name using underscore word separators."""
     normalized = unicodedata.normalize("NFKD", value)
     normalized = "".join(char for char in normalized if not unicodedata.combining(char))
-    normalized = re.sub(r"[<>:\"/\\|?*()\[\]{}'“”‘’`´,;!¡¿@#$%^&=+~\x00-\x1f]", "_", normalized)
+    normalized = re.sub(
+        r"[<>:\"/\\|?*()\[\]{}'“”‘’`´,;!¡¿@#$%^&=+~\x00-\x1f]",
+        "_",
+        normalized,
+    )
     normalized = re.sub(r"[\s\-_.—–−‒―]+", "_", normalized)
     return normalized.strip("_.-")
 
@@ -285,8 +302,10 @@ def normalize_filename(filename: str) -> str:
 
 
 def normalize_component(value: str) -> str:
-    """Return the physical filesystem-safe form of a generated component."""
-    return safe_filesystem_component(_sanitize_text(value))
+    """Normalize words while preserving the canonical x block separator."""
+    blocks = value.split("x")
+    normalized = "x".join(_sanitize_text(block) for block in blocks)
+    return safe_filesystem_component(normalized)
 
 
 def normalize_comparison_key(filename: str) -> str:
@@ -319,12 +338,7 @@ def fit_output_stem(
     unique_suffix: str | None = None,
     reserve_suffixes: tuple[str, ...] = (),
 ) -> str:
-    """Sanitize and fit a generated output stem to the host filesystem.
-
-    This is the final physical-name boundary for generated output. The caller may
-    keep a richer logical stem in metadata, but anything returned here is safe for
-    the destination filesystem and uses the project separator policy.
-    """
+    """Sanitize and fit a generated output stem to the host filesystem."""
     physical_stem = normalize_component(stem)
     suffix = f"__{unique_suffix}" if unique_suffix else ""
     candidate = fit_component(physical_stem, parent, suffix=suffix)

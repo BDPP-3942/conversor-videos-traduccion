@@ -7,6 +7,13 @@ from pathlib import Path
 from typing import Any
 
 from config.settings import BASE_DIR, AppSettings
+from src.cuda_runtime import ensure_cuda_runtime
+from src.stt_quality import (
+    STTQualityThresholds,
+    candidate_key,
+    quality_metrics,
+    suspicious_reasons,
+)
 from src.whisper_prompt import resolve_initial_prompt
 
 logger = logging.getLogger(__name__)
@@ -17,23 +24,39 @@ class STTEngine:
         self.settings = settings
         self.device = settings.whisper_device
         self.compute_type = settings.whisper_compute_type
+        self._quality_thresholds = STTQualityThresholds(
+            repetition_threshold=settings.whisper_repetition_threshold,
+            compression_ratio_threshold=settings.whisper_compression_ratio_threshold,
+            log_prob_threshold=settings.whisper_log_prob_threshold,
+            no_speech_threshold=settings.whisper_no_speech_threshold,
+            min_repetition_words=settings.whisper_min_repetition_words,
+        )
+        if self.device in {"auto", "cuda"}:
+            cuda_status = ensure_cuda_runtime(interactive=not getattr(settings, "unattended_mode", False))
+            if self.device == "auto" and cuda_status.compatible:
+                self.device = "cuda"
+                self.compute_type = self.compute_type if self.compute_type != "auto" else "float16"
+            elif self.device == "auto":
+                self.device = "cpu"
+                self.compute_type = self.compute_type if self.compute_type not in {"auto", "float16"} else "int8"
+            elif self.device == "cuda" and not cuda_status.compatible:
+                logger.warning(
+                    "Whisper CUDA runtime is not ready; using CPU fallback: %s",
+                    cuda_status.reason,
+                )
+                self.device = "cpu"
+                self.compute_type = "int8"
+        if self.compute_type == "auto":
+            self.compute_type = "float16" if self.device == "cuda" else "int8"
         self.model = self._load_model(self.device, self.compute_type)
         logger.info(
-            "Whisper ready: profile=%s cpu=%d ram=%.1fGB available_ram=%.1fGB gpu=%s gpu_index=%d vram_free=%.1fGB "
-            "model=%s device=%s compute=%s cpu_threads=%d beam=%d vad=%s",
-            settings.resource_profile,
-            settings.detected_logical_cpus,
-            settings.detected_memory_gb,
-            settings.detected_memory_available_gb,
-            settings.detected_gpu_model or settings.detected_gpu_vendor,
-            settings.detected_gpu_index,
-            settings.detected_gpu_vram_gb,
+            "Whisper ready: model=%s device=%s compute=%s beam=%d vad=%s context=%s",
             settings.whisper_model,
             self.device,
             self.compute_type,
-            settings.whisper_cpu_threads if settings.whisper_cpu_threads > 0 else 4,
             settings.whisper_beam_size,
             settings.whisper_vad_filter,
+            settings.whisper_condition_on_previous_text,
         )
 
     def _load_model(self, device: str, compute_type: str):
@@ -56,19 +79,15 @@ class STTEngine:
             logger.exception("Whisper CUDA initialization failed; falling back once to CPU")
             self.model = None
             gc.collect()
-            cpu_compute = "int8"
             self.device = "cpu"
-            self.compute_type = cpu_compute
-            try:
-                return WhisperModel(
-                    self.settings.whisper_model,
-                    device="cpu",
-                    compute_type=cpu_compute,
-                    cpu_threads=threads,
-                    num_workers=1,
-                )
-            except Exception as cpu_exc:
-                raise RuntimeError("Whisper failed on CUDA and controlled CPU fallback also failed") from cpu_exc
+            self.compute_type = "int8"
+            return WhisperModel(
+                self.settings.whisper_model,
+                device="cpu",
+                compute_type="int8",
+                cpu_threads=threads,
+                num_workers=1,
+            )
 
     @staticmethod
     def _valid_interval(start: float, end: float) -> bool:
@@ -106,43 +125,157 @@ class STTEngine:
                 result.append({"start": start, "end": end, "text": text})
         return result
 
-    def transcribe(self, media_path: Path):
-        logger.info("Transcribing: %s using device=%s compute=%s", media_path.name, self.device, self.compute_type)
+    def _transcribe_kwargs(
+        self,
+        *,
+        condition_on_previous_text: bool,
+        temperature: float | tuple[float, ...],
+        clip_timestamps: list[dict[str, float]] | None = None,
+    ) -> dict[str, Any]:
         vad_parameters = None
-        if self.settings.whisper_vad_filter:
+        if self.settings.whisper_vad_filter and clip_timestamps is None:
             vad_parameters = {"min_silence_duration_ms": max(100, self.settings.whisper_min_silence_duration_ms)}
-        transcribe_kwargs = {
+        kwargs: dict[str, Any] = {
             "language": self.settings.source_lang,
             "task": "transcribe",
             "beam_size": max(1, self.settings.whisper_beam_size),
             "best_of": 1,
-            "temperature": 0,
-            "condition_on_previous_text": self.settings.whisper_condition_on_previous_text,
-            "vad_filter": self.settings.whisper_vad_filter,
+            "temperature": temperature,
+            "condition_on_previous_text": condition_on_previous_text,
+            "vad_filter": self.settings.whisper_vad_filter if clip_timestamps is None else False,
             "vad_parameters": vad_parameters,
             "word_timestamps": True,
+            "compression_ratio_threshold": self.settings.whisper_compression_ratio_threshold,
+            "log_prob_threshold": self.settings.whisper_log_prob_threshold,
+            "no_speech_threshold": self.settings.whisper_no_speech_threshold,
+            "hallucination_silence_threshold": getattr(
+                self.settings,
+                "whisper_hallucination_silence_threshold",
+                None,
+            ),
         }
-        prompt, prompt_source = resolve_initial_prompt(self.settings.whisper_initial_prompt, BASE_DIR)
+        if clip_timestamps is not None:
+            kwargs["clip_timestamps"] = clip_timestamps
+        prompt, prompt_source = resolve_initial_prompt(
+            self.settings.whisper_initial_prompt,
+            BASE_DIR,
+        )
         if prompt:
-            transcribe_kwargs["initial_prompt"] = prompt
-        logger.debug("Whisper initial prompt source=%s length=%d", prompt_source, len(prompt))
-        segments, _ = self.model.transcribe(str(media_path), **transcribe_kwargs)
+            kwargs["initial_prompt"] = prompt
+        logger.debug(
+            "Whisper initial prompt source=%s length=%d",
+            prompt_source,
+            len(prompt),
+        )
+        return kwargs
+
+    def _collect_segments(self, segments: Any) -> list[Any]:
+        return list(segments)
+
+    def _candidate_segments(self, media_path: Path, start: float, end: float) -> list[Any]:
+        retries = max(0, int(self.settings.whisper_recovery_retries))
+        if retries == 0:
+            return []
+        temperatures = tuple(self.settings.whisper_recovery_temperatures) or (0.0,)
+        candidates: list[Any] = []
+        for retry_index in range(retries):
+            temperature = temperatures[retry_index % len(temperatures)]
+            kwargs = self._transcribe_kwargs(
+                condition_on_previous_text=True,
+                temperature=temperature,
+                clip_timestamps=[{"start": start, "end": end}],
+            )
+            attempt_candidates = self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0])
+            candidates.extend(attempt_candidates)
+            if attempt_candidates and not all(self._is_suspicious(segment) for segment in attempt_candidates):
+                return candidates
+
+            kwargs = self._transcribe_kwargs(
+                condition_on_previous_text=False,
+                temperature=temperature,
+                clip_timestamps=[{"start": start, "end": end}],
+            )
+            context_free_candidates = self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0])
+            candidates.extend(context_free_candidates)
+            if context_free_candidates and not all(self._is_suspicious(segment) for segment in context_free_candidates):
+                return candidates
+        return candidates
+
+    def _is_suspicious(self, segment: Any) -> bool:
+        return bool(suspicious_reasons(quality_metrics(segment), self._quality_thresholds))
+
+    def _select_candidate(self, candidates: list[Any]) -> Any | None:
+        if not candidates:
+            return None
+        return min(
+            candidates,
+            key=lambda segment: candidate_key(segment, self._quality_thresholds),
+        )
+
+    def _recover_segment(self, media_path: Path, segment: Any) -> list[Any]:
+        start = max(0.0, float(segment.start))
+        end = max(start, float(segment.end))
+        if end <= start:
+            return []
+        candidates = self._candidate_segments(media_path, start, end)
+        selected = self._select_candidate(candidates)
+        metrics = quality_metrics(selected) if selected is not None else None
+        reasons = suspicious_reasons(metrics, self._quality_thresholds) if metrics is not None else ()
+        logger.info(
+            "STT recovery: start=%.3f end=%.3f retries=%d candidates=%d "
+            "selected_suspicious=%s reasons=%s repetition=%s "
+            "compression=%s avg_logprob=%s no_speech=%s",
+            start,
+            end,
+            max(0, int(self.settings.whisper_recovery_retries)),
+            len(candidates),
+            bool(reasons),
+            ",".join(reasons) or "none",
+            metrics.repetition_score if metrics is not None else None,
+            metrics.compression_ratio if metrics is not None else None,
+            metrics.avg_logprob if metrics is not None else None,
+            metrics.no_speech_prob if metrics is not None else None,
+        )
+        return [selected] if selected is not None and not reasons else []
+
+    def transcribe(self, media_path: Path):
+        logger.info(
+            "Transcribing: %s using device=%s compute=%s",
+            media_path.name,
+            self.device,
+            self.compute_type,
+        )
+        kwargs = self._transcribe_kwargs(
+            condition_on_previous_text=self.settings.whisper_condition_on_previous_text,
+            temperature=0,
+        )
+        segments = self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0])
         result: list[dict[str, Any]] = []
-        raw_count = split_count = discarded_count = 0
+        recovered = 0
+        suspicious = 0
         for segment in segments:
-            raw_count += 1
-            split_segments = self._split_segment_on_silence(segment)
-            if not split_segments:
-                discarded_count += 1
-            if len(split_segments) > 1:
-                split_count += len(split_segments) - 1
-            result.extend(split_segments)
+            if self._is_suspicious(segment):
+                suspicious += 1
+                recovered_segments = self._recover_segment(media_path, segment)
+                if recovered_segments:
+                    segments_to_emit = recovered_segments
+                    recovered += 1
+                else:
+                    logger.warning(
+                        "STT suspicious result rejected after recovery: start=%.3f end=%.3f",
+                        float(segment.start),
+                        float(segment.end),
+                    )
+                    continue
+            else:
+                segments_to_emit = [segment]
+            for candidate in segments_to_emit:
+                result.extend(self._split_segment_on_silence(candidate))
         result.sort(key=lambda item: (float(item["start"]), float(item["end"])))
         logger.info(
-            "STT completed: %d subtitle segments from %d Whisper segments; split %d; discarded %d",
+            "STT completed: %d subtitle segments; suspicious=%d recovered=%d",
             len(result),
-            raw_count,
-            split_count,
-            discarded_count,
+            suspicious,
+            recovered,
         )
         return result

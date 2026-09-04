@@ -144,7 +144,9 @@ class ZipExtractor:
 
     @staticmethod
     def _normalized_member_name(name: str) -> str:
-        return name.replace("\\", "/")
+        """Return a canonical Unicode path before touching the filesystem."""
+        normalized = unicodedata.normalize("NFC", name.replace("\\", "/"))
+        return "/".join(unicodedata.normalize("NFC", part) for part in normalized.split("/"))
 
     @staticmethod
     def _is_windows_reserved_component(name: str) -> bool:
@@ -155,8 +157,12 @@ class ZipExtractor:
 
     @staticmethod
     def _safe_directory_name(name: str) -> str:
+        """Create one portable extraction-root name from the ZIP filename."""
+        normalized = unicodedata.normalize("NFC", name)
         invalid = '<>:"/\\|?*'
-        sanitized = "".join("_" if char in invalid else char for char in name)
+        sanitized = "".join(
+            "_" if char in invalid or unicodedata.category(char) == "Cc" else char for char in normalized
+        )
         sanitized = sanitized.rstrip(" .")
         if ZipExtractor._is_windows_reserved_component(sanitized):
             sanitized = f"_{sanitized}"

@@ -34,11 +34,12 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
         tts = data.get("tts", {})
         workflow = data.get("workflow", {})
         runtime_cfg = data.get("runtime", {})
-
-        translation_provider = processing.get("translation_provider", "mistral")
         fallback_providers = processing.get("translation_fallback_providers", ["deepl", "mymemory"])
         if isinstance(fallback_providers, str):
             fallback_providers = [fallback_providers]
+        recovery_temperatures = processing.get("whisper_recovery_temperatures", [0.2])
+        if isinstance(recovery_temperatures, (int, float, str)):
+            recovery_temperatures = [recovery_temperatures]
 
         settings = AppSettings(
             provider=str(app.get("provider", "local")),
@@ -56,7 +57,14 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             whisper_condition_on_previous_text=bool(processing.get("whisper_condition_on_previous_text", True)),
             whisper_initial_prompt=str(processing.get("whisper_initial_prompt", "")),
             whisper_cpu_threads=int(processing.get("whisper_cpu_threads", 0)),
-            translation_provider=str(translation_provider),
+            whisper_repetition_threshold=float(processing.get("whisper_repetition_threshold", 0.60)),
+            whisper_compression_ratio_threshold=float(processing.get("whisper_compression_ratio_threshold", 2.4)),
+            whisper_log_prob_threshold=float(processing.get("whisper_log_prob_threshold", -1.0)),
+            whisper_no_speech_threshold=float(processing.get("whisper_no_speech_threshold", 0.6)),
+            whisper_min_repetition_words=int(processing.get("whisper_min_repetition_words", 8)),
+            whisper_recovery_retries=int(processing.get("whisper_recovery_retries", 1)),
+            whisper_recovery_temperatures=tuple(float(value) for value in recovery_temperatures),
+            translation_provider=str(processing.get("translation_provider", "mistral")),
             translation_fallback_providers=tuple(str(item) for item in fallback_providers if str(item).strip()),
             translation_retries=int(processing.get("translation_retries", 3)),
             translation_max_retries_per_provider=int(processing.get("max_retries_per_provider", 3)),
@@ -116,12 +124,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             tts_webm_audio_bitrate=str(tts.get("webm_audio_bitrate", "192k")),
             tts_generate_webm=bool(tts.get("generate_webm", True)),
             google_credentials_file=Path(
-                str(
-                    google.get(
-                        "credentials_file",
-                        "secrets/providers/google/default/credentials.json",
-                    )
-                )
+                str(google.get("credentials_file", "secrets/providers/google/default/credentials.json"))
             ),
             google_token_file=Path(str(google.get("token_file", "secrets/providers/google/default/token.json"))),
             rclone_config_file=Path(str(rclone.get("config_file", "secrets/rclone/rclone.conf"))),
@@ -161,6 +164,13 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
         "WHISPER_CONDITION_ON_PREVIOUS_TEXT": "whisper_condition_on_previous_text",
         "WHISPER_INITIAL_PROMPT": "whisper_initial_prompt",
         "WHISPER_CPU_THREADS": "whisper_cpu_threads",
+        "WHISPER_REPETITION_THRESHOLD": "whisper_repetition_threshold",
+        "WHISPER_COMPRESSION_RATIO_THRESHOLD": "whisper_compression_ratio_threshold",
+        "WHISPER_LOG_PROB_THRESHOLD": "whisper_log_prob_threshold",
+        "WHISPER_NO_SPEECH_THRESHOLD": "whisper_no_speech_threshold",
+        "WHISPER_MIN_REPETITION_WORDS": "whisper_min_repetition_words",
+        "WHISPER_RECOVERY_RETRIES": "whisper_recovery_retries",
+        "WHISPER_RECOVERY_TEMPERATURES": "whisper_recovery_temperatures",
         "TRANSLATION_PROVIDER": "translation_provider",
         "TRANSLATION_RETRIES": "translation_retries",
         "TRANSLATION_MAX_RETRIES_PER_PROVIDER": "translation_max_retries_per_provider",

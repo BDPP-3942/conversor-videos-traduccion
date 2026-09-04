@@ -4,11 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "video-translation-pipeline"
-version = "1.5.1"
+version = "1.6.0"
 description = "Local and pluggable video/audio transcription, translation and synchronized TTS pipeline"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-    "faster-whisper>=1,<2",
+    "faster-whisper>=1.2.1,<1.3",
+    "ctranslate2>=4.8.2,<4.9",
+    "sentencepiece>=0.2,<0.3",
     "webvtt-py>=0.4,<1",
     "imageio-ffmpeg>=0.6,<1",
     "python-dotenv>=1,<2",
@@ -43,10 +45,15 @@ known-first-party = ["config", "src"]
 "tests/test_run_local_scripts.py" = ["S603"]
 "src/naming_policy.py" = ["E501"]
 "src/whisper_prompt.py" = ["E501"]
+"config/loader.py" = ["E501"]
+"config/settings.py" = ["E501"]
 "src/auth/rclone_manager.py" = ["S603", "S310"]
 "src/media_identity.py" = ["S603"]
 "src/storage/rclone.py" = ["S603"]
 "src/translation_providers.py" = ["S310"]
+"src/hardware.py" = ["S603"]
+"src/cuda_runtime.py" = ["S603"]
+"src/local_translation.py" = ["S310"]
 "tests/test_media_converter.py" = ["S603"]
 "tests/test_media_identity.py" = ["S603"]
 "src/reprocessor.py" = ["S101"]

@@ -12,7 +12,7 @@ def _git(*args: str) -> str:
     git_executable = shutil.which("git")
     if git_executable is None:
         raise RuntimeError("git executable was not found on PATH")
-    # Keep subprocess invocation shell-free; Ruff S603 is suppressed only here.
+    # The command and arguments are fixed internally; no shell is involved.
     return subprocess.check_output(  # noqa: S603
         [git_executable, *args],
         text=True,
@@ -27,6 +27,7 @@ def _fail(message: str) -> None:
 def main() -> None:
     expected_sha = sys.argv[1] if len(sys.argv) > 1 else ""
     expected_version = sys.argv[2] if len(sys.argv) > 2 else ""
+    require_tag_absent = len(sys.argv) > 3 and sys.argv[3].lower() == "true"
 
     actual_sha = _git("rev-parse", "HEAD")
     if expected_sha and actual_sha != expected_sha:
@@ -57,13 +58,19 @@ def main() -> None:
 
     tag_ref = f"refs/tags/v{expected_version}"
     remote_refs = _git("ls-remote", "--tags", "origin", tag_ref)
-    if remote_refs:
+    if remote_refs and require_tag_absent:
         _fail(f"release tag v{expected_version} already exists on origin")
+    if remote_refs:
+        print(
+            "PR validation: release tag "
+            f"v{expected_version} already exists; continuing because this is not a release invocation."
+        )
+    else:
+        print(f"Tag v{expected_version}: absent")
 
     print("RELEASE GATE: PASS")
     print(f"SHA: {actual_sha}")
     print(f"Version: {version}")
-    print(f"Tag v{expected_version}: absent")
 
 
 if __name__ == "__main__":

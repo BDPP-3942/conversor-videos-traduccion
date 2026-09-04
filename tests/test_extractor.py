@@ -52,4 +52,33 @@ def test_nested_zip_preserves_source_tree(tmp_path: Path) -> None:
         archive.write(inner, arcname="inner.zip")
     result = extractor().extract_zip(outer, tmp_path / "out")
     assert len(result.media) == 1
-    assert result.media[0].relative_to(tmp_path / "out").parts[-3:-1] == ("outer", "inner")
+    assert result.media[0].relative_to(tmp_path / "out").parts[-3:-1] == (
+        "outer",
+        "inner",
+    )
+
+
+def test_zip_member_unicode_is_canonicalized_to_nfc(tmp_path: Path) -> None:
+    archive_path = tmp_path / "unicode.zip"
+    decomposed = "Cafe\u0301/Leccio\u0301n.wmv"
+    make_zip(archive_path, decomposed)
+    result = extractor().extract_zip(archive_path, tmp_path / "out")
+    assert result.media[0].name == "Lección.wmv"
+    assert result.media[0].relative_to(tmp_path / "out").parts[-2] == "Café"
+
+
+def test_zip_container_name_is_canonicalized_to_nfc(tmp_path: Path) -> None:
+    decomposed_zip_name = "Cafe\u0301.zip"
+    archive_path = tmp_path / decomposed_zip_name
+    make_zip(archive_path, "lesson.wmv")
+    result = extractor().extract_zip(archive_path, tmp_path / "out")
+    assert result.media[0].relative_to(tmp_path / "out").parts[0] == "Café"
+
+
+def test_unicode_normalization_collision_is_rejected(tmp_path: Path) -> None:
+    archive_path = tmp_path / "collision.zip"
+    with ZipFile(archive_path, "w") as archive:
+        archive.writestr("Café.txt", b"one")
+        archive.writestr("Cafe\u0301.txt", b"two")
+    with pytest.raises(ValueError, match="ZIP path collision"):
+        extractor().extract_zip(archive_path, tmp_path / "out")

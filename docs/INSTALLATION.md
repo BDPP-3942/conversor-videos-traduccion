@@ -59,6 +59,18 @@ python -m pip install -e ".[package]"
 
 They can be combined, for example `.[tts,google,dev,package]`.
 
+## NVIDIA/CUDA and Whisper
+
+NVIDIA acceleration is optional. Release 1.6.0 pins `faster-whisper>=1.2.1,<1.3` and `ctranslate2>=4.8.2,<4.9`. For this stack the GPU runtime path requires CUDA 12, cuBLAS for CUDA 12 and cuDNN 9 for CUDA 12.
+
+`WHISPER_DEVICE=auto` does not treat the presence of `nvidia-smi` as sufficient. At Whisper initialization the project checks the NVIDIA driver, searches for an installed CUDA Toolkit, checks the required NVIDIA runtime libraries and asks CTranslate2 whether a CUDA device and supported compute types are actually available.
+
+If an NVIDIA GPU is detected but the runtime is incomplete, an interactive execution reports the detected versions, requirements, approximate installation location and reason for failure, then asks whether the managed NVIDIA runtime should be installed. The managed libraries are placed under `tools/cuda/python/`; the NVIDIA driver is not replaced and a full CUDA Toolkit is not installed by this operation. In unattended execution no installation prompt is shown and the existing CPU fallback is used.
+
+A CUDA Toolkit installed globally is not automatically replaced or removed. It may be used when compatible, while the managed runtime can provide the required user-space libraries without modifying the global Toolkit.
+
+See [`docs/CUDA.md`](CUDA.md) for diagnostics, compatibility and cleanup.
+
 ## Configuration
 
 The default configuration is in `config/app.toml`. `.env.default` supplies environment defaults and `.env.example` documents environment overrides.
@@ -105,9 +117,20 @@ storage/
 
 If a checkout lacks a directory, create it under `storage/`; logs are written to `storage/logs/pipeline.log`.
 
+Managed optional model/runtime resources are kept under `tools/` and are deliberately separate from project data.
+
 ## Translation providers
 
 The default processing configuration uses the provider declared in `config/app.toml` (currently Mistral in the repository baseline) with the configured fallback chain. Provider credentials are configured through environment/profile mechanisms. See [TRANSLATION_PROVIDERS.md](TRANSLATION_PROVIDERS.md).
+
+For the optional offline local provider, prepare the pinned Spanish→English model with:
+
+```bash
+python scripts/manage_local_translation.py status
+python scripts/manage_local_translation.py download
+```
+
+The model is stored below `tools/models/translation/`. See [LOCAL_TRANSLATION.md](LOCAL_TRANSLATION.md).
 
 ## TTS
 
@@ -184,6 +207,19 @@ python main.py reprocess-subtitles --help
 ```
 
 See [RESUME.md](RESUME.md) and [SUBTITLES.md](SUBTITLES.md).
+
+## Cleanup and uninstall
+
+Project-managed resources can be inspected or removed independently:
+
+```bash
+python scripts/manage_runtime_resources.py translation-model status
+python scripts/manage_runtime_resources.py translation-model cleanup
+python scripts/manage_runtime_resources.py cuda status
+python scripts/manage_runtime_resources.py cuda cleanup
+```
+
+These commands do not delete `storage/` data, source code, manifests or credentials. The CUDA cleanup only removes the project's `tools/cuda/` directory; it does not uninstall a global NVIDIA driver or CUDA Toolkit. See [UNINSTALLATION.md](UNINSTALLATION.md).
 
 ## Upgrade
 

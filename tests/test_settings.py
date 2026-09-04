@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from config.loader import load_settings
+from config.settings import AppSettings
 
 
 def test_default_config_points_to_project_storage():
@@ -24,7 +25,10 @@ def test_automatic_output_deduplication_is_disabled_by_default():
 
 
 def test_generate_webm_can_be_disabled_by_environment(monkeypatch):
-    from config.settings import AppSettings
-
     monkeypatch.setenv("GENERATE_WEBM", "false")
     assert AppSettings.from_environment().generate_webm is False
+
+
+def test_whisper_recovery_retries_can_be_overridden_by_environment(monkeypatch):
+    monkeypatch.setenv("WHISPER_RECOVERY_RETRIES", "3")
+    assert AppSettings.from_environment().whisper_recovery_retries == 3

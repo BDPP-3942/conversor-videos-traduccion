@@ -10,24 +10,38 @@ Se utiliza Semantic Versioning (`MAJOR.MINOR.PATCH`):
 - **MINOR**: funcionalidad nueva compatible hacia atrás.
 - **PATCH**: correcciones compatibles, seguridad, documentación y mantenimiento.
 
-La versión del proyecto no debe incrementarse por cada commit de formato o CI. Una release agrupa un conjunto funcional coherente.
+Una release agrupa un conjunto funcional coherente. Los tags publicados son inmutables.
 
 ## Funcionalidades con evidencia de introducción
 
 | Funcionalidad | Primera versión verificada |
 |---|---:|
-| Pipeline audiovisual, STT, VTT, traducción, almacenamiento, resume/idempotencia, deduplicación, TTS sincronizado, ejecución programada y packaging | `1.0.0` |
+| Pipeline audiovisual, STT, VTT, traducción, almacenamiento, resume/idempotencia, deduplicación, TTS, ejecución programada y packaging | `1.0.0` |
 | Recuperación/reparación de VTT e integración TTS en el pipeline común | `1.1.0` |
-| Naming descriptivo/más resistente a colisiones y bootstrap de assets TTS | `1.2.0` |
-| Corrección de instalación de assets TTS en Windows y consistencia multiplataforma | `1.2.1` |
+| Naming descriptivo y bootstrap de assets TTS | `1.2.0` |
+| Corrección multiplataforma de assets TTS | `1.2.1` |
 | Limpieza de timestamps técnicos en naming | `1.2.2` |
-| Concurrencia de vídeo adaptada a recursos (CPU/RAM/GPU) | `1.3.0` |
-| Regeneración limpia explícita de resultados existentes | `1.4.0` |
-| Integración de la regeneración existente en los wrappers locales | `1.4.1` |
-| Wrappers multiplataforma con forwarding exacto, naming de referencia y contexto externo de Whisper | `1.5.0` |
-| Endurecimiento de extracción ZIP y componentes de filesystem multiplataforma | `1.5.1` |
+| Concurrencia adaptada a CPU/RAM/GPU | `1.3.0` |
+| Regeneración limpia explícita de resultados | `1.4.0` |
+| Integración de regeneración en wrappers locales | `1.4.1` |
+| Wrappers multiplataforma, naming de referencia y contexto externo de Whisper | `1.5.0` |
+| Endurecimiento ZIP/filesystem multiplataforma | `1.5.1` |
+| Traducción local opcional, recuperación STT configurable y endurecimiento GPU/runtime | `1.6.0` |
 
 ## Releases publicadas
+
+### 1.5.1 — ZIP Extraction & Cross-Platform Filesystem Hardening
+
+**Tipo:** `PATCH`.
+
+**Commit/tag publicado:** `06ee8d265b57214596f079f3bb426b9b27042b1e` / `v1.5.1`.
+
+- Protección contra rutas absolutas, UNC y traversal multiplataforma.
+- Protección contra symlinks y nombres reservados de Windows.
+- Detección de colisiones por case y normalización Unicode.
+- Prevención de sobrescritura silenciosa de entradas ZIP duplicadas.
+- Sanitización de componentes de filesystem generados por la aplicación.
+- Release publicada el 3 de septiembre de 2026.
 
 ### 1.5.0 — Multiplatform Whisper, Context & Packaging
 
@@ -36,11 +50,10 @@ La versión del proyecto no debe incrementarse por cada commit de formato o CI. 
 **Commit/tag publicado:** `261f4b475f452b98880815f722aa8f8f43d28097` / `v1.5.0`.
 
 - Dispatcher común para `run_local.sh` y `run_local.bat`.
-- Política de naming validada contra el árbol de referencia.
-- Soporte de `whisper_initial_prompt` mediante texto literal y archivos de contexto.
-- Estrategia documentada de ejecución CPU/GPU con CTranslate2.
-- Validación multiplataforma de tests, packaging y entry points.
-- Release publicada el 1 de septiembre de 2026.
+- Naming determinista y validación multiplataforma.
+- `whisper_initial_prompt` mediante literal y archivos de contexto.
+- Estrategia documentada CPU/GPU con CTranslate2.
+- CI sobre Linux, Windows y macOS para Python 3.11–3.13.
 
 ### 1.4.0 — Clean Video Regeneration & Release Hardening
 
@@ -49,9 +62,8 @@ La versión del proyecto no debe incrementarse por cada commit de formato o CI. 
 **Commit/tag publicado:** `ce1da6ea69a89f5a789c0670b200d6038f1a746d` / `v1.4.0`.
 
 - Regeneración limpia mediante el `MediaPipeline` común.
-- Contrato público de `StorageProvider` para backup, restore y eliminación.
-- Concurrencia segura también para overrides CLI.
-- CI, packaging, seguridad y E2E de release validados.
+- Contrato público `StorageProvider` para backup, restore y eliminación.
+- Concurrencia segura y validación de release.
 
 ### 1.3.0 — Safe Resource-Aware Video Concurrency
 
@@ -60,52 +72,38 @@ La versión del proyecto no debe incrementarse por cada commit de formato o CI. 
 **Commit/tag publicado:** `620af6acbe3fca7d42ccd57f3585b3952cccf0a7` / `v1.3.0`.
 
 - `max_parallel_videos = 0` significa AUTO.
-- El límite efectivo se calcula de forma conservadora según CPU/RAM/GPU.
+- Cálculo conservador según CPU, RAM y GPU.
 - Los valores positivos actúan como límites superiores sujetos al techo seguro.
-- Se incorporan las PR #20, #21 y #22 como conjunto funcional preparado por la PR #23.
 
 ### 1.2.2 — Naming Timestamp Cleanup
 
 **Tipo:** `PATCH`.
 
-Publicado el 28 de agosto de 2026.
-
-- Evita incorporar metadatos de fecha/hora de ZIP, carpetas extraídas o nombres de origen en la descripción del curso.
-- Amplía la limpieza de formatos de fecha y datetime antes de extraer números/descripciones de curso y lección.
-- Mantiene la convención `[course_number]_[course_description]x[lesson_number]_[lesson_description]` cuando la información está disponible.
+- Elimina timestamps técnicos de descripciones y nombres generados.
 
 ### 1.2.1 — TTS Installation Fix
 
 **Tipo:** `PATCH`.
 
-Publicado el 28 de agosto de 2026.
-
-- Corrige la instalación de modelos TTS en Windows cuando un archivo temporal estaba todavía abierto (`WinError 32`).
-- Hace consistente la instalación de recursos TTS entre Windows, Linux y macOS.
+- Corrige la instalación de modelos TTS en Windows y unifica el bootstrap multiplataforma.
 
 ### 1.2.0 — Naming and TTS Improvements
 
 **Tipo:** `MINOR`.
 
-Publicado el 28 de agosto de 2026.
-
-- Introduce la convención de nombres descriptiva para curso/lección.
-- Mejora la detección de información de curso y lección y el bootstrap de assets Kokoro.
+- Introduce naming descriptivo y bootstrap de assets Kokoro.
 
 ### 1.1.0 — Reparación de VTT e integración TTS
 
 **Tipo:** `MINOR`.
 
-- Recuperación de VTT originales/traducidos inválidos o ausentes.
-- Regeneración selectiva de STT o traducción sin regenerar el vídeo normal.
-- Validación final de timestamps después de segmentación STT.
-- Integración de TTS en el pipeline común.
+- Recuperación de VTT, regeneración selectiva y TTS sincronizado desde VTT validado.
 
 ### 1.0.1 — Documentación de instalación y mantenimiento
 
 **Tipo:** `PATCH`.
 
-- Añade la guía de instalación y corrige la navegación documental.
+- Añade y corrige la guía documental de instalación.
 
 ### 1.0.0 — Primera release estable
 
@@ -113,50 +111,45 @@ Publicado el 28 de agosto de 2026.
 
 **Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
 
-## Candidata 1.5.1
+## Candidata 1.6.0
 
 ### Alcance
 
-**Tipo:** `PATCH`.
+**Tipo:** `MINOR`.
 
-La candidata 1.5.1 endurece exclusivamente la extracción ZIP y la generación de componentes de filesystem. No introduce una segunda pipeline ni modifica CUDA, Whisper, translation providers o TTS.
+La candidata 1.6.0 añade funcionalidad compatible hacia atrás: traducción local opcional español→inglés mediante CTranslate2 + SentencePiece, endurecimiento de la selección GPU/CPU, preparación reproducible de recursos locales y recuperación configurable de segmentos STT sospechosos. También incorpora el endurecimiento ZIP/filesystem de 1.5.1 como baseline.
 
 ### Cambios
 
-- Protección contra rutas absolutas, UNC y traversal con separadores multiplataforma.
-- Protección contra symlinks y nombres reservados de Windows.
-- Detección preventiva de colisiones por case y normalización Unicode.
-- Prevención de sobrescritura silenciosa de entradas ZIP duplicadas.
-- Sanitización de componentes de filesystem generados por la aplicación.
+- Modelo y revisión fijados.
+- `model.bin`, `source.spm` y `target.spm` validados por tamaño y SHA-256.
+- Metadatos JSON requeridos validados por presencia, tamaño, UTF-8, tipo y estructura mínima.
+- Descarga HTTPS controlada, temporales, reanudación cuando es posible y reemplazo atómico.
+- Fallback configurable cuando el recurso local no está disponible.
+- Detección NVIDIA condicionada a capacidad real de CTranslate2.
+- Fallback CPU `int8` cuando CUDA no puede validarse.
+- Runtime NVIDIA gestionado bajo `tools/cuda/` con cuBLAS CUDA 12 y cuDNN 9.
+- Recuperación selectiva de segmentos STT sospechosos mediante rondas de recuperación limitadas.
+- Endurecimiento ZIP/filesystem heredado de 1.5.1.
 
-### Estado
+### Configuración
 
-La candidata no debe considerarse publicada hasta completar CI, tests, seguridad, packaging, documentación y validación de un único SHA final. El tag `v1.5.1` no se crea durante la preparación de la candidata.
+La configuración general sigue en `config/app.toml` con overrides de entorno. La configuración específica de traducción local usa exclusivamente `LOCAL_TRANSLATION_*`; no existe una sección `[local_translation]` duplicada en TOML.
 
-## Candidata 1.4.1
+### Validación
 
-### Alcance
+La candidata final pre-merge tiene CI y Release Gate satisfactorios sobre su SHA exacto, incluyendo Linux, Windows y macOS con Python 3.11–3.13, tests, lint/security/format, compile, audits, packaging, instalación limpia, `pip check` y entry points.
 
-**Tipo:** `PATCH`.
+No se declara ningún benchmark GPU ni prueba A/B de un MP4 externo que no esté disponible y registrado.
 
-La candidata 1.4.1 no añade un pipeline nuevo. Integra en `scripts/run_local.sh` y `scripts/run_local.bat` la operación de regeneración ya existente mediante `src.regeneration` / `video-translation-regenerate`.
-
-### PR de release
-
-- Rama: `release/1.4.1-correction`.
-- Base: `main`, sobre la release publicada `v1.4.0`.
-- Nueva PR específica de la release; no reutiliza PR #26.
-
-### Estado
-
-La candidata no debe considerarse publicada hasta completar el Release Gate, CI, E2E, packaging, seguridad y validación de un único SHA final. El tag `v1.4.1` no se crea durante la preparación de la candidata.
+El tag `v1.6.0` se creará únicamente después del merge y sobre el SHA exacto resultante de `main`.
 
 ## Política de tags
 
-Los tags de release utilizan el formato `vMAJOR.MINOR.PATCH` y no deben reutilizarse ni moverse después de publicar una release.
+Los tags utilizan `vMAJOR.MINOR.PATCH` y no deben reutilizarse ni moverse después de publicar una release.
 
-`v1.3.0` permanece asociado a `620af6acbe3fca7d42ccd57f3585b3952cccf0a7`, `v1.4.0` permanece asociado a `ce1da6ea69a89f5a789c0670b200d6038f1a746d` y `v1.5.0` permanece asociado a `261f4b475f452b98880815f722aa8f8f43d28097`. Ninguno debe modificarse.
+`v1.3.0`, `v1.4.0`, `v1.5.0` y `v1.5.1` permanecen asociados a sus commits publicados anteriores y no deben modificarse.
 
 ## Historial anterior
 
-Antes de establecer la línea de producto `1.x`, el repositorio utilizó versiones internas `4.x` y `5.x`. No se reinterpretan retroactivamente como versiones `1.x`.
+Antes de la línea de producto `1.x`, el repositorio utilizó versiones internas `4.x` y `5.x`. No se reinterpretan retroactivamente como versiones `1.x`.

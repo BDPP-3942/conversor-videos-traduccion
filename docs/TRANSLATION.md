@@ -6,12 +6,14 @@ The current default configuration is:
 
 ```text
 primary: Mistral
-fallback: DeepL → MyMemory
+fallback: Local CTranslate2 → DeepL → MyMemory
 batch size: 25
 retries: 3
 ```
 
-Credentials are provider-specific and must be supplied through the supported environment/profile configuration. See [TRANSLATION_PROVIDERS.md](TRANSLATION_PROVIDERS.md) for provider-specific details.
+The local provider is the first fallback. It can continue translation without a remote provider when the pinned model has been prepared locally. If the local resource is unavailable or cannot be initialized because of a resource/runtime failure, the configured chain can continue with DeepL and MyMemory. An invalid provider configuration is not silently converted into another provider.
+
+Credentials are provider-specific and must be supplied through the supported environment/profile configuration. The local provider uses `LOCAL_TRANSLATION_*` and does not require API credentials. See [TRANSLATION_PROVIDERS.md](TRANSLATION_PROVIDERS.md) and [LOCAL_TRANSLATION.md](LOCAL_TRANSLATION.md) for provider-specific details.
 
 ## Timing
 

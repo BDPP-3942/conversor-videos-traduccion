@@ -40,8 +40,6 @@ def test_local_storage_retains_successful_source_and_records_sha256(tmp_path: Pa
     source = input_dir / "curso37.zip"
     source.write_bytes(b"same-content")
 
-    # El provider usa rutas relativas al proyecto real; para esta prueba solo
-    # verificamos la lógica de registro de forma aislada en un registry local.
     from src.storage.processed_registry import ProcessedRegistry, sha256_file
 
     registry = ProcessedRegistry(storage_root / "state" / "processed.jsonl")
@@ -59,13 +57,9 @@ def test_local_storage_retains_successful_source_and_records_sha256(tmp_path: Pa
 
 
 def test_finalize_source_is_idempotent_when_source_was_removed(tmp_path: Path, monkeypatch):
-    from src.storage.local import LocalStorageProvider
-
     provider = LocalStorageProvider(retain_sources=True, input_min_age_seconds=0)
     missing = tmp_path / "missing.zip"
     file = type("StorageFileLike", (), {"id": str(missing), "name": missing.name})()
-
-    # Should not raise if the source disappears before finalization.
     provider.finalize_source(file, "success", [])
 
 
@@ -74,7 +68,6 @@ def test_finalize_source_handles_race_during_fingerprint(tmp_path: Path, monkeyp
     source = tmp_path / "race.zip"
     source.write_bytes(b"content")
     file = type("StorageFileLike", (), {"id": str(source), "name": source.name})()
-
     original = provider.source_fingerprint
 
     def disappear(_file):
@@ -109,13 +102,9 @@ def test_normalize_existing_outputs_fits_old_long_names(tmp_path: Path, monkeypa
     from config import settings as settings_module
     from src import path_limits
     from src.path_limits import FileSystemLimits
-    from src.storage.local import LocalStorageProvider
 
     monkeypatch.setattr(settings_module, "BASE_DIR", tmp_path)
     monkeypatch.setattr(settings_module, "STORAGE_DIR", tmp_path / "storage")
-    # Keep the physical fixture below Windows MAX_PATH; simulate an old/smaller
-    # filesystem component limit at the code under test instead of creating an
-    # OS-invalid path.
     monkeypatch.setattr(
         path_limits,
         "get_filesystem_limits",
@@ -123,24 +112,16 @@ def test_normalize_existing_outputs_fits_old_long_names(tmp_path: Path, monkeypa
     )
     root = tmp_path / "storage" / "output"
     root.mkdir(parents=True)
-    long_unicode = "Vídeo_" + ("á" * 18)
-    folder = root / long_unicode
+    long_name = "Video_" + ("a" * 70)
+    folder = root / long_name
     folder.mkdir()
-    (folder / f"{long_unicode}.mp4").write_bytes(b"video")
-    (folder / f"{long_unicode}.mp3").write_bytes(b"audio")
-    (folder / f"{long_unicode}_en.vtt").write_text("WEBVTT\n", encoding="utf-8")
+    (folder / f"{long_name}.mp4").write_bytes(b"video")
+    (folder / f"{long_name}.mp3").write_bytes(b"audio")
+    (folder / f"{long_name}_en.vtt").write_text("WEBVTT\n", encoding="utf-8")
     original = folder / "original_transcriptions"
     original.mkdir()
-    (original / f"{long_unicode}_original.vtt").write_text("WEBVTT\n", encoding="utf-8")
+    (original / f"{long_name}_original.vtt").write_text("WEBVTT\n", encoding="utf-8")
 
-    from src import path_limits
-
-    real_fit_component = path_limits.fit_component
-
-    def constrained_fit_component(name: str, parent: Path, *, suffix: str = "") -> str:
-        return real_fit_component(name, parent, suffix=suffix)[:60]
-
-    monkeypatch.setattr("src.storage.local.fit_component", constrained_fit_component)
     provider = LocalStorageProvider()
     mapping = provider.normalize_existing_output_names("storage/output", "original_transcriptions")
 

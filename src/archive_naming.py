@@ -1,30 +1,24 @@
 from __future__ import annotations
 
 import re
-import unicodedata
 from pathlib import Path
 
-from src.file_naming import strip_date_artifacts
+from src.file_naming import clean_for_filename, strip_date_artifacts
 
 _MEDIA_SUFFIX = re.compile(r"[-_](?:mp4|wmv|mov|mkv|avi)$", re.IGNORECASE)
 _WETRANSFER_PREFIX = re.compile(r"^wetransfer[_-]+", re.IGNORECASE)
-_DATE_SUFFIX = re.compile(r"[_-](?:(?:19|20)\d{2}[-_/.]\d{1,2}[-_/.]\d{1,2}|(?:19|20)\d{6}).*$", re.IGNORECASE)
-_ORDINAL_MARKER = re.compile(r"(?<=\d)[º°](?=\s*[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])", re.UNICODE)
+_DATE_SUFFIX = re.compile(
+    r"[_-](?:(?:19|20)\d{2}[-_/.]\d{1,2}[-_/.]\d{1,2}"
+    r"|(?:19|20)\d{6}).*$",
+    re.IGNORECASE,
+)
+_ORDINAL_MARKER = re.compile(
+    r"(?<=\d)[º°](?=\s*[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])",
+    re.UNICODE,
+)
 _ARCHIVE_ORDINAL = re.compile(r"(?<=\d)o(?=[-_ ])", re.IGNORECASE)
 _COURSE_PREFIX = re.compile(r"^curso(\d{1,4})(?:[_-](.*))?$", re.IGNORECASE)
 _PARENS = re.compile(r"[()]", re.UNICODE)
-
-_REFERENCE_OVERRIDES = {
-    (
-        "1_el_juego_4_poderes_la_genesis",
-        "2-el juego LOS 4 PODEROS alto bajo.wmv",
-    ): "1_el_juego_4_poderes_la_genesisx_2_el_juego_LOS_4_PODEROS_alto_bajo",
-    (
-        "1_el_juego_4_poderes_la_genesis",
-        "4-juego 4 poderes poder de compresión.wmv",
-    ): "1_el_juego_4_poderes_la_genesisx4_juego_4_poderes_poder_de_compresión",
-    ("7-opt-taich-bombeos", "20 peng.mp4"): "7_opt_taich_bombeosx20_peng",
-}
 
 
 def _reference_archive_root(name: str) -> bool:
@@ -43,10 +37,8 @@ def _archive_label(name: str) -> str:
         number, suffix = course.group(1), course.group(2)
         if not suffix or suffix.lower() == "basic":
             return number
-        return f"{number}_{suffix}"
-    if stem == "1-el-juego-4-poderes-la-genesis":
-        return stem.replace("-", "_")
-    return re.sub(r"[<>:\"/\\|?*\x00-\x1f]", "_", stem).strip("_.-")
+        return clean_for_filename(f"{number}_{suffix}")
+    return clean_for_filename(stem)
 
 
 def _source_label(name: str) -> str:
@@ -55,14 +47,12 @@ def _source_label(name: str) -> str:
     stem = _ORDINAL_MARKER.sub("_", stem)
     stem = re.sub(r"(?<=\d)[º°](?=\s*)", "_", stem)
     stem = _PARENS.sub("_", stem)
-    stem = re.sub(r"(?<=\d)[.-]+(?=\s*[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])", "_", stem)
-    normalized = unicodedata.normalize("NFKD", stem)
-    normalized = "".join(char for char in normalized if not unicodedata.combining(char))
-    normalized = re.sub(r"[<>:\"/\\|?*,;!?\[\]]", "_", normalized)
-    normalized = re.sub(r"\s+", "_", normalized)
-    normalized = re.sub(r"[._]+", "_", normalized)
-    normalized = re.sub(r"_+", "_", normalized)
-    return normalized.strip("_.-")
+    stem = re.sub(
+        r"(?<=\d)[.-]+(?=\s*[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])",
+        "_",
+        stem,
+    )
+    return clean_for_filename(stem)
 
 
 def expected_output_stem(source: Path, extract_root: Path) -> str:
@@ -73,8 +63,7 @@ def expected_output_stem(source: Path, extract_root: Path) -> str:
     archive_name = relative.parts[0]
     source_name = relative.name
     archive = _archive_label(archive_name)
-    key = (archive, source_name)
-    if key in _REFERENCE_OVERRIDES:
-        return _REFERENCE_OVERRIDES[key]
     source_label = _source_label(source_name)
-    return f"{archive}x{source_label}" if archive and source_label else archive or source_label
+    if archive and source_label:
+        return f"{archive}x{source_label}"
+    return archive or source_label
