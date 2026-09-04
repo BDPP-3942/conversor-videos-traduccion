@@ -5,7 +5,6 @@ import json
 import logging
 import os
 import shutil
-import tempfile
 import urllib.error
 import urllib.request
 from collections.abc import Callable
