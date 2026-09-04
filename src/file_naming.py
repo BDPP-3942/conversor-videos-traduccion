@@ -30,16 +30,6 @@ class SourceNameMetadata:
     lesson_name: str | None = None
 
 
-@dataclass(frozen=True)
-class LegacyNameAnalysis:
-    """Describe whether an output stem uses the pre-underscore naming contract."""
-
-    original_stem: str
-    canonical_stem: str
-    is_legacy: bool
-    reasons: tuple[str, ...] = ()
-
-
 class FileNameFormatter:
     """Infer course/lesson labels and build stable output names."""
 
@@ -61,52 +51,23 @@ class FileNameFormatter:
         ),
         re.compile(r"^\s*(\d{1,4})\s*(?:º|°|[._-])\s*", re.IGNORECASE),
     )
-    COURSE_TEXT_PATTERNS = (
-        re.compile(r"\b(?:curso|course)\s*[:\-–—.]?\s*([^|/\\]+)", re.IGNORECASE),
-    )
+    COURSE_TEXT_PATTERNS = (re.compile(r"\b(?:curso|course)\s*[:\-–—.]?\s*([^|/\\]+)", re.IGNORECASE),)
     LESSON_TEXT_PATTERNS = (
-        re.compile(
-            r"\b(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)\s*[:\-–—.]?\s*([^|/\\]+)",
-            re.IGNORECASE,
-        ),
+        re.compile(r"\b(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)\s*[:\-–—.]?\s*([^|/\\]+)", re.IGNORECASE),
     )
     NOISE_PATTERNS = (
         re.compile(r"^wetransfer[_\-]+", re.IGNORECASE),
         re.compile(r"^drive-download[-_][0-9tz\-]+(?:[-_]\d+[-_]\d+)?[-_]", re.IGNORECASE),
-        re.compile(
-            r"^(?:zip|rar|7z|archive|compressed|compression|backup|download|descarga)[-_ ]+",
-            re.IGNORECASE,
-        ),
-        re.compile(
-            r"^(?:extract(?:ed)?|unzip(?:ped)?|descomprim(?:ido|ida|idos|idas))[-_ ]+",
-            re.IGNORECASE,
-        ),
+        re.compile(r"^(?:zip|rar|7z|archive|compressed|compression|backup|download|descarga)[-_ ]+", re.IGNORECASE),
+        re.compile(r"^(?:extract(?:ed)?|unzip(?:ped)?|descomprim(?:ido|ida|idos|idas))[-_ ]+", re.IGNORECASE),
         re.compile(r"^files?[-_ ]+(?:from|de)[-_ ]+", re.IGNORECASE),
         re.compile(r"\s*\((?:copy|copia|\d+)\)\s*$", re.IGNORECASE),
         re.compile(r"[_\-]+copy\s*$", re.IGNORECASE),
     )
     GENERIC_TOKENS = {
-        "mp4",
-        "wmv",
-        "video",
-        "videos",
-        "audio",
-        "media",
-        "file",
-        "files",
-        "archivo",
-        "archivos",
-        "download",
-        "downloads",
-        "descarga",
-        "descargas",
-        "compressed",
-        "compression",
-        "archive",
-        "archivo_comprimido",
-        "zip",
-        "rar",
-        "7z",
+        "mp4", "wmv", "video", "videos", "audio", "media", "file", "files",
+        "archivo", "archivos", "download", "downloads", "descarga", "descargas",
+        "compressed", "compression", "archive", "archivo_comprimido", "zip", "rar", "7z",
     }
     FILENAME_ARTIFACT_PATTERN = re.compile(
         r"(?:^|[_\- .])(?:\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?)(?:[_\- .]|$)",
@@ -119,12 +80,7 @@ class FileNameFormatter:
         match = cls.LANGUAGE_PATTERN.search(path.name)
         if not match:
             return FileNameInfo(path.name, path.stem, path.suffix.lower())
-        return FileNameInfo(
-            path.name,
-            path.stem[: match.start()],
-            path.suffix.lower(),
-            match.group("language").lower(),
-        )
+        return FileNameInfo(path.name, path.stem[: match.start()], path.suffix.lower(), match.group("language").lower())
 
     @classmethod
     def generate_vtt_name(cls, video_filename: str, target_language: str) -> str:
@@ -138,7 +94,6 @@ class FileNameFormatter:
     @classmethod
     def resolve_source_metadata(cls, source: Path, extract_root: Path) -> SourceNameMetadata:
         from src.naming_policy import resolve
-
         return resolve(source, extract_root)
 
     @classmethod
@@ -167,9 +122,7 @@ class FileNameFormatter:
         return cls._find_label(cls.LESSON_TEXT_PATTERNS, values)
 
     @classmethod
-    def _find_label(
-        cls, patterns: tuple[re.Pattern[str], ...], values: list[str]
-    ) -> str | None:
+    def _find_label(cls, patterns: tuple[re.Pattern[str], ...], values: list[str]) -> str | None:
         for value in values:
             for pattern in patterns:
                 match = pattern.search(value)
@@ -196,15 +149,7 @@ class FileNameFormatter:
         return None
 
     @classmethod
-    def _build_description(
-        cls,
-        stem: str,
-        *,
-        course: int | None,
-        lesson: int | None,
-        course_name: str | None,
-        lesson_name: str | None,
-    ) -> str:
+    def _build_description(cls, stem: str, *, course: int | None, lesson: int | None, course_name: str | None, lesson_name: str | None) -> str:
         value = stem
         if course is not None:
             value = cls._remove_number(value, course)
@@ -219,10 +164,7 @@ class FileNameFormatter:
 
     @classmethod
     def _remove_number(cls, value: str, number: int) -> str:
-        patterns = (
-            re.compile(rf"(?<!\d){number:02d}(?!\d)"),
-            re.compile(rf"(?<!\d){number}(?!\d)"),
-        )
+        patterns = (re.compile(rf"(?<!\d){number:02d}(?!\d)"), re.compile(rf"(?<!\d){number}(?!\d)"))
         for pattern in patterns:
             if pattern.search(value):
                 return pattern.sub("_", value, count=1)
@@ -230,12 +172,7 @@ class FileNameFormatter:
 
     @staticmethod
     def _remove_label(value: str) -> str:
-        return re.sub(
-            r"(?:^|[_\- .])(?:curso|course|lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)(?=[_\- .]|$)",
-            "_",
-            value,
-            flags=re.IGNORECASE,
-        )
+        return re.sub(r"(?:^|[_\- .])(?:curso|course|lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)(?=[_\- .]|$)", "_", value, flags=re.IGNORECASE)
 
     @classmethod
     def _clean_context(cls, value: str) -> str:
@@ -254,9 +191,7 @@ class FileNameFormatter:
     @classmethod
     def _remove_generic_tokens(cls, value: str) -> str:
         tokens = [token for token in re.split(r"[_ ]+", value) if token]
-        return "_".join(
-            token for token in tokens if token.lower() not in cls.GENERIC_TOKENS
-        )
+        return "_".join(token for token in tokens if token.lower() not in cls.GENERIC_TOKENS)
 
     @staticmethod
     def _label_or_default(value: str | None, default: str) -> str:
@@ -273,9 +208,7 @@ _DATE_ARTIFACT_PATTERN = re.compile(
     r"\d{1,2}[-_/.]\d{1,2}[-_/.](?:19|20)\d{2}|"
     r"(?:19|20)\d{6}|"
     r"\d{2}\d{2}\d{4}"
-    r")"
-    r"(?:[T _-]?(?:[01]?\d|2[0-3])(?:[:_.-]?[0-5]\d)(?:[:_.-]?[0-5]\d)?(?:Z|[+-]\d{2}:?\d{2})?)?"
-    r"(?!\d)",
+    r")(?:[T _-]?(?:[01]?\d|2[0-3])(?:[:_.-]?[0-5]\d)(?:[:_.-]?[0-5]\d)?(?:Z|[+-]\d{2}:?\d{2})?)?(?!\d)",
     re.IGNORECASE,
 )
 
@@ -286,20 +219,10 @@ def strip_date_artifacts(value: str) -> str:
 
 
 def clean_for_filename(value: str) -> str:
-    """Normalize a logical/physical name with deterministic, cross-platform separators.
-
-    Unicode compatibility normalization removes accents deterministically for physical
-    names, while incompatible punctuation and filesystem separators become `_`.
-    Parentheses, brackets and quote marks are treated as punctuation rather than part
-    of the physical naming contract. Repeated separators are collapsed at the end.
-    """
+    """Normalize a logical/physical name with deterministic, cross-platform separators."""
     normalized = unicodedata.normalize("NFKD", value)
     normalized = "".join(char for char in normalized if not unicodedata.combining(char))
-    normalized = re.sub(
-        r"[<>:\"/\\|?*()\[\]{}'“”‘’`´,;!¡¿@#$%^&=+~\x00-\x1f]",
-        "_",
-        normalized,
-    )
+    normalized = re.sub(r"[<>:\"/\\|?*()\[\]{}'“”‘’`´,;!¡¿@#$%^&=+~\x00-\x1f]", "_", normalized)
     normalized = re.sub(r"[\s\-_.—–−‒―]+", "_", normalized)
     return normalized.strip("_.-")
 
@@ -347,63 +270,14 @@ def normalized_name_similarity(left: str, right: str) -> float:
     return 0.65 * sequence_score + 0.35 * token_score
 
 
-def canonicalize_output_stem(stem: str) -> str:
-    """Return the canonical physical output stem using `_` as the sole separator.
-
-    Older logical stems used `x` between course/scope and lesson/resource blocks.
-    The conversion only treats that `x` as a scope separator when the right-hand
-    block starts with a lesson number or when the left block is a numeric course.
-    This deliberately avoids changing ordinary words such as ``boxeo``.
-    """
-    normalized = clean_for_filename(stem)
-    legacy_scope = re.compile(
-        r"^(?P<left>.+)x(?P<right>\d{1,4}(?:_|$).*)$", re.IGNORECASE
-    )
-    numeric_scope = re.compile(
-        r"^(?P<left>\d{1,4})x(?P<right>[A-Za-z0-9_].*)$", re.IGNORECASE
-    )
-    match = legacy_scope.match(normalized) or numeric_scope.match(normalized)
-    if match:
-        normalized = f"{match.group('left')}_{match.group('right')}"
-    return clean_for_filename(normalized)
-
-
-def analyze_legacy_output_stem(stem: str) -> LegacyNameAnalysis:
-    """Analyze and, when safe, adapt a legacy output stem to the canonical form."""
-    canonical = canonicalize_output_stem(stem)
-    reasons: list[str] = []
-    if "-" in stem:
-        reasons.append("hyphen separator")
-    if re.search(
-        r"^(?:\d{1,4}|.+)x(?:\d{1,4}(?:_|$)|[A-Za-z])",
-        clean_for_filename(stem),
-        re.IGNORECASE,
-    ):
-        if canonical != clean_for_filename(stem):
-            reasons.append("legacy scope separator `x`")
-    is_legacy = canonical != clean_for_filename(stem)
-    return LegacyNameAnalysis(stem, canonical, is_legacy, tuple(reasons))
-
-
-def fit_output_stem(
-    stem: str,
-    parent: Path,
-    unique_suffix: str | None = None,
-    reserve_suffixes: tuple[str, ...] = (),
-) -> str:
-    """Sanitize and fit a generated output stem to the host filesystem.
-
-    This is the final physical-name boundary for generated output. The caller may
-    keep a richer logical stem in metadata, but anything returned here is safe for
-    the destination filesystem and uses the project separator policy.
-    """
-    physical_stem = canonicalize_output_stem(stem)
+def fit_output_stem(stem: str, parent: Path, unique_suffix: str | None = None, reserve_suffixes: tuple[str, ...] = ()) -> str:
+    """Sanitize and fit a generated output stem to the host filesystem."""
+    physical_stem = normalize_component(stem)
     suffix = f"__{unique_suffix}" if unique_suffix else ""
     candidate = fit_component(physical_stem, parent, suffix=suffix)
     if not reserve_suffixes:
         return candidate
     from src.path_limits import get_filesystem_limits
-
     limits = get_filesystem_limits(parent)
     max_component = max(1, limits.max_component)
     extra = max((len(item.encode("utf-8")) for item in reserve_suffixes), default=0)
