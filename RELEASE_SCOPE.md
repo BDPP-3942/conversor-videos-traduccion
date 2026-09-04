@@ -1,4 +1,4 @@
-# Release Scope — 1.5.2
+# Release Scope — 1.6.0
 
 ## Previous release
 
@@ -8,7 +8,7 @@ The tag is historical and MUST NOT be moved, deleted, or reused.
 
 ## Changes since v1.5.1
 
-PR #35 introduces optional offline local translation, hardens GPU/runtime selection and improves integrity and recovery behavior without replacing the existing media pipeline.
+PR #35 introduces new optional offline translation functionality, hardens GPU/runtime selection and improves integrity and recovery behavior without replacing the existing media pipeline.
 
 ## Functional scope
 
@@ -29,10 +29,10 @@ The pinned model identity is not user-selectable: `LOCAL_TRANSLATION_MODEL_ID` a
 
 ## Validation state
 
-- `pyproject.toml` declares version `1.5.2`.
+- `pyproject.toml` declares version `1.6.0`.
 - Release documentation identifies `v1.5.1` as the previous published release.
-- CI must validate the final release candidate on the exact final commit SHA.
-- No `v1.5.2` tag exists until the release gate is satisfied.
+- The final pre-merge candidate has completed CI and Release Gate successfully on its exact commit SHA.
+- No `v1.6.0` tag exists until after merge; the tag must point to the exact resulting `main` SHA.
 - No real-media regression or GPU benchmark is claimed unless the corresponding external artifact/run is available and recorded.
 
 ## Tests and hardening
