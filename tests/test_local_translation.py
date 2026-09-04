@@ -87,6 +87,35 @@ def test_model_ensure_does_not_download_without_explicit_confirmation(monkeypatc
         raise AssertionError("missing local model must not be downloaded without confirmation")
 
 
+def test_model_download_resumes_partial_file(monkeypatch, tmp_path: Path) -> None:
+    destination = tmp_path / "model.bin"
+    partial = destination.with_suffix(".bin.part")
+    partial.write_bytes(b"abc")
+
+    class Response:
+        status = 206
+        headers = {"Content-Length": "3"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        @staticmethod
+        def read(_size: int) -> bytes:
+            if not hasattr(Response.read, "done"):
+                Response.read.done = True
+                return b"def"
+            return b""
+
+    monkeypatch.setattr(local_translation.urllib.request, "urlopen", lambda *_args, **_kwargs: Response())
+    local_translation._download_file("https://huggingface.co/pinned/model.bin", destination, 10)
+
+    assert destination.read_bytes() == b"abcdef"
+    assert not partial.exists()
+
+
 def test_local_translation_runtime_falls_back_to_cpu_when_cuda_probe_fails(monkeypatch) -> None:
     settings = SimpleNamespace(
         local_translation_device="cuda",
