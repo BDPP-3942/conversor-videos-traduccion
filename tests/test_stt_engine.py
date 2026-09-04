@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 from config.settings import AppSettings
 from src.stt_engine import STTEngine
+from src.stt_quality import STTQualityThresholds
 
 
 def _word(text: str, start: float, end: float):
@@ -19,7 +20,7 @@ def _recovery_engine(model, retries=1, temperatures=(0.2,)):
         whisper_recovery_retries=retries,
         whisper_recovery_temperatures=temperatures,
     )
-    engine._quality_thresholds = __import__("src.stt_quality", fromlist=["STTQualityThresholds"]).STTQualityThresholds()
+    engine._quality_thresholds = STTQualityThresholds()
     engine.model = model
     return engine
 
