@@ -90,7 +90,7 @@ def test_finalize_source_handles_race_during_fingerprint(tmp_path: Path, monkeyp
     provider.finalize_source(file, "success", [])
 
 
-def test_local_output_name_migration_normalizes_legacy_unicode_names(tmp_path: Path):
+def test_local_output_name_migration_preserves_existing_unicode_names(tmp_path: Path):
     output = tmp_path / "output"
     legacy = output / "37x02_Téma_ñ"
     original = legacy / "original_transcriptions"
@@ -102,12 +102,10 @@ def test_local_output_name_migration_normalizes_legacy_unicode_names(tmp_path: P
     provider = LocalStorageProvider(retain_sources=False, input_min_age_seconds=0)
     provider.normalize_existing_output_names(str(output), "original_transcriptions")
 
-    normalized = output / "37x02_Tema_n"
-    assert normalized.is_dir()
-    assert (normalized / "37x02_Tema_n.mp4").is_file()
-    assert (normalized / "37x02_Tema_n_en.vtt").is_file()
-    assert (normalized / "original_transcriptions" / "37x02_Tema_n_original.vtt").is_file()
-    assert not legacy.exists()
+    assert legacy.is_dir()
+    assert (legacy / "37x02_Téma_ñ.mp4").is_file()
+    assert (legacy / "37x02_Téma_ñ_en.vtt").is_file()
+    assert (original / "37x02_Téma_ñ_original.vtt").is_file()
 
 
 def test_normalize_existing_outputs_fits_old_long_names(tmp_path: Path, monkeypatch):
