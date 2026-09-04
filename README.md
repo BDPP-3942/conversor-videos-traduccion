@@ -146,7 +146,7 @@ La normalización física se aplica de forma centralizada en el límite de creac
 - eliminación de espacios iniciales/finales y separadores repetidos;
 - eliminación/control de caracteres de filesystem (`\\ / : * ? " < > |`) y puntuación problemática, incluidos paréntesis, corchetes y comillas;
 - conversión de enumeraciones como `1. Introducción` a `1_Introduccion` en la representación física;
-- normalización Unicode y transliteración de diacríticos para nombres físicos (`ñ` → `n`, `á` → `a`, etc.);
+- normalización Unicode a NFC **sin transliterar ni eliminar diacríticos** (`ñ` y `á` se conservan);
 - protección de nombres reservados de Windows (`CON`, `PRN`, `AUX`, `NUL`, `COM1`…`LPT9`);
 - ajuste a los límites de componente/ruta del filesystem de destino;
 - detección de colisiones antes de sobrescribir y uso de una estrategia determinista cuando el flujo necesita reservar un nombre.
