@@ -24,6 +24,27 @@ def test_zip_slip_is_rejected(tmp_path: Path) -> None:
         extractor().extract_zip(archive_path, tmp_path / "out")
 
 
+def test_absolute_windows_zip_path_is_rejected(tmp_path: Path) -> None:
+    archive_path = tmp_path / "unsafe-windows.zip"
+    make_zip(archive_path, r"C:\escape.txt")
+    with pytest.raises(ValueError, match="Unsafe ZIP path"):
+        extractor().extract_zip(archive_path, tmp_path / "out")
+
+
+def test_unc_windows_zip_path_is_rejected(tmp_path: Path) -> None:
+    archive_path = tmp_path / "unsafe-unc.zip"
+    make_zip(archive_path, r"\\server\share\escape.txt")
+    with pytest.raises(ValueError, match="Unsafe ZIP path"):
+        extractor().extract_zip(archive_path, tmp_path / "out")
+
+
+def test_windows_reserved_zip_component_is_rejected(tmp_path: Path) -> None:
+    archive_path = tmp_path / "reserved.zip"
+    make_zip(archive_path, "folder/CON.txt")
+    with pytest.raises(ValueError, match="Reserved Windows"):
+        extractor().extract_zip(archive_path, tmp_path / "out")
+
+
 def test_global_extraction_limits_are_enforced(tmp_path: Path) -> None:
     archive_path = tmp_path / "large.zip"
     with ZipFile(archive_path, "w") as archive:
@@ -80,5 +101,14 @@ def test_unicode_normalization_collision_is_rejected(tmp_path: Path) -> None:
     with ZipFile(archive_path, "w") as archive:
         archive.writestr("Café.txt", b"one")
         archive.writestr("Cafe\u0301.txt", b"two")
+    with pytest.raises(ValueError, match="ZIP path collision"):
+        extractor().extract_zip(archive_path, tmp_path / "out")
+
+
+def test_unicode_normalization_collision_is_rejected_case_insensitively(tmp_path: Path) -> None:
+    archive_path = tmp_path / "collision-case.zip"
+    with ZipFile(archive_path, "w") as archive:
+        archive.writestr("Café.txt", b"one")
+        archive.writestr("cafe\u0301.TXT", b"two")
     with pytest.raises(ValueError, match="ZIP path collision"):
         extractor().extract_zip(archive_path, tmp_path / "out")
