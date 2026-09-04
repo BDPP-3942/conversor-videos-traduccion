@@ -2,6 +2,8 @@ from pathlib import Path
 
 from src.file_naming import (
     FileNameFormatter,
+    analyze_legacy_output_stem,
+    canonicalize_output_stem,
     fit_output_stem,
     normalize_comparison_key,
     normalize_component,
@@ -17,7 +19,7 @@ def test_course_number_and_description_are_preserved(tmp_path: Path) -> None:
     assert metadata.course_name == "movilidad_articular"
     assert metadata.lesson == 3
     assert metadata.lesson_name == "rotacion_de_hombros"
-    assert metadata.output_stem == "12_movilidad_articularx03_rotacion_de_hombros"
+    assert metadata.output_stem == "12_movilidad_articular_03_rotacion_de_hombros"
 
 
 def test_course_description_is_preserved_without_course_number(tmp_path: Path) -> None:
@@ -28,7 +30,7 @@ def test_course_description_is_preserved_without_course_number(tmp_path: Path) -
     assert metadata.course_name == "movilidad_articular"
     assert metadata.lesson == 2
     assert metadata.lesson_name == "rotacion_de_hombros"
-    assert metadata.output_stem == "movilidad_articularx02_rotacion_de_hombros"
+    assert metadata.output_stem == "movilidad_articular_02_rotacion_de_hombros"
 
 
 def test_arbitrary_text_becomes_textual_course_code(tmp_path: Path) -> None:
@@ -38,7 +40,7 @@ def test_arbitrary_text_becomes_textual_course_code(tmp_path: Path) -> None:
     assert metadata.course is None
     assert metadata.course_name == "material_estudio"
     assert metadata.lesson is None
-    assert metadata.output_stem == "material_estudioxsaludo_inicial"
+    assert metadata.output_stem == "material_estudio_saludo_inicial"
 
 
 def test_normalize_comparison_key_removes_generic_tokens() -> None:
@@ -49,7 +51,7 @@ def test_trailing_compact_hh_mm_timestamp_is_removed(tmp_path: Path) -> None:
     root = tmp_path / "extracted"
     source = root / "Curso 03 Tai Chi" / "07 Forma del Tigre_20260831_10_24.mp4"
     metadata = FileNameFormatter.resolve_source_metadata(source, root)
-    assert metadata.output_stem == "3_Tai_Chi x07_Forma_del_Tigre".replace(" ", "")
+    assert metadata.output_stem == "3_Tai_Chi_07_Forma_del_Tigre"
 
 
 def test_trailing_iso_hh_mm_timestamp_is_removed(tmp_path: Path) -> None:
@@ -112,8 +114,19 @@ def test_generated_output_stem_handles_reserved_name_after_normalization(tmp_pat
     assert fit_output_stem("CON", tmp_path) == "_CON"
 
 
-def test_generated_output_stem_keeps_scope_separator_and_sanitizes_each_block(tmp_path: Path) -> None:
+def test_generated_output_stem_converts_legacy_scope_separator(tmp_path: Path) -> None:
     result = fit_output_stem("19x2-POSTURAS (FIJAS)", tmp_path)
-    assert result == "19x2_POSTURAS_FIJAS"
-    assert result.count("x") == 1
+    assert result == "19_2_POSTURAS_FIJAS"
+    assert "x" not in result
     assert "-" not in result
+
+
+def test_legacy_name_analysis_is_explicit_and_non_destructive() -> None:
+    analysis = analyze_legacy_output_stem("19x02_Posturas-Fijas")
+    assert analysis.is_legacy is True
+    assert analysis.canonical_stem == "19_02_Posturas_Fijas"
+    assert analysis.original_stem == "19x02_Posturas-Fijas"
+
+
+def test_canonicalization_does_not_split_ordinary_words() -> None:
+    assert canonicalize_output_stem("boxeo_sombras") == "boxeo_sombras"
