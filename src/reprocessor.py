@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import shutil
 import tempfile
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -57,7 +58,10 @@ class SubtitleReprocessor:
             original_subdir = self.storage.ensure_folder(folder, self.settings.original_transcript_subdir)
             original_files = [item for item in self.storage.list_children(original_subdir) if not item.is_directory]
             original_vtt = self._pick_vtt(original_files, preferred_contains="_original")
-            translated_vtt = self._pick_vtt(candidates, preferred_contains=f"_{self.settings.target_lang.lower()}")
+            translated_vtt = self._pick_vtt(
+                candidates,
+                preferred_contains=f"_{self.settings.target_lang.lower()}",
+            )
 
             if mode in {"stt_only", "full"} and video is None:
                 raise FileNotFoundError(f"No reusable video found in output folder: {folder}")
@@ -73,7 +77,10 @@ class SubtitleReprocessor:
 
             if mode == "translate_only":
                 translated_segments, translation_failed = self._translate(old_original_segments, translator_factory)
-                validation = self._validate_segments(translated_segments, previous_count=len(old_original_segments))
+                validation = self._validate_segments(
+                    translated_segments,
+                    previous_count=len(old_original_segments),
+                )
                 if not validation["valid"]:
                     raise ValueError(f"New translation failed validation: {validation['errors']}")
                 new_translated = self._write_temp_vtt(translated_segments, "translated.vtt")
@@ -108,7 +115,10 @@ class SubtitleReprocessor:
                 video_local = self._download(video, "source.mp4")
                 engine = stt_engine_factory() if stt_engine_factory else self._default_stt_engine()
                 segments = engine.transcribe(video_local)
-                validation = self._validate_segments(segments, previous_count=len(old_original_segments))
+                validation = self._validate_segments(
+                    segments,
+                    previous_count=len(old_original_segments),
+                )
                 if not validation["valid"]:
                     raise ValueError(f"New STT output failed validation: {validation['errors']}")
                 diagnostics_after = self.diagnose_segments(segments)
@@ -120,17 +130,19 @@ class SubtitleReprocessor:
                     translator = translator_factory() if translator_factory else self._default_translator()
                     translated_segments = translator.translate_segments(segments)
                     translation_failed = sum(bool(segment.get("translation_failed")) for segment in translated_segments)
+                    previous_translation_count = (
+                        len(self._read_vtt_segments(translated_vtt, "existing translation"))
+                        if translated_vtt
+                        else len(segments)
+                    )
                     translation_validation = self._validate_segments(
                         translated_segments,
-                        previous_count=len(self._read_vtt_segments(translated_vtt, "existing translation"))
-                        if translated_vtt
-                        else len(segments),
+                        previous_count=previous_translation_count,
                     )
                     if not translation_validation["valid"]:
                         raise ValueError(f"New translated VTT failed validation: {translation_validation['errors']}")
                     new_translated = self._write_temp_vtt(translated_segments, "translated.vtt")
 
-                # Both new artefacts have now passed validation. Only now can any existing artefact be replaced.
                 backup_original = self._backup_and_replace(
                     original_vtt,
                     original_subdir,
@@ -145,9 +157,14 @@ class SubtitleReprocessor:
                         folder,
                         new_translated,
                         mime_type="text/vtt",
-                        fallback_name=f"{Path(video.name).stem}_{self.settings.target_lang.lower()}.vtt",
+                        fallback_name=(f"{Path(video.name).stem}_{self.settings.target_lang.lower()}.vtt"),
                     )
 
+                translated_name = (
+                    translated_vtt.name
+                    if translated_vtt
+                    else f"{Path(video.name).stem}_{self.settings.target_lang.lower()}.vtt"
+                )
                 result = {
                     "operation": "reprocess_subtitles",
                     "mode": mode,
@@ -157,13 +174,7 @@ class SubtitleReprocessor:
                     "previous_transcription": original_vtt.name if original_vtt else None,
                     "new_transcription": self._default_original_name(video.name),
                     "backup_transcription": backup_original,
-                    "translated_vtt": (
-                        translated_vtt.name
-                        if translated_vtt
-                        else f"{Path(video.name).stem}_{self.settings.target_lang.lower()}.vtt"
-                    )
-                    if mode == "full"
-                    else None,
+                    "translated_vtt": translated_name if mode == "full" else None,
                     "backup_translated_vtt": backup_translated,
                     "segments": len(segments),
                     "translation_failed_segments": translation_failed,
@@ -183,8 +194,6 @@ class SubtitleReprocessor:
             return result
         finally:
             if self._temp_root:
-                import shutil
-
                 shutil.rmtree(self._temp_root, ignore_errors=True)
                 self._temp_root = None
 
@@ -196,16 +205,9 @@ class SubtitleReprocessor:
         stt_engine_factory: Callable[[], Any] | None = None,
         translator_factory: Callable[[], Any] | None = None,
     ) -> dict[str, Any]:
-        """Reprocess every existing output folder eligible for subtitle work.
-
-        This intentionally operates only on already existing output folders. It never
-        creates a new output folder, runs normal deduplication, or invokes FFmpeg.
-        Each folder is isolated so one bad result does not abort the whole batch.
-        """
         mode = mode.lower().replace("-", "_")
         if mode not in {"stt_only", "translate_only", "full"}:
             raise ValueError(f"Unsupported reprocess mode: {mode}")
-
         folders = self._list_reprocessable_folders(target)
         results: list[dict[str, Any]] = []
         failures = 0
@@ -234,14 +236,12 @@ class SubtitleReprocessor:
                 if result.get("status") == "partial_translation":
                     partial_translation += 1
             results.append(result)
-
         if failures:
             status = "partial_failure" if results and len(results) > failures else "error"
         elif partial_translation:
             status = "partial_translation"
         else:
             status = "success"
-
         return {
             "operation": "reprocess_subtitles",
             "scope": "all",
@@ -275,31 +275,29 @@ class SubtitleReprocessor:
                 transcript_files = [
                     item
                     for item in self.storage.list_children(transcript_folder.id)
-                    if not item.is_directory
-                    and Path(item.name).suffix.lower() == ".vtt"
-                    and ".bak" not in item.name.lower()
+                    if (
+                        not item.is_directory
+                        and Path(item.name).suffix.lower() == ".vtt"
+                        and ".bak" not in item.name.lower()
+                    )
                 ]
             if has_video or transcript_files:
                 folders.append(child.name)
         return sorted(folders, key=str.lower)
 
     def _resolve_output_folder(
-        self, target: str, output_folder: str | None, video_name: str | None, source: str | None
+        self,
+        target: str,
+        output_folder: str | None,
+        video_name: str | None,
+        source: str | None,
     ) -> str:
-        # Always return the provider-native identifier for the child folder under
-        # `target`. For local storage this is an absolute path below
-        # `storage/output`; returning only the folder name would incorrectly make
-        # LocalStorageProvider resolve it relative to the project root.
-        children = [
-            child for child in self.storage.list_children(target) if child.is_directory and child.name != "_manifests"
-        ]
-
+        children = [child for child in self.storage.list_children(target) if child.is_directory and child.name != "_manifests"]
         if output_folder:
             for child in children:
                 if child.name == output_folder:
                     return child.id
             raise FileNotFoundError(f"Output folder does not exist: {output_folder}")
-
         if source:
             matches = self._find_by_source(target, source)
             if len(matches) == 1:
@@ -307,7 +305,6 @@ class SubtitleReprocessor:
             if not matches:
                 raise FileNotFoundError(f"No processed output matches source: {source}")
             raise ValueError(f"Source matches multiple output folders: {[str(item) for item in matches]}")
-
         assert video_name
         matches = [
             child.id
@@ -336,7 +333,8 @@ class SubtitleReprocessor:
                 payload = json.loads(local.read_text(encoding="utf-8"))
             except (OSError, UnicodeDecodeError, json.JSONDecodeError):
                 continue
-            for entry in payload.get("entries", []) if isinstance(payload, dict) else []:
+            entries = payload.get("entries", []) if isinstance(payload, dict) else []
+            for entry in entries:
                 if not isinstance(entry, dict) or entry.get("source") != source:
                     continue
                 folder = str(entry.get("output_folder", "")).strip()
@@ -345,7 +343,11 @@ class SubtitleReprocessor:
                     matches.append(child.id)
         return sorted(set(matches))
 
-    def _resolve_video(self, candidates: list[StorageFile], preferred_name: str | None) -> StorageFile | None:
+    def _resolve_video(
+        self,
+        candidates: list[StorageFile],
+        preferred_name: str | None,
+    ) -> StorageFile | None:
         usable = [item for item in candidates if Path(item.name).suffix.lower() in VIDEO_EXTENSIONS]
         if preferred_name:
             usable = [item for item in usable if item.name == preferred_name]
@@ -404,18 +406,30 @@ class SubtitleReprocessor:
         if not target_name:
             raise FileNotFoundError("Cannot determine target VTT filename")
 
+        current_local: Path | None = None
+        backup_name: str | None = None
         if current:
             current_local = self._download(current, current.name)
             backup_name = self._next_backup_name(target_name, parent)
             backup_path = self._temp_root / backup_name
             backup_path.write_bytes(current_local.read_bytes())
             self.storage.upload_file(backup_path, parent, "text/vtt")
-        else:
-            backup_name = None
 
         replacement_named = self._temp_root / target_name
         replacement_named.write_bytes(replacement.read_bytes())
-        self.storage.upload_file(replacement_named, parent, mime_type)
+        try:
+            self.storage.upload_file(replacement_named, parent, mime_type)
+        except Exception:
+            if current_local is not None:
+                try:
+                    self.storage.upload_file(current_local, parent, mime_type)
+                    logger.warning("Replacement upload failed; restored previous VTT %s", target_name)
+                except Exception:
+                    logger.exception(
+                        "Replacement upload failed and previous VTT could not be restored: %s",
+                        target_name,
+                    )
+            raise
         return backup_name
 
     def _next_backup_name(self, filename: str, parent: str) -> str:
@@ -461,13 +475,16 @@ class SubtitleReprocessor:
         }
 
     @classmethod
-    def _validate_segments(cls, segments: list[dict[str, Any]], previous_count: int = 0) -> dict[str, Any]:
+    def _validate_segments(
+        cls,
+        segments: list[dict[str, Any]],
+        previous_count: int = 0,
+    ) -> dict[str, Any]:
         errors: list[str] = []
         try:
             VTTBuilder.validate_segments(segments)
         except (KeyError, TypeError, ValueError) as exc:
             errors.append(str(exc))
-
         previous_start = -1.0
         previous_end = -1.0
         for index, segment in enumerate(segments, start=1):
@@ -482,7 +499,6 @@ class SubtitleReprocessor:
             if start + TIMESTAMP_EPSILON < previous_end and previous_end - start > 10:
                 errors.append(f"segment {index}: impossible overlap >10 seconds")
             previous_start, previous_end = start, end
-
         if not segments:
             errors.append("no segments generated")
         if previous_count and len(segments) > previous_count * 10 + 100:
@@ -498,20 +514,26 @@ class SubtitleReprocessor:
         try:
             parsed = webvtt.read(str(local))
         except Exception as exc:
-            raise ValueError(f"Invalid existing VTT {remote.name}: {exc}") from exc
+            raise ValueError(f"Existing {label} is not valid WebVTT: {exc}") from exc
         segments = [
-            {"start": caption.start_in_seconds, "end": caption.end_in_seconds, "text": caption.text.strip()}
+            {
+                "start": caption.start_in_seconds,
+                "end": caption.end_in_seconds,
+                "text": caption.text.strip(),
+            }
             for caption in parsed
         ]
         validation = self._validate_segments(segments)
         if not validation["valid"]:
-            raise ValueError(f"Existing VTT {label} is invalid: {validation['errors']}")
+            raise ValueError(f"Existing {label} failed validation: {validation['errors']}")
         return segments
 
     def _translate(
-        self, segments: list[dict[str, Any]], factory: Callable[[], Any] | None
+        self,
+        segments: list[dict[str, Any]],
+        translator_factory: Callable[[], Any] | None,
     ) -> tuple[list[dict[str, Any]], int]:
-        translator = factory() if factory else self._default_translator()
+        translator = translator_factory() if translator_factory else self._default_translator()
         translated = translator.translate_segments(segments)
         failed = sum(bool(segment.get("translation_failed")) for segment in translated)
         return translated, failed

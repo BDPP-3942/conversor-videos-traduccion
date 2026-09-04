@@ -52,15 +52,11 @@ class FileNameFormatter:
         re.compile(r"^\s*(\d{1,4})\s*(?:º|°|[._-])\s*", re.IGNORECASE),
     )
     COURSE_TEXT_PATTERNS = (
-        re.compile(
-            r"\b(?:curso|course)\s*[:\-–—.]?\s*([^|/\\]+)",
-            re.IGNORECASE,
-        ),
+        re.compile(r"\b(?:curso|course)\s*[:\-–—.]?\s*([^|/\\]+)", re.IGNORECASE),
     )
     LESSON_TEXT_PATTERNS = (
         re.compile(
-            r"\b(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)"
-            r"\s*[:\-–—.]?\s*([^|/\\]+)",
+            r"\b(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)\s*[:\-–—.]?\s*([^|/\\]+)",
             re.IGNORECASE,
         ),
     )
@@ -161,7 +157,9 @@ class FileNameFormatter:
         return cls._find_label(cls.LESSON_TEXT_PATTERNS, values)
 
     @classmethod
-    def _find_label(cls, patterns: tuple[re.Pattern[str], ...], values: list[str]) -> str | None:
+    def _find_label(
+        cls, patterns: tuple[re.Pattern[str], ...], values: list[str]
+    ) -> str | None:
         for value in values:
             for pattern in patterns:
                 match = pattern.search(value)
@@ -223,8 +221,7 @@ class FileNameFormatter:
     @staticmethod
     def _remove_label(value: str) -> str:
         return re.sub(
-            r"(?:^|[_\- .])(?:curso|course|lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)"
-            r"(?=[_\- .]|$)",
+            r"(?:^|[_\- .])(?:curso|course|lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)(?=[_\- .]|$)",
             "_",
             value,
             flags=re.IGNORECASE,
@@ -259,12 +256,9 @@ def _sanitize_text(value: str) -> str:
 
 
 _DATE_ARTIFACT_PATTERN = re.compile(
-    r"(?<!\d)(?:"
-    r"(?:19|20)\d{2}[-_/.]\d{1,2}[-_/.]\d{1,2}|"
-    r"\d{1,2}[-_/.]\d{1,2}[-_/.](?:19|20)\d{2}|"
-    r"(?:19|20)\d{6}|"
-    r"\d{2}\d{2}\d{4}"
-    r")(?:[T _-]?(?:[01]?\d|2[0-3])(?:[:_.-]?[0-5]\d)(?:[:_.-]?[0-5]\d)?(?:Z|[+-]\d{2}:?\d{2})?)?(?!\d)",
+    r"(?<!\d)(?:(?:19|20)\d{2}[-_/.]\d{1,2}[-_/.]\d{1,2}|\d{1,2}[-_/.]\d{1,2}[-_/.](?:19|20)\d{2}|(?:19|20)\d{6}|\d{2}\d{2}\d{4})"
+    r"(?:[T _-]?(?:[01]?\d|2[0-3])(?:[:_.-]?[0-5]\d)(?:[:_.-]?[0-5]\d)?"
+    r"(?:Z|[+-]\d{2}:?\d{2})?)?(?!\d)",
     re.IGNORECASE,
 )
 
@@ -274,17 +268,26 @@ def strip_date_artifacts(value: str) -> str:
     return _DATE_ARTIFACT_PATTERN.sub("_", value)
 
 
+def _remove_diacritics(value: str) -> str:
+    """Remove combining diacritical marks with canonical Unicode decomposition."""
+    decomposed = unicodedata.normalize("NFD", value)
+    without_marks = "".join(char for char in decomposed if not unicodedata.category(char).startswith("M"))
+    return unicodedata.normalize("NFC", without_marks)
+
+
 def clean_for_filename(value: str) -> str:
-    """Normalize a block name using underscore word separators."""
-    normalized = unicodedata.normalize("NFKD", value)
-    normalized = "".join(char for char in normalized if not unicodedata.combining(char))
-    normalized = re.sub(
-        r"[<>:\"/\\|?*()\[\]{}'“”‘’`´,;!¡¿@#$%^&=+~\x00-\x1f]",
-        "_",
-        normalized,
-    )
-    normalized = re.sub(r"[\s\-_.—–−‒―]+", "_", normalized)
-    return normalized.strip("_.-")
+    """Build a canonical web-safe name: lowercase, base letters and no emoji."""
+    normalized = _remove_diacritics(value).casefold()
+    result: list[str] = []
+    for char in normalized:
+        category = unicodedata.category(char)
+        if category[0] in {"L", "N"} or char == "_":
+            result.append(char)
+            continue
+        if category.startswith("P") or char.isspace():
+            result.append("_")
+            continue
+    return re.sub(r"_+", "_", "".join(result)).strip("_.-")
 
 
 def _split_filename_extension(filename: str) -> tuple[str, str]:
@@ -302,10 +305,8 @@ def normalize_filename(filename: str) -> str:
 
 
 def normalize_component(value: str) -> str:
-    """Normalize words while preserving the canonical x block separator."""
-    blocks = value.split("x")
-    normalized = "x".join(_sanitize_text(block) for block in blocks)
-    return safe_filesystem_component(normalized)
+    """Normalize a filesystem/URL component to the canonical lowercase form."""
+    return safe_filesystem_component(clean_for_filename(value))
 
 
 def normalize_comparison_key(filename: str) -> str:
@@ -314,7 +315,7 @@ def normalize_comparison_key(filename: str) -> str:
     value = FileNameFormatter._clean_context(path.stem)
     value = strip_date_artifacts(value)
     value = FileNameFormatter._remove_generic_tokens(value)
-    value = re.sub(r"[^a-zA-Z0-9]+", " ", _sanitize_text(value)).lower().strip()
+    value = re.sub(r"[_\W]+", " ", _sanitize_text(value), flags=re.UNICODE).casefold().strip()
     return re.sub(r"\s+", " ", value)
 
 
@@ -353,7 +354,7 @@ def fit_output_stem(
     allowed = max(1, max_component - extra)
     if len(current) <= allowed:
         return candidate
-    raw = candidate.encode("utf-8")[:allowed]
+    raw = current[:allowed]
     while raw:
         try:
             prefix = raw.decode("utf-8").rstrip(" ._-")

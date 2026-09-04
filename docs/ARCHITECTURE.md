@@ -60,7 +60,9 @@ The physical contract is:
 <curso_o_contenedor>x<nombre_sanitizado>
 ```
 
-`x` is the scope separator and `_` is the internal word separator. Physical normalization is deterministic: whitespace and separator hyphens become `_`, accents/diacritics are transliterated, incompatible punctuation and control characters are removed/replaced, Windows reserved names are protected, and filesystem length limits are applied. The logical metadata remains separate from the physical name.
+`x` is the scope separator and `_` is the internal word separator. Physical normalization is deterministic: Unicode is first canonicalized to NFC and retained losslessly; whitespace and separator hyphens become `_`; incompatible punctuation and control characters are removed/replaced; Windows reserved names are protected; and filesystem length limits are applied. The policy does not transliterate Unicode to ASCII because that would silently change user-visible names and can create collisions such as `Café`/`Cafe`.
+
+The logical metadata remains separate from the physical name, and ZIP extraction rejects NFC/case-fold collisions before writing. This gives the pipeline a single Unicode contract from archive entry to generated filesystem artifact.
 
 The naming policy is covered by focused functional cases; the final physical boundary applies the project-wide cross-platform policy.
 
@@ -83,3 +85,4 @@ This resource-aware concurrency behavior was introduced after the `1.2.2` releas
 5. Deletion operations must be conservative and revalidate their inputs.
 6. Video concurrency must remain within a conservative resource budget rather than blindly saturating the host machine.
 7. Logical naming metadata must remain distinguishable from physical filesystem names.
+8. Unicode normalization must be canonical and lossless; safety must be achieved by rejecting or replacing only filesystem-invalid syntax, never by transliterating user content.

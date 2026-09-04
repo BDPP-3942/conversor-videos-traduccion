@@ -1,6 +1,6 @@
 name: CI
 
-# Validate the actual branch head so PR evidence is reproducible and tied to the submitted SHA.
+# Validate the exact submitted branch head; reruns are not used as evidence for a different SHA.
 on:
   push:
     branches:
@@ -8,6 +8,7 @@ on:
       - release/**
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -22,7 +23,6 @@ env:
   CHECKOUT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
-  # Project-wide checks run once. They are not repeated for every OS/interpreter.
   quality:
     name: Quality / static checks
     runs-on: ubuntu-latest
