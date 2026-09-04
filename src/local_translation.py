@@ -61,6 +61,10 @@ class LocalTranslationModelManager:
         default_dir = BASE_DIR / "tools" / "models" / "translation" / "opus-mt-es-en-ct2-int8"
         self.model_dir = Path(model_dir or configured or default_dir)
 
+    @property
+    def download_dir(self) -> Path:
+        return self.model_dir.with_name(f".{self.model_dir.name}.download")
+
     def status(self) -> LocalModelStatus:
         required = (*MODEL_FILES, *SMALL_MODEL_FILES)
         missing = [name for name in required if not (self.model_dir / name).is_file()]
@@ -126,18 +130,26 @@ class LocalTranslationModelManager:
         if self.model_dir.is_symlink():
             raise RuntimeError(f"Refusing to replace symlinked model directory: {self.model_dir}")
         self.model_dir.parent.mkdir(parents=True, exist_ok=True)
-        temp_dir = Path(tempfile.mkdtemp(prefix=f".{self.model_dir.name}-", dir=self.model_dir.parent))
+        download_dir = self.download_dir
+        if download_dir.is_symlink():
+            raise RuntimeError(f"Refusing to use symlinked model download directory: {download_dir}")
+        if download_dir.exists() and not download_dir.is_dir():
+            raise RuntimeError(f"Model download path is not a directory: {download_dir}")
+        download_dir.mkdir(parents=True, exist_ok=True)
         try:
             for name in (*MODEL_FILES, *SMALL_MODEL_FILES):
                 url = f"https://huggingface.co/{MODEL_REPOSITORY}/resolve/{MODEL_REVISION}/{name}?download=true"
-                max_bytes = min(MODEL_MAX_DOWNLOAD_BYTES, MODEL_FILES.get(name, (0, SMALL_MODEL_FILES[name][0]))[1])
-                _download_file(url, temp_dir / name, max_bytes)
+                max_bytes = min(
+                    MODEL_MAX_DOWNLOAD_BYTES,
+                    MODEL_FILES.get(name, (0, SMALL_MODEL_FILES[name][0]))[1],
+                )
+                _download_file(url, download_dir / name, max_bytes)
             for name, (expected_hash, expected_size) in MODEL_FILES.items():
-                path = temp_dir / name
+                path = download_dir / name
                 if path.stat().st_size != expected_size or _sha256(path) != expected_hash:
                     raise RuntimeError(f"Integrity validation failed for downloaded model file: {name}")
             for name, (max_size, required_keys) in SMALL_MODEL_FILES.items():
-                reason = _validate_small_model_file(temp_dir / name, max_size, required_keys)
+                reason = _validate_small_model_file(download_dir / name, max_size, required_keys)
                 if reason:
                     raise RuntimeError(f"Integrity validation failed for downloaded metadata: {name}: {reason}")
             metadata = {
@@ -146,7 +158,7 @@ class LocalTranslationModelManager:
                 "license": MODEL_LICENSE,
                 "files": MODEL_FILES,
             }
-            (temp_dir / "model.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+            (download_dir / "model.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
             if self.model_dir.exists():
                 if not self.model_dir.is_dir():
                     raise RuntimeError(f"Managed model path is not a directory: {self.model_dir}")
@@ -158,23 +170,31 @@ class LocalTranslationModelManager:
                         backup.unlink()
                 self.model_dir.replace(backup)
                 try:
-                    temp_dir.replace(self.model_dir)
+                    download_dir.replace(self.model_dir)
                 except Exception:
                     backup.replace(self.model_dir)
                     raise
                 shutil.rmtree(backup)
             else:
-                temp_dir.replace(self.model_dir)
+                download_dir.replace(self.model_dir)
             return self.model_dir
+        except Exception:
+            logger.warning("Local translation model download interrupted or failed; partial files were preserved")
+            raise
         finally:
-            if temp_dir.exists():
-                shutil.rmtree(temp_dir, ignore_errors=True)
+            if download_dir.exists() and download_dir != self.model_dir:
+                # Preserve the staging directory after failures so _download_file can resume on the next attempt.
+                pass
 
     def cleanup(self) -> None:
         if self.model_dir.is_symlink():
             raise RuntimeError(f"Refusing to remove symlinked model directory: {self.model_dir}")
         if self.model_dir.exists() and self.model_dir.is_dir():
             shutil.rmtree(self.model_dir)
+        if self.download_dir.is_symlink():
+            raise RuntimeError(f"Refusing to remove symlinked model download directory: {self.download_dir}")
+        if self.download_dir.exists() and self.download_dir.is_dir():
+            shutil.rmtree(self.download_dir)
 
 
 class LocalTranslationProvider:
@@ -231,7 +251,9 @@ class LocalTranslationProvider:
         requested_compute = (
             str(
                 getattr(
-                    self.settings, "local_translation_compute_type", os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto")
+                    self.settings,
+                    "local_translation_compute_type",
+                    os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto"),
                 )
             )
             .lower()
@@ -285,7 +307,8 @@ class LocalTranslationProvider:
             return []
         tokens = [self._source.encode(text, out_type=str) + ["</s>"] for text in texts]
         beam_size = max(
-            1, int(getattr(self.settings, "local_translation_beam_size", os.getenv("LOCAL_TRANSLATION_BEAM_SIZE", 2)))
+            1,
+            int(getattr(self.settings, "local_translation_beam_size", os.getenv("LOCAL_TRANSLATION_BEAM_SIZE", 2))),
         )
         results = self._translator.translate_batch(tokens, beam_size=beam_size)
         outputs: list[str] = []
