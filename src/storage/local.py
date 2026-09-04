@@ -34,9 +34,10 @@ class LocalStorageProvider(StorageProvider):
     def list_zip_files(self, location: str) -> list[StorageFile]:
         folder = self._storage_root(location)
         files: list[StorageFile] = []
+        now = time.time()
         for path in sorted(folder.rglob("*.zip")):
             try:
-                if path.is_file() and (time.time() - path.stat().st_mtime) >= self.input_min_age_seconds:
+                if path.is_file() and now - path.stat().st_mtime >= self.input_min_age_seconds:
                     files.append(StorageFile(id=str(path), name=path.name))
             except FileNotFoundError:
                 logger.warning("ZIP disappeared while listing input: %s", path)
