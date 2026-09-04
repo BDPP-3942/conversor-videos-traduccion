@@ -8,7 +8,12 @@ from typing import Any
 
 from config.settings import BASE_DIR, AppSettings
 from src.cuda_runtime import ensure_cuda_runtime
-from src.stt_quality import STTQualityThresholds, candidate_key, quality_metrics, suspicious_reasons
+from src.stt_quality import (
+    STTQualityThresholds,
+    candidate_key,
+    quality_metrics,
+    suspicious_reasons,
+)
 from src.whisper_prompt import resolve_initial_prompt
 
 logger = logging.getLogger(__name__)
@@ -27,15 +32,26 @@ class STTEngine:
             min_repetition_words=settings.whisper_min_repetition_words,
         )
         if self.device in {"auto", "cuda"}:
-            cuda_status = ensure_cuda_runtime(interactive=not getattr(settings, "unattended_mode", False))
+            cuda_status = ensure_cuda_runtime(
+                interactive=not getattr(settings, "unattended_mode", False)
+            )
             if self.device == "auto" and cuda_status.compatible:
                 self.device = "cuda"
-                self.compute_type = self.compute_type if self.compute_type != "auto" else "float16"
+                self.compute_type = (
+                    self.compute_type if self.compute_type != "auto" else "float16"
+                )
             elif self.device == "auto":
                 self.device = "cpu"
-                self.compute_type = self.compute_type if self.compute_type not in {"auto", "float16"} else "int8"
+                self.compute_type = (
+                    self.compute_type
+                    if self.compute_type not in {"auto", "float16"}
+                    else "int8"
+                )
             elif self.device == "cuda" and not cuda_status.compatible:
-                logger.warning("Whisper CUDA runtime is not ready; using CPU fallback: %s", cuda_status.reason)
+                logger.warning(
+                    "Whisper CUDA runtime is not ready; using CPU fallback: %s",
+                    cuda_status.reason,
+                )
                 self.device = "cpu"
                 self.compute_type = "int8"
         if self.compute_type == "auto":
@@ -91,7 +107,11 @@ class STTEngine:
             text = str(segment.text or "").strip()
             start = float(segment.start)
             end = float(segment.end)
-            return [{"start": start, "end": end, "text": text}] if text and self._valid_interval(start, end) else []
+            return (
+                [{"start": start, "end": end, "text": text}]
+                if text and self._valid_interval(start, end)
+                else []
+            )
         threshold = max(0.1, self.settings.whisper_min_silence_duration_ms / 1000.0)
         groups: list[list[Any]] = []
         current: list[Any] = []
@@ -127,7 +147,9 @@ class STTEngine:
         vad_parameters = None
         if self.settings.whisper_vad_filter and clip_timestamps is None:
             vad_parameters = {
-                "min_silence_duration_ms": max(100, self.settings.whisper_min_silence_duration_ms)
+                "min_silence_duration_ms": max(
+                    100, self.settings.whisper_min_silence_duration_ms
+                )
             }
         kwargs: dict[str, Any] = {
             "language": self.settings.source_lang,
@@ -142,14 +164,25 @@ class STTEngine:
             "compression_ratio_threshold": self.settings.whisper_compression_ratio_threshold,
             "log_prob_threshold": self.settings.whisper_log_prob_threshold,
             "no_speech_threshold": self.settings.whisper_no_speech_threshold,
-            "hallucination_silence_threshold": getattr(self.settings, "whisper_hallucination_silence_threshold", None),
+            "hallucination_silence_threshold": getattr(
+                self.settings,
+                "whisper_hallucination_silence_threshold",
+                None,
+            ),
         }
         if clip_timestamps is not None:
             kwargs["clip_timestamps"] = clip_timestamps
-        prompt, prompt_source = resolve_initial_prompt(self.settings.whisper_initial_prompt, BASE_DIR)
+        prompt, prompt_source = resolve_initial_prompt(
+            self.settings.whisper_initial_prompt,
+            BASE_DIR,
+        )
         if prompt:
             kwargs["initial_prompt"] = prompt
-        logger.debug("Whisper initial prompt source=%s length=%d", prompt_source, len(prompt))
+        logger.debug(
+            "Whisper initial prompt source=%s length=%d",
+            prompt_source,
+            len(prompt),
+        )
         return kwargs
 
     def _collect_segments(self, segments: Any) -> list[Any]:
@@ -164,7 +197,9 @@ class STTEngine:
                 temperature=temperature,
                 clip_timestamps=[{"start": start, "end": end}],
             )
-            candidates.extend(self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0]))
+            candidates.extend(
+                self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0])
+            )
         if candidates and not all(self._is_suspicious(segment) for segment in candidates):
             return candidates
 
@@ -173,7 +208,9 @@ class STTEngine:
             temperature=temperatures[-1] if temperatures else 0,
             clip_timestamps=[{"start": start, "end": end}],
         )
-        candidates.extend(self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0]))
+        candidates.extend(
+            self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0])
+        )
         return candidates
 
     def _is_suspicious(self, segment: Any) -> bool:
@@ -182,7 +219,10 @@ class STTEngine:
     def _select_candidate(self, candidates: list[Any]) -> Any | None:
         if not candidates:
             return None
-        return min(candidates, key=lambda segment: candidate_key(segment, self._quality_thresholds))
+        return min(
+            candidates,
+            key=lambda segment: candidate_key(segment, self._quality_thresholds),
+        )
 
     def _recover_segment(self, media_path: Path, segment: Any) -> list[Any]:
         start = max(0.0, float(segment.start))
@@ -196,7 +236,9 @@ class STTEngine:
         metrics = quality_metrics(selected)
         reasons = suspicious_reasons(metrics, self._quality_thresholds)
         logger.info(
-            "STT recovery: start=%.3f end=%.3f candidates=%d selected_suspicious=%s reasons=%s repetition=%.3f compression=%s avg_logprob=%s no_speech=%s",
+            "STT recovery: start=%.3f end=%.3f candidates=%d "
+            "selected_suspicious=%s reasons=%s repetition=%.3f "
+            "compression=%s avg_logprob=%s no_speech=%s",
             start,
             end,
             len(candidates),
@@ -210,12 +252,19 @@ class STTEngine:
         return [selected] if not reasons else []
 
     def transcribe(self, media_path: Path):
-        logger.info("Transcribing: %s using device=%s compute=%s", media_path.name, self.device, self.compute_type)
+        logger.info(
+            "Transcribing: %s using device=%s compute=%s",
+            media_path.name,
+            self.device,
+            self.compute_type,
+        )
         kwargs = self._transcribe_kwargs(
             condition_on_previous_text=self.settings.whisper_condition_on_previous_text,
             temperature=0,
         )
-        segments = self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0])
+        segments = self._collect_segments(
+            self.model.transcribe(str(media_path), **kwargs)[0]
+        )
         result: list[dict[str, Any]] = []
         recovered = 0
         suspicious = 0
