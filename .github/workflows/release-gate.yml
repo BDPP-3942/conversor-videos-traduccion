@@ -49,7 +49,8 @@ jobs:
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           EXPECTED_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.expected_version || '' }}
-        run: python scripts/release_gate.py "$EXPECTED_SHA" "$EXPECTED_VERSION"
+          REQUIRE_TAG_ABSENT: ${{ github.event_name == 'workflow_dispatch' }}
+        run: python scripts/release_gate.py "$EXPECTED_SHA" "$EXPECTED_VERSION" "$REQUIRE_TAG_ABSENT"
 
       - name: Build distributions
         run: python -m build
