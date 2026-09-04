@@ -123,3 +123,29 @@ def test_generated_output_stem_keeps_scope_separator_and_sanitizes_each_block(tm
     assert result == "19x2_POSTURAS_FIJAS"
     assert result.count("x") == 1
     assert "-" not in result
+
+
+def test_normalize_component_is_idempotent_for_unicode() -> None:
+    value = "CaféxNiño_äöüß_é🇪🇸"
+    normalized = normalize_component(value)
+    assert normalize_component(normalized) == normalized
+    assert normalized == "CaféxNiño_äöüß_é🇪🇸"
+
+
+def test_normalize_filename_is_idempotent() -> None:
+    value = "Leccio\u0301n_niño_2026-08-31.mp4"
+    normalized = normalize_filename(value)
+    assert normalize_filename(normalized) == normalized
+    assert normalized == "Lección_niño.mp4"
+
+
+def test_unicode_languages_and_emoji_are_preserved() -> None:
+    value = "áéíóúñ äöüß é français 日本語 中文 한국어 😀"
+    normalized = normalize_component(value)
+    assert normalized == value
+    assert normalize_component(normalized) == normalized
+
+
+def test_mojibake_is_not_silently_repaired() -> None:
+    value = "CafÃ©_niÃ±o.mp4"
+    assert normalize_filename(value) == value
