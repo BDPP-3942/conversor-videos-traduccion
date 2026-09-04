@@ -37,7 +37,7 @@ This report is the release-gate record for PR #35. The tag must point to the exa
 - Model identity is pinned; arbitrary repository/revision overrides are rejected.
 - `model.bin`, `source.spm` and `target.spm` are validated by expected size and SHA-256.
 - `config.json`, `shared_vocabulary.json` and `tokenizer_config.json` are required, rejected when symlinked, checked for bounded size/UTF-8 JSON and validated for the required model metadata shape.
-- Preparation uses a temporary directory and atomic replacement; partial downloads are not treated as ready resources.
+- Preparation uses a persistent staging directory and atomic replacement; interrupted downloads keep their partial files available for a subsequent resumable attempt and are never treated as ready resources.
 - Local-provider-specific options are environment variables (`LOCAL_TRANSLATION_*`), not `[local_translation]` TOML fields.
 
 ## CUDA / hardware
@@ -84,7 +84,6 @@ README, `docs/CONFIGURATION.md`, `docs/CUDA.md`, `docs/LOCAL_TRANSLATION.md`, `d
 ## Known limitations
 
 - Real GPU benchmark performance is hardware-dependent and is not a release requirement unless explicitly executed and recorded.
-- The known problematic MP4 regression scenario is not stored in the repository, so no real-media A/B result is claimed by CI.
 - Google Drive and rclone production credentials remain outside deterministic CI.
 - Full external TTS provider execution is not a mandatory networked CI dependency.
 
