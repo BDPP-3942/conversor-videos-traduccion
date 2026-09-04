@@ -66,7 +66,10 @@ class FileNameFormatter:
     )
     NOISE_PATTERNS = (
         re.compile(r"^wetransfer[_\-]+", re.IGNORECASE),
-        re.compile(r"^drive-download[-_][0-9tz\-]+(?:[-_]\d+[-_]\d+)?[-_]", re.IGNORECASE),
+        re.compile(
+            r"^drive-download[-_][0-9tz\-]+(?:[-_]\d+[-_]\d+)?[-_]",
+            re.IGNORECASE,
+        ),
         re.compile(
             r"^(?:zip|rar|7z|archive|compressed|compression|backup|download|descarga)[-_ ]+",
             re.IGNORECASE,
@@ -94,7 +97,12 @@ class FileNameFormatter:
         match = cls.LANGUAGE_PATTERN.search(path.name)
         if not match:
             return FileNameInfo(path.name, path.stem, path.suffix.lower())
-        return FileNameInfo(path.name, path.stem[: match.start()], path.suffix.lower(), match.group("language").lower())
+        return FileNameInfo(
+            path.name,
+            path.stem[: match.start()],
+            path.suffix.lower(),
+            match.group("language").lower(),
+        )
 
     @classmethod
     def generate_vtt_name(cls, video_filename: str, target_language: str) -> str:
@@ -163,7 +171,15 @@ class FileNameFormatter:
         return None
 
     @classmethod
-    def _build_description(cls, stem: str, *, course: int | None, lesson: int | None, course_name: str | None, lesson_name: str | None) -> str:
+    def _build_description(
+        cls,
+        stem: str,
+        *,
+        course: int | None,
+        lesson: int | None,
+        course_name: str | None,
+        lesson_name: str | None,
+    ) -> str:
         value = stem
         if course is not None:
             value = cls._remove_number(value, course)
@@ -178,7 +194,10 @@ class FileNameFormatter:
 
     @classmethod
     def _remove_number(cls, value: str, number: int) -> str:
-        patterns = (re.compile(rf"(?<!\d){number:02d}(?!\d)"), re.compile(rf"(?<!\d){number}(?!\d)"))
+        patterns = (
+            re.compile(rf"(?<!\d){number:02d}(?!\d)"),
+            re.compile(rf"(?<!\d){number}(?!\d)"),
+        )
         for pattern in patterns:
             if pattern.search(value):
                 return pattern.sub("_", value, count=1)
@@ -188,7 +207,9 @@ class FileNameFormatter:
     def _remove_label(value: str) -> str:
         return re.sub(
             r"(?:^|[_\- .])(?:curso|course|lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)(?=[_\- .]|$)",
-            "_", value, flags=re.IGNORECASE,
+            "_",
+            value,
+            flags=re.IGNORECASE,
         )
 
     @classmethod
@@ -233,7 +254,11 @@ def strip_date_artifacts(value: str) -> str:
 def clean_for_filename(value: str) -> str:
     """Normalize a block name without lossy ASCII transliteration."""
     normalized = unicodedata.normalize("NFC", value)
-    normalized = re.sub(r"[<>:\"/\\|?*()\[\]{}'“”‘’`´,;!¡¿@#$%^&=+~\x00-\x1f]", "_", normalized)
+    normalized = re.sub(
+        r"[<>:\"/\\|?*()\[\]{}'“”‘’`´,;!¡¿@#$%^&=+~\x00-\x1f]",
+        "_",
+        normalized,
+    )
     normalized = re.sub(r"[\s\-_.—–−‒―]+", "_", normalized)
     return normalized.strip("_.-")
 
@@ -283,7 +308,12 @@ def normalized_name_similarity(left: str, right: str) -> float:
     return 0.65 * sequence_score + 0.35 * token_score
 
 
-def fit_output_stem(stem: str, parent: Path, unique_suffix: str | None = None, reserve_suffixes: tuple[str, ...] = ()) -> str:
+def fit_output_stem(
+    stem: str,
+    parent: Path,
+    unique_suffix: str | None = None,
+    reserve_suffixes: tuple[str, ...] = (),
+) -> str:
     """Sanitize and fit a generated output stem to the host filesystem."""
     physical_stem = normalize_component(stem)
     suffix = f"__{unique_suffix}" if unique_suffix else ""
