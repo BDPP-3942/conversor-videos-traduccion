@@ -31,8 +31,8 @@ def test_mp4_copy_command_avoids_reencode(tmp_path: Path):
     assert "-movflags" in command and "+faststart" in command
 
 
-def test_normalization_policy_preserves_unicode_and_is_filesystem_safe():
-    assert normalize_component("Vídeo niño — prueba") == "Vídeo_niño_prueba"
+def test_normalization_policy_is_web_safe():
+    assert normalize_component("Vídeo niño — prueba 😀") == "video_nino_prueba"
 
 
 def test_resource_profile_keeps_medium_for_high_end_hardware(monkeypatch):
