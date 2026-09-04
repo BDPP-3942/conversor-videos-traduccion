@@ -286,13 +286,23 @@ def ensure_cuda_runtime(*, interactive: bool = True) -> CUDARuntimeStatus:
         if _interactive_decision is False:
             return status
         if _interactive_decision is None:
-            print("\nNVIDIA GPU detected, but the CUDA runtime required by the pinned faster-whisper/CTranslate2 stack is not ready.")
+            print(
+                "\nNVIDIA GPU detected, but the CUDA runtime required by the pinned "
+                "faster-whisper/CTranslate2 stack is not ready."
+            )
             print(f"Reason: {status.reason}")
-            print(f"Detected driver: {status.driver_version or 'unknown'}; advertised CUDA: {status.driver_cuda_max or 'unknown'}")
-            print(f"Requirements: CUDA {CUDA_MAJOR}.x + cuBLAS for CUDA 12 + cuDNN {CUDNN_MAJOR} for CUDA 12.")
+            print(
+                f"Detected driver: {status.driver_version or 'unknown'}; "
+                f"advertised CUDA: {status.driver_cuda_max or 'unknown'}"
+            )
+            print(f"Requirements: CUDA {CUDA_MAJOR}.x + cuBLAS for CUDA 12 + "
+                  f"cuDNN {CUDNN_MAJOR} for CUDA 12.")
             print(f"Managed installation: {MANAGED_DIR}")
             print(f"Runtime libraries will be installed into: {MANAGED_PYTHON_DIR}")
-            print("The NVIDIA driver is not replaced. A full CUDA Toolkit is optional and is not installed by this operation.")
+            print(
+                "The NVIDIA driver is not replaced. A full CUDA Toolkit is optional "
+                "and is not installed by this operation."
+            )
             answer = input("Install the managed NVIDIA runtime libraries now? [y/N]: ").strip().lower()
             _interactive_decision = answer in {"y", "yes"}
         if not _interactive_decision:
