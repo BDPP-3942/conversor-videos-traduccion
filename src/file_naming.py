@@ -61,7 +61,9 @@ class FileNameFormatter:
         ),
         re.compile(r"^\s*(\d{1,4})\s*(?:º|°|[._-])\s*", re.IGNORECASE),
     )
-    COURSE_TEXT_PATTERNS = (re.compile(r"\b(?:curso|course)\s*[:\-–—.]?\s*([^|/\\]+)", re.IGNORECASE),)
+    COURSE_TEXT_PATTERNS = (
+        re.compile(r"\b(?:curso|course)\s*[:\-–—.]?\s*([^|/\\]+)", re.IGNORECASE),
+    )
     LESSON_TEXT_PATTERNS = (
         re.compile(
             r"\b(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)\s*[:\-–—.]?\s*([^|/\\]+)",
@@ -117,7 +119,12 @@ class FileNameFormatter:
         match = cls.LANGUAGE_PATTERN.search(path.name)
         if not match:
             return FileNameInfo(path.name, path.stem, path.suffix.lower())
-        return FileNameInfo(path.name, path.stem[: match.start()], path.suffix.lower(), match.group("language").lower())
+        return FileNameInfo(
+            path.name,
+            path.stem[: match.start()],
+            path.suffix.lower(),
+            match.group("language").lower(),
+        )
 
     @classmethod
     def generate_vtt_name(cls, video_filename: str, target_language: str) -> str:
@@ -160,7 +167,9 @@ class FileNameFormatter:
         return cls._find_label(cls.LESSON_TEXT_PATTERNS, values)
 
     @classmethod
-    def _find_label(cls, patterns: tuple[re.Pattern[str], ...], values: list[str]) -> str | None:
+    def _find_label(
+        cls, patterns: tuple[re.Pattern[str], ...], values: list[str]
+    ) -> str | None:
         for value in values:
             for pattern in patterns:
                 match = pattern.search(value)
@@ -188,7 +197,13 @@ class FileNameFormatter:
 
     @classmethod
     def _build_description(
-        cls, stem: str, *, course: int | None, lesson: int | None, course_name: str | None, lesson_name: str | None
+        cls,
+        stem: str,
+        *,
+        course: int | None,
+        lesson: int | None,
+        course_name: str | None,
+        lesson_name: str | None,
     ) -> str:
         value = stem
         if course is not None:
@@ -204,7 +219,10 @@ class FileNameFormatter:
 
     @classmethod
     def _remove_number(cls, value: str, number: int) -> str:
-        patterns = (re.compile(rf"(?<!\d){number:02d}(?!\d)"), re.compile(rf"(?<!\d){number}(?!\d)"))
+        patterns = (
+            re.compile(rf"(?<!\d){number:02d}(?!\d)"),
+            re.compile(rf"(?<!\d){number}(?!\d)"),
+        )
         for pattern in patterns:
             if pattern.search(value):
                 return pattern.sub("_", value, count=1)
@@ -236,7 +254,9 @@ class FileNameFormatter:
     @classmethod
     def _remove_generic_tokens(cls, value: str) -> str:
         tokens = [token for token in re.split(r"[_ ]+", value) if token]
-        return "_".join(token for token in tokens if token.lower() not in cls.GENERIC_TOKENS)
+        return "_".join(
+            token for token in tokens if token.lower() not in cls.GENERIC_TOKENS
+        )
 
     @staticmethod
     def _label_or_default(value: str | None, default: str) -> str:
@@ -275,9 +295,56 @@ def clean_for_filename(value: str) -> str:
     """
     normalized = unicodedata.normalize("NFKD", value)
     normalized = "".join(char for char in normalized if not unicodedata.combining(char))
-    normalized = re.sub(r"[<>:\"/\\|?*()\[\]{}'“”‘’`´,;!¡¿@#$%^&=+~\x00-\x1f]", "_", normalized)
+    normalized = re.sub(
+        r"[<>:\"/\\|?*()\[\]{}'“”‘’`´,;!¡¿@#$%^&=+~\x00-\x1f]",
+        "_",
+        normalized,
+    )
     normalized = re.sub(r"[\s\-_.—–−‒―]+", "_", normalized)
     return normalized.strip("_.-")
+
+
+def _split_filename_extension(filename: str) -> tuple[str, str]:
+    """Split a logical filename without treating '/' as a path separator."""
+    match = re.match(r"^(.*?)(\.[A-Za-z0-9]{2,8})$", filename, re.DOTALL)
+    if not match:
+        return filename, ""
+    return match.group(1), match.group(2).lower()
+
+
+def normalize_filename(filename: str) -> str:
+    """Normalize a filename-like value before platform path parsing."""
+    stem, extension = _split_filename_extension(filename)
+    return f"{clean_for_filename(strip_date_artifacts(stem))}{extension}"
+
+
+def normalize_component(value: str) -> str:
+    """Return the physical filesystem-safe form of a generated component."""
+    return safe_filesystem_component(_sanitize_text(value))
+
+
+def normalize_comparison_key(filename: str) -> str:
+    """Normalize a media title for duplicate-candidate matching."""
+    path = Path(filename)
+    value = FileNameFormatter._clean_context(path.stem)
+    value = strip_date_artifacts(value)
+    value = FileNameFormatter._remove_generic_tokens(value)
+    value = re.sub(r"[^a-zA-Z0-9]+", " ", _sanitize_text(value)).lower().strip()
+    return re.sub(r"\s+", " ", value)
+
+
+def normalized_name_similarity(left: str, right: str) -> float:
+    """Return a combined character/token similarity score for two normalized names."""
+    left_tokens = set(left.split())
+    right_tokens = set(right.split())
+    if not left and not right:
+        return 1.0
+    if not left or not right:
+        return 0.0
+    sequence_score = SequenceMatcher(None, left, right).ratio()
+    union = left_tokens | right_tokens
+    token_score = len(left_tokens & right_tokens) / len(union) if union else 0.0
+    return 0.65 * sequence_score + 0.35 * token_score
 
 
 def canonicalize_output_stem(stem: str) -> str:
@@ -289,8 +356,12 @@ def canonicalize_output_stem(stem: str) -> str:
     This deliberately avoids changing ordinary words such as ``boxeo``.
     """
     normalized = clean_for_filename(stem)
-    legacy_scope = re.compile(r"^(?P<left>.+)x(?P<right>\d{1,4}(?:_|$).*)$", re.IGNORECASE)
-    numeric_scope = re.compile(r"^(?P<left>\d{1,4})x(?P<right>[A-Za-z0-9_].*)$", re.IGNORECASE)
+    legacy_scope = re.compile(
+        r"^(?P<left>.+)x(?P<right>\d{1,4}(?:_|$).*)$", re.IGNORECASE
+    )
+    numeric_scope = re.compile(
+        r"^(?P<left>\d{1,4})x(?P<right>[A-Za-z0-9_].*)$", re.IGNORECASE
+    )
     match = legacy_scope.match(normalized) or numeric_scope.match(normalized)
     if match:
         normalized = f"{match.group('left')}_{match.group('right')}"
@@ -303,7 +374,11 @@ def analyze_legacy_output_stem(stem: str) -> LegacyNameAnalysis:
     reasons: list[str] = []
     if "-" in stem:
         reasons.append("hyphen separator")
-    if re.search(r"^(?:\d{1,4}|.+)x(?:\d{1,4}(?:_|$)|[A-Za-z])", clean_for_filename(stem), re.IGNORECASE):
+    if re.search(
+        r"^(?:\d{1,4}|.+)x(?:\d{1,4}(?:_|$)|[A-Za-z])",
+        clean_for_filename(stem),
+        re.IGNORECASE,
+    ):
         if canonical != clean_for_filename(stem):
             reasons.append("legacy scope separator `x`")
     is_legacy = canonical != clean_for_filename(stem)
@@ -347,32 +422,3 @@ def fit_output_stem(
             continue
         raw = raw[:-1]
     return "_"
-
-
-def normalize_component(value: str) -> str:
-    """Return the physical filesystem-safe form of a generated component."""
-    return safe_filesystem_component(_sanitize_text(value))
-
-
-def normalize_comparison_key(filename: str) -> str:
-    """Normalize a media title for duplicate-candidate matching."""
-    path = Path(filename)
-    value = FileNameFormatter._clean_context(path.stem)
-    value = strip_date_artifacts(value)
-    value = FileNameFormatter._remove_generic_tokens(value)
-    value = re.sub(r"[^a-zA-Z0-9]+", " ", _sanitize_text(value)).lower().strip()
-    return re.sub(r"\s+", " ", value)
-
-
-def normalized_name_similarity(left: str, right: str) -> float:
-    """Return a combined character/token similarity score for two normalized names."""
-    left_tokens = set(left.split())
-    right_tokens = set(right.split())
-    if not left and not right:
-        return 1.0
-    if not left or not right:
-        return 0.0
-    sequence_score = SequenceMatcher(None, left, right).ratio()
-    union = left_tokens | right_tokens
-    token_score = len(left_tokens & right_tokens) / len(union) if union else 0.0
-    return 0.65 * sequence_score + 0.35 * token_score
