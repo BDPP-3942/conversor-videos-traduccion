@@ -147,4 +147,4 @@ def test_unicode_letters_are_preserved_but_diacritics_and_emoji_are_removed() ->
 
 def test_mojibake_is_not_silently_repaired() -> None:
     value = "CafÃ©_niÃ±o.mp4"
-    assert normalize_filename(value) == "cafa_niamo.mp4"
+    assert normalize_filename(value) == "cafa_niao.mp4"
