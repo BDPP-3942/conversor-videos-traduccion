@@ -141,7 +141,7 @@ def resolve(source: Path, extract_root: Path) -> SourceNameMetadata:
     lesson_part = f"{lesson:02d}" if lesson is not None else ""
     if lesson_name:
         lesson_part = f"{lesson_part + '_' if lesson_part else ''}{lesson_name}"
-    output_stem = "_".join(part for part in (course_part, lesson_part) if part)
+    output_stem = "x".join(part for part in (course_part, lesson_part) if part)
     fallback = _sanitize_text(_clean(logical_source.stem))
     output_stem = output_stem or fallback
 
