@@ -22,7 +22,7 @@ from src.file_naming import fit_output_stem
         (
             "wetransfer_estas-son-promocinales-son-6_2026-07-28_1039__0c10ca636f4c4fc2__0c10ca636f4c4fc1.zip",
             "CHINNA EN ( Si Zheng Tui).mov",
-            "estas-son-promocinales-son-6xCHINNA_EN_Si_Zheng_Tui",
+            "estas_son_promocinales_son_6xCHINNA_EN_Si_Zheng_Tui",
         ),
     ),
 )
