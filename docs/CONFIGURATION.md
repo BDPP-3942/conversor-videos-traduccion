@@ -65,10 +65,12 @@ Naming is deliberately not configured through a free-form replacement template. 
 The logical naming contract is represented as:
 
 ```text
-<curso_o_contenedor>x<nombre_sanitizado>
+<curso_o_contenedor>x<nombre_normalizado>
 ```
 
-`x` separates scope; `_` separates words inside each block. The physical boundary applies whitespace/separator normalization, punctuation/control-character handling, Unicode/diacritic normalization, Windows reserved-name protection and filesystem length limits. Logical metadata is preserved separately from the physical name.
+`x` separates scope; `_` separates words inside each block. The canonical physical name is intended for web URLs and metadata and therefore is normalized to lowercase with `casefold()`. Latin diacritics are removed (`niño` -> `nino`, `Vídeo` -> `video`), whitespace and separators are collapsed to `_`, and emoji/Unicode symbols are omitted. Letters from other scripts are retained when they are not diacritics or symbols. Filesystem-invalid characters, control characters, Windows reserved components and filesystem length limits are handled by the physical filesystem boundary as well.
+
+This normalization is intentionally deterministic and idempotent. It does not attempt heuristic repair of mojibake or otherwise guess the user's intended spelling.
 
 The `normalize_legacy_names` workflow setting controls migration of already existing output names. It does not change the naming rules themselves. When enabled, migration is performed before normal processing and must not silently overwrite an existing destination.
 
@@ -78,23 +80,3 @@ The `normalize_legacy_names` workflow setting controls migration of already exis
 
 - `0` means **AUTO**: the application selects a conservative safe concurrency level from the detected hardware.
 - A positive value is an **upper bound**, not a guarantee. If it exceeds the safe hardware ceiling, it is clamped automatically.
-- `1` explicitly preserves single-worker execution.
-
-The resource calculation intentionally leaves headroom for the operating system, Python and FFmpeg. The effective value can therefore be lower than the configured value even when the configuration is valid.
-
-This behavior was introduced after the `1.2.2` release by PR #20 (`perf: enforce safe video concurrency`). It is part of the current `main` behavior, but it is **not part of the published `1.2.2` release**.
-
-## Important defaults
-
-- Resume: enabled.
-- Automatic local output deduplication: disabled.
-- TTS: disabled.
-- WebM generation: enabled.
-- rclone automatic update: disabled.
-- Whisper device: `auto`.
-- Whisper compute type: `auto`.
-- Whisper silence threshold: 1500 ms.
-- Local translation auto-download: disabled.
-- Local translation device: `auto`.
-- Local translation compute type: `auto`.
-- Local translation beam size: 2.
