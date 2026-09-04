@@ -54,7 +54,11 @@ def _source_label(name: str) -> str:
 
 
 def expected_output_stem(source: Path, extract_root: Path) -> str:
-    """Build the deterministic logical stem from archive scope and source basename."""
+    """Build the deterministic logical stem from archive scope and source basename.
+
+    The canonical output separator is `_`; legacy archive stems using `x` are
+    retained only as historical input data and are not generated anymore.
+    """
     relative = source.relative_to(extract_root)
     if not relative.parts:
         raise ValueError(f"Source path is empty relative to extract root: {source}")
@@ -62,4 +66,4 @@ def expected_output_stem(source: Path, extract_root: Path) -> str:
     source_name = relative.name
     archive = _archive_label(archive_name)
     source_label = _source_label(source_name)
-    return f"{archive}x{source_label}" if archive and source_label else archive or source_label
+    return f"{archive}_{source_label}" if archive and source_label else archive or source_label
