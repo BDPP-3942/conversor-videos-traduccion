@@ -31,10 +31,9 @@ def _archive_label(name: str) -> str:
         number, suffix = course.group(1), course.group(2)
         if not suffix or suffix.lower() == "basic":
             return number
-        return f"{number}_{suffix}"
-    if stem == "1-el-juego-4-poderes-la-genesis":
-        return stem.replace("-", "_")
-    return re.sub(r"[<>:\"/\\|?*\x00-\x1f]", "_", stem).strip("_.-")
+        return f"{number}_{suffix.replace('-', '_')}"
+    normalized = stem.replace("-", "_")
+    return re.sub(r"[<>:\"/\\|?*\x00-\x1f]", "_", normalized).strip("_.-")
 
 
 def _source_label(name: str) -> str:
@@ -46,6 +45,7 @@ def _source_label(name: str) -> str:
     stem = re.sub(r"(?<=\d)[.-]+(?=\s*[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])", "_", stem)
     normalized = unicodedata.normalize("NFKD", stem)
     normalized = "".join(char for char in normalized if not unicodedata.combining(char))
+    normalized = normalized.replace("-", "_")
     normalized = re.sub(r"[<>:\"/\\|?*,;!?\[\]]", "_", normalized)
     normalized = re.sub(r"\s+", "_", normalized)
     normalized = re.sub(r"[._]+", "_", normalized)
@@ -54,11 +54,7 @@ def _source_label(name: str) -> str:
 
 
 def expected_output_stem(source: Path, extract_root: Path) -> str:
-    """Build the deterministic logical stem from archive scope and source basename.
-
-    The canonical output separator is `_`; legacy archive stems using `x` are
-    retained only as historical input data and are not generated anymore.
-    """
+    """Build the deterministic logical stem using `_` as the canonical separator."""
     relative = source.relative_to(extract_root)
     if not relative.parts:
         raise ValueError(f"Source path is empty relative to extract root: {source}")
