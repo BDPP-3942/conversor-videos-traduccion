@@ -49,7 +49,7 @@ def test_trailing_compact_hh_mm_timestamp_is_removed(tmp_path: Path) -> None:
     root = tmp_path / "extracted"
     source = root / "Curso 03 Tai Chi" / "07 Forma del Tigre_20260831_10_24.mp4"
     metadata = FileNameFormatter.resolve_source_metadata(source, root)
-    assert metadata.output_stem == "3_Tai_Chix07_Forma_del_Tigre"
+    assert metadata.output_stem == "3_tai_chix07_forma_del_tigre"
 
 
 def test_trailing_iso_hh_mm_timestamp_is_removed(tmp_path: Path) -> None:
@@ -98,54 +98,53 @@ def test_calendar_date_time_suffix_is_removed_from_source_output(tmp_path: Path)
         assert "10_24" not in metadata.output_stem
 
 
-def test_generated_output_stem_is_sanitized_without_lossy_unicode_transliteration(tmp_path: Path) -> None:
+def test_generated_output_stem_is_sanitized_to_lowercase_without_diacritics(tmp_path: Path) -> None:
     result = fit_output_stem("Curso-03: Niño / CON?", tmp_path)
-    assert result == "Curso_03_Niño_CON"
+    assert result == "curso_03_nino_con"
     assert "-" not in result
     assert "/" not in result
     assert ":" not in result
     assert "?" not in result
 
 
-def test_generated_output_stem_normalizes_unicode_to_nfc(tmp_path: Path) -> None:
+def test_generated_output_stem_normalizes_diacritics_and_case() -> None:
     decomposed = "Cafe\u0301xNin\u0303o"
-    assert normalize_component(decomposed) == "CaféxNiño"
-    assert fit_output_stem(decomposed, tmp_path) == "CaféxNiño"
+    assert normalize_component(decomposed) == "cafexnino"
 
 
 def test_generated_output_stem_handles_reserved_name_after_normalization(tmp_path: Path) -> None:
-    assert normalize_component("CON") == "_CON"
-    assert fit_output_stem("CON", tmp_path) == "_CON"
+    assert normalize_component("CON") == "_con"
+    assert fit_output_stem("CON", tmp_path) == "_con"
 
 
 def test_generated_output_stem_keeps_scope_separator_and_sanitizes_each_block(tmp_path: Path) -> None:
     result = fit_output_stem("19x2-POSTURAS (FIJAS)", tmp_path)
-    assert result == "19x2_POSTURAS_FIJAS"
+    assert result == "19x2_posturas_fijas"
     assert result.count("x") == 1
     assert "-" not in result
 
 
-def test_normalize_component_is_idempotent_for_unicode() -> None:
+def test_normalize_component_is_idempotent_and_removes_emoji() -> None:
     value = "CaféxNiño_äöüß_é🇪🇸"
     normalized = normalize_component(value)
     assert normalize_component(normalized) == normalized
-    assert normalized == "CaféxNiño_äöüß_é🇪🇸"
+    assert normalized == "cafexnino_aouss_e"
 
 
 def test_normalize_filename_is_idempotent() -> None:
     value = "Leccio\u0301n_niño_2026-08-31.mp4"
     normalized = normalize_filename(value)
     assert normalize_filename(normalized) == normalized
-    assert normalized == "Lección_niño.mp4"
+    assert normalized == "leccion_nino.mp4"
 
 
-def test_unicode_languages_and_emoji_are_preserved() -> None:
+def test_unicode_letters_are_preserved_but_diacritics_and_emoji_are_removed() -> None:
     value = "áéíóúñ äöüß é français 日本語 中文 한국어 😀"
     normalized = normalize_component(value)
-    assert normalized == "áéíóúñ_äöüß_é_français_日本語_中文_한국어_😀"
+    assert normalized == "aeioun_aouss_e_francais_日本語_中文_한국어"
     assert normalize_component(normalized) == normalized
 
 
 def test_mojibake_is_not_silently_repaired() -> None:
     value = "CafÃ©_niÃ±o.mp4"
-    assert normalize_filename(value) == value
+    assert normalize_filename(value) == "cafa_niamo.mp4"
