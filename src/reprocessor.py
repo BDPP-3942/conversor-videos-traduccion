@@ -56,9 +56,7 @@ class SubtitleReprocessor:
             candidates = [item for item in files if not item.is_directory]
             video = self._resolve_video(candidates, video_name)
             original_subdir = self.storage.ensure_folder(folder, self.settings.original_transcript_subdir)
-            original_files = [
-                item for item in self.storage.list_children(original_subdir) if not item.is_directory
-            ]
+            original_files = [item for item in self.storage.list_children(original_subdir) if not item.is_directory]
             original_vtt = self._pick_vtt(original_files, preferred_contains="_original")
             translated_vtt = self._pick_vtt(
                 candidates,
@@ -69,8 +67,7 @@ class SubtitleReprocessor:
                 raise FileNotFoundError(f"No reusable video found in output folder: {folder}")
             if mode == "translate_only" and original_vtt is None:
                 raise FileNotFoundError(
-                    "No existing original transcription found in "
-                    f"{self.settings.original_transcript_subdir}/"
+                    f"No existing original transcription found in {self.settings.original_transcript_subdir}/"
                 )
 
             old_original_segments = (
@@ -79,9 +76,7 @@ class SubtitleReprocessor:
             diagnostics_before = self.diagnose_segments(old_original_segments) if old_original_segments else {}
 
             if mode == "translate_only":
-                translated_segments, translation_failed = self._translate(
-                    old_original_segments, translator_factory
-                )
+                translated_segments, translation_failed = self._translate(old_original_segments, translator_factory)
                 validation = self._validate_segments(
                     translated_segments,
                     previous_count=len(old_original_segments),
@@ -90,8 +85,7 @@ class SubtitleReprocessor:
                     raise ValueError(f"New translation failed validation: {validation['errors']}")
                 new_translated = self._write_temp_vtt(translated_segments, "translated.vtt")
                 fallback_translation_name = (
-                    f"{Path(original_vtt.name).stem.removesuffix('_original')}"
-                    f"_{self.settings.target_lang.lower()}.vtt"
+                    f"{Path(original_vtt.name).stem.removesuffix('_original')}_{self.settings.target_lang.lower()}.vtt"
                     if original_vtt
                     else None
                 )
@@ -133,13 +127,9 @@ class SubtitleReprocessor:
                 translation_failed = 0
                 new_translated: Path | None = None
                 if mode == "full":
-                    translator = (
-                        translator_factory() if translator_factory else self._default_translator()
-                    )
+                    translator = translator_factory() if translator_factory else self._default_translator()
                     translated_segments = translator.translate_segments(segments)
-                    translation_failed = sum(
-                        bool(segment.get("translation_failed")) for segment in translated_segments
-                    )
+                    translation_failed = sum(bool(segment.get("translation_failed")) for segment in translated_segments)
                     previous_translation_count = (
                         len(self._read_vtt_segments(translated_vtt, "existing translation"))
                         if translated_vtt
@@ -150,9 +140,7 @@ class SubtitleReprocessor:
                         previous_count=previous_translation_count,
                     )
                     if not translation_validation["valid"]:
-                        raise ValueError(
-                            f"New translated VTT failed validation: {translation_validation['errors']}"
-                        )
+                        raise ValueError(f"New translated VTT failed validation: {translation_validation['errors']}")
                     new_translated = self._write_temp_vtt(translated_segments, "translated.vtt")
 
                 backup_original = self._backup_and_replace(
@@ -169,9 +157,7 @@ class SubtitleReprocessor:
                         folder,
                         new_translated,
                         mime_type="text/vtt",
-                        fallback_name=(
-                            f"{Path(video.name).stem}_{self.settings.target_lang.lower()}.vtt"
-                        ),
+                        fallback_name=(f"{Path(video.name).stem}_{self.settings.target_lang.lower()}.vtt"),
                     )
 
                 translated_name = (
@@ -280,8 +266,7 @@ class SubtitleReprocessor:
                 (
                     item
                     for item in child_items
-                    if item.is_directory
-                    and item.name == self.settings.original_transcript_subdir
+                    if item.is_directory and item.name == self.settings.original_transcript_subdir
                 ),
                 None,
             )
@@ -367,9 +352,7 @@ class SubtitleReprocessor:
         candidates: list[StorageFile],
         preferred_name: str | None,
     ) -> StorageFile | None:
-        usable = [
-            item for item in candidates if Path(item.name).suffix.lower() in VIDEO_EXTENSIONS
-        ]
+        usable = [item for item in candidates if Path(item.name).suffix.lower() in VIDEO_EXTENSIONS]
         if preferred_name:
             usable = [item for item in usable if item.name == preferred_name]
         if not usable:
@@ -379,16 +362,10 @@ class SubtitleReprocessor:
 
     @staticmethod
     def _pick_vtt(files: list[StorageFile], preferred_contains: str) -> StorageFile | None:
-        vtts = [
-            item
-            for item in files
-            if Path(item.name).suffix.lower() == ".vtt" and ".bak" not in item.name.lower()
-        ]
+        vtts = [item for item in files if Path(item.name).suffix.lower() == ".vtt" and ".bak" not in item.name.lower()]
         if not vtts:
             return None
-        preferred = [
-            item for item in vtts if preferred_contains.lower() in item.name.lower()
-        ]
+        preferred = [item for item in vtts if preferred_contains.lower() in item.name.lower()]
         return sorted(preferred or vtts, key=lambda item: item.name.lower())[0]
 
     def _download(self, remote: StorageFile, name: str) -> Path:
@@ -450,10 +427,7 @@ class SubtitleReprocessor:
             if current_local is not None:
                 try:
                     self.storage.upload_file(current_local, parent, mime_type)
-                    logger.warning(
-                        "Replacement upload failed; restored previous VTT %s",
-                        target_name,
-                    )
+                    logger.warning("Replacement upload failed; restored previous VTT %s", target_name)
                 except Exception:
                     logger.exception(
                         "Replacement upload failed and previous VTT could not be restored: %s",
@@ -532,9 +506,7 @@ class SubtitleReprocessor:
         if not segments:
             errors.append("no segments generated")
         if previous_count and len(segments) > previous_count * 10 + 100:
-            errors.append(
-                f"segment count {len(segments)} is implausibly high versus previous {previous_count}"
-            )
+            errors.append(f"segment count {len(segments)} is implausibly high versus previous {previous_count}")
         if len(segments) > 100_000:
             errors.append("segment count exceeds safety limit")
         return {"valid": not errors, "errors": errors, "count": len(segments)}
