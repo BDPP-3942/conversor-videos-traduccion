@@ -96,16 +96,18 @@ def test_model_download_resumes_partial_file(monkeypatch, tmp_path: Path) -> Non
         status = 206
         headers = {"Content-Length": "3"}
 
+        def __init__(self) -> None:
+            self.done = False
+
         def __enter__(self):
             return self
 
         def __exit__(self, *_args):
             return None
 
-        @staticmethod
-        def read(_size: int) -> bytes:
-            if not hasattr(Response.read, "done"):
-                Response.read.done = True
+        def read(self, _size: int) -> bytes:
+            if not self.done:
+                self.done = True
                 return b"def"
             return b""
 
