@@ -18,58 +18,43 @@ logger = logging.getLogger(__name__)
 class LocalStorageProvider(StorageProvider):
     """Proveedor local. La configuración por defecto usa ./storage del proyecto."""
 
-    def __init__(self, retain_sources: bool = True, input_min_age_seconds: int = 60) -> None:
+    def __init__(self, retain_sources: bool = False, input_min_age_seconds: int = 0):
         self.retain_sources = retain_sources
-        self.input_min_age_seconds = max(0, input_min_age_seconds)
+        self.input_min_age_seconds = input_min_age_seconds
 
-    @staticmethod
-    def _folder(value: str) -> Path:
-        path = resolve_project_path(value)
-        path.mkdir(parents=True, exist_ok=True)
-        return path
+    def _folder(self, target: str) -> Path:
+        return resolve_project_path(target)
 
-    def _storage_root(self, location: str) -> Path:
-        return self._folder(location)
+    def _storage_root(self, target: str) -> Path:
+        return self._folder(target)
 
-    def list_zip_files(self, location: str) -> list[StorageFile]:
-        folder = self._storage_root(location)
-        files: list[StorageFile] = []
-        if self.input_min_age_seconds == 0:
-            for path in sorted(folder.rglob("*.zip")):
-                try:
-                    if path.is_file():
-                        files.append(StorageFile(id=str(path), name=path.name))
-                except FileNotFoundError:
-                    logger.warning("ZIP disappeared while listing input: %s", path)
-            return files
-
+    def list_zip_files(self, target: str) -> list[StorageFile]:
+        folder = self._folder(target)
+        if not folder.is_dir():
+            return []
         now = time.time()
-        for path in sorted(folder.rglob("*.zip")):
-            try:
-                if path.is_file() and now - path.stat().st_mtime >= self.input_min_age_seconds:
-                    files.append(StorageFile(id=str(path), name=path.name))
-            except FileNotFoundError:
-                logger.warning("ZIP disappeared while listing input: %s", path)
-        return files
+        result = []
+        for path in sorted(folder.rglob("*.zip"), key=lambda item: str(item).lower()):
+            if not path.is_file():
+                continue
+            if self.input_min_age_seconds > 0 and now - path.stat().st_mtime < self.input_min_age_seconds:
+                continue
+            result.append(StorageFile(id=str(path), name=path.name, is_directory=False))
+        return result
 
     def download_file(self, file: StorageFile, destination: Path) -> None:
-        source = Path(file.id).resolve()
-        if not source.is_file():
-            raise FileNotFoundError(f"Local source not found: {source}")
         destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(file.id, destination)
+
+    def upload_file(self, source: Path, target: str, content_type: str | None = None) -> str:
+        del content_type
+        folder = self._folder(target)
+        folder.mkdir(parents=True, exist_ok=True)
+        destination = folder / source.name
         shutil.copy2(source, destination)
+        return str(destination)
 
-    def upload_file(self, local_path: Path, location: str, mime_type: str | None = None) -> StorageFile:
-        del mime_type
-        source = local_path.resolve()
-        if not source.is_file():
-            raise FileNotFoundError(f"Local output not found: {source}")
-        target_dir = self._folder(location)
-        target = target_dir / source.name
-        shutil.copy2(source, target)
-        return StorageFile(id=str(target), name=target.name)
-
-    def ensure_folder(self, parent: str, name: str) -> str:
+    def create_folder(self, parent: str, name: str) -> str:
         folder = self._folder(parent) / name
         folder.mkdir(parents=True, exist_ok=True)
         return str(folder)
@@ -104,26 +89,30 @@ class LocalStorageProvider(StorageProvider):
             raise FileExistsError(f"Output target already exists: {new}")
         old.rename(new)
         mapping = {old_name: new_name}
+        old_stem = normalize_component(old_name)
+        new_stem = normalize_component(new_name)
         try:
             for child in sorted(new.iterdir(), key=lambda item: item.name.lower()):
                 if child.is_dir():
                     if child.name == original_transcript_subdir:
-                        for nested in list(child.iterdir()):
+                        for nested in sorted(child.iterdir(), key=lambda item: item.name.lower()):
                             if not nested.is_file():
                                 continue
-                            desired = (
-                                fit_component(normalize_component(nested.stem.replace(old_name, new_name)), child)
-                                + nested.suffix.lower()
-                            )
+                            normalized_stem = normalize_component(nested.stem)
+                            if normalized_stem.startswith(old_stem):
+                                desired_stem = new_stem + normalized_stem[len(old_stem) :]
+                            else:
+                                desired_stem = normalized_stem
+                            desired = fit_component(desired_stem, child) + nested.suffix.lower()
                             if desired != nested.name and not (child / desired).exists():
                                 nested.rename(child / desired)
                         continue
                     continue
-                stem = child.stem
-                if stem.startswith(old_name):
-                    desired_stem = new_name + stem[len(old_name) :]
+                normalized_stem = normalize_component(child.stem)
+                if normalized_stem.startswith(old_stem):
+                    desired_stem = new_stem + normalized_stem[len(old_stem) :]
                 else:
-                    desired_stem = normalize_component(stem)
+                    desired_stem = normalized_stem
                 desired = f"{fit_component(desired_stem, new)}{child.suffix.lower()}"
                 if desired != child.name and not (new / desired).exists():
                     child.rename(new / desired)
@@ -144,7 +133,9 @@ class LocalStorageProvider(StorageProvider):
                 candidate = root / new_name
                 if candidate.exists():
                     logger.warning(
-                        "Cannot normalize output folder '%s' because '%s' already exists", folder.name, candidate.name
+                        "Cannot normalize output folder '%s' because '%s' already exists",
+                        folder.name,
+                        candidate.name,
                     )
                 else:
                     try:
@@ -298,7 +289,7 @@ class LocalStorageProvider(StorageProvider):
         archived_hash = sha256_file(archive_path)
         if archived_hash != fingerprint["sha256"]:
             archive_path.unlink(missing_ok=True)
-            raise OSError("Archived source checksum does not match the original")
+            raise RuntimeError("Archived source hash mismatch")
         registry = ProcessedRegistry(self._storage_root("storage/state") / "processed.jsonl")
         registry.append_success(
             source_name=file.name,
@@ -307,7 +298,4 @@ class LocalStorageProvider(StorageProvider):
             archive_name=archive_name,
             output_folders=output_folders or [],
         )
-        try:
-            source.unlink()
-        except FileNotFoundError:
-            logger.warning("Source disappeared before final cleanup: %s", source)
+        source.unlink(missing_ok=True)
