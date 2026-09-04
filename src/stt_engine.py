@@ -32,21 +32,13 @@ class STTEngine:
             min_repetition_words=settings.whisper_min_repetition_words,
         )
         if self.device in {"auto", "cuda"}:
-            cuda_status = ensure_cuda_runtime(
-                interactive=not getattr(settings, "unattended_mode", False)
-            )
+            cuda_status = ensure_cuda_runtime(interactive=not getattr(settings, "unattended_mode", False))
             if self.device == "auto" and cuda_status.compatible:
                 self.device = "cuda"
-                self.compute_type = (
-                    self.compute_type if self.compute_type != "auto" else "float16"
-                )
+                self.compute_type = self.compute_type if self.compute_type != "auto" else "float16"
             elif self.device == "auto":
                 self.device = "cpu"
-                self.compute_type = (
-                    self.compute_type
-                    if self.compute_type not in {"auto", "float16"}
-                    else "int8"
-                )
+                self.compute_type = self.compute_type if self.compute_type not in {"auto", "float16"} else "int8"
             elif self.device == "cuda" and not cuda_status.compatible:
                 logger.warning(
                     "Whisper CUDA runtime is not ready; using CPU fallback: %s",
@@ -107,11 +99,7 @@ class STTEngine:
             text = str(segment.text or "").strip()
             start = float(segment.start)
             end = float(segment.end)
-            return (
-                [{"start": start, "end": end, "text": text}]
-                if text and self._valid_interval(start, end)
-                else []
-            )
+            return [{"start": start, "end": end, "text": text}] if text and self._valid_interval(start, end) else []
         threshold = max(0.1, self.settings.whisper_min_silence_duration_ms / 1000.0)
         groups: list[list[Any]] = []
         current: list[Any] = []
@@ -146,11 +134,7 @@ class STTEngine:
     ) -> dict[str, Any]:
         vad_parameters = None
         if self.settings.whisper_vad_filter and clip_timestamps is None:
-            vad_parameters = {
-                "min_silence_duration_ms": max(
-                    100, self.settings.whisper_min_silence_duration_ms
-                )
-            }
+            vad_parameters = {"min_silence_duration_ms": max(100, self.settings.whisper_min_silence_duration_ms)}
         kwargs: dict[str, Any] = {
             "language": self.settings.source_lang,
             "task": "transcribe",
@@ -197,9 +181,7 @@ class STTEngine:
                 temperature=temperature,
                 clip_timestamps=[{"start": start, "end": end}],
             )
-            candidates.extend(
-                self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0])
-            )
+            candidates.extend(self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0]))
         if candidates and not all(self._is_suspicious(segment) for segment in candidates):
             return candidates
 
@@ -208,9 +190,7 @@ class STTEngine:
             temperature=temperatures[-1] if temperatures else 0,
             clip_timestamps=[{"start": start, "end": end}],
         )
-        candidates.extend(
-            self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0])
-        )
+        candidates.extend(self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0]))
         return candidates
 
     def _is_suspicious(self, segment: Any) -> bool:
@@ -262,9 +242,7 @@ class STTEngine:
             condition_on_previous_text=self.settings.whisper_condition_on_previous_text,
             temperature=0,
         )
-        segments = self._collect_segments(
-            self.model.transcribe(str(media_path), **kwargs)[0]
-        )
+        segments = self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0])
         result: list[dict[str, Any]] = []
         recovered = 0
         suspicious = 0
