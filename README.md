@@ -52,7 +52,7 @@ No es un editor audiovisual interactivo ni sustituye la revisión humana de trad
 
 ## Inicio rápido
 
-Consulta [`docs/INSTALLATION.md`](docs/INSTALLATION.md) para instalar dependencias y preparar el entorno.
+Consulta `docs/INSTALLATION.md` para instalar dependencias y preparar el entorno.
 
 ```bash
 python main.py doctor
@@ -82,7 +82,7 @@ TRANSLATION_PROVIDER=local
 TRANSLATION_FALLBACK_PROVIDERS=deepl,mymemory
 ```
 
-El modelo y su revisión están fijados por el proyecto. La aplicación valida los ficheros principales por tamaño y SHA-256 y valida estructuralmente los metadatos requeridos antes de cargarlo. Consulte [`docs/LOCAL_TRANSLATION.md`](docs/LOCAL_TRANSLATION.md) y [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+El modelo y su revisión están fijados por el proyecto. La aplicación valida los ficheros principales por tamaño y SHA-256 y valida estructuralmente los metadatos requeridos antes de cargarlo. Consulte `docs/LOCAL_TRANSLATION.md` y `THIRD_PARTY_NOTICES.md`.
 
 ## Wrappers locales
 
@@ -126,7 +126,7 @@ En Windows:
 
 La regeneración no es `resume` ni una recuperación selectiva. Localiza los resultados registrados, los aparta temporalmente mediante backup, fuerza el procesamiento desde la fuente a través de `MediaPipeline` y elimina los backups anteriores únicamente después de completar correctamente la regeneración. La fuente original se conserva. Si el procesamiento falla, los backups se restauran cuando el backend permite la operación de rename.
 
-Consulta [`docs/REGENERATION.md`](docs/REGENERATION.md) para las garantías y limitaciones específicas de local, Google Drive y rclone.
+Consulta `docs/REGENERATION.md` para las garantías y limitaciones específicas de local, Google Drive y rclone.
 
 ## Naming de vídeos
 
@@ -135,10 +135,10 @@ El naming distingue explícitamente entre información lógica y representación
 La nomenclatura física canónica es:
 
 ```text
-<curso_o_contenedor>_<nombre_sanitizado>
+<curso_o_contenedor>x<nombre_sanitizado>
 ```
 
-`_` es el separador canónico tanto entre el ámbito/curso y el recurso como entre palabras. `-` no se utiliza como separador de palabras en nombres físicos generados. El antiguo separador de ámbito `x` se reconoce únicamente como formato legacy para poder migrar resultados existentes a `_`.
+`x` es el separador canónico entre bloques de ámbito/curso y recurso. Dentro de cada bloque, `_` es el separador canónico de palabras. `-` se normaliza a `_` cuando actúa como separador de palabras. La estructura lógica no debe recuperarse buscando cualquier `x` dentro del nombre: debe conservarse en metadata/manifest.
 
 La normalización física se aplica de forma centralizada en el límite de creación del recurso. Incluye, de forma determinista:
 
@@ -151,7 +151,7 @@ La normalización física se aplica de forma centralizada en el límite de creac
 - ajuste a los límites de componente/ruta del filesystem de destino;
 - detección de colisiones antes de sobrescribir y uso de una estrategia determinista cuando el flujo necesita reservar un nombre.
 
-Los nombres legacy con `x` entre bloques se analizan mediante la política de compatibilidad y se convierten a `_` cuando el destino canónico es inequívoco. La migración respeta colisiones y no sobrescribe silenciosamente un destino existente. La estructura lógica no debe recuperarse buscando cualquier `x` dentro del nombre: debe conservarse en metadata/manifest.
+Los nombres legacy que utilicen `x` como separador entre bloques se conservan como formato histórico y se analizan mediante la política de compatibilidad cuando sea necesario. La migración no debe confundir la `x` que forma parte de una palabra con el separador de bloques y respeta las colisiones sin sobrescribir silenciosamente un destino existente.
 
 La extracción ZIP aplica además validación de rutas absolutas/UNC, traversal, symlinks, nombres reservados y colisiones Unicode/case antes de escribir. El mismo contrato físico debe respetarse posteriormente en carpetas y artefactos generados (MP4/WebM/VTT), evitando que una entrada segura del ZIP produzca después un nombre físico inseguro.
 
@@ -167,7 +167,7 @@ python main.py reprocess-subtitles --all --translate-only
 python main.py reprocess-subtitles --all
 ```
 
-Consulta [`docs/SUBTITLES.md`](docs/SUBTITLES.md) y [`docs/RESUME.md`](docs/RESUME.md).
+Consulta `docs/SUBTITLES.md` y `docs/RESUME.md`.
 
 ## TTS
 
@@ -184,7 +184,7 @@ TTS_VOICES_PATH=tools/tts/voices-v1.0.bin
 
 La implementación local utiliza Kokoro mediante `kokoro-onnx`. Los extras TTS y los pesos del modelo deben instalarse/proporcionarse cuando TTS está habilitado.
 
-Consulta [`docs/TTS.md`](docs/TTS.md).
+Consulta `docs/TTS.md`.
 
 ## Concurrencia de vídeo
 
@@ -208,7 +208,7 @@ CLI / wrapper / ejecutable / scheduler
        local             Google Drive/rclone
 ```
 
-Consulta [`docs/STORAGE.md`](docs/STORAGE.md) y [`docs/SCHEDULING.md`](docs/SCHEDULING.md).
+Consulta `docs/STORAGE.md` y `docs/SCHEDULING.md`.
 
 ## Calidad
 
@@ -223,39 +223,39 @@ python -m build
 pip-audit
 ```
 
-La CI además comprueba packaging, entry points, seguridad y dependencias en Linux, Windows y macOS para Python 3.11, 3.12 y 3.13. Consulta [`docs/CI_CD.md`](docs/CI_CD.md).
+La CI además comprueba packaging, entry points, seguridad y dependencias en Linux, Windows y macOS para Python 3.11, 3.12 y 3.13. Consulta `docs/CI_CD.md`.
 
 ## Documentación canónica
 
 | Documento | Propósito |
 |---|---|
-| [`docs/PROJECT.md`](docs/PROJECT.md) | Propósito y alcance |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Arquitectura y componentes |
-| [`docs/USE_CASES.md`](docs/USE_CASES.md) | Casos de uso soportados |
-| [`docs/PIPELINE.md`](docs/PIPELINE.md) | Flujo de procesamiento |
-| [`docs/INSTALLATION.md`](docs/INSTALLATION.md) | Instalación y puesta en marcha |
-| [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) | Configuración |
-| [`docs/CLI.md`](docs/CLI.md) | CLI |
-| [`docs/STT.md`](docs/STT.md) | Transcripción |
-| [`docs/SUBTITLES.md`](docs/SUBTITLES.md) | VTT, QA y reparación |
-| [`docs/TRANSLATION.md`](docs/TRANSLATION.md) | Traducción |
-| [`docs/TRANSLATION_PROVIDERS.md`](docs/TRANSLATION_PROVIDERS.md) | Proveedores y límites del cliente |
-| [`docs/TTS.md`](docs/TTS.md) | TTS sincronizado |
-| [`docs/STORAGE.md`](docs/STORAGE.md) | Almacenamiento |
-| [`docs/RESUME.md`](docs/RESUME.md) | Resume e idempotencia |
-| [`docs/DEDUPLICATION.md`](docs/DEDUPLICATION.md) | Deduplicación |
-| [`docs/SCHEDULING.md`](docs/SCHEDULING.md) | Ejecución programada |
-| [`docs/PACKAGING.md`](docs/PACKAGING.md) | Empaquetado |
-| [`docs/SECURITY.md`](docs/SECURITY.md) | Seguridad |
-| [`docs/TESTING.md`](docs/TESTING.md) | Tests |
-| [`docs/CI_CD.md`](docs/CI_CD.md) | Integración continua |
-| [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Desarrollo |
-| [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) | Diagnóstico |
-| [`docs/RELEASES.md`](docs/RELEASES.md) | Releases y versionado |
-| [`docs/REGENERATION.md`](docs/REGENERATION.md) | Regeneración completa desde la fuente |
-| [`docs/LOCAL_TRANSLATION.md`](docs/LOCAL_TRANSLATION.md) | Traducción local offline |
-| [`docs/CUDA.md`](docs/CUDA.md) | Runtime NVIDIA/CUDA |
-| [`docs/UNINSTALLATION.md`](docs/UNINSTALLATION.md) | Limpieza y desinstalación |
+| `docs/PROJECT.md` | Propósito y alcance |
+| `docs/ARCHITECTURE.md` | Arquitectura y componentes |
+| `docs/USE_CASES.md` | Casos de uso soportados |
+| `docs/PIPELINE.md` | Flujo de procesamiento |
+| `docs/INSTALLATION.md` | Instalación y puesta en marcha |
+| `docs/CONFIGURATION.md` | Configuración |
+| `docs/CLI.md` | CLI |
+| `docs/STT.md` | Transcripción |
+| `docs/SUBTITLES.md` | VTT, QA y reparación |
+| `docs/TRANSLATION.md` | Traducción |
+| `docs/TRANSLATION_PROVIDERS.md` | Proveedores y límites del cliente |
+| `docs/TTS.md` | TTS sincronizado |
+| `docs/STORAGE.md` | Almacenamiento |
+| `docs/RESUME.md` | Resume e idempotencia |
+| `docs/DEDUPLICATION.md` | Deduplicación |
+| `docs/SCHEDULING.md` | Ejecución programada |
+| `docs/PACKAGING.md` | Empaquetado |
+| `docs/SECURITY.md` | Seguridad |
+| `docs/TESTING.md` | Tests |
+| `docs/CI_CD.md` | Integración continua |
+| `docs/DEVELOPMENT.md` | Desarrollo |
+| `docs/TROUBLESHOOTING.md` | Diagnóstico |
+| `docs/RELEASES.md` | Releases y versionado |
+| `docs/REGENERATION.md` | Regeneración completa desde la fuente |
+| `docs/LOCAL_TRANSLATION.md` | Traducción local offline |
+| `docs/CUDA.md` | Runtime NVIDIA/CUDA |
+| `docs/UNINSTALLATION.md` | Limpieza y desinstalación |
 
 Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` y `VERSIONING.md` se mantienen por compatibilidad de navegación; los documentos anteriores son la referencia canónica para cada tema.
 
@@ -269,6 +269,6 @@ No se modifica el historial de releases anteriores.
 
 ## Seguridad y licencias
 
-El proyecto es **Resource-Available**, no Open Source. Consulta [`LICENSE`](LICENSE) para los permisos y restricciones del código del proyecto. Se permite revisar el código y mantener forks para revisión/evaluación/desarrollo privado, pero no distribuir forks modificados ni usar/comercializar el código o derivados sin autorización escrita del titular.
+El proyecto es **Resource-Available**, no Open Source. Consulta `LICENSE` para los permisos y restricciones del código del proyecto. Se permite revisar el código y mantener forks para revisión/evaluación/desarrollo privado, pero no distribuir forks modificados ni usar/comercializar el código o derivados sin autorización escrita del titular.
 
-Los modelos, pesos, voces y demás componentes de terceros mantienen sus propias licencias. [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) se mantiene como documento de atribuciones de terceros y no constituye la licencia del proyecto.
+Los modelos, pesos, voces y demás componentes de terceros mantienen sus propias licencias. `THIRD_PARTY_NOTICES.md` se mantiene como documento de atribuciones de terceros y no constituye la licencia del proyecto.
