@@ -40,8 +40,6 @@ def test_local_storage_retains_successful_source_and_records_sha256(tmp_path: Pa
     source = input_dir / "curso37.zip"
     source.write_bytes(b"same-content")
 
-    # El provider usa rutas relativas al proyecto real; para esta prueba solo
-    # verificamos la lógica de registro de forma aislada en un registry local.
     from src.storage.processed_registry import ProcessedRegistry, sha256_file
 
     registry = ProcessedRegistry(storage_root / "state" / "processed.jsonl")
@@ -51,7 +49,7 @@ def test_local_storage_retains_successful_source_and_records_sha256(tmp_path: Pa
         sha256=digest,
         size=source.stat().st_size,
         archive_name=f"{source.stem}__{digest[:16]}.zip",
-        output_folders=["37x02_OPT_DE_TAICH_LA_GRAN_RUEDA"],
+        output_folders=["37_02_OPT_DE_TAICH_LA_GRAN_RUEDA"],
     )
 
     assert registry.contains_success(source.name, digest)
@@ -59,13 +57,9 @@ def test_local_storage_retains_successful_source_and_records_sha256(tmp_path: Pa
 
 
 def test_finalize_source_is_idempotent_when_source_was_removed(tmp_path: Path, monkeypatch):
-    from src.storage.local import LocalStorageProvider
-
     provider = LocalStorageProvider(retain_sources=True, input_min_age_seconds=0)
     missing = tmp_path / "missing.zip"
     file = type("StorageFileLike", (), {"id": str(missing), "name": missing.name})()
-
-    # Should not raise if the source disappears before finalization.
     provider.finalize_source(file, "success", [])
 
 
@@ -74,7 +68,6 @@ def test_finalize_source_handles_race_during_fingerprint(tmp_path: Path, monkeyp
     source = tmp_path / "race.zip"
     source.write_bytes(b"content")
     file = type("StorageFileLike", (), {"id": str(source), "name": source.name})()
-
     original = provider.source_fingerprint
 
     def disappear(_file):
@@ -97,11 +90,11 @@ def test_local_output_name_migration_normalizes_legacy_unicode_names(tmp_path: P
     provider = LocalStorageProvider(retain_sources=False, input_min_age_seconds=0)
     provider.normalize_existing_output_names(str(output), "original_transcriptions")
 
-    normalized = output / "37x02_Tema_n"
+    normalized = output / "37_02_Tema_n"
     assert normalized.is_dir()
-    assert (normalized / "37x02_Tema_n.mp4").is_file()
-    assert (normalized / "37x02_Tema_n_en.vtt").is_file()
-    assert (normalized / "original_transcriptions" / "37x02_Tema_n_original.vtt").is_file()
+    assert (normalized / "37_02_Tema_n.mp4").is_file()
+    assert (normalized / "37_02_Tema_n_en.vtt").is_file()
+    assert (normalized / "original_transcriptions" / "37_02_Tema_n_original.vtt").is_file()
     assert not legacy.exists()
 
 
@@ -109,13 +102,9 @@ def test_normalize_existing_outputs_fits_old_long_names(tmp_path: Path, monkeypa
     from config import settings as settings_module
     from src import path_limits
     from src.path_limits import FileSystemLimits
-    from src.storage.local import LocalStorageProvider
 
     monkeypatch.setattr(settings_module, "BASE_DIR", tmp_path)
     monkeypatch.setattr(settings_module, "STORAGE_DIR", tmp_path / "storage")
-    # Simulate a conservative Windows filesystem limit without creating an
-    # OS-invalid fixture. Keep the fixture ASCII so Windows and POSIX measure
-    # the same component length for this test.
     monkeypatch.setattr(
         path_limits,
         "get_filesystem_limits",
@@ -156,8 +145,8 @@ def test_local_storage_rename_output_folder_updates_artifact_stems(tmp_path: Pat
     provider = LocalStorageProvider(retain_sources=False, input_min_age_seconds=0)
     mapping = provider.rename_output_folder(str(output), "Tema_viejo", "37x02_Tema_nuevo", "original_transcriptions")
 
-    assert mapping == {"Tema_viejo": "37x02_Tema_nuevo"}
-    assert (output / "37x02_Tema_nuevo" / "37x02_Tema_nuevo.mp4").is_file()
-    assert (output / "37x02_Tema_nuevo" / "37x02_Tema_nuevo.webm").is_file()
-    assert (output / "37x02_Tema_nuevo" / "37x02_Tema_nuevo_en.vtt").is_file()
-    assert (output / "37x02_Tema_nuevo" / "original_transcriptions" / "37x02_Tema_nuevo_original.vtt").is_file()
+    assert mapping == {"Tema_viejo": "37_02_Tema_nuevo"}
+    assert (output / "37_02_Tema_nuevo" / "37_02_Tema_nuevo.mp4").is_file()
+    assert (output / "37_02_Tema_nuevo" / "37_02_Tema_nuevo.webm").is_file()
+    assert (output / "37_02_Tema_nuevo" / "37_02_Tema_nuevo_en.vtt").is_file()
+    assert (output / "37_02_Tema_nuevo" / "original_transcriptions" / "37_02_Tema_nuevo_original.vtt").is_file()
