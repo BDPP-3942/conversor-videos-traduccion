@@ -94,18 +94,17 @@ def suspicious_reasons(
     thresholds: STTQualityThresholds,
 ) -> tuple[str, ...]:
     reasons: list[str] = []
-    if (
+    if metrics.word_count == 0:
+        reasons.append("empty")
+
+    repetition = (
         metrics.word_count >= thresholds.min_repetition_words
         and metrics.repetition_score >= thresholds.repetition_threshold
-    ):
-        reasons.append("repetition")
-
-    if (
+    )
+    compression = (
         metrics.compression_ratio is not None
         and metrics.compression_ratio > thresholds.compression_ratio_threshold
-    ):
-        reasons.append("compression")
-
+    )
     low_probability = (
         metrics.avg_logprob is not None
         and metrics.avg_logprob < thresholds.log_prob_threshold
@@ -114,18 +113,22 @@ def suspicious_reasons(
         metrics.no_speech_prob is not None
         and metrics.no_speech_prob > thresholds.no_speech_threshold
     )
+
+    if repetition:
+        reasons.append("repetition")
+    if compression:
+        reasons.append("compression")
     if low_probability:
         reasons.append("low_logprob")
-    if high_no_speech and low_probability:
+    if high_no_speech and (low_probability or repetition or compression):
         reasons.append("no_speech")
-
     return tuple(reasons)
 
 
 def candidate_key(
     segment: Any,
     thresholds: STTQualityThresholds,
-) -> tuple[bool, float, float, float, float, float]:
+) -> tuple[bool, int, float, float, float, float, float]:
     metrics = quality_metrics(segment)
     reasons = suspicious_reasons(metrics, thresholds)
     compression_excess = max(
@@ -134,7 +137,8 @@ def candidate_key(
     )
     logprob_deficit = max(
         0.0,
-        thresholds.log_prob_threshold - (metrics.avg_logprob or thresholds.log_prob_threshold),
+        thresholds.log_prob_threshold
+        - (metrics.avg_logprob or thresholds.log_prob_threshold),
     )
     no_speech_excess = max(
         0.0,
@@ -142,6 +146,7 @@ def candidate_key(
     )
     return (
         bool(reasons),
+        len(reasons),
         metrics.repetition_score,
         compression_excess,
         logprob_deficit,
