@@ -91,15 +91,13 @@ Do not commit `.env`, credentials, provider profiles or model weights.
 
 The naming policy is part of the application core rather than an installation option. It separates logical course/resource metadata from physical filesystem names.
 
-The canonical physical form is:
+The physical form is:
 
 ```text
-<curso_o_contenedor>_<nombre_sanitizado>
+<curso_o_contenedor>x<nombre_sanitizado>
 ```
 
-`_` is the canonical separator between scope blocks and between words. Hyphens, whitespace and other incompatible separators are normalized to `_`; accents and unsafe filesystem characters are normalized as part of the physical-name boundary. The historical `x` scope separator is accepted only as legacy input and is migrated to `_` when existing output-name normalization is enabled.
-
-The `normalize_legacy_names` workflow setting controls migration of already existing output names. Migration preserves content and does not overwrite an existing canonical destination. If a canonical target already exists, the legacy item is left untouched and a warning is logged.
+`x` is the scope separator and `_` is the word separator. Physical names normalize whitespace and separator hyphens, incompatible punctuation and controls, Unicode diacritics, Windows reserved names and filesystem length. Existing output migration is controlled by the current `normalize_legacy_names` workflow setting and is designed to preserve content while moving only the affected output paths.
 
 ## Runtime directories
 
