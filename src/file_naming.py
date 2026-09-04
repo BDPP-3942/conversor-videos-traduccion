@@ -51,15 +51,30 @@ class FileNameFormatter:
         ),
         re.compile(r"^\s*(\d{1,4})\s*(?:º|°|[._-])\s*", re.IGNORECASE),
     )
-    COURSE_TEXT_PATTERNS = (re.compile(r"\b(?:curso|course)\s*[:\-–—.]?\s*([^|/\\]+)", re.IGNORECASE),)
+    COURSE_TEXT_PATTERNS = (
+        re.compile(
+            r"\b(?:curso|course)\s*[:\-–—.]?\s*([^|/\\]+)",
+            re.IGNORECASE,
+        ),
+    )
     LESSON_TEXT_PATTERNS = (
-        re.compile(r"\b(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)\s*[:\-–—.]?\s*([^|/\\]+)", re.IGNORECASE),
+        re.compile(
+            r"\b(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)"
+            r"\s*[:\-–—.]?\s*([^|/\\]+)",
+            re.IGNORECASE,
+        ),
     )
     NOISE_PATTERNS = (
         re.compile(r"^wetransfer[_\-]+", re.IGNORECASE),
         re.compile(r"^drive-download[-_][0-9tz\-]+(?:[-_]\d+[-_]\d+)?[-_]", re.IGNORECASE),
-        re.compile(r"^(?:zip|rar|7z|archive|compressed|compression|backup|download|descarga)[-_ ]+", re.IGNORECASE),
-        re.compile(r"^(?:extract(?:ed)?|unzip(?:ped)?|descomprim(?:ido|ida|idos|idas))[-_ ]+", re.IGNORECASE),
+        re.compile(
+            r"^(?:zip|rar|7z|archive|compressed|compression|backup|download|descarga)[-_ ]+",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"^(?:extract(?:ed)?|unzip(?:ped)?|descomprim(?:ido|ida|idos|idas))[-_ ]+",
+            re.IGNORECASE,
+        ),
         re.compile(r"^files?[-_ ]+(?:from|de)[-_ ]+", re.IGNORECASE),
         re.compile(r"\s*\((?:copy|copia|\d+)\)\s*$", re.IGNORECASE),
         re.compile(r"[_\-]+copy\s*$", re.IGNORECASE),
@@ -80,7 +95,12 @@ class FileNameFormatter:
         match = cls.LANGUAGE_PATTERN.search(path.name)
         if not match:
             return FileNameInfo(path.name, path.stem, path.suffix.lower())
-        return FileNameInfo(path.name, path.stem[: match.start()], path.suffix.lower(), match.group("language").lower())
+        return FileNameInfo(
+            path.name,
+            path.stem[: match.start()],
+            path.suffix.lower(),
+            match.group("language").lower(),
+        )
 
     @classmethod
     def generate_vtt_name(cls, video_filename: str, target_language: str) -> str:
@@ -149,7 +169,15 @@ class FileNameFormatter:
         return None
 
     @classmethod
-    def _build_description(cls, stem: str, *, course: int | None, lesson: int | None, course_name: str | None, lesson_name: str | None) -> str:
+    def _build_description(
+        cls,
+        stem: str,
+        *,
+        course: int | None,
+        lesson: int | None,
+        course_name: str | None,
+        lesson_name: str | None,
+    ) -> str:
         value = stem
         if course is not None:
             value = cls._remove_number(value, course)
@@ -164,7 +192,10 @@ class FileNameFormatter:
 
     @classmethod
     def _remove_number(cls, value: str, number: int) -> str:
-        patterns = (re.compile(rf"(?<!\d){number:02d}(?!\d)"), re.compile(rf"(?<!\d){number}(?!\d)"))
+        patterns = (
+            re.compile(rf"(?<!\d){number:02d}(?!\d)"),
+            re.compile(rf"(?<!\d){number}(?!\d)"),
+        )
         for pattern in patterns:
             if pattern.search(value):
                 return pattern.sub("_", value, count=1)
@@ -172,7 +203,13 @@ class FileNameFormatter:
 
     @staticmethod
     def _remove_label(value: str) -> str:
-        return re.sub(r"(?:^|[_\- .])(?:curso|course|lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)(?=[_\- .]|$)", "_", value, flags=re.IGNORECASE)
+        return re.sub(
+            r"(?:^|[_\- .])(?:curso|course|lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)"
+            r"(?=[_\- .]|$)",
+            "_",
+            value,
+            flags=re.IGNORECASE,
+        )
 
     @classmethod
     def _clean_context(cls, value: str) -> str:
@@ -219,10 +256,14 @@ def strip_date_artifacts(value: str) -> str:
 
 
 def clean_for_filename(value: str) -> str:
-    """Normalize a logical/physical name with deterministic, cross-platform separators."""
+    """Normalize a block name using underscore word separators."""
     normalized = unicodedata.normalize("NFKD", value)
     normalized = "".join(char for char in normalized if not unicodedata.combining(char))
-    normalized = re.sub(r"[<>:\"/\\|?*()\[\]{}'“”‘’`´,;!¡¿@#$%^&=+~\x00-\x1f]", "_", normalized)
+    normalized = re.sub(
+        r"[<>:\"/\\|?*()\[\]{}'“”‘’`´,;!¡¿@#$%^&=+~\x00-\x1f]",
+        "_",
+        normalized,
+    )
     normalized = re.sub(r"[\s\-_.—–−‒―]+", "_", normalized)
     return normalized.strip("_.-")
 
@@ -242,8 +283,10 @@ def normalize_filename(filename: str) -> str:
 
 
 def normalize_component(value: str) -> str:
-    """Return the physical filesystem-safe form of a generated component."""
-    return safe_filesystem_component(_sanitize_text(value))
+    """Normalize words while preserving the canonical x block separator."""
+    blocks = value.split("x")
+    normalized = "x".join(_sanitize_text(block) for block in blocks)
+    return safe_filesystem_component(normalized)
 
 
 def normalize_comparison_key(filename: str) -> str:
@@ -270,7 +313,12 @@ def normalized_name_similarity(left: str, right: str) -> float:
     return 0.65 * sequence_score + 0.35 * token_score
 
 
-def fit_output_stem(stem: str, parent: Path, unique_suffix: str | None = None, reserve_suffixes: tuple[str, ...] = ()) -> str:
+def fit_output_stem(
+    stem: str,
+    parent: Path,
+    unique_suffix: str | None = None,
+    reserve_suffixes: tuple[str, ...] = (),
+) -> str:
     """Sanitize and fit a generated output stem to the host filesystem."""
     physical_stem = normalize_component(stem)
     suffix = f"__{unique_suffix}" if unique_suffix else ""
