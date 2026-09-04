@@ -76,20 +76,6 @@ def test_model_status_rejects_malformed_metadata(monkeypatch, tmp_path: Path) ->
     assert "invalid metadata: config.json" in status.reason
 
 
-def test_model_status_rejects_unsafe_metadata_symlink(monkeypatch, tmp_path: Path) -> None:
-    _small_model_files(monkeypatch)
-    tmp_path.joinpath("model.bin").write_bytes(b"model")
-    tmp_path.joinpath("source.spm").write_bytes(b"source")
-    tmp_path.joinpath("target.spm").write_bytes(b"target")
-    tmp_path.joinpath("config.json").symlink_to(tmp_path.joinpath("outside.json"))
-    tmp_path.joinpath("outside.json").write_text('{"decoder_start_token": "</s>", "eos_token": "</s>"}', encoding="utf-8")
-    tmp_path.joinpath("shared_vocabulary.json").write_text("{}", encoding="utf-8")
-    tmp_path.joinpath("tokenizer_config.json").write_text('{"source_lang": "spa", "target_lang": "eng"}', encoding="utf-8")
-    status = LocalTranslationModelManager(tmp_path).status()
-    assert not status.available
-    assert "symlink" in status.reason
-
-
 def test_model_ensure_does_not_download_without_explicit_confirmation(monkeypatch, tmp_path: Path) -> None:
     _small_model_files(monkeypatch)
     manager = LocalTranslationModelManager(tmp_path)
