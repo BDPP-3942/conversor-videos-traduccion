@@ -97,10 +97,22 @@ def suspicious_reasons(
     if metrics.word_count == 0:
         reasons.append("empty")
 
-    repetition = metrics.word_count >= thresholds.min_repetition_words and metrics.repetition_score >= thresholds.repetition_threshold
-    compression = metrics.compression_ratio is not None and metrics.compression_ratio > thresholds.compression_ratio_threshold
-    low_probability = metrics.avg_logprob is not None and metrics.avg_logprob < thresholds.log_prob_threshold
-    high_no_speech = metrics.no_speech_prob is not None and metrics.no_speech_prob > thresholds.no_speech_threshold
+    repetition = (
+        metrics.word_count >= thresholds.min_repetition_words
+        and metrics.repetition_score >= thresholds.repetition_threshold
+    )
+    compression = (
+        metrics.compression_ratio is not None
+        and metrics.compression_ratio > thresholds.compression_ratio_threshold
+    )
+    low_probability = (
+        metrics.avg_logprob is not None
+        and metrics.avg_logprob < thresholds.log_prob_threshold
+    )
+    high_no_speech = (
+        metrics.no_speech_prob is not None
+        and metrics.no_speech_prob > thresholds.no_speech_threshold
+    )
 
     if repetition:
         reasons.append("repetition")
@@ -125,7 +137,8 @@ def candidate_key(
     )
     logprob_deficit = max(
         0.0,
-        thresholds.log_prob_threshold - (metrics.avg_logprob or thresholds.log_prob_threshold),
+        thresholds.log_prob_threshold
+        - (metrics.avg_logprob or thresholds.log_prob_threshold),
     )
     no_speech_excess = max(
         0.0,
