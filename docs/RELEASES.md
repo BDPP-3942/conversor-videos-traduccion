@@ -26,7 +26,7 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 | Integración de regeneración en wrappers locales | `1.4.1` |
 | Wrappers multiplataforma, naming de referencia y contexto externo de Whisper | `1.5.0` |
 | Endurecimiento ZIP/filesystem multiplataforma | `1.5.1` |
-| Traducción local opcional y endurecimiento GPU/runtime | `1.5.2` |
+| Traducción local opcional, recuperación STT configurable y endurecimiento GPU/runtime | `1.6.0` |
 
 ## Releases publicadas
 
@@ -111,13 +111,13 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 
 **Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
 
-## Candidata 1.5.2
+## Candidata 1.6.0
 
 ### Alcance
 
-**Tipo:** `PATCH`.
+**Tipo:** `MINOR`.
 
-La candidata 1.5.2 añade traducción local opcional español→inglés mediante CTranslate2 + SentencePiece, endurece la selección GPU/CPU y hace reproducible la preparación de recursos locales. No requiere NVIDIA/CUDA/Internet/Ollama/LM Studio para una ejecución CPU local una vez preparados los recursos necesarios.
+La candidata 1.6.0 añade funcionalidad compatible hacia atrás: traducción local opcional español→inglés mediante CTranslate2 + SentencePiece, endurecimiento de la selección GPU/CPU, preparación reproducible de recursos locales y recuperación configurable de segmentos STT sospechosos. También incorpora el endurecimiento ZIP/filesystem de 1.5.1 como baseline.
 
 ### Cambios
 
@@ -129,16 +129,20 @@ La candidata 1.5.2 añade traducción local opcional español→inglés mediante
 - Detección NVIDIA condicionada a capacidad real de CTranslate2.
 - Fallback CPU `int8` cuando CUDA no puede validarse.
 - Runtime NVIDIA gestionado bajo `tools/cuda/` con cuBLAS CUDA 12 y cuDNN 9.
-- Recuperación selectiva de segmentos STT sospechosos.
+- Recuperación selectiva de segmentos STT sospechosos mediante rondas de recuperación limitadas.
 - Endurecimiento ZIP/filesystem heredado de 1.5.1.
 
 ### Configuración
 
 La configuración general sigue en `config/app.toml` con overrides de entorno. La configuración específica de traducción local usa exclusivamente `LOCAL_TRANSLATION_*`; no existe una sección `[local_translation]` duplicada en TOML.
 
-### Estado
+### Validación
 
-La candidata no se considera publicada hasta que el SHA final tenga CI y Release Gate satisfactorios. El tag `v1.5.2` se creará únicamente después del merge y sobre el SHA exacto resultante de `main`. No se declara ningún benchmark GPU ni prueba A/B de un MP4 externo que no esté disponible en el repositorio.
+La candidata final pre-merge tiene CI y Release Gate satisfactorios sobre su SHA exacto, incluyendo Linux, Windows y macOS con Python 3.11–3.13, tests, lint/security/format, compile, audits, packaging, instalación limpia, `pip check` y entry points.
+
+No se declara ningún benchmark GPU ni prueba A/B de un MP4 externo que no esté disponible y registrado.
+
+El tag `v1.6.0` se creará únicamente después del merge y sobre el SHA exacto resultante de `main`.
 
 ## Política de tags
 
