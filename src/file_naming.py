@@ -83,9 +83,27 @@ class FileNameFormatter:
         re.compile(r"[_\-]+copy\s*$", re.IGNORECASE),
     )
     GENERIC_TOKENS = {
-        "mp4", "wmv", "video", "videos", "audio", "media", "file", "files", "archivo", "archivos",
-        "download", "downloads", "descarga", "descargas", "compressed", "compression", "archive",
-        "archivo_comprimido", "zip", "rar", "7z",
+        "mp4",
+        "wmv",
+        "video",
+        "videos",
+        "audio",
+        "media",
+        "file",
+        "files",
+        "archivo",
+        "archivos",
+        "download",
+        "downloads",
+        "descarga",
+        "descargas",
+        "compressed",
+        "compression",
+        "archive",
+        "archivo_comprimido",
+        "zip",
+        "rar",
+        "7z",
     }
     FILENAME_ARTIFACT_PATTERN = re.compile(
         r"(?:^|[_\- .])(?:\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?)(?:[_\- .]|$)", re.IGNORECASE
@@ -116,6 +134,7 @@ class FileNameFormatter:
     @classmethod
     def resolve_source_metadata(cls, source: Path, extract_root: Path) -> SourceNameMetadata:
         from src.naming_policy import resolve
+
         return resolve(source, extract_root)
 
     @classmethod
@@ -326,6 +345,7 @@ def fit_output_stem(
     if not reserve_suffixes:
         return candidate
     from src.path_limits import get_filesystem_limits
+
     limits = get_filesystem_limits(parent)
     max_component = max(1, limits.max_component)
     extra = max((len(item.encode("utf-8")) for item in reserve_suffixes), default=0)
