@@ -19,6 +19,7 @@ _ORDINAL_MARKER = re.compile(
 _ARCHIVE_ORDINAL = re.compile(r"(?<=\d)o(?=[-_ ])", re.IGNORECASE)
 _COURSE_PREFIX = re.compile(r"^curso(\d{1,4})(?:[_-](.*))?$", re.IGNORECASE)
 _PARENS = re.compile(r"[()]", re.UNICODE)
+_LEADING_NUMBER_SEPARATOR = re.compile(r"^(\d{1,4})[_-]+(?=[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])")
 
 
 def _reference_archive_root(name: str) -> bool:
@@ -52,7 +53,8 @@ def _source_label(name: str) -> str:
         "_",
         stem,
     )
-    return clean_for_filename(stem)
+    normalized = clean_for_filename(stem)
+    return _LEADING_NUMBER_SEPARATOR.sub(r"\1", normalized)
 
 
 def expected_output_stem(source: Path, extract_root: Path) -> str:
