@@ -35,7 +35,9 @@ El VTT original es la fuente de verdad temporal. La traducción conserva `start/
 - STT con Whisper/faster-whisper y segmentación basada en silencios.
 - Prompt inicial de Whisper mediante texto literal o archivos `txt`, `md`, `csv` y `docx`.
 - Validación final de intervalos después de la segmentación.
-- Traducción con proveedores configurables y fallback.
+- Recuperación limitada de segmentos STT sospechosos mediante una política configurable.
+- Traducción con proveedores configurables y fallback, incluido proveedor local opcional.
+- Traducción local offline español→inglés mediante CTranslate2 + SentencePiece una vez preparado el modelo fijado.
 - VTT, diagnóstico y recuperación de resultados existentes.
 - TTS opcional sincronizado con el VTT traducido y validado.
 - MP4 TTS y WebM TTS opcional.
@@ -63,6 +65,24 @@ Para operación desatendida:
 ```bash
 python main.py run --scheduled
 ```
+
+## Traducción local offline
+
+La release 1.6.0 incorpora un proveedor opcional español→inglés basado en CTranslate2 + SentencePiece. El modelo no se descarga automáticamente por defecto: debe prepararse explícitamente.
+
+```bash
+python scripts/manage_local_translation.py status
+python scripts/manage_local_translation.py download
+```
+
+Después de preparar el modelo, puede seleccionarse con:
+
+```dotenv
+TRANSLATION_PROVIDER=local
+TRANSLATION_FALLBACK_PROVIDERS=deepl,mymemory
+```
+
+El modelo y su revisión están fijados por el proyecto. La aplicación valida los ficheros principales por tamaño y SHA-256 y valida estructuralmente los metadatos requeridos antes de cargarlo. Consulte [`docs/LOCAL_TRANSLATION.md`](docs/LOCAL_TRANSLATION.md) y [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 ## Wrappers locales
 
@@ -231,12 +251,15 @@ La CI además comprueba packaging, entry points, seguridad y dependencias en Lin
 | [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) | Diagnóstico |
 | [`docs/RELEASES.md`](docs/RELEASES.md) | Releases y versionado |
 | [`docs/REGENERATION.md`](docs/REGENERATION.md) | Regeneración completa desde la fuente |
+| [`docs/LOCAL_TRANSLATION.md`](docs/LOCAL_TRANSLATION.md) | Traducción local offline |
+| [`docs/CUDA.md`](docs/CUDA.md) | Runtime NVIDIA/CUDA |
+| [`docs/UNINSTALLATION.md`](docs/UNINSTALLATION.md) | Limpieza y desinstalación |
 
 Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` y `VERSIONING.md` se mantienen por compatibilidad de navegación; los documentos anteriores son la referencia canónica para cada tema.
 
 ## Versionado
 
-La release publicada actual es `1.5.1` (`v1.5.1`). La candidata `1.5.2` corresponde al trabajo de traducción local y endurecimiento del runtime GPU/CPU y no se considera publicada hasta que exista un tag/release verificable.
+La release publicada actual es `1.5.1` (`v1.5.1`). La candidata de próxima release es **`1.6.0` (`v1.6.0`)** y no se considera publicada hasta que exista un tag/release verificable sobre el SHA resultante de `main`.
 
 La release `1.5.1` corresponde al endurecimiento de extracción ZIP y componentes de filesystem multiplataforma. El tag `v1.5.1` apunta al commit `06ee8d265b57214596f079f3bb426b9b27042b1e`.
 
