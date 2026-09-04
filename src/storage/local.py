@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from config.settings import resolve_project_path
-from src.file_naming import canonicalize_output_stem, normalize_component
+from src.file_naming import normalize_component
 from src.path_limits import fit_component
 from src.storage.base import StorageFile, StorageProvider
 from src.storage.processed_registry import ProcessedRegistry, sha256_file
@@ -87,14 +87,13 @@ class LocalStorageProvider(StorageProvider):
     ) -> dict[str, str]:
         root = self._folder(target)
         old = root / old_name
-        canonical_name = canonicalize_output_stem(new_name)
-        new = root / canonical_name
+        new = root / new_name
         if not old.is_dir():
             return {}
         if new.exists() and new != old:
             raise FileExistsError(f"Output target already exists: {new}")
         old.rename(new)
-        mapping = {old_name: canonical_name}
+        mapping = {old_name: new_name}
         try:
             for child in sorted(new.iterdir(), key=lambda item: item.name.lower()):
                 if child.is_dir():
@@ -104,10 +103,7 @@ class LocalStorageProvider(StorageProvider):
                                 continue
                             desired = (
                                 fit_component(
-                                    normalize_component(
-                                        nested.stem.replace(old_name, canonical_name)
-                                    ),
-                                    child,
+                                    normalize_component(nested.stem.replace(old_name, new_name)), child
                                 )
                                 + nested.suffix.lower()
                             )
@@ -117,9 +113,9 @@ class LocalStorageProvider(StorageProvider):
                     continue
                 stem = child.stem
                 if stem.startswith(old_name):
-                    desired_stem = canonical_name + stem[len(old_name) :]
+                    desired_stem = new_name + stem[len(old_name) :]
                 else:
-                    desired_stem = canonicalize_output_stem(normalize_component(stem))
+                    desired_stem = normalize_component(stem)
                 desired = f"{fit_component(desired_stem, new)}{child.suffix.lower()}"
                 if desired != child.name and not (new / desired).exists():
                     child.rename(new / desired)
@@ -128,25 +124,19 @@ class LocalStorageProvider(StorageProvider):
         self._update_manifests_after_migration(root, mapping)
         return mapping
 
-    def normalize_existing_output_names(
-        self, target: str, original_transcript_subdir: str
-    ) -> dict[str, str]:
+    def normalize_existing_output_names(self, target: str, original_transcript_subdir: str) -> dict[str, str]:
         root = self._folder(target)
         mapping: dict[str, str] = {}
         for folder in sorted(root.iterdir(), key=lambda item: item.name.lower()):
             if not folder.is_dir() or folder.name == "_manifests":
                 continue
             old_rel = folder.relative_to(root).as_posix()
-            new_name = fit_component(
-                canonicalize_output_stem(normalize_component(folder.name)), root
-            )
+            new_name = fit_component(normalize_component(folder.name), root)
             if new_name != folder.name:
                 candidate = root / new_name
                 if candidate.exists():
                     logger.warning(
-                        "Cannot normalize output folder '%s' because '%s' already exists",
-                        folder.name,
-                        candidate.name,
+                        "Cannot normalize output folder '%s' because '%s' already exists", folder.name, candidate.name
                     )
                 else:
                     try:
@@ -154,20 +144,14 @@ class LocalStorageProvider(StorageProvider):
                         mapping[old_rel] = candidate.relative_to(root).as_posix()
                         folder = candidate
                     except FileNotFoundError:
-                        logger.warning(
-                            "Output folder disappeared during normalization: %s", folder
-                        )
+                        logger.warning("Output folder disappeared during normalization: %s", folder)
                         continue
             self._normalize_files_recursive(folder, root, original_transcript_subdir, mapping)
         self._update_manifests_after_migration(root, mapping)
         return mapping
 
     def _normalize_files_recursive(
-        self,
-        root: Path,
-        storage_root: Path,
-        original_transcript_subdir: str,
-        mapping: dict[str, str],
+        self, root: Path, storage_root: Path, original_transcript_subdir: str, mapping: dict[str, str]
     ) -> None:
         try:
             children = list(root.iterdir())
@@ -177,13 +161,9 @@ class LocalStorageProvider(StorageProvider):
             old_rel = child.relative_to(storage_root).as_posix()
             if child.is_dir():
                 if child.name == original_transcript_subdir:
-                    self._normalize_files_recursive(
-                        child, storage_root, original_transcript_subdir, mapping
-                    )
+                    self._normalize_files_recursive(child, storage_root, original_transcript_subdir, mapping)
                     continue
-                normalized = fit_component(
-                    canonicalize_output_stem(normalize_component(child.name)), child.parent
-                )
+                normalized = fit_component(normalize_component(child.name), child.parent)
                 if normalized != child.name:
                     target = child.with_name(normalized)
                     if not target.exists():
@@ -193,13 +173,9 @@ class LocalStorageProvider(StorageProvider):
                             child = target
                         except FileNotFoundError:
                             continue
-                self._normalize_files_recursive(
-                    child, storage_root, original_transcript_subdir, mapping
-                )
+                self._normalize_files_recursive(child, storage_root, original_transcript_subdir, mapping)
                 continue
-            normalized_stem = fit_component(
-                canonicalize_output_stem(normalize_component(child.stem)), child.parent
-            )
+            normalized_stem = fit_component(normalize_component(child.stem), child.parent)
             normalized_name = f"{normalized_stem}{child.suffix.lower()}"
             if normalized_name == child.name:
                 continue
@@ -239,7 +215,7 @@ class LocalStorageProvider(StorageProvider):
                         continue
                     candidate = output_dir / old_name
                     normalized_name = (
-                        f"{fit_component(canonicalize_output_stem(normalize_component(Path(old_name).stem)), output_dir)}"
+                        f"{fit_component(normalize_component(Path(old_name).stem), output_dir)}"
                         f"{Path(old_name).suffix.lower()}"
                     )
                     final_name = (
@@ -257,7 +233,7 @@ class LocalStorageProvider(StorageProvider):
                     original_dir = output_dir / "original_transcriptions"
                     candidate = original_dir / old_original
                     normalized_name = (
-                        f"{fit_component(canonicalize_output_stem(normalize_component(Path(old_original).stem)), original_dir)}"
+                        f"{fit_component(normalize_component(Path(old_original).stem), original_dir)}"
                         f"{Path(old_original).suffix.lower()}"
                     )
                     final_name = (
@@ -273,19 +249,13 @@ class LocalStorageProvider(StorageProvider):
                 relative_output = entry.get("output_relative_path")
                 if isinstance(relative_output, str):
                     output_name = str(entry.get("video", ""))
-                    new_relative = (
-                        f"{new_folder}/{output_name}" if output_name else relative_output
-                    )
+                    new_relative = f"{new_folder}/{output_name}" if output_name else relative_output
                     if new_relative != relative_output:
                         entry["output_relative_path"] = new_relative
                         changed = True
             if changed:
                 try:
-                    write_manifest(
-                        manifest,
-                        data.get("entries", []),
-                        metadata=data.get("metadata", {}),
-                    )
+                    write_manifest(manifest, data.get("entries", []), metadata=data.get("metadata", {}))
                 except OSError:
                     logger.warning("Could not update migrated manifest: %s", manifest)
 
@@ -298,9 +268,7 @@ class LocalStorageProvider(StorageProvider):
         registry = ProcessedRegistry(self._storage_root("storage/state") / "processed.jsonl")
         return registry.contains_success(file.name, str(fingerprint["sha256"]))
 
-    def finalize_source(
-        self, file: StorageFile, status: str, output_folders: list[str] | None = None
-    ) -> None:
+    def finalize_source(self, file: StorageFile, status: str, output_folders: list[str] | None = None) -> None:
         if status != "success" or not self.retain_sources:
             return
         source = Path(file.id).resolve()
