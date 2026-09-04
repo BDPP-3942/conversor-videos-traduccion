@@ -156,10 +156,10 @@ def test_local_storage_rename_output_folder_updates_artifact_stems(tmp_path: Pat
     (original / "Tema_viejo_original.vtt").write_text("WEBVTT\n", encoding="utf-8")
 
     provider = LocalStorageProvider(retain_sources=False, input_min_age_seconds=0)
-    mapping = provider.rename_output_folder(str(output), "Tema_viejo", "37x02_Tema_nuevo", "original_transcriptions")
+    mapping = provider.rename_output_folder(str(output), "Tema_viejo", "37x02_tema_nuevo", "original_transcriptions")
 
-    assert mapping == {"Tema_viejo": "37x02_Tema_nuevo"}
-    assert (output / "37x02_Tema_nuevo" / "37x02_Tema_nuevo.mp4").is_file()
-    assert (output / "37x02_Tema_nuevo" / "37x02_Tema_nuevo.webm").is_file()
-    assert (output / "37x02_Tema_nuevo" / "37x02_Tema_nuevo_en.vtt").is_file()
-    assert (output / "37x02_Tema_nuevo" / "original_transcriptions" / "37x02_Tema_nuevo_original.vtt").is_file()
+    assert mapping == {"Tema_viejo": "37x02_tema_nuevo"}
+    assert (output / "37x02_tema_nuevo" / "37x02_tema_nuevo.mp4").is_file()
+    assert (output / "37x02_tema_nuevo" / "37x02_tema_nuevo.webm").is_file()
+    assert (output / "37x02_tema_nuevo" / "37x02_tema_nuevo_en.vtt").is_file()
+    assert (output / "37x02_tema_nuevo" / "original_transcriptions" / "37x02_tema_nuevo_original.vtt").is_file()
