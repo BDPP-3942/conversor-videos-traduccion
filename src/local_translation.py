@@ -132,10 +132,7 @@ class LocalTranslationModelManager:
         )
         try:
             for name in (*MODEL_FILES, *SMALL_MODEL_FILES):
-                url = (
-                    f"https://huggingface.co/{MODEL_REPOSITORY}/resolve/"
-                    f"{MODEL_REVISION}/{name}?download=true"
-                )
+                url = f"https://huggingface.co/{MODEL_REPOSITORY}/resolve/{MODEL_REVISION}/{name}?download=true"
                 _download_file(url, temp_dir / name, MODEL_MAX_DOWNLOAD_BYTES)
             for name, (expected_hash, expected_size) in MODEL_FILES.items():
                 path = temp_dir / name
@@ -231,20 +228,28 @@ class LocalTranslationProvider:
         )
 
     def _resolve_runtime(self) -> tuple[str, str, int]:
-        requested_device = str(
-            getattr(
-                self.settings,
-                "local_translation_device",
-                os.getenv("LOCAL_TRANSLATION_DEVICE", "auto"),
+        requested_device = (
+            str(
+                getattr(
+                    self.settings,
+                    "local_translation_device",
+                    os.getenv("LOCAL_TRANSLATION_DEVICE", "auto"),
+                )
             )
-        ).lower().strip()
-        requested_compute = str(
-            getattr(
-                self.settings,
-                "local_translation_compute_type",
-                os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto"),
+            .lower()
+            .strip()
+        )
+        requested_compute = (
+            str(
+                getattr(
+                    self.settings,
+                    "local_translation_compute_type",
+                    os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto"),
+                )
             )
-        ).lower().strip()
+            .lower()
+            .strip()
+        )
         if requested_device not in {"auto", "cpu", "cuda"}:
             raise ValueError("local_translation_device must be one of: auto, cpu, cuda")
 
@@ -269,10 +274,7 @@ class LocalTranslationProvider:
                     detected_gpu.runtime or "unknown",
                 )
             else:
-                logger.info(
-                    "Local translation selected CPU automatically: no verified "
-                    "usable CTranslate2 CUDA runtime detected"
-                )
+                logger.info("Local translation selected CPU automatically: no verified usable CTranslate2 CUDA runtime detected")
 
         if requested_compute == "auto":
             requested_compute = "float16" if requested_device == "cuda" else "int8"
@@ -302,9 +304,7 @@ class LocalTranslationProvider:
                 elif supported:
                     requested_compute = sorted(supported)[0]
                 else:
-                    logger.warning(
-                        "CTranslate2 reports no CUDA compute types; falling back to CPU"
-                    )
+                    logger.warning("CTranslate2 reports no CUDA compute types; falling back to CPU")
                     return "cpu", "int8", 0
         return requested_device, requested_compute, device_index
 
