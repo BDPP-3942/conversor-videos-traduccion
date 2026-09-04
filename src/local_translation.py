@@ -35,7 +35,11 @@ MODEL_FILES = {
         801_636,
     ),
 }
-SMALL_MODEL_FILES = ("config.json", "shared_vocabulary.json", "tokenizer_config.json")
+SMALL_MODEL_FILES = {
+    "config.json": (1_024, ("decoder_start_token", "eos_token")),
+    "shared_vocabulary.json": (4_000_000, ()),
+    "tokenizer_config.json": (4_096, ("source_lang", "target_lang")),
+}
 
 
 @dataclass(frozen=True)
@@ -61,38 +65,21 @@ class LocalTranslationModelManager:
         required = (*MODEL_FILES, *SMALL_MODEL_FILES)
         missing = [name for name in required if not (self.model_dir / name).is_file()]
         if missing:
-            reason = f"missing files: {', '.join(missing)}"
-            return LocalModelStatus(
-                False,
-                self.model_dir,
-                MODEL_REPOSITORY,
-                MODEL_REVISION,
-                MODEL_SIZE_BYTES,
-                MODEL_LICENSE,
-                reason,
-            )
+            return self._unavailable(f"missing files: {', '.join(missing)}")
+        if self.model_dir.is_symlink():
+            return self._unavailable("managed model directory is a symlink")
         for name, (expected_hash, expected_size) in MODEL_FILES.items():
             path = self.model_dir / name
+            if path.is_symlink():
+                return self._unavailable(f"symlinked model file: {name}")
             if path.stat().st_size != expected_size:
-                return LocalModelStatus(
-                    False,
-                    self.model_dir,
-                    MODEL_REPOSITORY,
-                    MODEL_REVISION,
-                    MODEL_SIZE_BYTES,
-                    MODEL_LICENSE,
-                    f"size mismatch: {name}",
-                )
+                return self._unavailable(f"size mismatch: {name}")
             if _sha256(path) != expected_hash:
-                return LocalModelStatus(
-                    False,
-                    self.model_dir,
-                    MODEL_REPOSITORY,
-                    MODEL_REVISION,
-                    MODEL_SIZE_BYTES,
-                    MODEL_LICENSE,
-                    f"SHA-256 mismatch: {name}",
-                )
+                return self._unavailable(f"SHA-256 mismatch: {name}")
+        for name, (max_size, required_keys) in SMALL_MODEL_FILES.items():
+            reason = _validate_small_model_file(self.model_dir / name, max_size, required_keys)
+            if reason:
+                return self._unavailable(f"invalid metadata: {name}: {reason}")
         return LocalModelStatus(
             True,
             self.model_dir,
@@ -101,6 +88,21 @@ class LocalTranslationModelManager:
             MODEL_SIZE_BYTES,
             MODEL_LICENSE,
         )
+
+    @staticmethod
+    def _status(path: Path, reason: str) -> LocalModelStatus:
+        return LocalModelStatus(
+            False,
+            path,
+            MODEL_REPOSITORY,
+            MODEL_REVISION,
+            MODEL_SIZE_BYTES,
+            MODEL_LICENSE,
+            reason,
+        )
+
+    def _unavailable(self, reason: str) -> LocalModelStatus:
+        return self._status(self.model_dir, reason)
 
     def ensure(self, *, confirm: Callable[[LocalModelStatus], bool] | None = None) -> Path:
         status = self.status()
@@ -124,30 +126,27 @@ class LocalTranslationModelManager:
         if self.model_dir.is_symlink():
             raise RuntimeError(f"Refusing to replace symlinked model directory: {self.model_dir}")
         self.model_dir.parent.mkdir(parents=True, exist_ok=True)
-        temp_dir = Path(
-            tempfile.mkdtemp(
-                prefix=f".{self.model_dir.name}-",
-                dir=self.model_dir.parent,
-            )
-        )
+        temp_dir = Path(tempfile.mkdtemp(prefix=f".{self.model_dir.name}-", dir=self.model_dir.parent))
         try:
             for name in (*MODEL_FILES, *SMALL_MODEL_FILES):
                 url = f"https://huggingface.co/{MODEL_REPOSITORY}/resolve/{MODEL_REVISION}/{name}?download=true"
-                _download_file(url, temp_dir / name, MODEL_MAX_DOWNLOAD_BYTES)
+                max_bytes = min(MODEL_MAX_DOWNLOAD_BYTES, MODEL_FILES.get(name, (0, SMALL_MODEL_FILES[name][0]))[1])
+                _download_file(url, temp_dir / name, max_bytes)
             for name, (expected_hash, expected_size) in MODEL_FILES.items():
                 path = temp_dir / name
                 if path.stat().st_size != expected_size or _sha256(path) != expected_hash:
                     raise RuntimeError(f"Integrity validation failed for downloaded model file: {name}")
+            for name, (max_size, required_keys) in SMALL_MODEL_FILES.items():
+                reason = _validate_small_model_file(temp_dir / name, max_size, required_keys)
+                if reason:
+                    raise RuntimeError(f"Integrity validation failed for downloaded metadata: {name}: {reason}")
             metadata = {
                 "repository": MODEL_REPOSITORY,
                 "revision": MODEL_REVISION,
                 "license": MODEL_LICENSE,
                 "files": MODEL_FILES,
             }
-            (temp_dir / "model.json").write_text(
-                json.dumps(metadata, indent=2),
-                encoding="utf-8",
-            )
+            (temp_dir / "model.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
             if self.model_dir.exists():
                 if not self.model_dir.is_dir():
                     raise RuntimeError(f"Managed model path is not a directory: {self.model_dir}")
@@ -185,19 +184,9 @@ class LocalTranslationProvider:
     target_lang = "en"
 
     def __init__(self, settings, model_manager: LocalTranslationModelManager | None = None) -> None:
-        configured_id = str(
-            getattr(
-                settings,
-                "local_translation_model_id",
-                os.getenv("LOCAL_TRANSLATION_MODEL_ID", MODEL_REPOSITORY),
-            )
-        )
+        configured_id = str(getattr(settings, "local_translation_model_id", os.getenv("LOCAL_TRANSLATION_MODEL_ID", MODEL_REPOSITORY)))
         configured_revision = str(
-            getattr(
-                settings,
-                "local_translation_model_revision",
-                os.getenv("LOCAL_TRANSLATION_MODEL_REVISION", MODEL_REVISION),
-            )
+            getattr(settings, "local_translation_model_revision", os.getenv("LOCAL_TRANSLATION_MODEL_REVISION", MODEL_REVISION))
         )
         if configured_id != MODEL_REPOSITORY or configured_revision != MODEL_REVISION:
             raise ValueError("The local translation provider only accepts its pinned model repository and revision")
@@ -219,84 +208,31 @@ class LocalTranslationProvider:
         self._target = spm.SentencePieceProcessor(model_file=str(self.model_path / "target.spm"))
 
     def _confirm_download(self, status: LocalModelStatus) -> bool:
-        return bool(
-            getattr(
-                self.settings,
-                "local_translation_auto_download",
-                os.getenv("LOCAL_TRANSLATION_AUTO_DOWNLOAD", "false").lower() == "true",
-            )
-        )
+        return bool(getattr(self.settings, "local_translation_auto_download", os.getenv("LOCAL_TRANSLATION_AUTO_DOWNLOAD", "false").lower() == "true"))
 
     def _resolve_runtime(self) -> tuple[str, str, int]:
-        requested_device = (
-            str(
-                getattr(
-                    self.settings,
-                    "local_translation_device",
-                    os.getenv("LOCAL_TRANSLATION_DEVICE", "auto"),
-                )
-            )
-            .lower()
-            .strip()
-        )
-        requested_compute = (
-            str(
-                getattr(
-                    self.settings,
-                    "local_translation_compute_type",
-                    os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto"),
-                )
-            )
-            .lower()
-            .strip()
-        )
+        requested_device = str(getattr(self.settings, "local_translation_device", os.getenv("LOCAL_TRANSLATION_DEVICE", "auto"))).lower().strip()
+        requested_compute = str(getattr(self.settings, "local_translation_compute_type", os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto"))).lower().strip()
         if requested_device not in {"auto", "cpu", "cuda"}:
             raise ValueError("local_translation_device must be one of: auto, cpu, cuda")
-
         hardware = detect_hardware()
         detected_gpu = hardware.gpu
         configured_index = getattr(self.settings, "detected_gpu_index", None)
-        device_index = (
-            max(0, int(configured_index))
-            if configured_index is not None and int(configured_index) >= 0
-            else max(0, detected_gpu.device_index or 0)
-        )
-
+        device_index = max(0, int(configured_index)) if configured_index is not None and int(configured_index) >= 0 else max(0, detected_gpu.device_index or 0)
         if requested_device == "auto":
             requested_device = "cuda" if detected_gpu.usable_for_whisper else "cpu"
-            if requested_device == "cuda":
-                logger.info(
-                    "Local translation selected CUDA automatically: GPU=%s, index=%d, "
-                    "VRAM free=%.2f GB, CTranslate2 runtime=%s",
-                    detected_gpu.model or "unknown",
-                    device_index,
-                    detected_gpu.vram_free_gb,
-                    detected_gpu.runtime or "unknown",
-                )
-            else:
-                logger.info(
-                    "Local translation selected CPU automatically: no verified usable CTranslate2 CUDA runtime detected"
-                )
-
+            logger.info("Local translation selected %s automatically", requested_device.upper())
         if requested_compute == "auto":
             requested_compute = "float16" if requested_device == "cuda" else "int8"
-
         if requested_device == "cuda":
             if not detected_gpu.usable_for_whisper:
-                logger.warning(
-                    "Local translation CUDA requested but no verified CTranslate2 CUDA GPU "
-                    "is available; falling back to CPU"
-                )
+                logger.warning("Local translation CUDA requested but no verified CTranslate2 CUDA GPU is available; falling back to CPU")
                 return "cpu", "int8", 0
             try:
                 import ctranslate2
-
                 supported = ctranslate2.get_supported_compute_types("cuda", device_index)
             except (ImportError, AttributeError, RuntimeError, TypeError) as exc:
-                logger.warning(
-                    "Local translation CUDA capability check failed; falling back to CPU: %s",
-                    exc,
-                )
+                logger.warning("Local translation CUDA capability check failed; falling back to CPU: %s", exc)
                 return "cpu", "int8", 0
             if requested_compute not in supported:
                 if "float16" in supported:
@@ -306,7 +242,6 @@ class LocalTranslationProvider:
                 elif supported:
                     requested_compute = sorted(supported)[0]
                 else:
-                    logger.warning("CTranslate2 reports no CUDA compute types; falling back to CPU")
                     return "cpu", "int8", 0
         return requested_device, requested_compute, device_index
 
@@ -317,16 +252,7 @@ class LocalTranslationProvider:
         if not texts:
             return []
         tokens = [self._source.encode(text, out_type=str) + ["</s>"] for text in texts]
-        beam_size = max(
-            1,
-            int(
-                getattr(
-                    self.settings,
-                    "local_translation_beam_size",
-                    os.getenv("LOCAL_TRANSLATION_BEAM_SIZE", 2),
-                )
-            ),
-        )
+        beam_size = max(1, int(getattr(self.settings, "local_translation_beam_size", os.getenv("LOCAL_TRANSLATION_BEAM_SIZE", 2))))
         results = self._translator.translate_batch(tokens, beam_size=beam_size)
         outputs: list[str] = []
         for result in results:
@@ -341,6 +267,27 @@ class LocalTranslationProvider:
         if len(outputs) != len(texts):
             raise RuntimeError(f"Local translation returned {len(outputs)} results for {len(texts)} inputs")
         return outputs
+
+
+def _validate_small_model_file(path: Path, max_size: int, required_keys: tuple[str, ...]) -> str:
+    if path.is_symlink():
+        return "symlink is not allowed"
+    try:
+        size = path.stat().st_size
+    except OSError as exc:
+        return f"cannot stat file: {exc}"
+    if size > max_size:
+        return f"size exceeds {max_size} bytes"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return f"invalid UTF-8 JSON: {exc}"
+    if not isinstance(data, dict):
+        return "root must be a JSON object"
+    missing = [key for key in required_keys if key not in data]
+    if missing:
+        return f"missing keys: {', '.join(missing)}"
+    return ""
 
 
 def _sha256(path: Path) -> str:
