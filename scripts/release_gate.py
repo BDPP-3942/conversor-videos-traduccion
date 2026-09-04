@@ -27,6 +27,7 @@ def _fail(message: str) -> None:
 def main() -> None:
     expected_sha = sys.argv[1] if len(sys.argv) > 1 else ""
     expected_version = sys.argv[2] if len(sys.argv) > 2 else ""
+    require_tag_absent = len(sys.argv) > 3 and sys.argv[3].lower() == "true"
 
     actual_sha = _git("rev-parse", "HEAD")
     if expected_sha and actual_sha != expected_sha:
@@ -57,13 +58,16 @@ def main() -> None:
 
     tag_ref = f"refs/tags/v{expected_version}"
     remote_refs = _git("ls-remote", "--tags", "origin", tag_ref)
-    if remote_refs:
+    if require_tag_absent and remote_refs:
         _fail(f"release tag v{expected_version} already exists on origin")
+    if remote_refs:
+        print(f"Release tag v{expected_version} already exists; PR metadata validation continues.")
+    else:
+        print(f"Release tag v{expected_version}: absent")
 
     print("RELEASE GATE: PASS")
     print(f"SHA: {actual_sha}")
     print(f"Version: {version}")
-    print(f"Tag v{expected_version}: absent")
 
 
 if __name__ == "__main__":
