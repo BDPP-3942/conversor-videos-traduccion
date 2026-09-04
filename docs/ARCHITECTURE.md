@@ -54,13 +54,13 @@ CLI / wrappers / executable / scheduler
 
 Naming has two explicit stages. `naming_policy` derives the logical course/resource identity from the ZIP and source context; `file_naming` then converts the resulting component into the physical filesystem representation. This prevents a logical name from bypassing the final platform-safety checks.
 
-The physical contract is:
+The canonical physical contract is:
 
 ```text
-<curso_o_contenedor>x<nombre_sanitizado>
+<curso_o_contenedor>_<nombre_sanitizado>
 ```
 
-`x` is the scope separator and `_` is the internal word separator. Physical normalization is deterministic: whitespace and separator hyphens become `_`, accents/diacritics are transliterated, incompatible punctuation and control characters are removed/replaced, Windows reserved names are protected, and filesystem length limits are applied. The logical metadata remains separate from the physical name.
+`_` is the only canonical separator used in generated physical output names. Whitespace, separator hyphens and other incompatible punctuation are normalized to `_`; accents/diacritics are transliterated, Windows reserved names are protected, and filesystem length limits are applied. The historical `x` scope separator is accepted only for legacy migration and is converted to `_` when the target is unambiguous.
 
 The naming policy is covered by focused functional cases; the final physical boundary applies the project-wide cross-platform policy.
 
