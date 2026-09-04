@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from config.settings import resolve_project_path
-from src.file_naming import normalize_component
+from src.file_naming import canonicalize_output_stem, normalize_component
 from src.path_limits import fit_component
 from src.storage.base import StorageFile, StorageProvider
 from src.storage.processed_registry import ProcessedRegistry, sha256_file
@@ -87,13 +87,14 @@ class LocalStorageProvider(StorageProvider):
     ) -> dict[str, str]:
         root = self._folder(target)
         old = root / old_name
-        new = root / new_name
+        canonical_name = canonicalize_output_stem(new_name)
+        new = root / canonical_name
         if not old.is_dir():
             return {}
         if new.exists() and new != old:
             raise FileExistsError(f"Output target already exists: {new}")
         old.rename(new)
-        mapping = {old_name: new_name}
+        mapping = {old_name: canonical_name}
         try:
             for child in sorted(new.iterdir(), key=lambda item: item.name.lower()):
                 if child.is_dir():
@@ -102,7 +103,7 @@ class LocalStorageProvider(StorageProvider):
                             if not nested.is_file():
                                 continue
                             desired = (
-                                fit_component(normalize_component(nested.stem.replace(old_name, new_name)), child)
+                                fit_component(normalize_component(nested.stem.replace(old_name, canonical_name)), child)
                                 + nested.suffix.lower()
                             )
                             if desired != nested.name and not (child / desired).exists():
@@ -111,9 +112,9 @@ class LocalStorageProvider(StorageProvider):
                     continue
                 stem = child.stem
                 if stem.startswith(old_name):
-                    desired_stem = new_name + stem[len(old_name) :]
+                    desired_stem = canonical_name + stem[len(old_name) :]
                 else:
-                    desired_stem = normalize_component(stem)
+                    desired_stem = canonicalize_output_stem(normalize_component(stem))
                 desired = f"{fit_component(desired_stem, new)}{child.suffix.lower()}"
                 if desired != child.name and not (new / desired).exists():
                     child.rename(new / desired)
@@ -129,7 +130,7 @@ class LocalStorageProvider(StorageProvider):
             if not folder.is_dir() or folder.name == "_manifests":
                 continue
             old_rel = folder.relative_to(root).as_posix()
-            new_name = fit_component(normalize_component(folder.name), root)
+            new_name = fit_component(canonicalize_output_stem(normalize_component(folder.name)), root)
             if new_name != folder.name:
                 candidate = root / new_name
                 if candidate.exists():
@@ -161,7 +162,7 @@ class LocalStorageProvider(StorageProvider):
                 if child.name == original_transcript_subdir:
                     self._normalize_files_recursive(child, storage_root, original_transcript_subdir, mapping)
                     continue
-                normalized = fit_component(normalize_component(child.name), child.parent)
+                normalized = fit_component(canonicalize_output_stem(normalize_component(child.name)), child.parent)
                 if normalized != child.name:
                     target = child.with_name(normalized)
                     if not target.exists():
@@ -173,7 +174,7 @@ class LocalStorageProvider(StorageProvider):
                             continue
                 self._normalize_files_recursive(child, storage_root, original_transcript_subdir, mapping)
                 continue
-            normalized_stem = fit_component(normalize_component(child.stem), child.parent)
+            normalized_stem = fit_component(canonicalize_output_stem(normalize_component(child.stem)), child.parent)
             normalized_name = f"{normalized_stem}{child.suffix.lower()}"
             if normalized_name == child.name:
                 continue
@@ -213,7 +214,7 @@ class LocalStorageProvider(StorageProvider):
                         continue
                     candidate = output_dir / old_name
                     normalized_name = (
-                        f"{fit_component(normalize_component(Path(old_name).stem), output_dir)}"
+                        f"{fit_component(canonicalize_output_stem(normalize_component(Path(old_name).stem)), output_dir)}"
                         f"{Path(old_name).suffix.lower()}"
                     )
                     final_name = (
@@ -231,7 +232,7 @@ class LocalStorageProvider(StorageProvider):
                     original_dir = output_dir / "original_transcriptions"
                     candidate = original_dir / old_original
                     normalized_name = (
-                        f"{fit_component(normalize_component(Path(old_original).stem), original_dir)}"
+                        f"{fit_component(canonicalize_output_stem(normalize_component(Path(old_original).stem)), original_dir)}"
                         f"{Path(old_original).suffix.lower()}"
                     )
                     final_name = (
