@@ -83,27 +83,9 @@ class FileNameFormatter:
         re.compile(r"[_\-]+copy\s*$", re.IGNORECASE),
     )
     GENERIC_TOKENS = {
-        "mp4",
-        "wmv",
-        "video",
-        "videos",
-        "audio",
-        "media",
-        "file",
-        "files",
-        "archivo",
-        "archivos",
-        "download",
-        "downloads",
-        "descarga",
-        "descargas",
-        "compressed",
-        "compression",
-        "archive",
-        "archivo_comprimido",
-        "zip",
-        "rar",
-        "7z",
+        "mp4", "wmv", "video", "videos", "audio", "media", "file", "files",
+        "archivo", "archivos", "download", "downloads", "descarga", "descargas",
+        "compressed", "compression", "archive", "archivo_comprimido", "zip", "rar", "7z",
     }
     FILENAME_ARTIFACT_PATTERN = re.compile(
         r"(?:^|[_\- .])(?:\d{8}t\d{4,6}z(?:[-_]\d+[-_]\d+)?)(?:[_\- .]|$)", re.IGNORECASE
@@ -190,15 +172,7 @@ class FileNameFormatter:
         return None
 
     @classmethod
-    def _build_description(
-        cls,
-        stem: str,
-        *,
-        course: int | None,
-        lesson: int | None,
-        course_name: str | None,
-        lesson_name: str | None,
-    ) -> str:
+    def _build_description(cls, stem: str, *, course: int | None, lesson: int | None, course_name: str | None, lesson_name: str | None) -> str:
         value = stem
         if course is not None:
             value = cls._remove_number(value, course)
@@ -275,23 +249,36 @@ def strip_date_artifacts(value: str) -> str:
     return _DATE_ARTIFACT_PATTERN.sub("_", value)
 
 
+def _remove_diacritics(value: str) -> str:
+    """Reduce Latin/Greek/Cyrillic diacritics without decomposing other scripts."""
+    result: list[str] = []
+    for char in unicodedata.normalize("NFC", value):
+        name = unicodedata.name(char, "")
+        if char.isalpha() and any(script in name for script in ("LATIN", "GREEK", "CYRILLIC")):
+            decomposed = unicodedata.normalize("NFKD", char)
+            result.extend(
+                part
+                for part in decomposed
+                if not unicodedata.category(part).startswith("M")
+            )
+        else:
+            result.append(char)
+    return "".join(result)
+
+
 def clean_for_filename(value: str) -> str:
-    """Build a canonical web-safe name: ASCII diacritics removed, lowercase and no emoji."""
-    decomposed = unicodedata.normalize("NFKD", value).casefold()
-    normalized: list[str] = []
-    for char in decomposed:
+    """Build a canonical web-safe name: lowercase, base letters and no emoji."""
+    normalized = _remove_diacritics(value).casefold()
+    result: list[str] = []
+    for char in normalized:
         category = unicodedata.category(char)
-        if category.startswith("M"):
-            continue
         if category[0] in {"L", "N"} or char == "_":
-            normalized.append(char)
+            result.append(char)
             continue
         if category.startswith("P") or char.isspace():
-            normalized.append("_")
+            result.append("_")
             continue
-        # Unicode symbols (including emoji), controls and other non-word
-        # characters are intentionally omitted from URL/metadata names.
-    return re.sub(r"_+", "_", "".join(normalized)).strip("_.-")
+    return re.sub(r"_+", "_", "".join(result)).strip("_.-")
 
 
 def _split_filename_extension(filename: str) -> tuple[str, str]:
@@ -337,12 +324,7 @@ def normalized_name_similarity(left: str, right: str) -> float:
     return 0.65 * sequence_score + 0.35 * token_score
 
 
-def fit_output_stem(
-    stem: str,
-    parent: Path,
-    unique_suffix: str | None = None,
-    reserve_suffixes: tuple[str, ...] = (),
-) -> str:
+def fit_output_stem(stem: str, parent: Path, unique_suffix: str | None = None, reserve_suffixes: tuple[str, ...] = ()) -> str:
     """Sanitize and fit a generated output stem to the host filesystem."""
     physical_stem = normalize_component(stem)
     suffix = f"__{unique_suffix}" if unique_suffix else ""
@@ -358,7 +340,7 @@ def fit_output_stem(
     allowed = max(1, max_component - extra)
     if len(current) <= allowed:
         return candidate
-    raw = candidate.encode("utf-8")[:allowed]
+    raw = current[:allowed]
     while raw:
         try:
             prefix = raw.decode("utf-8").rstrip(" ._-")
