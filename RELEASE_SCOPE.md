@@ -1,35 +1,52 @@
-# Release Scope — 1.4.1
+# Release Scope — 1.5.2
 
 ## Previous release
 
-`v1.4.0` → `ce1da6ea69a89f5a789c0670b200d6038f1a746d`.
+`v1.5.1` → `06ee8d265b57214596f079f3bb426b9b27042b1e`.
 
 The tag is historical and MUST NOT be moved, deleted, or reused.
 
-## Changes since v1.4.0
+## Changes since v1.5.1
 
-The 1.4.1 corrective release is intentionally narrow. PR #29 already integrated the existing clean-regeneration operation into the local execution wrappers. The final release-validation PR aligns the release evidence with that implementation and adds direct subprocess coverage for the POSIX wrapper.
+PR #35 introduces optional offline local translation, hardens GPU/runtime selection and improves integrity and recovery behavior without replacing the existing media pipeline.
 
-## Corrective scope
+## Functional scope
 
-- `scripts/run_local.sh regenerate` dispatches to the existing `src.regeneration` implementation.
-- `scripts/run_local.bat regenerate` dispatches to the same existing implementation on Windows.
-- Regeneration continues to use the common `MediaPipeline` and public `StorageProvider` contract.
-- Existing hardware-safe concurrency remains authoritative through `safe_parallelism()`; scripts do not duplicate it.
-- Release E2E documentation and candidate evidence are aligned with the actual 1.4.1 code.
+- Local Spanish→English translation through CTranslate2 + SentencePiece.
+- Pinned model repository/revision with deterministic validation of the core model artifacts and structural validation of required JSON metadata.
+- Explicit model preparation/status/cleanup tooling.
+- NVIDIA/CUDA capability detection based on actual CTranslate2 support rather than GPU presence alone.
+- Managed CUDA Python runtime resources for cuBLAS CUDA 12 and cuDNN 9.
+- Conservative CUDA→CPU fallback.
+- Selective STT recovery for suspicious repetition/hallucination segments.
+- ZIP and filesystem normalization/security hardening remains part of the release baseline.
+
+## Configuration scope
+
+The canonical application configuration remains `config/app.toml`, with environment overrides. Local-translation-specific settings use the `LOCAL_TRANSLATION_*` environment variables documented in `.env.example`, `docs/CONFIGURATION.md` and `docs/LOCAL_TRANSLATION.md`. There is deliberately no duplicate `[local_translation]` TOML section.
+
+The pinned model identity is not user-selectable: `LOCAL_TRANSLATION_MODEL_ID` and `LOCAL_TRANSLATION_MODEL_REVISION` must match the project constants.
 
 ## Validation state
 
-- `pyproject.toml` declares version `1.4.1`.
-- README, CHANGELOG and release documentation identify `v1.4.0` as the previous published release and `1.4.1` as the corrective release.
-- #27 and #28 are resolved and closed after their demonstrated validation.
+- `pyproject.toml` declares version `1.5.2`.
+- Release documentation identifies `v1.5.1` as the previous published release.
 - CI must validate the final release candidate on the exact final commit SHA.
-- No `v1.4.1` tag exists until the release gate is satisfied.
+- No `v1.5.2` tag exists until the release gate is satisfied.
+- No real-media regression or GPU benchmark is claimed unless the corresponding external artifact/run is available and recorded.
+
+## Tests and hardening
+
+- Model status rejects missing resources, incorrect core hashes/sizes, unsafe metadata and malformed required JSON metadata.
+- CUDA fallback tests mock hardware detection and the CTranslate2 capability probe so the intended failure branch is exercised deterministically.
+- Provider configuration tests cover the environment-driven local translation settings.
+- ZIP/filesystem security and STT recovery regressions remain mandatory.
 
 ## Excluded
 
-- No changes to `v1.4.0`.
-- No new media pipeline.
-- No alternative storage or rollback implementation.
-- No second concurrency algorithm.
+- No replacement media pipeline.
+- No alternative storage implementation.
+- No arbitrary model/revision download support.
+- No automatic global CUDA Toolkit or NVIDIA driver installation/removal.
 - No unrelated product feature or broad refactor.
+- No release tag creation from the PR branch.
