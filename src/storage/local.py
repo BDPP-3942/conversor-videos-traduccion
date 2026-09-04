@@ -102,9 +102,7 @@ class LocalStorageProvider(StorageProvider):
                             if not nested.is_file():
                                 continue
                             desired = (
-                                fit_component(
-                                    normalize_component(nested.stem.replace(old_name, new_name)), child
-                                )
+                                fit_component(normalize_component(nested.stem.replace(old_name, new_name)), child)
                                 + nested.suffix.lower()
                             )
                             if desired != nested.name and not (child / desired).exists():
