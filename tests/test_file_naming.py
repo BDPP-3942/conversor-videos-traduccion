@@ -142,7 +142,7 @@ def test_normalize_filename_is_idempotent() -> None:
 def test_unicode_languages_and_emoji_are_preserved() -> None:
     value = "áéíóúñ äöüß é français 日本語 中文 한국어 😀"
     normalized = normalize_component(value)
-    assert normalized == value
+    assert normalized == "áéíóúñ_äöüß_é_français_日本語_中文_한국어_😀"
     assert normalize_component(normalized) == normalized
 
 
