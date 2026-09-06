@@ -5,8 +5,8 @@ import json
 import logging
 import os
 import shutil
-import urllib.error
-import urllib.request
+import tempfile
+import urllib.parse
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -195,7 +195,6 @@ class LocalTranslationModelManager:
             raise
         finally:
             if download_dir.exists() and download_dir != self.model_dir:
-                # Preserve the staging directory after failures so _download_file can resume on the next attempt.
                 pass
 
     def cleanup(self) -> None:
@@ -374,37 +373,38 @@ def _download_file(
     *,
     auth_token: str | None = None,
 ) -> None:
-    if not url.startswith("https://huggingface.co/"):
-        raise ValueError("Model downloads are restricted to the pinned Hugging Face origin")
-    partial = destination.with_suffix(destination.suffix + ".part")
-    offset = partial.stat().st_size if partial.exists() else 0
-    headers = {"User-Agent": "video-translation-pipeline/1.5"}
-    if auth_token:
-        headers["Authorization"] = f"Bearer {auth_token}"
-    if offset:
-        headers["Range"] = f"bytes={offset}-"
-    request = urllib.request.Request(url, headers=headers)
+    parsed = urllib.parse.urlsplit(url)
+    prefix = f"/{MODEL_REPOSITORY}/resolve/{MODEL_REVISION}/"
+    if parsed.scheme != "https" or parsed.netloc != "huggingface.co" or not parsed.path.startswith(prefix):
+        raise ValueError("Model downloads are restricted to the pinned Hugging Face origin and revision")
+    filename = parsed.path.removeprefix(prefix)
+    if not filename or "/" in filename:
+        raise ValueError("Model download path is not a valid repository file")
+    cache_dir = Path(tempfile.mkdtemp(prefix="video-translation-hf-cache-"))
     try:
-        with urllib.request.urlopen(request, timeout=60) as response:
-            resumed = offset > 0 and getattr(response, "status", None) == 206
-            if not resumed:
-                offset = 0
-                partial.unlink(missing_ok=True)
-            length = response.headers.get("Content-Length")
-            expected = offset + int(length) if length else None
-            if expected and expected > max_bytes:
-                raise RuntimeError(f"Refusing oversized model download: {expected} bytes")
-            mode = "ab" if resumed else "wb"
-            written = offset
-            with partial.open(mode) as handle:
-                while True:
-                    chunk = response.read(1024 * 1024)
-                    if not chunk:
-                        break
-                    written += len(chunk)
-                    if written > max_bytes:
-                        raise RuntimeError("Model download exceeded the configured size limit")
-                    handle.write(chunk)
-            partial.replace(destination)
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        raise RuntimeError(f"Model download failed: {exc}") from exc
+        try:
+            from huggingface_hub import hf_hub_download
+
+            cached = Path(
+                hf_hub_download(
+                    repo_id=MODEL_REPOSITORY,
+                    filename=filename,
+                    revision=MODEL_REVISION,
+                    token=auth_token,
+                    cache_dir=cache_dir,
+                )
+            )
+        except Exception as exc:
+            hint = (
+                " Configure LOCAL_TRANSLATION_HF_TOKEN (or HF_TOKEN) if the Hub/Xet endpoint requires authentication."
+                if auth_token is None
+                else " Verify that the configured Hugging Face token has read access to the pinned repository."
+            )
+            raise RuntimeError(f"Hugging Face model download failed: {exc}.{hint}") from exc
+        size = cached.stat().st_size
+        if size > max_bytes:
+            raise RuntimeError(f"Refusing oversized model download: {size} bytes")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(cached, destination)
+    finally:
+        shutil.rmtree(cache_dir, ignore_errors=True)
