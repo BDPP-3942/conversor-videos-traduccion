@@ -1,4 +1,5 @@
 import hashlib
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -97,7 +98,7 @@ def test_model_download_uses_huggingface_hub_without_auth(monkeypatch, tmp_path:
         captured.update(kwargs)
         return str(cached)
 
-    monkeypatch.setattr(local_translation, "hf_hub_download", fake_download, raising=False)
+    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(hf_hub_download=fake_download))
     local_translation._download_file(
         "https://huggingface.co/Prukario/opus-mt-es-en-ct2-int8/resolve/ad91ad1697ea1761111ff4c179400796d085b347/model.bin?download=true",
         destination,
@@ -120,7 +121,7 @@ def test_model_download_uses_optional_huggingface_token(monkeypatch, tmp_path: P
         captured.update(kwargs)
         return str(cached)
 
-    monkeypatch.setattr(local_translation, "hf_hub_download", fake_download, raising=False)
+    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(hf_hub_download=fake_download))
     local_translation._download_file(
         "https://huggingface.co/Prukario/opus-mt-es-en-ct2-int8/resolve/ad91ad1697ea1761111ff4c179400796d085b347/model.bin?download=true",
         destination,
@@ -186,5 +187,5 @@ def test_local_translation_runtime_falls_back_to_cpu_when_cuda_probe_fails(monke
         def get_supported_compute_types(*_args):
             raise RuntimeError("CUDA unavailable")
 
-    monkeypatch.setitem(__import__("sys").modules, "ctranslate2", FakeCT2)
+    monkeypatch.setitem(sys.modules, "ctranslate2", FakeCT2)
     assert provider._resolve_runtime() == ("cpu", "int8", 0)
