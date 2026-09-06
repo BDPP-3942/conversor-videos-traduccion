@@ -153,7 +153,12 @@ def test_model_download_uses_optional_huggingface_token(monkeypatch, tmp_path: P
         return response
 
     monkeypatch.setattr(local_translation.urllib.request, "urlopen", fake_urlopen)
-    local_translation._download_file("https://huggingface.co/pinned/model.bin", destination, 10, auth_token="hf_test_token")
+    local_translation._download_file(
+        "https://huggingface.co/pinned/model.bin",
+        destination,
+        10,
+        auth_token="hf_test_token",
+    )
 
     assert captured["authorization"] == "Bearer hf_test_token"
     assert destination.read_bytes() == b"abc"
