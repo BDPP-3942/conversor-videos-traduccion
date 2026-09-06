@@ -82,7 +82,9 @@ TRANSLATION_PROVIDER=local
 TRANSLATION_FALLBACK_PROVIDERS=deepl,mymemory
 ```
 
-El modelo y su revisión están fijados por el proyecto. La aplicación valida los ficheros principales por tamaño y SHA-256 y valida estructuralmente los metadatos requeridos antes de cargarlo. Consulte `docs/LOCAL_TRANSLATION.md` y `THIRD_PARTY_NOTICES.md`.
+La descarga intenta funcionar sin autenticación porque el modelo fijado es un recurso público. Si el entorno de Hugging Face exige autenticación, puede configurarse `LOCAL_TRANSLATION_HF_TOKEN` (o `HF_TOKEN`) mediante el entorno/secret de ejecución. El token solo se usa para la descarga HTTPS y no se almacena con el modelo. El modelo y su revisión están fijados por el proyecto. La aplicación valida los ficheros principales por tamaño y SHA-256 y valida estructuralmente los metadatos requeridos antes de cargarlo. Consulte `docs/LOCAL_TRANSLATION.md` y `THIRD_PARTY_NOTICES.md`.
+
+Una vez preparado, la ejecución local no necesita conexión a Hugging Face. El benchmark `scripts/benchmark_local_translation.py` inicializa el runtime real de CTranslate2 + SentencePiece y comprueba que las traducciones producidas no estén vacías; debe ejecutarse en el hardware objetivo antes de considerar validado un modelo descargado manualmente.
 
 ## Wrappers locales
 
@@ -146,7 +148,7 @@ La normalización física se aplica de forma centralizada en el límite de creac
 - eliminación de espacios iniciales/finales y separadores repetidos;
 - eliminación/control de caracteres de filesystem (`\\ / : * ? " < > |`) y puntuación problemática, incluidos paréntesis, corchetes y comillas;
 - conversión de enumeraciones como `1. Introducción` a `1_Introduccion` en la representación física;
-- normalización Unicode a NFC **sin transliterar ni eliminar diacríticos** (`ñ` y `á` se conservan);
+- normalización Unicode mediante NFD, eliminación de marcas diacríticas y recomposición NFC (`á` → `a`, `ñ` → `n`, `õ` → `o`);
 - protección de nombres reservados de Windows (`CON`, `PRN`, `AUX`, `NUL`, `COM1`…`LPT9`);
 - ajuste a los límites de componente/ruta del filesystem de destino;
 - detección de colisiones antes de sobrescribir y uso de una estrategia determinista cuando el flujo necesita reservar un nombre.
