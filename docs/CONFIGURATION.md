@@ -36,6 +36,7 @@ LOCAL_TRANSLATION_DEVICE=auto
 LOCAL_TRANSLATION_COMPUTE_TYPE=auto
 LOCAL_TRANSLATION_BEAM_SIZE=2
 LOCAL_TRANSLATION_AUTO_DOWNLOAD=false
+LOCAL_TRANSLATION_HF_TOKEN=
 TTS_ENABLED=false
 ```
 
@@ -46,6 +47,8 @@ LOCAL_TRANSLATION_MODEL_DIR=tools/models/translation/opus-mt-es-en-ct2-int8
 LOCAL_TRANSLATION_MODEL_ID=Prukario/opus-mt-es-en-ct2-int8
 LOCAL_TRANSLATION_MODEL_REVISION=ad91ad1697ea1761111ff4c179400796d085b347
 ```
+
+`LOCAL_TRANSLATION_HF_TOKEN` is optional. Public model downloads work without authentication; configure it only when the Hugging Face environment requires authentication. `HF_TOKEN` is also accepted as a standard fallback. The token is used only for the HTTPS download and is not stored with the model.
 
 See `.env.example` for the complete currently supported environment-variable surface. Do not commit `.env` or provider credentials.
 
@@ -68,7 +71,7 @@ The logical naming contract is represented as:
 <curso_o_contenedor>x<nombre_normalizado>
 ```
 
-`x` separates scope; `_` separates words inside each block. The canonical physical name is intended for web URLs and metadata and therefore is normalized to lowercase with `casefold()`. Latin diacritics are removed (`niño` -> `nino`, `Vídeo` -> `video`), whitespace and separators are collapsed to `_`, and emoji/Unicode symbols are omitted. Letters from other scripts are retained when they are not diacritics or symbols. Filesystem-invalid characters, control characters, Windows reserved components and filesystem length limits are handled by the physical filesystem boundary as well.
+`x` separates scope; `_` separates words inside each block. The canonical physical name is intended for web URLs and metadata and therefore is normalized to lowercase with `casefold()`. Unicode is canonically decomposed with NFD, combining diacritical marks are removed and the result is recomposed with NFC (`niño` -> `nino`, `Vídeo` -> `video`, `õ` -> `o`). Emoji/Unicode symbols are omitted. Letters from other scripts are retained when they are not diacritics or symbols. Filesystem-invalid characters, control characters, Windows reserved components and filesystem length limits are handled by the physical filesystem boundary as well.
 
 This normalization is intentionally deterministic and idempotent. It does not attempt heuristic repair of mojibake or otherwise guess the user's intended spelling.
 
@@ -80,3 +83,23 @@ The `normalize_legacy_names` workflow setting controls migration of already exis
 
 - `0` means **AUTO**: the application selects a conservative safe concurrency level from the detected hardware.
 - A positive value is an **upper bound**, not a guarantee. If it exceeds the safe hardware ceiling, it is clamped automatically.
+- `1` explicitly preserves single-worker execution.
+
+The resource calculation intentionally leaves headroom for the operating system, Python and FFmpeg. The effective value can therefore be lower than the configured value even when the configuration is valid.
+
+This behavior was introduced after the `1.2.2` release by PR #20 (`perf: enforce safe video concurrency`). It is part of the current `main` behavior, but it is **not part of the published `1.2.2` release**.
+
+## Important defaults
+
+- Resume: enabled.
+- Automatic local output deduplication: disabled.
+- TTS: disabled.
+- WebM generation: enabled.
+- rclone automatic update: disabled.
+- Whisper device: `auto`.
+- Whisper compute type: `auto`.
+- Whisper silence threshold: 1500 ms.
+- Local translation auto-download: disabled.
+- Local translation device: `auto`.
+- Local translation compute type: `auto`.
+- Local translation beam size: 2.
