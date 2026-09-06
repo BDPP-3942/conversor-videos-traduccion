@@ -22,6 +22,8 @@ python scripts/manage_local_translation.py status
 python scripts/manage_local_translation.py download
 ```
 
+La descarga intenta primero el origen público de Hugging Face sin autenticación. Si el repositorio o la infraestructura de descarga exige autenticación en el entorno donde se ejecuta, puede proporcionarse un token mediante `LOCAL_TRANSLATION_HF_TOKEN`; como alternativa se reconoce el estándar `HF_TOKEN`. El token solo se envía en la cabecera `Authorization` de las peticiones HTTPS a Hugging Face y nunca se persiste junto al modelo.
+
 Para eliminar el modelo:
 
 ```bash
@@ -44,6 +46,8 @@ LOCAL_TRANSLATION_DEVICE=auto
 LOCAL_TRANSLATION_COMPUTE_TYPE=auto
 LOCAL_TRANSLATION_BEAM_SIZE=2
 LOCAL_TRANSLATION_AUTO_DOWNLOAD=false
+# Solo si el entorno de Hugging Face requiere autenticación:
+LOCAL_TRANSLATION_HF_TOKEN=
 ```
 
 Estas variables se aplican como overrides de entorno, igual que el resto de variables documentadas en `.env.example`. `LOCAL_TRANSLATION_MODEL_ID` y `LOCAL_TRANSLATION_MODEL_REVISION` solo aceptan el modelo y la revisión fijados por el proyecto; no sirven para seleccionar arbitrariamente otro modelo.
@@ -54,23 +58,25 @@ El modelo actual soporta es→en. La cadena general puede utilizar `Mistral → 
 
 `auto` selecciona CUDA solo después de validar el runtime NVIDIA/CTranslate2. Si no existe una GPU NVIDIA utilizable, el proveedor local usa CPU `int8`. Si se solicita CUDA y la comprobación real de CTranslate2 falla, el proveedor vuelve a CPU `int8` de forma conservadora.
 
+En macOS, el proveedor puede utilizar CPU cuando no existe un runtime CUDA compatible. La validez del modelo no se considera demostrada solo porque sus ficheros hayan pasado SHA-256: después de preparar el modelo debe ejecutarse el benchmark, que inicializa CTranslate2 + SentencePiece y comprueba que el modelo devuelve resultados no vacíos.
+
 Consulta [`CUDA.md`](CUDA.md) para el diagnóstico e instalación gestionada de las bibliotecas necesarias para Whisper/CTranslate2.
 
 ## Batching
 
 El proveedor mantiene una instancia del modelo y traduce lotes preservando el orden. El pipeline vuelve a asociar cada resultado con su cue original; timestamps e IDs VTT se mantienen fuera del modelo.
 
-## Benchmark
+## Benchmark y prueba funcional
 
 ```bash
 python scripts/benchmark_local_translation.py --sentences 100
 ```
 
-El benchmark informa revisión, hardware, RAM, dispositivo, compute type, cues, caracteres, carga, tiempo de traducción, throughput y tiempo por cue. No se considera verificado ningún benchmark hasta ejecutarlo en el hardware correspondiente.
+El benchmark informa revisión, hardware, RAM, dispositivo, compute type, cues, caracteres, carga, tiempo de traducción, throughput y tiempo por cue. Además verifica que cada entrada produzca una salida textual no vacía; un modelo que carga pero no genera traducciones válidas hace fallar el benchmark. No se considera verificado ningún benchmark hasta ejecutarlo en el hardware correspondiente.
 
 ## Privacidad/offline
 
-Una vez preparado el modelo, la traducción local no requiere API externa ni conexión a Internet. La preparación descarga únicamente desde el origen y revisión fijados.
+Una vez preparado el modelo, la traducción local no requiere API externa ni conexión a Internet. La preparación descarga únicamente desde el origen y revisión fijados. La autenticación de Hugging Face, si se configura, solo afecta a la preparación/descarga y no a la ejecución offline posterior.
 
 ## Attribution
 
