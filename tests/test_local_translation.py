@@ -87,80 +87,48 @@ def test_model_ensure_does_not_download_without_explicit_confirmation(monkeypatc
         raise AssertionError("missing local model must not be downloaded without confirmation")
 
 
-def test_model_download_resumes_partial_file(monkeypatch, tmp_path: Path) -> None:
+def test_model_download_uses_huggingface_hub_without_auth(monkeypatch, tmp_path: Path) -> None:
     destination = tmp_path / "model.bin"
-    partial = destination.with_suffix(".bin.part")
-    partial.write_bytes(b"abc")
+    cached = tmp_path / "cached.bin"
+    cached.write_bytes(b"abc")
+    captured = {}
 
-    class Response:
-        status = 206
-        headers = {"Content-Length": "3"}
+    def fake_download(**kwargs):
+        captured.update(kwargs)
+        return str(cached)
 
-        def __init__(self) -> None:
-            self.done = False
+    monkeypatch.setattr(local_translation, "hf_hub_download", fake_download, raising=False)
+    local_translation._download_file(
+        "https://huggingface.co/Prukario/opus-mt-es-en-ct2-int8/resolve/ad91ad1697ea1761111ff4c179400796d085b347/model.bin?download=true",
+        destination,
+        10,
+    )
 
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_args):
-            return None
-
-        def read(self, _size: int) -> bytes:
-            if not self.done:
-                self.done = True
-                return b"def"
-            return b""
-
-    monkeypatch.setattr(local_translation.urllib.request, "urlopen", lambda *_args, **_kwargs: Response())
-    local_translation._download_file("https://huggingface.co/pinned/model.bin", destination, 10)
-
-    assert destination.read_bytes() == b"abcdef"
-    assert not partial.exists()
+    assert captured["repo_id"] == local_translation.MODEL_REPOSITORY
+    assert captured["revision"] == local_translation.MODEL_REVISION
+    assert captured["token"] is None
+    assert destination.read_bytes() == b"abc"
 
 
 def test_model_download_uses_optional_huggingface_token(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("LOCAL_TRANSLATION_HF_TOKEN", "hf_test_token")
     destination = tmp_path / "model.bin"
+    cached = tmp_path / "cached.bin"
+    cached.write_bytes(b"abc")
     captured = {}
 
-    class Response:
-        status = 200
-        headers = {"Content-Length": "3"}
+    def fake_download(**kwargs):
+        captured.update(kwargs)
+        return str(cached)
 
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_args):
-            return None
-
-        def read(self, _size: int) -> bytes:
-            return b"abc" if not captured.get("read") else b""
-
-    def fake_urlopen(request, **_kwargs):
-        captured["authorization"] = request.get_header("Authorization")
-        captured["read"] = False
-
-        response = Response()
-        original_read = response.read
-
-        def read(size: int) -> bytes:
-            if not captured["read"]:
-                captured["read"] = True
-                return original_read(size)
-            return b""
-
-        response.read = read
-        return response
-
-    monkeypatch.setattr(local_translation.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(local_translation, "hf_hub_download", fake_download, raising=False)
     local_translation._download_file(
-        "https://huggingface.co/pinned/model.bin",
+        "https://huggingface.co/Prukario/opus-mt-es-en-ct2-int8/resolve/ad91ad1697ea1761111ff4c179400796d085b347/model.bin?download=true",
         destination,
         10,
         auth_token="hf_test_token",
     )
 
-    assert captured["authorization"] == "Bearer hf_test_token"
+    assert captured["token"] == "hf_test_token"
     assert destination.read_bytes() == b"abc"
 
 
