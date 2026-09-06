@@ -155,9 +155,7 @@ class FileNameFormatter:
         return cls._find_label(cls.LESSON_TEXT_PATTERNS, values)
 
     @classmethod
-    def _find_label(
-        cls, patterns: tuple[re.Pattern[str], ...], values: list[str]
-    ) -> str | None:
+    def _find_label(cls, patterns: tuple[re.Pattern[str], ...], values: list[str]) -> str | None:
         for value in values:
             for pattern in patterns:
                 match = pattern.search(value)
