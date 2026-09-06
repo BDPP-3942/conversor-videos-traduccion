@@ -33,12 +33,12 @@ class _ResumeStorage:
 
 def _build_resume_storage(tmp_path):
     storage = _ResumeStorage(tmp_path / "output")
-    folder = storage.ensure_folder(str(storage.root), "37x02_Tema")
+    folder = storage.ensure_folder(str(storage.root), "37x02_tema")
     original = storage.ensure_folder(folder, "original_transcriptions")
-    (Path(folder) / "37x02_Tema.mp4").write_bytes(b"mp4")
-    (Path(folder) / "37x02_Tema.mp3").write_bytes(b"mp3")
-    (Path(folder) / "37x02_Tema_en.vtt").write_text("WEBVTT\n", encoding="utf-8")
-    (Path(original) / "37x02_Tema_original.vtt").write_text("WEBVTT\n", encoding="utf-8")
+    (Path(folder) / "37x02_tema.mp4").write_bytes(b"mp4")
+    (Path(folder) / "37x02_tema.mp3").write_bytes(b"mp3")
+    (Path(folder) / "37x02_tema_en.vtt").write_text("WEBVTT\n", encoding="utf-8")
+    (Path(original) / "37x02_tema_original.vtt").write_text("WEBVTT\n", encoding="utf-8")
     return storage
 
 
@@ -56,19 +56,19 @@ def test_resume_entry_is_reused_when_all_artifacts_exist(tmp_path):
         {
             "source": "curso 37/02 - Tema.mp4",
             "status": "success",
-            "output_folder": "37x02_Téma",
-            "video": "37x02_Téma.mp4",
-            "audio": "37x02_Téma.mp3",
-            "translated_vtt": "37x02_Téma_en.vtt",
-            "original_transcription": "37x02_Téma_original.vtt",
+            "output_folder": "37x02_tema",
+            "video": "37x02_tema.mp4",
+            "audio": "37x02_tema.mp3",
+            "translated_vtt": "37x02_tema_en.vtt",
+            "original_transcription": "37x02_tema_original.vtt",
         },
         str(storage.root),
         "curso 37/02 - Tema.mp4",
     )
 
     assert resumed is not None
-    assert resumed["output_folder"] == "37x02_Tema"
-    assert resumed["video"] == "37x02_Tema.mp4"
+    assert resumed["output_folder"] == "37x02_tema"
+    assert resumed["video"] == "37x02_tema.mp4"
 
 
 def test_manifest_supports_legacy_list_and_new_metadata(tmp_path):

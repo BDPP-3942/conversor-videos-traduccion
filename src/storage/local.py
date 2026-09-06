@@ -34,9 +34,19 @@ class LocalStorageProvider(StorageProvider):
     def list_zip_files(self, location: str) -> list[StorageFile]:
         folder = self._storage_root(location)
         files: list[StorageFile] = []
+        if self.input_min_age_seconds == 0:
+            for path in sorted(folder.rglob("*.zip")):
+                try:
+                    if path.is_file():
+                        files.append(StorageFile(id=str(path), name=path.name))
+                except FileNotFoundError:
+                    logger.warning("ZIP disappeared while listing input: %s", path)
+            return files
+
+        now = time.time()
         for path in sorted(folder.rglob("*.zip")):
             try:
-                if path.is_file() and (time.time() - path.stat().st_mtime) >= self.input_min_age_seconds:
+                if path.is_file() and now - path.stat().st_mtime >= self.input_min_age_seconds:
                     files.append(StorageFile(id=str(path), name=path.name))
             except FileNotFoundError:
                 logger.warning("ZIP disappeared while listing input: %s", path)
@@ -94,26 +104,30 @@ class LocalStorageProvider(StorageProvider):
             raise FileExistsError(f"Output target already exists: {new}")
         old.rename(new)
         mapping = {old_name: new_name}
+        old_stem = normalize_component(old_name)
+        new_stem = normalize_component(new_name)
         try:
             for child in sorted(new.iterdir(), key=lambda item: item.name.lower()):
                 if child.is_dir():
                     if child.name == original_transcript_subdir:
-                        for nested in list(child.iterdir()):
+                        for nested in sorted(child.iterdir(), key=lambda item: item.name.lower()):
                             if not nested.is_file():
                                 continue
-                            desired = (
-                                fit_component(normalize_component(nested.stem.replace(old_name, new_name)), child)
-                                + nested.suffix.lower()
-                            )
+                            normalized_stem = normalize_component(nested.stem)
+                            if normalized_stem.startswith(old_stem):
+                                desired_stem = new_stem + normalized_stem[len(old_stem) :]
+                            else:
+                                desired_stem = normalized_stem
+                            desired = fit_component(desired_stem, child) + nested.suffix.lower()
                             if desired != nested.name and not (child / desired).exists():
                                 nested.rename(child / desired)
                         continue
                     continue
-                stem = child.stem
-                if stem.startswith(old_name):
-                    desired_stem = new_name + stem[len(old_name) :]
+                normalized_stem = normalize_component(child.stem)
+                if normalized_stem.startswith(old_stem):
+                    desired_stem = new_stem + normalized_stem[len(old_stem) :]
                 else:
-                    desired_stem = normalize_component(stem)
+                    desired_stem = normalized_stem
                 desired = f"{fit_component(desired_stem, new)}{child.suffix.lower()}"
                 if desired != child.name and not (new / desired).exists():
                     child.rename(new / desired)

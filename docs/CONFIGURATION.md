@@ -36,6 +36,7 @@ LOCAL_TRANSLATION_DEVICE=auto
 LOCAL_TRANSLATION_COMPUTE_TYPE=auto
 LOCAL_TRANSLATION_BEAM_SIZE=2
 LOCAL_TRANSLATION_AUTO_DOWNLOAD=false
+LOCAL_TRANSLATION_HF_TOKEN=
 TTS_ENABLED=false
 ```
 
@@ -46,6 +47,8 @@ LOCAL_TRANSLATION_MODEL_DIR=tools/models/translation/opus-mt-es-en-ct2-int8
 LOCAL_TRANSLATION_MODEL_ID=Prukario/opus-mt-es-en-ct2-int8
 LOCAL_TRANSLATION_MODEL_REVISION=ad91ad1697ea1761111ff4c179400796d085b347
 ```
+
+`LOCAL_TRANSLATION_HF_TOKEN` is optional. Public model downloads work without authentication; configure it only when the Hugging Face environment requires authentication. `HF_TOKEN` is also accepted as a standard fallback. The token is used only for the HTTPS download and is not stored with the model.
 
 See `.env.example` for the complete currently supported environment-variable surface. Do not commit `.env` or provider credentials.
 
@@ -65,10 +68,12 @@ Naming is deliberately not configured through a free-form replacement template. 
 The logical naming contract is represented as:
 
 ```text
-<curso_o_contenedor>x<nombre_sanitizado>
+<curso_o_contenedor>x<nombre_normalizado>
 ```
 
-`x` separates scope; `_` separates words inside each block. The physical boundary applies whitespace/separator normalization, punctuation/control-character handling, Unicode/diacritic normalization, Windows reserved-name protection and filesystem length limits. Logical metadata is preserved separately from the physical name.
+`x` separates scope; `_` separates words inside each block. The canonical physical name is intended for web URLs and metadata and therefore is normalized to lowercase with `casefold()`. Unicode is canonically decomposed with NFD, combining diacritical marks are removed and the result is recomposed with NFC (`niño` -> `nino`, `Vídeo` -> `video`, `õ` -> `o`). Emoji/Unicode symbols are omitted. Letters from other scripts are retained when they are not diacritics or symbols. Filesystem-invalid characters, control characters, Windows reserved components and filesystem length limits are handled by the physical filesystem boundary as well.
+
+This normalization is intentionally deterministic and idempotent. It does not attempt heuristic repair of mojibake or otherwise guess the user's intended spelling.
 
 The `normalize_legacy_names` workflow setting controls migration of already existing output names. It does not change the naming rules themselves. When enabled, migration is performed before normal processing and must not silently overwrite an existing destination.
 

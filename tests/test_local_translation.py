@@ -1,4 +1,6 @@
 import hashlib
+import os
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -87,35 +89,78 @@ def test_model_ensure_does_not_download_without_explicit_confirmation(monkeypatc
         raise AssertionError("missing local model must not be downloaded without confirmation")
 
 
-def test_model_download_resumes_partial_file(monkeypatch, tmp_path: Path) -> None:
+def test_model_download_uses_huggingface_hub_without_auth(monkeypatch, tmp_path: Path) -> None:
     destination = tmp_path / "model.bin"
-    partial = destination.with_suffix(".bin.part")
-    partial.write_bytes(b"abc")
+    cached = tmp_path / "cached.bin"
+    cached.write_bytes(b"abc")
+    captured = {}
 
-    class Response:
-        status = 206
-        headers = {"Content-Length": "3"}
+    def fake_download(**kwargs):
+        captured.update(kwargs)
+        return str(cached)
 
-        def __init__(self) -> None:
-            self.done = False
+    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(hf_hub_download=fake_download))
+    local_translation._download_file(
+        "https://huggingface.co/Prukario/opus-mt-es-en-ct2-int8/resolve/ad91ad1697ea1761111ff4c179400796d085b347/model.bin?download=true",
+        destination,
+        10,
+    )
 
-        def __enter__(self):
-            return self
+    assert captured["repo_id"] == local_translation.MODEL_REPOSITORY
+    assert captured["revision"] == local_translation.MODEL_REVISION
+    assert captured["token"] is None
+    assert destination.read_bytes() == b"abc"
 
-        def __exit__(self, *_args):
-            return None
 
-        def read(self, _size: int) -> bytes:
-            if not self.done:
-                self.done = True
-                return b"def"
-            return b""
+def test_model_download_uses_optional_huggingface_token(monkeypatch, tmp_path: Path) -> None:
+    destination = tmp_path / "model.bin"
+    cached = tmp_path / "cached.bin"
+    cached.write_bytes(b"abc")
+    captured = {}
+    monkeypatch.setenv("TEST_HF_TOKEN", "hf_test_token")
+    auth_token = os.environ["TEST_HF_TOKEN"]
 
-    monkeypatch.setattr(local_translation.urllib.request, "urlopen", lambda *_args, **_kwargs: Response())
-    local_translation._download_file("https://huggingface.co/pinned/model.bin", destination, 10)
+    def fake_download(**kwargs):
+        captured.update(kwargs)
+        return str(cached)
 
-    assert destination.read_bytes() == b"abcdef"
-    assert not partial.exists()
+    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(hf_hub_download=fake_download))
+    local_translation._download_file(
+        "https://huggingface.co/Prukario/opus-mt-es-en-ct2-int8/resolve/ad91ad1697ea1761111ff4c179400796d085b347/model.bin?download=true",
+        destination,
+        10,
+        auth_token=auth_token,
+    )
+
+    assert captured["token"] == auth_token
+    assert destination.read_bytes() == b"abc"
+
+
+def test_local_translation_batch_decodes_model_output() -> None:
+    provider = LocalTranslationProvider.__new__(LocalTranslationProvider)
+    provider.settings = SimpleNamespace(local_translation_beam_size=2)
+
+    class FakeSentencePiece:
+        def encode(self, text, out_type=str):
+            return ["▁hola", "▁mundo"] if text else []
+
+        def decode(self, tokens):
+            return "hello world" if tokens == ["hello", "world"] else ""
+
+    class FakeResult:
+        hypotheses = [["hello", "world", "</s>"]]
+
+    class FakeTranslator:
+        def translate_batch(self, tokens, beam_size):
+            assert tokens == [["▁hola", "▁mundo", "</s>"], ["▁hola", "▁mundo", "</s>"]]
+            assert beam_size == 2
+            return [FakeResult(), FakeResult()]
+
+    provider._source = FakeSentencePiece()
+    provider._target = FakeSentencePiece()
+    provider._translator = FakeTranslator()
+
+    assert provider.translate_batch(["Hola mundo", "Hola mundo"]) == ["hello world", "hello world"]
 
 
 def test_local_translation_runtime_falls_back_to_cpu_when_cuda_probe_fails(monkeypatch) -> None:
@@ -145,5 +190,5 @@ def test_local_translation_runtime_falls_back_to_cpu_when_cuda_probe_fails(monke
         def get_supported_compute_types(*_args):
             raise RuntimeError("CUDA unavailable")
 
-    monkeypatch.setitem(__import__("sys").modules, "ctranslate2", FakeCT2)
+    monkeypatch.setitem(sys.modules, "ctranslate2", FakeCT2)
     assert provider._resolve_runtime() == ("cpu", "int8", 0)

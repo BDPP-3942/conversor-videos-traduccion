@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -12,12 +13,17 @@ def write_manifest(path: Path, entries: list[dict[str, Any]], *, metadata: dict[
     """Publish a complete manifest atomically so a crash cannot expose partial JSON."""
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {"version": MANIFEST_VERSION, "metadata": metadata or {}, "entries": entries}
-    temporary = path.with_name(f".{path.name}.tmp")
-    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    with temporary.open("r+b") as handle:
-        handle.flush()
-        os.fsync(handle.fileno())
-    os.replace(temporary, path)
+    encoded = json.dumps(payload, ensure_ascii=False, indent=2)
+    fd, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
+            handle.write(encoded)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def read_manifest(path: Path) -> dict[str, Any]:

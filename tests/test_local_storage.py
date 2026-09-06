@@ -33,6 +33,18 @@ def test_local_storage_copies_file(tmp_path: Path):
     assert (output_dir / "copy.zip").read_bytes() == b"zip-content"
 
 
+def test_local_storage_zero_age_includes_file_created_immediately(tmp_path: Path):
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    source = input_dir / "sample.zip"
+    source.write_bytes(b"zip-content")
+
+    provider = LocalStorageProvider(retain_sources=False, input_min_age_seconds=0)
+    files = provider.list_zip_files(str(input_dir))
+
+    assert [item.name for item in files] == ["sample.zip"]
+
+
 def test_local_storage_retains_successful_source_and_records_sha256(tmp_path: Path):
     storage_root = tmp_path / "storage"
     input_dir = storage_root / "input"
@@ -78,7 +90,7 @@ def test_finalize_source_handles_race_during_fingerprint(tmp_path: Path, monkeyp
     provider.finalize_source(file, "success", [])
 
 
-def test_local_output_name_migration_normalizes_legacy_unicode_names(tmp_path: Path):
+def test_local_output_name_migration_preserves_existing_unicode_names(tmp_path: Path):
     output = tmp_path / "output"
     legacy = output / "37x02_Téma_ñ"
     original = legacy / "original_transcriptions"
@@ -90,12 +102,13 @@ def test_local_output_name_migration_normalizes_legacy_unicode_names(tmp_path: P
     provider = LocalStorageProvider(retain_sources=False, input_min_age_seconds=0)
     provider.normalize_existing_output_names(str(output), "original_transcriptions")
 
-    normalized = output / "37x02_Tema_n"
-    assert normalized.is_dir()
-    assert (normalized / "37x02_Tema_n.mp4").is_file()
-    assert (normalized / "37x02_Tema_n_en.vtt").is_file()
-    assert (normalized / "original_transcriptions" / "37x02_Tema_n_original.vtt").is_file()
+    canonical = output / "37x02_tema_n"
+    canonical_original = canonical / "original_transcriptions"
     assert not legacy.exists()
+    assert canonical.is_dir()
+    assert (canonical / "37x02_tema_n.mp4").is_file()
+    assert (canonical / "37x02_tema_n_en.vtt").is_file()
+    assert (canonical_original / "37x02_tema_n_original.vtt").is_file()
 
 
 def test_normalize_existing_outputs_fits_old_long_names(tmp_path: Path, monkeypatch):
@@ -143,10 +156,10 @@ def test_local_storage_rename_output_folder_updates_artifact_stems(tmp_path: Pat
     (original / "Tema_viejo_original.vtt").write_text("WEBVTT\n", encoding="utf-8")
 
     provider = LocalStorageProvider(retain_sources=False, input_min_age_seconds=0)
-    mapping = provider.rename_output_folder(str(output), "Tema_viejo", "37x02_Tema_nuevo", "original_transcriptions")
+    mapping = provider.rename_output_folder(str(output), "Tema_viejo", "37x02_tema_nuevo", "original_transcriptions")
 
-    assert mapping == {"Tema_viejo": "37x02_Tema_nuevo"}
-    assert (output / "37x02_Tema_nuevo" / "37x02_Tema_nuevo.mp4").is_file()
-    assert (output / "37x02_Tema_nuevo" / "37x02_Tema_nuevo.webm").is_file()
-    assert (output / "37x02_Tema_nuevo" / "37x02_Tema_nuevo_en.vtt").is_file()
-    assert (output / "37x02_Tema_nuevo" / "original_transcriptions" / "37x02_Tema_nuevo_original.vtt").is_file()
+    assert mapping == {"Tema_viejo": "37x02_tema_nuevo"}
+    assert (output / "37x02_tema_nuevo" / "37x02_tema_nuevo.mp4").is_file()
+    assert (output / "37x02_tema_nuevo" / "37x02_tema_nuevo.webm").is_file()
+    assert (output / "37x02_tema_nuevo" / "37x02_tema_nuevo_en.vtt").is_file()
+    assert (output / "37x02_tema_nuevo" / "original_transcriptions" / "37x02_tema_nuevo_original.vtt").is_file()
