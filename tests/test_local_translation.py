@@ -118,6 +118,74 @@ def test_model_download_resumes_partial_file(monkeypatch, tmp_path: Path) -> Non
     assert not partial.exists()
 
 
+def test_model_download_uses_optional_huggingface_token(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("LOCAL_TRANSLATION_HF_TOKEN", "hf_test_token")
+    destination = tmp_path / "model.bin"
+    captured = {}
+
+    class Response:
+        status = 200
+        headers = {"Content-Length": "3"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read(self, _size: int) -> bytes:
+            return b"abc" if not captured.get("read") else b""
+
+    def fake_urlopen(request, **_kwargs):
+        captured["authorization"] = request.get_header("Authorization")
+        captured["read"] = False
+
+        response = Response()
+        original_read = response.read
+
+        def read(size: int) -> bytes:
+            if not captured["read"]:
+                captured["read"] = True
+                return original_read(size)
+            return b""
+
+        response.read = read
+        return response
+
+    monkeypatch.setattr(local_translation.urllib.request, "urlopen", fake_urlopen)
+    local_translation._download_file("https://huggingface.co/pinned/model.bin", destination, 10, auth_token="hf_test_token")
+
+    assert captured["authorization"] == "Bearer hf_test_token"
+    assert destination.read_bytes() == b"abc"
+
+
+def test_local_translation_batch_decodes_model_output() -> None:
+    provider = LocalTranslationProvider.__new__(LocalTranslationProvider)
+    provider.settings = SimpleNamespace(local_translation_beam_size=2)
+
+    class FakeSentencePiece:
+        def encode(self, text, out_type=str):
+            return ["▁hola", "▁mundo"] if text else []
+
+        def decode(self, tokens):
+            return "hello world" if tokens == ["hello", "world"] else ""
+
+    class FakeResult:
+        hypotheses = [["hello", "world", "</s>"]]
+
+    class FakeTranslator:
+        def translate_batch(self, tokens, beam_size):
+            assert tokens == [["▁hola", "▁mundo", "</s>"], ["▁hola", "▁mundo", "</s>"]]
+            assert beam_size == 2
+            return [FakeResult(), FakeResult()]
+
+    provider._source = FakeSentencePiece()
+    provider._target = FakeSentencePiece()
+    provider._translator = FakeTranslator()
+
+    assert provider.translate_batch(["Hola mundo", "Hola mundo"]) == ["hello world", "hello world"]
+
+
 def test_local_translation_runtime_falls_back_to_cpu_when_cuda_probe_fails(monkeypatch) -> None:
     settings = SimpleNamespace(
         local_translation_device="cuda",
