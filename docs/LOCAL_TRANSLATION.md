@@ -22,7 +22,7 @@ python scripts/manage_local_translation.py status
 python scripts/manage_local_translation.py download
 ```
 
-La descarga intenta primero el origen público de Hugging Face sin autenticación. Si el repositorio o la infraestructura de descarga exige autenticación en el entorno donde se ejecuta, puede proporcionarse un token mediante `LOCAL_TRANSLATION_HF_TOKEN`; como alternativa se reconoce el estándar `HF_TOKEN`. El token solo se envía en la cabecera `Authorization` de las peticiones HTTPS a Hugging Face y nunca se persiste junto al modelo.
+La descarga usa `huggingface_hub.hf_hub_download` con la revisión fijada. Este cliente soporta el backend Xet utilizado por los ficheros grandes del modelo y, para repositorios públicos, no necesita autenticación. Si el repositorio o la infraestructura de descarga exige autenticación en el entorno donde se ejecuta, puede proporcionarse un token mediante `LOCAL_TRANSLATION_HF_TOKEN`; como alternativa se reconoce el estándar `HF_TOKEN`. El token se entrega al cliente de Hugging Face solo durante la descarga y nunca se persiste junto al modelo.
 
 Para eliminar el modelo:
 
