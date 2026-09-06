@@ -1,4 +1,5 @@
 import hashlib
+import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -116,6 +117,8 @@ def test_model_download_uses_optional_huggingface_token(monkeypatch, tmp_path: P
     cached = tmp_path / "cached.bin"
     cached.write_bytes(b"abc")
     captured = {}
+    monkeypatch.setenv("TEST_HF_TOKEN", "hf_test_token")
+    auth_token = os.environ["TEST_HF_TOKEN"]
 
     def fake_download(**kwargs):
         captured.update(kwargs)
@@ -126,10 +129,10 @@ def test_model_download_uses_optional_huggingface_token(monkeypatch, tmp_path: P
         "https://huggingface.co/Prukario/opus-mt-es-en-ct2-int8/resolve/ad91ad1697ea1761111ff4c179400796d085b347/model.bin?download=true",
         destination,
         10,
-        auth_token="hf_test_token",
+        auth_token=auth_token,
     )
 
-    assert captured["token"] == "hf_test_token"
+    assert captured["token"] == auth_token
     assert destination.read_bytes() == b"abc"
 
 
