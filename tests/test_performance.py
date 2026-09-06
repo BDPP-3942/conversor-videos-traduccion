@@ -49,4 +49,5 @@ def test_resource_profile_uses_small_on_8gb_class_machine(monkeypatch):
     monkeypatch.setattr("src.resource_profile.os.cpu_count", lambda: 4)
     profile = __import__("src.resource_profile", fromlist=["detect_profile"]).detect_profile(AppSettings())
     assert profile.name == "low"
+    assert profile.whisper_model == "small"
     assert profile.whisper_threads <= 4
