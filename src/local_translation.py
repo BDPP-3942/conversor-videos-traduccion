@@ -64,6 +64,14 @@ class LocalTranslationModelManager:
     def download_dir(self) -> Path:
         return self.model_dir.with_name(f".{self.model_dir.name}.download")
 
+    @property
+    def huggingface_token(self) -> str | None:
+        """Return an optional HF token without requiring authentication for public models."""
+        token = os.getenv("LOCAL_TRANSLATION_HF_TOKEN", "").strip()
+        if not token:
+            token = os.getenv("HF_TOKEN", "").strip()
+        return token or None
+
     def status(self) -> LocalModelStatus:
         required = (*MODEL_FILES, *SMALL_MODEL_FILES)
         missing = [name for name in required if not (self.model_dir / name).is_file()]
@@ -142,7 +150,12 @@ class LocalTranslationModelManager:
                     MODEL_MAX_DOWNLOAD_BYTES,
                     MODEL_FILES.get(name, (0, SMALL_MODEL_FILES[name][0]))[1],
                 )
-                _download_file(url, download_dir / name, max_bytes)
+                _download_file(
+                    url,
+                    download_dir / name,
+                    max_bytes,
+                    auth_token=self.huggingface_token,
+                )
             for name, (expected_hash, expected_size) in MODEL_FILES.items():
                 path = download_dir / name
                 if path.stat().st_size != expected_size or _sha256(path) != expected_hash:
@@ -354,12 +367,20 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _download_file(url: str, destination: Path, max_bytes: int) -> None:
+def _download_file(
+    url: str,
+    destination: Path,
+    max_bytes: int,
+    *,
+    auth_token: str | None = None,
+) -> None:
     if not url.startswith("https://huggingface.co/"):
         raise ValueError("Model downloads are restricted to the pinned Hugging Face origin")
     partial = destination.with_suffix(destination.suffix + ".part")
     offset = partial.stat().st_size if partial.exists() else 0
     headers = {"User-Agent": "video-translation-pipeline/1.5"}
+    if auth_token:
+        headers["Authorization"] = f"Bearer {auth_token}"
     if offset:
         headers["Range"] = f"bytes={offset}-"
     request = urllib.request.Request(url, headers=headers)
