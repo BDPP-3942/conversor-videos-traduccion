@@ -51,9 +51,7 @@ class FileNameFormatter:
         ),
         re.compile(r"^\s*(\d{1,4})\s*(?:º|°|[._-])\s*", re.IGNORECASE),
     )
-    COURSE_TEXT_PATTERNS = (
-        re.compile(r"\b(?:curso|course)\s*[:\-–—.]?\s*([^|/\\]+)", re.IGNORECASE),
-    )
+    COURSE_TEXT_PATTERNS = (re.compile(r"\b(?:curso|course)\s*[:\-–—.]?\s*([^|/\\]+)", re.IGNORECASE),)
     LESSON_TEXT_PATTERNS = (
         re.compile(
             r"\b(?:lecci[oó]n|lesson|cap[ií]tulo|chapter|clase|tema|unidad)\s*[:\-–—.]?\s*([^|/\\]+)",
