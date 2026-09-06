@@ -292,7 +292,11 @@ class SubtitleReprocessor:
         video_name: str | None,
         source: str | None,
     ) -> str:
-        children = [child for child in self.storage.list_children(target) if child.is_directory and child.name != "_manifests"]
+        children = [
+            child
+            for child in self.storage.list_children(target)
+            if child.is_directory and child.name != "_manifests"
+        ]
         if output_folder:
             for child in children:
                 if child.name == output_folder:
