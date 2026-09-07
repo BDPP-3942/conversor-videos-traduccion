@@ -40,11 +40,11 @@ See [INSTALLATION.md](INSTALLATION.md), [CONFIGURATION.md](CONFIGURATION.md) and
 
 ## Current published release vs candidate
 
-The latest published product release is `1.7.0` (`v1.7.0`). This branch prepares the PATCH release `1.7.1` directly from the published `1.7.0` baseline.
+The latest published product release is `1.7.0` (`v1.7.0`). The current branch prepares PATCH release `1.7.2`; `1.7.1` is the immediately preceding merged STT compatibility fix whose release tag must remain immutable once published.
 
-Release `1.7.0` consolidated reprocessing/manifests, local-storage race hardening, deterministic Unicode naming/filesystem behavior and the local translation runtime. Release `1.7.1` corrects the `faster-whisper` selective-recovery backend contract without changing the public recovery configuration or the audiovisual pipeline.
+Release `1.7.0` consolidated reprocessing/manifests, local-storage race hardening, deterministic Unicode naming/filesystem behavior and the local translation runtime. Release `1.7.1` corrected the `faster-whisper` selective-recovery backend contract. Release `1.7.2` corrects the local translation model download manager and adds end-to-end provider regression coverage.
 
-The previous releases `1.6.0` and `1.5.1` remain historical context only. The compatibility review for `1.7.1` must compare against **`v1.7.0`**, so that none of the functionality already present in the latest project release is accidentally omitted from the assessment.
+The previous releases `1.6.0` and `1.5.1` remain historical context only. The compatibility review for `1.7.2` must preserve the complete `1.7.1` state.
 
 See [RELEASES.md](RELEASES.md) for the release history and [../RELEASE_CANDIDATE.md](../RELEASE_CANDIDATE.md) for the exact release-gate scope.
 
@@ -64,5 +64,6 @@ See [RELEASES.md](RELEASES.md) for the release history and [../RELEASE_CANDIDATE
 | Local translation, GPU/runtime hardening and configurable STT recovery | `1.6.0` | release history |
 | Reprocessing/manifests, Unicode naming/filesystem consolidation and translation runtime improvements | `1.7.0` | published GitHub release |
 | `faster-whisper` selective recovery `clip_timestamps` compatibility fix | `1.7.1` | `CHANGELOG.md` / `RELEASES.md` |
+| Local translation model download and provider runtime fix | `1.7.2` | `tests/test_local_translation.py` / `RELEASES.md` |
 
-The table records functionality by introduction release. `1.7.1` remains a candidate until its final SHA passes the release gate and its tag is created according to the release policy.
+The table records functionality by introduction release. `1.7.2` remains a candidate until its final SHA passes the release gate and its tag is created according to the release policy.
