@@ -1,26 +1,26 @@
-# Release Candidate — 1.6.1
+# Release Candidate — 1.7.1
 
 ## Release
 
-- **Version:** 1.6.1
+- **Version:** 1.7.1
 - **Candidate SHA:** debe ser validado por CI y Release Gate sobre el SHA exacto final pre-merge; el tag debe apuntar al SHA exacto resultante de `main` tras el merge.
-- **Previous release:** `v1.6.0` → `a6cf0ee183a4802814fe0e061b4704e427166b85`
-- **Previous baseline:** `v1.5.1` → `06ee8d265b57214596f079f3bb426b9b27042b1e`
-- **Target tag:** `v1.6.1` — not created
+- **Previous release:** `v1.7.0` — release publicada más reciente.
+- **Historical baselines:** `v1.6.0` → `a6cf0ee183a4802814fe0e061b4704e427166b85`; `v1.5.1` → `06ee8d265b57214596f079f3bb426b9b27042b1e`.
+- **Target tag:** `v1.7.1` — not created
 
-This report is the release-gate record for the faster-whisper selective-recovery compatibility fix. The tag must be created only after merge, must point to the exact final `main` commit and must never be moved afterward.
+This report is the release-gate record for the faster-whisper selective-recovery compatibility fix. The review baseline is the complete published `v1.7.0` product state. The tag must be created only after merge, must point to the exact final `main` commit and must never be moved afterward.
 
-## Baseline for the 1.6.1 review
+## Baseline for the 1.7.1 review
 
-The comparison baseline for this candidate is the **published `v1.6.0`**, not `v1.5.1`. Therefore the review must treat all functionality introduced by `1.6.0` as existing product functionality that must remain intact, including local translation, GPU/runtime hardening and configurable STT recovery. `1.5.1` remains documented as the previous release before the `1.6.0` feature line.
+The comparison baseline for this candidate is **published `v1.7.0`**, not `v1.5.1` or `v1.6.0`. Therefore the review must treat all functionality introduced by `1.7.0` as existing product functionality that must remain intact, including reprocessing/manifests, local-storage race hardening, deterministic Unicode naming/filesystem behavior and the consolidated local-translation runtime. `1.6.0` and `1.5.1` remain historical baselines only.
 
 ## Scope
 
 - Corrección del contrato de `clip_timestamps` usado por la recuperación selectiva de `faster-whisper`.
 - Los intervalos se envían como valores temporales numéricos `[start, end]` a `WhisperModel.transcribe()`.
 - Conservación de la recuperación limitada por segmento, el contexto preservado/contexto libre y la parada temprana ante candidatos saludables.
-- Sin sustitución del pipeline audiovisual, almacenamiento, naming, VTT ni contratos públicos de recuperación.
-- El endurecimiento ZIP/filesystem de `1.5.1`, la traducción local opcional y el runtime GPU de `1.6.0` permanecen como baseline funcional del proyecto.
+- Conservación del comportamiento de reprocessing/manifests y de las políticas Unicode/filesystem consolidadas en `1.7.0`.
+- Sin sustitución del pipeline audiovisual, almacenamiento, naming, VTT ni contratos públicos.
 
 ## Root cause
 
@@ -30,7 +30,7 @@ La corrección convierte el intervalo recuperado en `[float(start), float(end)]`
 
 ## Dependencies
 
-The release stack is explicitly constrained to the compatible versions:
+The candidate preserves the project's compatible runtime constraints:
 
 - `faster-whisper>=1.2.1,<1.3`
 - `ctranslate2>=4.8.2,<4.9`
@@ -41,11 +41,11 @@ The release stack is explicitly constrained to the compatible versions:
 
 ## Tests
 
-Required validation includes the complete pytest suite, STT recovery regressions, configuration/provider regressions, ZIP/filesystem security tests, packaging validation and dependency audits.
+Required validation includes the complete pytest suite, STT recovery regressions, configuration/provider regressions, reprocessing/manifests regressions, Unicode/filesystem and ZIP security tests, packaging validation and dependency audits.
 
 The STT regressions verify the numeric `clip_timestamps` contract received by `model.transcribe()`, normal transcription, recovery result integration, bounded retry behavior and early termination after a healthy candidate.
 
-The 1.6.1 review must also preserve the `1.6.0` feature baseline: local translation resource management and validation, NVIDIA/CUDA capability detection and fallback behavior, configurable STT recovery, and the security hardening inherited from `1.5.1`.
+The 1.7.1 review must also preserve the complete `1.7.0` feature baseline: reprocessing/manifests, deterministic Unicode naming/filesystem behavior, local translation runtime and inherited ZIP/filesystem hardening.
 
 ## CI
 
@@ -55,7 +55,7 @@ CI validates the exact PR head on Linux, Windows and macOS with Python 3.11, 3.1
 
 ## Packaging
 
-`pyproject.toml` declares `1.6.1`.
+`pyproject.toml` declares `1.7.1`.
 
 Supported packaged entry points are:
 
@@ -68,7 +68,7 @@ Supported packaged entry points are:
 
 ## Documentation
 
-The release documentation for `1.6.1` is maintained in `CHANGELOG.md`, `docs/RELEASES.md`, `RELEASE_SCOPE.md`, this report and the STT/installation documentation. Historical release entries must remain intact and must not be deleted when adding the new candidate.
+The release documentation for `1.7.1` is maintained in `CHANGELOG.md`, `docs/RELEASES.md`, `RELEASE_SCOPE.md`, this report and the STT/installation documentation. Historical release entries must remain intact and must not be deleted when adding the new candidate.
 
 ## Known limitations
 
@@ -82,15 +82,15 @@ The release documentation for `1.6.1` is maintained in `CHANGELOG.md`, `docs/REL
 
 | Gate | Status |
 |---|---|
-| Existing functionality from `1.6.0` baseline | **PENDING final CI** |
+| Existing functionality from `1.7.0` baseline | **PENDING final CI** |
 | STT selective recovery compatibility | **IMPLEMENTED** |
 | faster-whisper dependency contract | **IMPLEMENTED** |
 | Tests | **PENDING final CI** |
 | CI | **PENDING** |
 | Packaging | **PENDING final CI** |
 | Documentation | **UPDATED** |
-| Versioning | **UPDATED to 1.6.1** |
+| Versioning | **UPDATED to 1.7.1** |
 
 ## Decision
 
-**Do not merge or create `v1.6.1` until the final pre-merge SHA remains green in CI and Release Gate.** After merge, validate the resulting `main` SHA and create the immutable `v1.6.1` tag/release on that exact SHA.
+**Do not merge or create `v1.7.1` until the final pre-merge SHA remains green in CI and Release Gate.** After merge, validate the resulting `main` SHA and create the immutable `v1.7.1` tag/release on that exact SHA.
