@@ -27,6 +27,7 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 | Wrappers multiplataforma, naming de referencia y contexto externo de Whisper | `1.5.0` |
 | Endurecimiento ZIP/filesystem multiplataforma | `1.5.1` |
 | Traducción local opcional, recuperación STT configurable y endurecimiento GPU/runtime | `1.6.0` |
+| Corrección del contrato `clip_timestamps` en la recuperación selectiva de STT con `faster-whisper` | `1.6.1` |
 
 ## Releases publicadas
 
@@ -111,7 +112,43 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 
 **Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
 
-## Candidata 1.6.0
+## Candidata 1.6.1
+
+### Alcance
+
+**Tipo:** `PATCH`.
+
+La candidata 1.6.1 corrige una regresión de compatibilidad en la recuperación selectiva de segmentos STT. `WhisperModel.transcribe()` recibe ahora intervalos `clip_timestamps` como valores temporales numéricos `[start, end]`, conforme al contrato de `faster-whisper` utilizado por el proyecto, evitando que los diccionarios de segmentos se sometan a operaciones aritméticas internas y produzcan `TypeError`.
+
+La corrección es compatible hacia atrás: no modifica el pipeline audiovisual, el formato VTT, la configuración pública de recuperación ni la semántica de los reintentos.
+
+### Cambios
+
+- Corregido el formato de `clip_timestamps` de la recuperación selectiva de `faster-whisper`.
+- Conservada la recuperación limitada por segmento, incluyendo el orden contexto-preservado/contexto-libre y la parada temprana ante un candidato saludable.
+- Mantenida la política de rechazo de candidatos que siguen siendo sospechosos.
+- Añadidas y conservadas regresiones que comprueban el contrato numérico recibido por `model.transcribe(...)`, la transcripción normal y la integración del resultado recuperado.
+
+### Dependencias
+
+La release fija explícitamente el stack compatible con la corrección:
+
+- `faster-whisper>=1.2.1,<1.3`
+- `ctranslate2>=4.8.2,<4.9`
+- `sentencepiece>=0.2,<0.3`
+- `huggingface-hub>=0.32,<1.31`
+
+La misma base de dependencias se refleja en `pyproject.toml` y `requirements.txt`; los ficheros `requirements-google.txt` y `requirements-dev.txt` heredan de `requirements.txt` y no duplican la versión de `faster-whisper`.
+
+### Validación
+
+La candidata final pre-merge debe completar CI y Release Gate sobre su SHA exacto, incluyendo Linux, Windows y macOS con Python 3.11–3.13, tests, lint/security/format, compile, audits, packaging, instalación limpia, `pip check` y entry points.
+
+No se declara ningún benchmark GPU ni prueba A/B de un MP4 externo que no esté disponible y registrado.
+
+El tag `v1.6.1` se creará únicamente después del merge y sobre el SHA exacto resultante de `main`.
+
+## Candidata histórica 1.6.0
 
 ### Alcance
 
@@ -138,11 +175,11 @@ La configuración general sigue en `config/app.toml` con overrides de entorno. L
 
 ### Validación
 
-La candidata final pre-merge tiene CI y Release Gate satisfactorios sobre su SHA exacto, incluyendo Linux, Windows y macOS con Python 3.11–3.13, tests, lint/security/format, compile, audits, packaging, instalación limpia, `pip check` y entry points.
+La candidata final pre-merge de 1.6.0 tuvo CI y Release Gate satisfactorios sobre su SHA exacto, incluyendo Linux, Windows y macOS con Python 3.11–3.13, tests, lint/security/format, compile, audits, packaging, instalación limpia, `pip check` y entry points.
 
-No se declara ningún benchmark GPU ni prueba A/B de un MP4 externo que no esté disponible y registrado.
+No se declaró ningún benchmark GPU ni prueba A/B de un MP4 externo que no estuviera disponible y registrado.
 
-El tag `v1.6.0` se creará únicamente después del merge y sobre el SHA exacto resultante de `main`.
+El tag `v1.6.0` fue sustituido como siguiente candidata por la corrección PATCH `1.6.1`; `v1.6.0` no debe crearse desde esta rama de corrección.
 
 ## Política de tags
 
