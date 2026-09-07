@@ -2,7 +2,7 @@
 
 STT uses `faster-whisper` backed by CTranslate2. The selected model, device, compute type, beam size, CPU threads, VAD behavior, initial prompt and degeneration-recovery policy are configurable.
 
-The `1.6.1` release uses the compatibility range `faster-whisper>=1.2.1,<1.3` with `ctranslate2>=4.8.2,<4.9`. The PATCH release corrects the selective-recovery `clip_timestamps` contract without changing the public recovery configuration.
+The `1.7.1` release uses the compatibility range `faster-whisper>=1.2.1,<1.3` with `ctranslate2>=4.8.2,<4.9`. It is a PATCH correction on the latest published `1.7.0` release and corrects the selective-recovery `clip_timestamps` contract without changing the public recovery configuration or the STT architecture consolidated in `1.7.0`.
 
 Defaults in `config/app.toml` include automatic model/device/compute selection, beam size `5`, VAD enabled and a minimum silence duration of `1500` ms. `.env.example` exposes explicit environment overrides.
 
@@ -129,4 +129,4 @@ The model is not bundled into the repository by default.
 
 ## Reprocessing
 
-If an existing original VTT is missing or invalid but the normal video exists, `reprocess-subtitles --stt-only` can regenerate the transcription without regenerating the normal video.
+The latest `1.7.0` baseline adds the reprocessing/manifests workflows. If an existing original VTT is missing or invalid but the normal video exists, `reprocess-subtitles --stt-only` can regenerate the transcription without regenerating the normal video. The `1.7.1` fix does not alter that workflow.
