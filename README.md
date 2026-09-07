@@ -263,9 +263,11 @@ Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` 
 
 ## Versionado
 
-La release publicada actual es `1.5.1` (`v1.5.1`). La candidata de próxima release es **`1.6.0` (`v1.6.0`)** y no se considera publicada hasta que exista un tag/release verificable sobre el SHA resultante de `main`.
+La release publicada actual es `1.6.0` (`v1.6.0`). La candidata de próxima release es **`1.6.1` (`v1.6.1`)** y no se considera publicada hasta que exista un tag/release verificable sobre el SHA resultante de `main`.
 
-La release `1.5.1` corresponde al endurecimiento de extracción ZIP y componentes de filesystem multiplataforma. El tag `v1.5.1` apunta al commit `06ee8d265b57214596f079f3bb426b9b27042b1e`.
+La release `1.6.0` corresponde a la incorporación de traducción local opcional, endurecimiento GPU/runtime y recuperación STT configurable. El tag `v1.6.0` apunta al commit `a6cf0ee183a4802814fe0e061b4704e427166b85`.
+
+La candidata `1.6.1` corrige el contrato `clip_timestamps` de la recuperación selectiva de `faster-whisper` sin cambiar la configuración pública ni el pipeline audiovisual.
 
 No se modifica el historial de releases anteriores.
 
