@@ -1,4 +1,4 @@
-# Release Scope — 1.6.0
+# Release Scope — 1.6.1
 
 ## Previous release
 
@@ -8,39 +8,53 @@ The tag is historical and MUST NOT be moved, deleted, or reused.
 
 ## Changes since v1.5.1
 
-PR #35 introduces new optional offline translation functionality, hardens GPU/runtime selection and improves integrity and recovery behavior without replacing the existing media pipeline.
+The `1.6.x` line introduced local translation, GPU/runtime hardening and selective STT recovery. Release `1.6.1` is a PATCH correction for a compatibility regression in that STT recovery path.
 
 ## Functional scope
 
-- Local Spanish→English translation through CTranslate2 + SentencePiece.
-- Pinned model repository/revision with deterministic validation of the core model artifacts and structural validation of required JSON metadata.
-- Explicit model preparation/status/cleanup tooling.
-- NVIDIA/CUDA capability detection based on actual CTranslate2 support rather than GPU presence alone.
-- Managed CUDA Python runtime resources for cuBLAS CUDA 12 and cuDNN 9.
-- Conservative CUDA→CPU fallback.
-- Selective STT recovery for suspicious repetition/hallucination segments.
-- ZIP and filesystem normalization/security hardening remains part of the release baseline.
+- Correct `faster-whisper` `clip_timestamps` contract for selective STT recovery.
+- Pass numeric `[start, end]` timestamps to `WhisperModel.transcribe()`.
+- Preserve segment-scoped recovery, bounded rounds, context-preserving/context-free ordering and early stop on a healthy candidate.
+- Preserve the existing audiovisual pipeline, VTT format, storage architecture and public recovery configuration.
+- Keep the `1.6.0` local-translation, CUDA/runtime and ZIP/filesystem hardening baseline unchanged.
+
+## Dependency scope
+
+The runtime dependency contract for this release is:
+
+- `faster-whisper>=1.2.1,<1.3`
+- `ctranslate2>=4.8.2,<4.9`
+- `sentencepiece>=0.2,<0.3`
+- `huggingface-hub>=0.32,<1.31`
+- `webvtt-py>=0.4,<1`
+- `imageio-ffmpeg>=0.6,<1`
+- `python-dotenv>=1,<2`
+
+`requirements.txt` and `pyproject.toml` must remain aligned. Derived requirements files inherit from `requirements.txt`.
 
 ## Configuration scope
 
-The canonical application configuration remains `config/app.toml`, with environment overrides. Local-translation-specific settings use the `LOCAL_TRANSLATION_*` environment variables documented in `.env.example`, `docs/CONFIGURATION.md` and `docs/LOCAL_TRANSLATION.md`. There is deliberately no duplicate `[local_translation]` TOML section.
+The canonical application configuration remains `config/app.toml`, with environment overrides. This release does not introduce a new TOML configuration key for the STT recovery fix. The existing `whisper_recovery_retries` and `whisper_recovery_temperatures` contract remains unchanged.
 
-The pinned model identity is not user-selectable: `LOCAL_TRANSLATION_MODEL_ID` and `LOCAL_TRANSLATION_MODEL_REVISION` must match the project constants.
+## Version scope
+
+- `pyproject.toml` declares `1.6.1`.
+- `CHANGELOG.md` contains the `1.6.1` release entry before the historical `1.6.0` entry.
+- `docs/RELEASES.md` records `1.6.1` as the current candidate and preserves the complete previous release history.
+- `RELEASE_CANDIDATE.md` and this file refer to `1.6.1`.
+- No `v1.6.1` tag exists until after merge; the tag must point to the exact resulting `main` SHA.
 
 ## Validation state
 
-- `pyproject.toml` declares version `1.6.0`.
-- Release documentation identifies `v1.5.1` as the previous published release.
-- The final pre-merge candidate has completed CI and Release Gate successfully on its exact commit SHA.
-- No `v1.6.0` tag exists until after merge; the tag must point to the exact resulting `main` SHA.
-- No real-media regression or GPU benchmark is claimed unless the corresponding external artifact/run is available and recorded.
+The final candidate SHA must complete CI and Release Gate successfully before merge approval. No older SHA is sufficient evidence for the final candidate.
+
+No real-media regression or GPU benchmark is claimed unless the corresponding external artifact/run is available and recorded.
 
 ## Tests and hardening
 
-- Model status rejects missing resources, incorrect core hashes/sizes, unsafe metadata and malformed required JSON metadata.
-- CUDA fallback tests mock hardware detection and the CTranslate2 capability probe so the intended failure branch is exercised deterministically.
-- Provider configuration tests cover the environment-driven local translation settings.
-- ZIP/filesystem security and STT recovery regressions remain mandatory.
+- STT recovery regressions verify numeric `clip_timestamps` and recovered result integration.
+- Existing STT retry-limit, temperature, context-order and early-stop tests remain mandatory.
+- ZIP/filesystem security and all project-wide quality/packaging/dependency checks remain mandatory.
 
 ## Excluded
 
