@@ -28,8 +28,33 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 | Endurecimiento ZIP/filesystem multiplataforma | `1.5.1` |
 | Traducción local opcional, recuperación STT configurable y endurecimiento GPU/runtime | `1.6.0` |
 | Corrección del contrato `clip_timestamps` en la recuperación selectiva de STT con `faster-whisper` | `1.6.1` |
+| Reprocessing/manifests, consolidación de naming Unicode/filesystem y mejoras del runtime de traducción local | `1.7.0` |
 
 ## Releases publicadas
+
+### 1.7.0 — Reprocessing, Unicode Naming & Translation Runtime
+
+**Tipo:** `MINOR`.
+
+**Tag publicado:** `v1.7.0`.
+
+Esta es la **release publicada más reciente del proyecto**. Consolida el reprocesado y la persistencia de manifests, refuerza el almacenamiento local multiplataforma, consolida el naming determinista y la normalización Unicode, endurece los límites reales de filesystem y consolida el proveedor de traducción local y su runtime.
+
+Los cambios propios de `1.7.0` no forman parte automáticamente de la rama de mantenimiento `1.6.x`. La candidata `1.6.1` se mantiene como corrección específica de la línea `1.6.x`.
+
+### 1.6.0 — Local Translation & GPU Runtime Hardening
+
+**Tipo:** `MINOR`.
+
+**Commit/tag publicado:** `a6cf0ee183a4802814fe0e061b4704e427166b85` / `v1.6.0`.
+
+- Traducción local opcional español→inglés basada en CTranslate2 + SentencePiece.
+- Modelo local fijado y validado mediante tamaño y SHA-256.
+- Descarga reanudable, validación estructural y reemplazo atómico de recursos.
+- Runtime NVIDIA gestionado para cuBLAS CUDA 12 y cuDNN 9 CUDA 12.
+- Detección de capacidad CUDA real mediante CTranslate2 y fallback CPU conservador.
+- Recuperación configurable de segmentos STT sospechosos mediante rondas limitadas.
+- Endurecimiento ZIP/filesystem heredado de `1.5.1`.
 
 ### 1.5.1 — ZIP Extraction & Cross-Platform Filesystem Hardening
 
@@ -112,15 +137,30 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 
 **Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
 
-## Candidata 1.6.1
+## Candidata de mantenimiento 1.6.1
 
-### Alcance
+### Posición en la línea de releases
 
 **Tipo:** `PATCH`.
 
-La candidata 1.6.1 corrige una regresión de compatibilidad en la recuperación selectiva de segmentos STT. `WhisperModel.transcribe()` recibe ahora intervalos `clip_timestamps` como valores temporales numéricos `[start, end]`, conforme al contrato de `faster-whisper` utilizado por el proyecto, evitando que los diccionarios de segmentos se sometan a operaciones aritméticas internas y produzcan `TypeError`.
+`1.6.1` es una **release de mantenimiento de la línea `1.6.x`**, no una release posterior a `1.7.0` en la secuencia principal. La última release publicada globalmente es `1.7.0`, pero el objetivo de esta rama es corregir `1.6.0` sin incorporar los cambios funcionales posteriores de `1.7.0`.
 
-La corrección es compatible hacia atrás: no modifica el pipeline audiovisual, el formato VTT, la configuración pública de recuperación ni la semántica de los reintentos.
+Por tanto:
+
+- **Previous release en la línea de mantenimiento:** `v1.6.0` → `a6cf0ee183a4802814fe0e061b4704e427166b85`.
+- **Baseline histórico anterior a la línea 1.6.x:** `v1.5.1` → `06ee8d265b57214596f079f3bb426b9b27042b1e`.
+- **Latest published release del proyecto:** `v1.7.0`.
+- **Target maintenance tag:** `v1.6.1` — pendiente de validación y creación.
+
+La revisión de esta corrección debe compararse contra **`v1.6.0`**, porque esa es la versión publicada de la misma línea funcional que contiene la regresión. No debe utilizar `1.5.1` como baseline funcional inmediato ni incorporar silenciosamente cambios de `1.7.0`.
+
+### Alcance
+
+La candidata `1.6.1` corrige una regresión de compatibilidad en la recuperación selectiva de segmentos STT. `WhisperModel.transcribe()` recibe ahora intervalos `clip_timestamps` como valores temporales numéricos `[start, end]`, conforme al contrato de `faster-whisper` utilizado por el proyecto, evitando que los diccionarios de segmentos se sometan a operaciones aritméticas internas y produzcan `TypeError`.
+
+La corrección conserva como baseline todas las capacidades de `1.6.0`, especialmente traducción local opcional, runtime GPU/CUDA, recuperación STT configurable y endurecimiento ZIP/filesystem heredado de `1.5.1`.
+
+No incorpora cambios funcionales de `1.7.0` salvo que fueran imprescindibles para resolver una dependencia directa de esta corrección; cualquier backport adicional debe quedar documentado explícitamente.
 
 ### Cambios
 
@@ -138,54 +178,21 @@ La release fija explícitamente el stack compatible con la corrección:
 - `sentencepiece>=0.2,<0.3`
 - `huggingface-hub>=0.32,<1.31`
 
-La misma base de dependencias se refleja en `pyproject.toml` y `requirements.txt`; los ficheros `requirements-google.txt` y `requirements-dev.txt` heredan de `requirements.txt` y no duplican la versión de `faster-whisper`.
+La misma base de dependencias se refleja en `pyproject.toml` y `requirements.txt`.
 
 ### Validación
 
 La candidata final pre-merge debe completar CI y Release Gate sobre su SHA exacto, incluyendo Linux, Windows y macOS con Python 3.11–3.13, tests, lint/security/format, compile, audits, packaging, instalación limpia, `pip check` y entry points.
 
-No se declara ningún benchmark GPU ni prueba A/B de un MP4 externo que no esté disponible y registrado.
+Debe verificarse explícitamente que las capacidades de `1.6.0` no se han regresado durante la corrección. No se declara ningún benchmark GPU ni prueba A/B de un MP4 externo que no esté disponible y registrado.
 
-El tag `v1.6.1` se creará únicamente después del merge y sobre el SHA exacto resultante de `main`.
-
-## Candidata histórica 1.6.0
-
-### Alcance
-
-**Tipo:** `MINOR`.
-
-La candidata 1.6.0 añade funcionalidad compatible hacia atrás: traducción local opcional español→inglés mediante CTranslate2 + SentencePiece, endurecimiento de la selección GPU/CPU, preparación reproducible de recursos locales y recuperación configurable de segmentos STT sospechosos. También incorpora el endurecimiento ZIP/filesystem de 1.5.1 como baseline.
-
-### Cambios
-
-- Modelo y revisión fijados.
-- `model.bin`, `source.spm` y `target.spm` validados por tamaño y SHA-256.
-- Metadatos JSON requeridos validados por presencia, tamaño, UTF-8, tipo y estructura mínima.
-- Descarga HTTPS controlada, temporales, reanudación cuando es posible y reemplazo atómico.
-- Fallback configurable cuando el recurso local no está disponible.
-- Detección NVIDIA condicionada a capacidad real de CTranslate2.
-- Fallback CPU `int8` cuando CUDA no puede validarse.
-- Runtime NVIDIA gestionado bajo `tools/cuda/` con cuBLAS CUDA 12 y cuDNN 9.
-- Recuperación selectiva de segmentos STT sospechosos mediante rondas de recuperación limitadas.
-- Endurecimiento ZIP/filesystem heredado de 1.5.1.
-
-### Configuración
-
-La configuración general sigue en `config/app.toml` con overrides de entorno. La configuración específica de traducción local usa exclusivamente `LOCAL_TRANSLATION_*`; no existe una sección `[local_translation]` duplicada en TOML.
-
-### Validación
-
-La candidata final pre-merge de 1.6.0 tuvo CI y Release Gate satisfactorios sobre su SHA exacto, incluyendo Linux, Windows y macOS con Python 3.11–3.13, tests, lint/security/format, compile, audits, packaging, instalación limpia, `pip check` y entry points.
-
-No se declaró ningún benchmark GPU ni prueba A/B de un MP4 externo que no estuviera disponible y registrado.
-
-El tag `v1.6.0` fue sustituido como siguiente candidata por la corrección PATCH `1.6.1`; `v1.6.0` no debe crearse desde esta rama de corrección.
+El tag `v1.6.1` se creará únicamente después de validar el SHA resultante de `main` según la política de releases de mantenimiento.
 
 ## Política de tags
 
 Los tags utilizan `vMAJOR.MINOR.PATCH` y no deben reutilizarse ni moverse después de publicar una release.
 
-`v1.3.0`, `v1.4.0`, `v1.5.0` y `v1.5.1` permanecen asociados a sus commits publicados anteriores y no deben modificarse.
+`v1.7.0`, `v1.6.0`, `v1.5.1` y las releases anteriores permanecen asociados a sus commits publicados y no deben modificarse.
 
 ## Historial anterior
 
