@@ -68,12 +68,14 @@ python main.py run --scheduled
 
 ## Traducción local offline
 
-La release 1.7.0 consolida el proveedor opcional español→inglés basado en CTranslate2 + SentencePiece. El modelo no se descarga automáticamente por defecto: debe prepararse explícitamente.
+La línea `1.7.x` consolida el proveedor opcional español→inglés basado en CTranslate2 + SentencePiece. El modelo no se descarga automáticamente por defecto: debe prepararse explícitamente.
 
 ```bash
 python scripts/manage_local_translation.py status
 python scripts/manage_local_translation.py download
 ```
+
+En `1.7.2` se corrige el gestor de descarga para que procese correctamente tanto `model.bin`, `source.spm` y `target.spm` como los metadatos JSON. Una expresión anterior evaluaba eagermente un fallback de `dict.get` y provocaba `KeyError: 'model.bin'` antes de iniciar la descarga real.
 
 Después de preparar el modelo, puede seleccionarse con:
 
@@ -82,9 +84,9 @@ TRANSLATION_PROVIDER=local
 TRANSLATION_FALLBACK_PROVIDERS=deepl,mymemory
 ```
 
-La descarga intenta funcionar sin autenticación porque el modelo fijado es un recurso público. Si el entorno de Hugging Face exige autenticación, puede configurarse `LOCAL_TRANSLATION_HF_TOKEN` (o `HF_TOKEN`) mediante el entorno/secret de ejecución. El token solo se usa para la descarga HTTPS y no se almacena con el modelo. El modelo y su revisión están fijados por el proyecto. La aplicación valida los ficheros principales por tamaño y SHA-256 y valida estructuralmente los metadatos requeridos antes de cargarlo. Consulte `docs/LOCAL_TRANSLATION.md` y `THIRD_PARTY_NOTICES.md`.
+La descarga intenta funcionar sin autenticación porque el modelo fijado es un recurso público. Si el entorno de Hugging Face exige autenticación, puede configurarse `LOCAL_TRANSLATION_HF_TOKEN` (o `HF_TOKEN`) mediante el entorno/secret de ejecución. El token solo se usa para la descarga HTTPS y no se almacena con el modelo. El modelo y su revisión están fijados por el proyecto. La aplicación valida los ficheros principales por tamaño y SHA-256 y valida estructuralmente los metadatos requeridos antes de cargarlo.
 
-Una vez preparado, la ejecución local no necesita conexión a Hugging Face. El benchmark `scripts/benchmark_local_translation.py` inicializa el runtime real de CTranslate2 + SentencePiece y comprueba que las traducciones producidas no estén vacías; debe ejecutarse en el hardware objetivo antes de considerar validado un modelo descargado manualmente.
+Una vez preparado, la ejecución local no necesita conexión a Hugging Face. El benchmark `scripts/benchmark_local_translation.py` inicializa el runtime real de CTranslate2 + SentencePiece y comprueba que las traducciones producidas no estén vacías; debe ejecutarse en el hardware objetivo después de preparar el modelo.
 
 ## Wrappers locales
 
@@ -263,11 +265,11 @@ Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` 
 
 ## Versionado
 
-La release publicada más reciente es `1.7.0` (`v1.7.0`). La candidata de próxima release es **`1.7.1` (`v1.7.1`)** y no se considera publicada hasta que exista un tag/release verificable sobre el SHA resultante de `main`.
+La release publicada más reciente confirmada es `1.7.0` (`v1.7.0`). La candidata actual es **`1.7.2` (`v1.7.2`)**. El estado `1.7.1` está integrado en `main` y constituye el baseline funcional inmediato de `1.7.2`; su tag/release debe conservar el SHA exacto del merge cuando se publique.
 
 La release `1.7.0` corresponde a la consolidación de reprocessing/manifests, naming Unicode/filesystem y runtime de traducción local, además de las capacidades heredadas de `1.6.0` y `1.5.1`.
 
-La candidata `1.7.1` corrige el contrato `clip_timestamps` de la recuperación selectiva de `faster-whisper` sin cambiar la configuración pública ni el pipeline audiovisual. La revisión de compatibilidad se realiza contra `v1.7.0`, no contra `v1.5.1`.
+La corrección `1.7.1` resolvió el contrato `clip_timestamps` de la recuperación selectiva de `faster-whisper`. La candidata `1.7.2` corrige el gestor de descarga del modelo de traducción local sin cambiar la configuración pública ni el pipeline audiovisual.
 
 No se modifica el historial de releases anteriores.
 
