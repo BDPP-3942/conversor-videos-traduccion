@@ -1,29 +1,30 @@
-# Release Scope — 1.6.1
+# Release Scope — 1.7.1
 
 ## Previous release
 
+`v1.7.0` es la release publicada inmediatamente anterior y constituye el baseline funcional de esta candidata.
+
+El tag `v1.7.0` es histórico y MUST NOT be moved, deleted, or reused.
+
+## Historical baselines
+
 `v1.6.0` → `a6cf0ee183a4802814fe0e061b4704e427166b85`.
-
-The tag is historical and MUST NOT be moved, deleted, or reused.
-
-## Previous baseline release
 
 `v1.5.1` → `06ee8d265b57214596f079f3bb426b9b27042b1e`.
 
-This remains part of the release history, but it is **not** the immediate baseline for the 1.6.1 candidate review because `1.6.0` is already a published release.
+Ambas releases permanecen en la historia del proyecto, pero ninguna es la baseline inmediata de `1.7.1`.
 
-## Changes since v1.6.0
+## Changes since v1.7.0
 
-Release `1.6.0` introduced local translation, GPU/runtime hardening and selective STT recovery. Release `1.6.1` is a PATCH correction for a compatibility regression in that STT recovery path. The review baseline is therefore the complete published `v1.6.0` product state.
+Release `1.7.0` consolidó reprocessing/manifests, almacenamiento local multiplataforma, naming determinista y normalización Unicode, límites de filesystem y el runtime de traducción local. Release `1.7.1` es una PATCH que corrige la regresión de compatibilidad en la recuperación selectiva STT. La revisión debe partir del estado completo publicado en `v1.7.0`.
 
 ## Functional scope
 
 - Correct `faster-whisper` `clip_timestamps` contract for selective STT recovery.
 - Pass numeric `[start, end]` timestamps to `WhisperModel.transcribe()`.
 - Preserve segment-scoped recovery, bounded rounds, context-preserving/context-free ordering and early stop on a healthy candidate.
+- Preserve the complete `1.7.0` baseline: reprocessing/manifests, deterministic Unicode naming/filesystem behavior, local translation runtime and inherited ZIP/filesystem hardening.
 - Preserve the existing audiovisual pipeline, VTT format, storage architecture and public recovery configuration.
-- Keep the `1.6.0` local-translation and CUDA/runtime baseline unchanged.
-- Keep the ZIP/filesystem hardening inherited from `1.5.1` unchanged.
 
 ## Dependency scope
 
@@ -45,12 +46,12 @@ The canonical application configuration remains `config/app.toml`, with environm
 
 ## Version scope
 
-- `pyproject.toml` declares `1.6.1`.
-- `config/app.toml` identifies the candidate as `1.6.1`.
-- `CHANGELOG.md` contains the `1.6.1` release entry before the historical `1.6.0` entry.
-- `docs/RELEASES.md` records `1.6.1` as the current candidate and preserves the complete previous release history, including `1.6.0`.
-- `RELEASE_CANDIDATE.md` and this file refer to `1.6.1` and use published `v1.6.0` as the immediate previous release.
-- No `v1.6.1` tag exists until after merge; the tag must point to the exact resulting `main` SHA.
+- `pyproject.toml` declares `1.7.1`.
+- `config/app.toml` identifies the candidate as `1.7.1`.
+- `CHANGELOG.md` contains the `1.7.1` release entry before the historical `1.7.0` entry.
+- `docs/RELEASES.md` records `1.7.1` as the current candidate and preserves the complete previous release history, including `1.7.0`, `1.6.0` and `1.5.1`.
+- `RELEASE_CANDIDATE.md` and this file refer to `1.7.1` and use published `v1.7.0` as the immediate previous release.
+- No `v1.7.1` tag exists until after merge; the tag must point to the exact resulting `main` SHA.
 
 ## Validation state
 
@@ -62,7 +63,7 @@ No real-media regression or GPU benchmark is claimed unless the corresponding ex
 
 - STT recovery regressions verify numeric `clip_timestamps` and recovered result integration.
 - Existing STT retry-limit, temperature, context-order and early-stop tests remain mandatory.
-- `1.6.0` local-translation, CUDA/runtime, configuration and provider regressions remain part of the release baseline.
+- `1.7.0` reprocessing/manifests, Unicode/filesystem, translation-runtime, configuration and provider regressions remain part of the release baseline.
 - ZIP/filesystem security and all project-wide quality/packaging/dependency checks remain mandatory.
 
 ## Excluded
