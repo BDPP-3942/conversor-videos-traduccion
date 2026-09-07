@@ -136,6 +136,100 @@ def test_model_download_uses_optional_huggingface_token(monkeypatch, tmp_path: P
     assert destination.read_bytes() == b"abc"
 
 
+def test_model_download_fetches_large_and_metadata_files(monkeypatch, tmp_path: Path) -> None:
+    _small_model_files(monkeypatch)
+    manager = LocalTranslationModelManager(tmp_path / "model")
+    downloaded = []
+    contents = {
+        "model.bin": b"model",
+        "source.spm": b"source",
+        "target.spm": b"target",
+        "config.json": b'{"decoder_start_token": "</s>", "eos_token": "</s>"}',
+        "shared_vocabulary.json": b"{}",
+        "tokenizer_config.json": b'{"source_lang": "spa", "target_lang": "eng"}',
+    }
+
+    def fake_download(url, destination, max_bytes, *, auth_token=None):
+        del max_bytes, auth_token
+        filename = url.rsplit("/", 1)[-1].split("?", 1)[0]
+        downloaded.append(filename)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(contents[filename])
+
+    monkeypatch.setattr(local_translation, "_download_file", fake_download)
+    result = manager.download()
+
+    assert result == manager.model_dir
+    assert downloaded == [*local_translation.MODEL_FILES, *local_translation.SMALL_MODEL_FILES]
+    assert manager.status().available
+    assert not manager.download_dir.exists()
+
+
+def test_downloaded_model_can_be_loaded_and_called_by_provider(monkeypatch, tmp_path: Path) -> None:
+    _small_model_files(monkeypatch)
+    manager = LocalTranslationModelManager(tmp_path / "model")
+    contents = {
+        "model.bin": b"model",
+        "source.spm": b"source",
+        "target.spm": b"target",
+        "config.json": b'{"decoder_start_token": "</s>", "eos_token": "</s>"}',
+        "shared_vocabulary.json": b"{}",
+        "tokenizer_config.json": b'{"source_lang": "spa", "target_lang": "eng"}',
+    }
+
+    def fake_download(_url, destination, _max_bytes, *, auth_token=None):
+        del auth_token
+        filename = destination.name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(contents[filename])
+
+    monkeypatch.setattr(local_translation, "_download_file", fake_download)
+    manager.download()
+
+    class FakeSentencePiece:
+        def __init__(self, model_file):
+            assert Path(model_file).is_file()
+
+        def encode(self, text, out_type=str):
+            return ["▁hola", "▁mundo"] if text else []
+
+        def decode(self, tokens):
+            return "hello world" if tokens == ["hello", "world"] else ""
+
+    class FakeResult:
+        hypotheses = [["hello", "world", "</s>"]]
+
+    class FakeTranslator:
+        def __init__(self, model_path, **kwargs):
+            assert model_path == str(manager.model_dir)
+            assert kwargs == {"device": "cpu", "compute_type": "int8"}
+
+        def translate_batch(self, tokens, beam_size):
+            assert tokens == [["▁hola", "▁mundo", "</s>"]]
+            assert beam_size == 2
+            return [FakeResult()]
+
+    class FakeCT2:
+        Translator = FakeTranslator
+
+    monkeypatch.setitem(sys.modules, "ctranslate2", FakeCT2)
+    monkeypatch.setitem(sys.modules, "sentencepiece", SimpleNamespace(SentencePieceProcessor=FakeSentencePiece))
+    monkeypatch.setattr(
+        local_translation,
+        "detect_hardware",
+        lambda: SimpleNamespace(gpu=SimpleNamespace(usable_for_whisper=False, device_index=0)),
+    )
+
+    settings = SimpleNamespace(
+        local_translation_device="cpu",
+        local_translation_compute_type="int8",
+        local_translation_beam_size=2,
+    )
+    provider = LocalTranslationProvider(settings, manager)
+
+    assert provider.translate("Hola mundo") == "hello world"
+
+
 def test_local_translation_batch_decodes_model_output() -> None:
     provider = LocalTranslationProvider.__new__(LocalTranslationProvider)
     provider.settings = SimpleNamespace(local_translation_beam_size=2)

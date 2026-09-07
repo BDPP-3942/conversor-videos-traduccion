@@ -1,34 +1,37 @@
-# Release Scope — 1.7.1
+# Release Scope — 1.7.2
 
 ## Previous release
 
-`v1.7.0` es la release publicada inmediatamente anterior y constituye el baseline funcional de esta candidata.
+`v1.7.1` es la release PATCH inmediatamente anterior en el historial de producto y corresponde al estado de `main` que corrigió la recuperación selectiva STT; su tag/release debe apuntar al SHA exacto del merge ya validado.
 
 El tag `v1.7.0` es histórico y MUST NOT be moved, deleted, or reused.
 
 ## Historical baselines
 
+`v1.7.0` → `036a9a4cf33012d0fcd0a784f8ff34db6e30b0f5`.
+
 `v1.6.0` → `a6cf0ee183a4802814fe0e061b4704e427166b85`.
 
 `v1.5.1` → `06ee8d265b57214596f079f3bb426b9b27042b1e`.
 
-Ambas releases permanecen en la historia del proyecto, pero ninguna es la baseline inmediata de `1.7.1`.
+## Changes since v1.7.1
 
-## Changes since v1.7.0
+`1.7.2` es una PATCH que corrige el gestor de descarga del modelo de traducción local. La expresión que calculaba el límite de descarga evaluaba de forma eager el fallback de `dict.get`, provocando `KeyError: 'model.bin'` al procesar precisamente uno de los ficheros principales definidos en `MODEL_FILES`.
 
-Release `1.7.0` consolidó reprocessing/manifests, almacenamiento local multiplataforma, naming determinista y normalización Unicode, límites de filesystem y el runtime de traducción local. Release `1.7.1` es una PATCH que corrige la regresión de compatibilidad en la recuperación selectiva STT. La revisión debe partir del estado completo publicado en `v1.7.0`.
+La corrección selecciona explícitamente el límite según el tipo de fichero y añade regresiones para el flujo completo de preparación y carga del proveedor local.
 
 ## Functional scope
 
-- Correct `faster-whisper` `clip_timestamps` contract for selective STT recovery.
-- Pass numeric `[start, end]` timestamps to `WhisperModel.transcribe()`.
-- Preserve segment-scoped recovery, bounded rounds, context-preserving/context-free ordering and early stop on a healthy candidate.
-- Preserve the complete `1.7.0` baseline: reprocessing/manifests, deterministic Unicode naming/filesystem behavior, local translation runtime and inherited ZIP/filesystem hardening.
-- Preserve the existing audiovisual pipeline, VTT format, storage architecture and public recovery configuration.
+- Corregir la descarga del modelo local fijado sin `KeyError` en `model.bin`.
+- Mantener la validación por tamaño, SHA-256 y metadatos JSON.
+- Verificar mediante tests el flujo completo de descarga gestionada hasta un modelo utilizable por el proveedor.
+- Verificar mediante tests que un modelo preparado puede inicializar CTranslate2 + SentencePiece y ejecutar una traducción.
+- Mantener el benchmark real como validación del modelo completo en hardware objetivo.
+- Mantener intacta la corrección de recuperación selectiva STT introducida en `1.7.1`.
 
 ## Dependency scope
 
-The runtime dependency contract for this release is:
+The runtime dependency contract remains unchanged:
 
 - `faster-whisper>=1.2.1,<1.3`
 - `ctranslate2>=4.8.2,<4.9`
@@ -38,33 +41,32 @@ The runtime dependency contract for this release is:
 - `imageio-ffmpeg>=0.6,<1`
 - `python-dotenv>=1,<2`
 
-`requirements.txt` and `pyproject.toml` must remain aligned. Derived requirements files inherit from `requirements.txt`.
+`requirements.txt` and `pyproject.toml` must remain aligned.
 
 ## Configuration scope
 
-The canonical application configuration remains `config/app.toml`, with environment overrides. This release does not introduce a new TOML configuration key for the STT recovery fix. The existing `whisper_recovery_retries` and `whisper_recovery_temperatures` contract remains unchanged.
+No new public configuration key is required. The existing `LOCAL_TRANSLATION_*` environment configuration and pinned model/revision contract remain unchanged.
 
 ## Version scope
 
-- `pyproject.toml` declares `1.7.1`.
-- `config/app.toml` identifies the candidate as `1.7.1`.
-- `CHANGELOG.md` contains the `1.7.1` release entry before the historical `1.7.0` entry.
-- `docs/RELEASES.md` records `1.7.1` as the current candidate and preserves the complete previous release history, including `1.7.0`, `1.6.0` and `1.5.1`.
-- `RELEASE_CANDIDATE.md` and this file refer to `1.7.1` and use published `v1.7.0` as the immediate previous release.
-- No `v1.7.1` tag exists until after merge; the tag must point to the exact resulting `main` SHA.
+- `pyproject.toml` declares `1.7.2`.
+- `config/app.toml` identifies the candidate as `1.7.2`.
+- `CHANGELOG.md` must contain the `1.7.2` release entry before `1.7.1`.
+- `docs/RELEASES.md`, `docs/VERSIONING.md`, `RELEASE_CANDIDATE.md` and this file identify `1.7.2` as the candidate.
+- The `v1.7.2` tag must point to the exact resulting `main` SHA after merge and final validation.
 
 ## Validation state
 
 The final candidate SHA must complete CI and Release Gate successfully before merge approval. No older SHA is sufficient evidence for the final candidate.
 
-No real-media regression or GPU benchmark is claimed unless the corresponding external artifact/run is available and recorded.
+The real model benchmark should be executed on the target macOS environment after download to validate the actual CTranslate2 + SentencePiece runtime; deterministic CI tests do not substitute for that hardware validation.
 
 ## Tests and hardening
 
-- STT recovery regressions verify numeric `clip_timestamps` and recovered result integration.
-- Existing STT retry-limit, temperature, context-order and early-stop tests remain mandatory.
-- `1.7.0` reprocessing/manifests, Unicode/filesystem, translation-runtime, configuration and provider regressions remain part of the release baseline.
-- ZIP/filesystem security and all project-wide quality/packaging/dependency checks remain mandatory.
+- Download regression covers every managed model file, including `model.bin` and all metadata.
+- Provider regression covers initialization from the downloaded model directory and a real provider call through the mocked CTranslate2/SentencePiece boundary.
+- Existing STT selective-recovery regressions remain mandatory.
+- Existing reprocessing/manifests, Unicode/filesystem, ZIP security, configuration, packaging and dependency checks remain part of the release baseline.
 
 ## Excluded
 

@@ -61,11 +61,11 @@ They can be combined, for example `.[tts,google,dev,package]`.
 
 ## Release compatibility
 
-The current candidate is `1.7.1`, based on the latest published release `v1.7.0`. The candidate keeps the project's current runtime stack, including `faster-whisper>=1.2.1,<1.3` and `ctranslate2>=4.8.2,<4.9`, while correcting the selective-recovery `clip_timestamps` contract.
+The current candidate is `1.7.2`, based on the merged `1.7.1` state. The candidate keeps the project's current runtime stack, including `faster-whisper>=1.2.1,<1.3` and `ctranslate2>=4.8.2,<4.9`, while correcting the local translation model download manager.
 
 ## NVIDIA/CUDA and Whisper
 
-NVIDIA acceleration is optional. The `1.7.1` correction does not change the GPU runtime architecture introduced and consolidated through `1.7.0`; the GPU path still requires CUDA 12, cuBLAS for CUDA 12 and cuDNN 9 for CUDA 12.
+NVIDIA acceleration is optional. The `1.7.2` correction does not change the GPU runtime architecture introduced and consolidated through `1.7.0`; the GPU path still requires CUDA 12, cuBLAS for CUDA 12 and cuDNN 9 for CUDA 12.
 
 `WHISPER_DEVICE=auto` does not treat the presence of `nvidia-smi` as sufficient. At Whisper initialization the project checks the NVIDIA driver, searches for an installed CUDA Toolkit, checks the required NVIDIA runtime libraries and asks CTranslate2 whether a CUDA device and supported compute types are actually available.
 
@@ -134,7 +134,18 @@ python scripts/manage_local_translation.py status
 python scripts/manage_local_translation.py download
 ```
 
+In `1.7.2`, the preparation path correctly handles both the large CTranslate2 model files and the small JSON metadata files. Previous `1.7.1` code could fail immediately with `KeyError: 'model.bin'` while calculating the download limit because a `dict.get` fallback was evaluated eagerly. The corrected implementation selects the limit explicitly by file class.
+
 The model is stored below `tools/models/translation/`. See [LOCAL_TRANSLATION.md](LOCAL_TRANSLATION.md).
+
+After downloading, validate the actual runtime rather than only checking file presence:
+
+```bash
+python scripts/manage_local_translation.py status
+python scripts/benchmark_local_translation.py --sentences 1
+```
+
+The benchmark initializes CTranslate2 + SentencePiece and executes a real translation with the prepared model.
 
 ## TTS
 

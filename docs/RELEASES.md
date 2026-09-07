@@ -29,6 +29,7 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 | Traducción local opcional, recuperación STT configurable y endurecimiento GPU/runtime | `1.6.0` |
 | Reprocessing/manifests, consolidación de naming Unicode/filesystem y mejoras del runtime de traducción local | `1.7.0` |
 | Corrección del contrato `clip_timestamps` en la recuperación selectiva de STT con `faster-whisper` | `1.7.1` |
+| Corrección de descarga del modelo local y validación del flujo proveedor-modelo | `1.7.2` |
 
 ## Releases publicadas
 
@@ -38,7 +39,7 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 
 **Tag publicado:** `v1.7.0`.
 
-Esta es la **release publicada más reciente antes de la candidata 1.7.1**. Consolida el reprocesado y la persistencia de manifests, refuerza el almacenamiento local multiplataforma, consolida el naming determinista y la normalización Unicode, endurece los límites reales de filesystem y consolida el proveedor de traducción local y su runtime.
+Esta es la **release publicada más reciente confirmada** antes de la línea candidata 1.7.2. Consolida el reprocesado y la persistencia de manifests, refuerza el almacenamiento local multiplataforma, consolida el naming determinista y la normalización Unicode, endurece los límites reales de filesystem y consolida el proveedor de traducción local y su runtime.
 
 ### 1.6.0 — Local Translation & GPU Runtime Hardening
 
@@ -135,35 +136,36 @@ Esta es la **release publicada más reciente antes de la candidata 1.7.1**. Cons
 
 **Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
 
-## Candidata 1.7.1
+## Candidata 1.7.2
 
 ### Posición en la línea de releases
 
 **Tipo:** `PATCH`.
 
-`1.7.1` es una **release de mantenimiento inmediata de la release publicada `1.7.0`**. La revisión no debe utilizar `1.5.1` como baseline funcional ni tratar `1.6.0` como release previa inmediata.
+`1.7.2` es una release de mantenimiento del estado `1.7.1`, que contiene la corrección previa de recuperación selectiva STT. La release publicada más reciente confirmada sigue siendo `v1.7.0` hasta que se publique formalmente `v1.7.1`.
 
 Por tanto:
 
-- **Previous release:** `v1.7.0`.
-- **Baseline funcional:** el estado completo publicado en `v1.7.0`.
-- **Antecedentes:** `v1.6.0` y `v1.5.1` permanecen como historia y contexto.
-- **Target tag:** `v1.7.1` — pendiente de validación y creación.
-
-La candidata corrige la regresión de recuperación selectiva de STT sobre el producto tal como existe en `1.7.0`. No debe omitir ni sobrescribir las capacidades introducidas por `1.7.0`.
+- **Previous functional state:** `1.7.1` integrado en `main`.
+- **Published release:** `v1.7.0`.
+- **Baseline funcional inmediato:** estado completo de `1.7.1`.
+- **Target tag:** `v1.7.2` — pendiente de validación y creación.
 
 ### Alcance
 
-La candidata `1.7.1` corrige el contrato de `clip_timestamps` utilizado por la recuperación selectiva de segmentos STT. `WhisperModel.transcribe()` recibe intervalos como valores temporales numéricos `[start, end]`, evitando que los diccionarios de segmentos se sometan a operaciones aritméticas internas y produzcan `TypeError: unsupported operand type(s) for *: 'dict' and 'int'`.
+La candidata `1.7.2` corrige el gestor de descarga del modelo de traducción local. El código anterior calculaba el límite con una expresión equivalente a `MODEL_FILES.get(name, (0, SMALL_MODEL_FILES[name][0]))[1]`. El argumento por defecto de `dict.get` se evalúa antes de la llamada, por lo que `SMALL_MODEL_FILES['model.bin']` provocaba `KeyError` aunque `model.bin` sí existiera en `MODEL_FILES`.
 
-La corrección debe conservar el baseline completo de `1.7.0`, especialmente reprocessing/manifests, almacenamiento y naming Unicode/filesystem, runtime de traducción local, endurecimiento ZIP/filesystem y las capacidades de `1.6.0` heredadas.
+La corrección selecciona explícitamente el límite correspondiente al fichero actual. Esto permite que la preparación alcance la descarga de los tres ficheros principales y los tres metadatos, manteniendo las validaciones de integridad y el reemplazo atómico.
 
 ### Cambios
 
-- Corregido el formato de `clip_timestamps` de la recuperación selectiva de `faster-whisper`.
-- Conservada la recuperación limitada por segmento, incluyendo el orden contexto-preservado/contexto-libre y la parada temprana ante un candidato saludable.
-- Mantenida la política de rechazo de candidatos que siguen siendo sospechosos.
-- Añadidas y conservadas regresiones que comprueban el contrato numérico recibido por `model.transcribe(...)`, la transcripción normal y la integración del resultado recuperado.
+- Corregido el cálculo del límite de descarga para separar ficheros principales y metadatos.
+- Añadida regresión que recorre todos los ficheros gestionados durante `LocalTranslationModelManager.download()`.
+- Añadida regresión que prepara el modelo y verifica la inicialización del proveedor y una llamada de traducción mediante las fronteras CTranslate2/SentencePiece.
+- Documentada la causa del `KeyError: 'model.bin'` y el procedimiento de validación real con el benchmark.
+- Conservada la descarga pública sin autenticación y el token opcional para entornos que lo requieran.
+- Conservada la revisión/modelo fijados y la validación por tamaño, SHA-256 y estructura de metadatos.
+- Conservada la corrección `clip_timestamps` de `1.7.1`.
 
 ### Dependencias
 
@@ -174,21 +176,26 @@ La candidata mantiene el stack compatible actualmente declarado por el proyecto:
 - `sentencepiece>=0.2,<0.3`
 - `huggingface-hub>=0.32,<1.31`
 
-La misma base de dependencias se refleja en `pyproject.toml` y `requirements.txt`.
-
 ### Validación
 
 La candidata final pre-merge debe completar CI y Release Gate sobre su SHA exacto, incluyendo Linux, Windows y macOS con Python 3.11–3.13, tests, lint/security/format, compile, audits, packaging, instalación limpia, `pip check` y entry points.
 
-Debe verificarse explícitamente que las capacidades de `1.7.0` no se han regresado durante la corrección. No se declara ningún benchmark GPU ni prueba A/B de un MP4 externo que no esté disponible y registrado.
+Además, en el entorno macOS objetivo debe ejecutarse:
 
-El tag `v1.7.1` se creará únicamente después de validar el SHA resultante de `main`.
+```bash
+python scripts/manage_local_translation.py status
+python scripts/manage_local_translation.py download
+python scripts/manage_local_translation.py status
+python scripts/benchmark_local_translation.py --sentences 1
+```
 
-## Política de tags
+El benchmark constituye la prueba funcional real de carga y traducción del modelo preparado; los tests CI utilizan dobles deterministas para evitar descargar 78.7 MiB en cada runner.
+
+### Política de tags
 
 Los tags utilizan `vMAJOR.MINOR.PATCH` y no deben reutilizarse ni moverse después de publicar una release.
 
-`v1.7.0`, `v1.6.0`, `v1.5.1` y las releases anteriores permanecen asociados a sus commits publicados y no deben modificarse.
+`v1.7.0`, `v1.6.0`, `v1.5.1` y las releases anteriores permanecen asociados a sus commits publicados y no deben modificarse. `v1.7.1` y `v1.7.2` solo deben crearse sobre los SHA exactos validados por Release Gate.
 
 ## Historial anterior
 
