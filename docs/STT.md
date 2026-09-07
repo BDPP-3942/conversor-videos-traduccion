@@ -2,6 +2,8 @@
 
 STT uses `faster-whisper` backed by CTranslate2. The selected model, device, compute type, beam size, CPU threads, VAD behavior, initial prompt and degeneration-recovery policy are configurable.
 
+The `1.6.1` release uses the compatibility range `faster-whisper>=1.2.1,<1.3` with `ctranslate2>=4.8.2,<4.9`. The PATCH release corrects the selective-recovery `clip_timestamps` contract without changing the public recovery configuration.
+
 Defaults in `config/app.toml` include automatic model/device/compute selection, beam size `5`, VAD enabled and a minimum silence duration of `1500` ms. `.env.example` exposes explicit environment overrides.
 
 ## Initial prompt / context file
@@ -40,6 +42,16 @@ whisper_initial_prompt = "Tai Chi, taijiquan, qigong"
 The normal transcription path keeps `whisper_condition_on_previous_text` as configured. A segment is considered suspicious when the quality policy detects degeneration signals such as excessive repetition, compression ratio, low average log probability or high no-speech probability. Short legitimate repetition is protected by `whisper_min_repetition_words`.
 
 Suspicious segments are recovered selectively; normal segments are not retranscribed. Recovery is segment-scoped through `clip_timestamps`, so a failure in one interval does not cause the complete media file to be regenerated.
+
+### faster-whisper clip contract
+
+The recovery path calls `WhisperModel.transcribe()` directly. Its `clip_timestamps` argument must therefore contain numeric time values, not segment dictionaries. The project passes each suspicious interval as:
+
+```python
+clip_timestamps=[float(start), float(end)]
+```
+
+This is intentionally distinct from APIs that may represent batched segments as dictionaries. Passing dictionaries to the `WhisperModel` path causes arithmetic inside `faster-whisper` to fail with `TypeError: unsupported operand type(s) for *: 'dict' and 'int'`. Regression tests verify that the recovery call receives numeric timestamps.
 
 ### `whisper_recovery_retries`
 
