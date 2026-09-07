@@ -38,13 +38,13 @@ local://storage/input → pipeline → local://storage/output
 
 See [INSTALLATION.md](INSTALLATION.md), [CONFIGURATION.md](CONFIGURATION.md) and [CLI.md](CLI.md) for operational details.
 
-## Current published release vs maintenance candidate
+## Current published release vs candidate
 
-The latest published product release is `1.7.0` (`v1.7.0`). The `1.6.x` line remains a maintained release line, and this branch prepares the PATCH maintenance release `1.6.1` (`v1.6.1`) from the published `v1.6.0` baseline.
+The latest published product release is `1.7.0` (`v1.7.0`). This branch prepares the PATCH release `1.7.1` directly from the published `1.7.0` baseline.
 
-Release `1.6.0` introduced optional local translation, GPU/runtime hardening and configurable selective STT recovery. Release `1.6.1` corrects the `faster-whisper` recovery backend contract without changing the public recovery configuration or the audiovisual pipeline. Release `1.7.0` subsequently consolidated reprocessing, manifest persistence, Unicode naming/filesystem behavior and the local translation runtime; those `1.7.0` changes are not silently backported into the `1.6.1` maintenance branch.
+Release `1.7.0` consolidated reprocessing/manifests, local-storage race hardening, deterministic Unicode naming/filesystem behavior and the local translation runtime. Release `1.7.1` corrects the `faster-whisper` selective-recovery backend contract without changing the public recovery configuration or the audiovisual pipeline.
 
-Therefore, for the `1.6.1` correction itself, the immediate compatibility baseline is **`v1.6.0`**, while `v1.7.0` is the latest published project release overall. This distinction is intentional and must be preserved in release documentation.
+The previous releases `1.6.0` and `1.5.1` remain historical context only. The compatibility review for `1.7.1` must compare against **`v1.7.0`**, so that none of the functionality already present in the latest project release is accidentally omitted from the assessment.
 
 See [RELEASES.md](RELEASES.md) for the release history and [../RELEASE_CANDIDATE.md](../RELEASE_CANDIDATE.md) for the exact release-gate scope.
 
@@ -54,7 +54,7 @@ See [RELEASES.md](RELEASES.md) for the release history and [../RELEASE_CANDIDATE
 |---|---:|---|
 | Core audiovisual pipeline, STT, VTT, translation, storage, resume/idempotency, conservative deduplication, TTS, scheduling and packaging | `1.0.0` | `CHANGELOG.md` / release history |
 | VTT recovery/repair and integrated synchronized TTS | `1.1.0` | `CHANGELOG.md` / release history |
-| Naming improvements and TTS asset bootstrap | `1.2.0` | `CHANGELOG.md` / release history |
+| Naming improvements and TTS asset bootstrap | `1.2.0` | release history |
 | TTS installation fix | `1.2.1` | release history |
 | Timestamp cleanup in naming | `1.2.2` | release history |
 | Resource-aware video concurrency | `1.3.0` | release history |
@@ -62,7 +62,7 @@ See [RELEASES.md](RELEASES.md) for the release history and [../RELEASE_CANDIDATE
 | Multiplatform Whisper/context and packaging | `1.5.0` | release history |
 | ZIP/filesystem hardening | `1.5.1` | release history |
 | Local translation, GPU/runtime hardening and configurable STT recovery | `1.6.0` | release history |
-| `faster-whisper` selective recovery `clip_timestamps` compatibility fix | `1.6.1` | `CHANGELOG.md` / `RELEASES.md` |
 | Reprocessing/manifests, Unicode naming/filesystem consolidation and translation runtime improvements | `1.7.0` | published GitHub release |
+| `faster-whisper` selective recovery `clip_timestamps` compatibility fix | `1.7.1` | `CHANGELOG.md` / `RELEASES.md` |
 
-The table records functionality by introduction release. `1.6.1` remains a maintenance candidate until its final SHA passes the release gate and its tag is created according to the maintenance-release policy.
+The table records functionality by introduction release. `1.7.1` remains a candidate until its final SHA passes the release gate and its tag is created according to the release policy.
