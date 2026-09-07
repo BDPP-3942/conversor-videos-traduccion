@@ -38,15 +38,15 @@ local://storage/input → pipeline → local://storage/output
 
 See [INSTALLATION.md](INSTALLATION.md), [CONFIGURATION.md](CONFIGURATION.md) and [CLI.md](CLI.md) for operational details.
 
-## Current main vs published release
+## Current published release vs candidate
 
-The latest published release is `1.2.2`, and `pyproject.toml` on `main` is aligned to `1.2.2`. The current `main` branch also contains changes merged after that release. These post-release changes are documented separately and must not be retroactively attributed to `1.2.2`.
+The latest published product release is `1.7.0` (`v1.7.0`). This branch prepares the PATCH release `1.7.1` directly from the published `1.7.0` baseline.
 
-The most relevant post-release functional change is PR #20: resource-aware video concurrency. It makes `max_parallel_videos = 0` mean AUTO and calculates a conservative concurrency ceiling from the resolved Whisper configuration and available CPU, RAM and GPU resources. Positive values remain upper bounds and may be clamped. This behavior is part of current `main`, not the published `1.2.2` release.
+Release `1.7.0` consolidated reprocessing/manifests, local-storage race hardening, deterministic Unicode naming/filesystem behavior and the local translation runtime. Release `1.7.1` corrects the `faster-whisper` selective-recovery backend contract without changing the public recovery configuration or the audiovisual pipeline.
 
-PR #21 only aligns the package metadata with the already published `1.2.2` release; it does not introduce a product capability.
+The previous releases `1.6.0` and `1.5.1` remain historical context only. The compatibility review for `1.7.1` must compare against **`v1.7.0`**, so that none of the functionality already present in the latest project release is accidentally omitted from the assessment.
 
-See [RELEASES.md](RELEASES.md) for the release history and the distinction between published releases and subsequent changes on `main`.
+See [RELEASES.md](RELEASES.md) for the release history and [../RELEASE_CANDIDATE.md](../RELEASE_CANDIDATE.md) for the exact release-gate scope.
 
 ## Verified release evidence
 
@@ -54,9 +54,15 @@ See [RELEASES.md](RELEASES.md) for the release history and the distinction betwe
 |---|---:|---|
 | Core audiovisual pipeline, STT, VTT, translation, storage, resume/idempotency, conservative deduplication, TTS, scheduling and packaging | `1.0.0` | `CHANGELOG.md` / release history |
 | VTT recovery/repair and integrated synchronized TTS | `1.1.0` | `CHANGELOG.md` / release history |
-| Naming improvements and TTS asset bootstrap | `1.2.0` | `CHANGELOG.md` / release history |
+| Naming improvements and TTS asset bootstrap | `1.2.0` | release history |
 | TTS installation fix | `1.2.1` | release history |
 | Timestamp cleanup in naming | `1.2.2` | release history |
-| Resource-aware video concurrency | **Post-`1.2.2`** | PR #20; not yet assigned to a published release |
+| Resource-aware video concurrency | `1.3.0` | release history |
+| Clean regeneration | `1.4.0` | release history |
+| Multiplatform Whisper/context and packaging | `1.5.0` | release history |
+| ZIP/filesystem hardening | `1.5.1` | release history |
+| Local translation, GPU/runtime hardening and configurable STT recovery | `1.6.0` | release history |
+| Reprocessing/manifests, Unicode naming/filesystem consolidation and translation runtime improvements | `1.7.0` | published GitHub release |
+| `faster-whisper` selective recovery `clip_timestamps` compatibility fix | `1.7.1` | `CHANGELOG.md` / `RELEASES.md` |
 
-The table records only functionality for which the repository provides evidence. Post-release changes are not assigned a release version until a corresponding release exists.
+The table records functionality by introduction release. `1.7.1` remains a candidate until its final SHA passes the release gate and its tag is created according to the release policy.

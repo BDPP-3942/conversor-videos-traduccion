@@ -27,8 +27,32 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 | Wrappers multiplataforma, naming de referencia y contexto externo de Whisper | `1.5.0` |
 | Endurecimiento ZIP/filesystem multiplataforma | `1.5.1` |
 | Traducción local opcional, recuperación STT configurable y endurecimiento GPU/runtime | `1.6.0` |
+| Reprocessing/manifests, consolidación de naming Unicode/filesystem y mejoras del runtime de traducción local | `1.7.0` |
+| Corrección del contrato `clip_timestamps` en la recuperación selectiva de STT con `faster-whisper` | `1.7.1` |
 
 ## Releases publicadas
+
+### 1.7.0 — Reprocessing, Unicode Naming & Translation Runtime
+
+**Tipo:** `MINOR`.
+
+**Tag publicado:** `v1.7.0`.
+
+Esta es la **release publicada más reciente antes de la candidata 1.7.1**. Consolida el reprocesado y la persistencia de manifests, refuerza el almacenamiento local multiplataforma, consolida el naming determinista y la normalización Unicode, endurece los límites reales de filesystem y consolida el proveedor de traducción local y su runtime.
+
+### 1.6.0 — Local Translation & GPU Runtime Hardening
+
+**Tipo:** `MINOR`.
+
+**Commit/tag publicado:** `a6cf0ee183a4802814fe0e061b4704e427166b85` / `v1.6.0`.
+
+- Traducción local opcional español→inglés basada en CTranslate2 + SentencePiece.
+- Modelo local fijado y validado mediante tamaño y SHA-256.
+- Descarga reanudable, validación estructural y reemplazo atómico de recursos.
+- Runtime NVIDIA gestionado para cuBLAS CUDA 12 y cuDNN 9 CUDA 12.
+- Detección de capacidad CUDA real mediante CTranslate2 y fallback CPU conservador.
+- Recuperación configurable de segmentos STT sospechosos mediante rondas limitadas.
+- Endurecimiento ZIP/filesystem heredado de `1.5.1`.
 
 ### 1.5.1 — ZIP Extraction & Cross-Platform Filesystem Hardening
 
@@ -111,44 +135,60 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 
 **Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
 
-## Candidata 1.6.0
+## Candidata 1.7.1
+
+### Posición en la línea de releases
+
+**Tipo:** `PATCH`.
+
+`1.7.1` es una **release de mantenimiento inmediata de la release publicada `1.7.0`**. La revisión no debe utilizar `1.5.1` como baseline funcional ni tratar `1.6.0` como release previa inmediata.
+
+Por tanto:
+
+- **Previous release:** `v1.7.0`.
+- **Baseline funcional:** el estado completo publicado en `v1.7.0`.
+- **Antecedentes:** `v1.6.0` y `v1.5.1` permanecen como historia y contexto.
+- **Target tag:** `v1.7.1` — pendiente de validación y creación.
+
+La candidata corrige la regresión de recuperación selectiva de STT sobre el producto tal como existe en `1.7.0`. No debe omitir ni sobrescribir las capacidades introducidas por `1.7.0`.
 
 ### Alcance
 
-**Tipo:** `MINOR`.
+La candidata `1.7.1` corrige el contrato de `clip_timestamps` utilizado por la recuperación selectiva de segmentos STT. `WhisperModel.transcribe()` recibe intervalos como valores temporales numéricos `[start, end]`, evitando que los diccionarios de segmentos se sometan a operaciones aritméticas internas y produzcan `TypeError: unsupported operand type(s) for *: 'dict' and 'int'`.
 
-La candidata 1.6.0 añade funcionalidad compatible hacia atrás: traducción local opcional español→inglés mediante CTranslate2 + SentencePiece, endurecimiento de la selección GPU/CPU, preparación reproducible de recursos locales y recuperación configurable de segmentos STT sospechosos. También incorpora el endurecimiento ZIP/filesystem de 1.5.1 como baseline.
+La corrección debe conservar el baseline completo de `1.7.0`, especialmente reprocessing/manifests, almacenamiento y naming Unicode/filesystem, runtime de traducción local, endurecimiento ZIP/filesystem y las capacidades de `1.6.0` heredadas.
 
 ### Cambios
 
-- Modelo y revisión fijados.
-- `model.bin`, `source.spm` y `target.spm` validados por tamaño y SHA-256.
-- Metadatos JSON requeridos validados por presencia, tamaño, UTF-8, tipo y estructura mínima.
-- Descarga HTTPS controlada, temporales, reanudación cuando es posible y reemplazo atómico.
-- Fallback configurable cuando el recurso local no está disponible.
-- Detección NVIDIA condicionada a capacidad real de CTranslate2.
-- Fallback CPU `int8` cuando CUDA no puede validarse.
-- Runtime NVIDIA gestionado bajo `tools/cuda/` con cuBLAS CUDA 12 y cuDNN 9.
-- Recuperación selectiva de segmentos STT sospechosos mediante rondas de recuperación limitadas.
-- Endurecimiento ZIP/filesystem heredado de 1.5.1.
+- Corregido el formato de `clip_timestamps` de la recuperación selectiva de `faster-whisper`.
+- Conservada la recuperación limitada por segmento, incluyendo el orden contexto-preservado/contexto-libre y la parada temprana ante un candidato saludable.
+- Mantenida la política de rechazo de candidatos que siguen siendo sospechosos.
+- Añadidas y conservadas regresiones que comprueban el contrato numérico recibido por `model.transcribe(...)`, la transcripción normal y la integración del resultado recuperado.
 
-### Configuración
+### Dependencias
 
-La configuración general sigue en `config/app.toml` con overrides de entorno. La configuración específica de traducción local usa exclusivamente `LOCAL_TRANSLATION_*`; no existe una sección `[local_translation]` duplicada en TOML.
+La candidata mantiene el stack compatible actualmente declarado por el proyecto:
+
+- `faster-whisper>=1.2.1,<1.3`
+- `ctranslate2>=4.8.2,<4.9`
+- `sentencepiece>=0.2,<0.3`
+- `huggingface-hub>=0.32,<1.31`
+
+La misma base de dependencias se refleja en `pyproject.toml` y `requirements.txt`.
 
 ### Validación
 
-La candidata final pre-merge tiene CI y Release Gate satisfactorios sobre su SHA exacto, incluyendo Linux, Windows y macOS con Python 3.11–3.13, tests, lint/security/format, compile, audits, packaging, instalación limpia, `pip check` y entry points.
+La candidata final pre-merge debe completar CI y Release Gate sobre su SHA exacto, incluyendo Linux, Windows y macOS con Python 3.11–3.13, tests, lint/security/format, compile, audits, packaging, instalación limpia, `pip check` y entry points.
 
-No se declara ningún benchmark GPU ni prueba A/B de un MP4 externo que no esté disponible y registrado.
+Debe verificarse explícitamente que las capacidades de `1.7.0` no se han regresado durante la corrección. No se declara ningún benchmark GPU ni prueba A/B de un MP4 externo que no esté disponible y registrado.
 
-El tag `v1.6.0` se creará únicamente después del merge y sobre el SHA exacto resultante de `main`.
+El tag `v1.7.1` se creará únicamente después de validar el SHA resultante de `main`.
 
 ## Política de tags
 
 Los tags utilizan `vMAJOR.MINOR.PATCH` y no deben reutilizarse ni moverse después de publicar una release.
 
-`v1.3.0`, `v1.4.0`, `v1.5.0` y `v1.5.1` permanecen asociados a sus commits publicados anteriores y no deben modificarse.
+`v1.7.0`, `v1.6.0`, `v1.5.1` y las releases anteriores permanecen asociados a sus commits publicados y no deben modificarse.
 
 ## Historial anterior
 

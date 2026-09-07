@@ -64,6 +64,8 @@ PR jobs explicitly check out `github.event.pull_request.head.sha`. Therefore, ev
 
 `release-gate.yml` validates the exact candidate SHA, release metadata, distributions, packaged resources, clean wheel installation and source compilation. On normal pull requests it validates release consistency without requiring the next version tag to be absent; the explicit manual release invocation additionally checks that the candidate tag does not already exist.
 
+For the current `1.7.1` candidate, release consistency includes the version declared by `pyproject.toml`, the application version recorded in `config/app.toml`, the `CHANGELOG.md` heading and the `docs/RELEASES.md` candidate entry. These values must remain aligned before merge approval. The comparison baseline for functional review is the latest published `v1.7.0`, not `v1.5.1` or `v1.6.0`.
+
 ## Resource policy
 
 The workflow uses concurrency cancellation so a newer commit supersedes an obsolete run. Do not rerun successful jobs merely to obtain duplicate evidence. Focused local checks are encouraged before pushing; the final SHA must receive the authoritative CI/Release Gate evidence before release approval.

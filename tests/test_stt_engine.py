@@ -22,6 +22,8 @@ def _recovery_engine(model, retries=1, temperatures=(0.2,)):
     )
     engine._quality_thresholds = STTQualityThresholds()
     engine.model = model
+    engine.device = "cpu"
+    engine.compute_type = "int8"
     return engine
 
 
@@ -88,7 +90,7 @@ def test_recovery_retry_is_limited_by_whisper_recovery_retries():
     assert len(calls) == 4
     assert [call["temperature"] for call in calls] == [0.2, 0.2, 0.4, 0.4]
     assert [call["condition_on_previous_text"] for call in calls] == [True, False, True, False]
-    assert all(call["clip_timestamps"] == [{"start": 1.0, "end": 2.0}] for call in calls)
+    assert all(call["clip_timestamps"] == [1.0, 2.0] for call in calls)
 
 
 def test_recovery_stops_after_a_healthy_context_preserving_attempt():
@@ -106,3 +108,63 @@ def test_recovery_stops_after_a_healthy_context_preserving_attempt():
     assert len(calls) == 1
     assert calls[0]["condition_on_previous_text"] is True
     assert calls[0]["temperature"] == 0.2
+
+
+def test_recovery_passes_numeric_clip_timestamps_to_transcribe():
+    calls = []
+    healthy = _segment("Texto recuperado", 1.25, 2.75, [])
+
+    class Model:
+        def transcribe(self, *args, **kwargs):
+            calls.append(kwargs)
+            clip_timestamps = kwargs["clip_timestamps"]
+            assert clip_timestamps == [1.25, 2.75]
+            assert all(isinstance(value, (int, float)) for value in clip_timestamps)
+            assert not any(isinstance(value, dict) for value in clip_timestamps)
+            return ([healthy], None)
+
+    engine = _recovery_engine(Model())
+    suspicious = _segment("Pong " * 12, 1.25, 2.75, [])
+
+    assert engine._recover_segment(Path("input.mp4"), suspicious) == [healthy]
+    assert len(calls) == 1
+
+
+def test_normal_transcription_does_not_use_clip_timestamps():
+    calls = []
+    normal = _segment("Hola mundo", 0.0, 1.5, [])
+
+    class Model:
+        def transcribe(self, *args, **kwargs):
+            calls.append(kwargs)
+            assert "clip_timestamps" not in kwargs
+            return ([normal], None)
+
+    engine = _recovery_engine(Model())
+    assert engine.transcribe(Path("input.mp4")) == [{"start": 0.0, "end": 1.5, "text": "Hola mundo"}]
+    assert len(calls) == 1
+
+
+def test_recovery_preserves_recovered_timestamps_and_text():
+    recovered = _segment(
+        "Hola. Adiós.",
+        1.0,
+        5.0,
+        [_word("Hola. ", 1.0, 1.4), _word("Adiós.", 4.0, 4.5)],
+    )
+    calls = []
+
+    class Model:
+        def transcribe(self, *args, **kwargs):
+            calls.append(kwargs)
+            return ([recovered], None)
+
+    engine = _recovery_engine(Model())
+    suspicious = _segment("Pong " * 12, 1.0, 5.0, [])
+
+    assert engine._recover_segment(Path("input.mp4"), suspicious) == [recovered]
+    assert calls[0]["clip_timestamps"] == [1.0, 5.0]
+    assert engine._split_segment_on_silence(recovered) == [
+        {"start": 1.0, "end": 1.4, "text": "Hola."},
+        {"start": 4.0, "end": 4.5, "text": "Adiós."},
+    ]

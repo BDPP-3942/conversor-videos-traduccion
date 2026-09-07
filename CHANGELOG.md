@@ -1,5 +1,75 @@
 # Changelog
 
+## [1.7.1] — STT selective recovery compatibility
+
+**Tipo:** PATCH — corrección compatible sobre la release `1.7.0` para la recuperación selectiva de segmentos sospechosos de STT.
+
+### Fixed
+
+- Corregido el contrato de `clip_timestamps` usado por la recuperación selectiva de `faster-whisper`: los intervalos se envían como valores temporales numéricos `[start, end]` en lugar de diccionarios.
+- Añadidas pruebas de regresión que verifican el argumento recibido por `model.transcribe(...)`, la transcripción normal y la integración del resultado recuperado.
+
+### Compatibility
+
+- La revisión toma `v1.7.0` como baseline funcional inmediato y conserva sus capacidades de reprocessing/manifests, naming Unicode/filesystem y runtime de traducción local.
+- Compatibilidad verificada con `faster-whisper>=1.2.1,<1.3`.
+
+### Validation
+
+- CI multiplataforma y Release Gate deben validarse sobre el SHA final de esta candidata.
+
+## [1.7.0] — Reprocessing, Unicode Naming & Translation Runtime
+
+**Tipo:** MINOR — nuevas capacidades compatibles para reprocesado, manifests, naming Unicode/filesystem y consolidación del runtime de traducción local.
+
+### Added / Improved
+
+- Consolidado el procesamiento de reintentos y reprocesado de vídeos mediante `reprocess-subtitles`, incluyendo `stt_only`, `translate_only`, `full` y `reprocess_all`.
+- Mejorada la persistencia y recuperación del estado de procesamiento mediante manifests, incluyendo escritura atómica y detección explícita de manifests corruptos o ilegibles.
+- Reforzado el comportamiento multiplataforma del almacenamiento local para evitar condiciones de carrera relacionadas con la antigüedad de archivos y timestamps del filesystem.
+- Consolidada la generación determinista de nombres de salida para vídeos, cursos y lecciones.
+- Normalización Unicode estable mediante descomposición canónica NFD, eliminación de marcas diacríticas y recomposición NFC.
+- Los nombres generados mantienen letras y números Unicode válidos, evitando transliteraciones arbitrarias y garantizando un comportamiento estable entre representaciones NFC/NFD.
+- Reforzada la compatibilidad con las restricciones reales de los sistemas de archivos de Windows, Linux y macOS.
+- Consolidada la protección frente a colisiones de nombres por mayúsculas/minúsculas y normalización Unicode.
+- Mejorada la gestión de nombres y rutas que superan los límites del filesystem, incluyendo componentes Unicode cuyo tamaño debe calcularse en bytes UTF-8.
+
+### Translation
+
+- Consolidado el proveedor opcional de traducción local basado en CTranslate2 + SentencePiece.
+- Mejorada la gestión del modelo local y su validación antes de ser utilizado.
+- Añadida gestión configurable de la autenticación necesaria para descargar modelos privados o restringidos de Hugging Face.
+- Los modelos públicos pueden prepararse sin necesidad de proporcionar credenciales.
+- Mantenida la validación de integridad de los artefactos del modelo mediante tamaño y SHA-256.
+- Consolidada la selección de dispositivo y `compute_type` para traducción local, manteniendo fallback conservador a CPU cuando GPU/CUDA no puede utilizarse correctamente.
+
+### Filesystem & ZIP
+
+- Consolidado el endurecimiento de extracción ZIP introducido en `v1.5.1`.
+- Mantenida la protección frente a traversal mediante `/` y `\\`, rutas absolutas POSIX/Windows, rutas UNC, nombres reservados de Windows, entradas ZIP duplicadas, colisiones por case-folding, colisiones por normalización Unicode y entradas simbólicas.
+- Preservada la estructura de directorios de los ZIP anidados y reforzada la normalización NFC de nombres de miembros y contenedores.
+
+### Tests & Validation
+
+- Ampliadas las regresiones de naming para nombres Unicode compuestos y descompuestos.
+- Añadidas comprobaciones para eliminar diacríticos mediante normalización canónica sin transliteraciones selectivas.
+- Ampliadas las pruebas de reprocessing, manifests, backups, restauración ante errores y validación de subtítulos.
+- Mantenida la matriz multiplataforma de Linux, Windows y macOS con Python 3.11, 3.12 y 3.13.
+- Validación mediante Ruff, Ruff Security, Ruff format, `compileall`, `pip check`, packaging, wheel e instalación limpia.
+- Mantenidas las auditorías de dependencias y las validaciones del Release Gate.
+
+### Compatibility
+
+Esta es una release minor compatible con la arquitectura existente. No introduce una arquitectura alternativa de procesamiento.
+
+### Release
+
+**Version:** `1.7.0`
+
+**Previous release:** `1.6.0`
+
+**Release type:** MINOR
+
 ## [1.6.0] — Local Translation & GPU Runtime Hardening
 
 **Tipo:** MINOR — funcionalidad nueva compatible hacia atrás para traducción local opcional, runtime GPU reproducible y recuperación STT configurable.
@@ -119,7 +189,7 @@ No se declara ningún benchmark GPU/CPU ni prueba A/B de un MP4 externo que no h
 
 - Regeneración acepta las opciones de `run` cuya semántica es válida para el `MediaPipeline` común: provider, source/target, normalización de nombres, concurrencia de vídeo, batching de traducción, configuración de Whisper, comportamiento de FFmpeg y selección de WebM.
 - Regeneración reutiliza las acciones `argparse` reales de `run` y `_apply_run_overrides`, evitando un parser y una configuración paralelos.
-- Se mantienen explícitamente como exclusivas de `run` las opciones `--scheduled`, `--dry-run`, `--no-retain-sources` y `--no-resume`, porque no son aplicables o contradicen la semántica de regeneración.
+- Se mantienen explícitamente como exclusivas de `run` las opciones `--scheduled`, `--dry-run`, `--no-retain-sources` y `--no-resume`.
 - El help de los comandos y subcomandos CLI se ha completado con tipos, choices, defaults, restricciones y descripción del comportamiento cuando corresponde.
 - Se incorporan regresiones para las flags compartidas, help heredado, aliases `-h`/`--help`, exclusiones de regeneración, mutual exclusion de WebM y defaults.
 

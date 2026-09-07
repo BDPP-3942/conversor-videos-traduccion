@@ -68,7 +68,7 @@ python main.py run --scheduled
 
 ## Traducción local offline
 
-La release 1.6.0 incorpora un proveedor opcional español→inglés basado en CTranslate2 + SentencePiece. El modelo no se descarga automáticamente por defecto: debe prepararse explícitamente.
+La release 1.7.0 consolida el proveedor opcional español→inglés basado en CTranslate2 + SentencePiece. El modelo no se descarga automáticamente por defecto: debe prepararse explícitamente.
 
 ```bash
 python scripts/manage_local_translation.py status
@@ -263,9 +263,11 @@ Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` 
 
 ## Versionado
 
-La release publicada actual es `1.5.1` (`v1.5.1`). La candidata de próxima release es **`1.6.0` (`v1.6.0`)** y no se considera publicada hasta que exista un tag/release verificable sobre el SHA resultante de `main`.
+La release publicada más reciente es `1.7.0` (`v1.7.0`). La candidata de próxima release es **`1.7.1` (`v1.7.1`)** y no se considera publicada hasta que exista un tag/release verificable sobre el SHA resultante de `main`.
 
-La release `1.5.1` corresponde al endurecimiento de extracción ZIP y componentes de filesystem multiplataforma. El tag `v1.5.1` apunta al commit `06ee8d265b57214596f079f3bb426b9b27042b1e`.
+La release `1.7.0` corresponde a la consolidación de reprocessing/manifests, naming Unicode/filesystem y runtime de traducción local, además de las capacidades heredadas de `1.6.0` y `1.5.1`.
+
+La candidata `1.7.1` corrige el contrato `clip_timestamps` de la recuperación selectiva de `faster-whisper` sin cambiar la configuración pública ni el pipeline audiovisual. La revisión de compatibilidad se realiza contra `v1.7.0`, no contra `v1.5.1`.
 
 No se modifica el historial de releases anteriores.
 

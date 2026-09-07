@@ -2,6 +2,8 @@
 
 STT uses `faster-whisper` backed by CTranslate2. The selected model, device, compute type, beam size, CPU threads, VAD behavior, initial prompt and degeneration-recovery policy are configurable.
 
+The `1.7.1` release uses the compatibility range `faster-whisper>=1.2.1,<1.3` with `ctranslate2>=4.8.2,<4.9`. It is a PATCH correction on the latest published `1.7.0` release and corrects the selective-recovery `clip_timestamps` contract without changing the public recovery configuration or the STT architecture consolidated in `1.7.0`.
+
 Defaults in `config/app.toml` include automatic model/device/compute selection, beam size `5`, VAD enabled and a minimum silence duration of `1500` ms. `.env.example` exposes explicit environment overrides.
 
 ## Initial prompt / context file
@@ -41,6 +43,16 @@ The normal transcription path keeps `whisper_condition_on_previous_text` as conf
 
 Suspicious segments are recovered selectively; normal segments are not retranscribed. Recovery is segment-scoped through `clip_timestamps`, so a failure in one interval does not cause the complete media file to be regenerated.
 
+### faster-whisper clip contract
+
+The recovery path calls `WhisperModel.transcribe()` directly. Its `clip_timestamps` argument must therefore contain numeric time values, not segment dictionaries. The project passes each suspicious interval as:
+
+```python
+clip_timestamps = [float(start), float(end)]
+```
+
+This is intentionally distinct from APIs that may represent batched segments as dictionaries. Passing dictionaries to the `WhisperModel` path causes arithmetic inside `faster-whisper` to fail with `TypeError: unsupported operand type(s) for *: 'dict' and 'int'`. Regression tests verify that the recovery call receives numeric timestamps.
+
 ### `whisper_recovery_retries`
 
 `whisper_recovery_retries` is the **maximum number of recovery rounds per suspicious segment**. It is not an unlimited retry loop and it is independent of the initial transcription attempt.
@@ -73,8 +85,8 @@ whisper_recovery_temperatures = [0.2]
 Environment overrides:
 
 ```text
-WHISPER_RECOVERY_RETRIES=1
-WHISPER_RECOVERY_TEMPERATURES=0.2,0.4
+WHISPER_RECOVERY_RETRIES = 1
+WHISPER_RECOVERY_TEMPERATURES = 0.2,0.4
 ```
 
 This policy deliberately bounds recovery work and makes `whisper_recovery_retries` observable and testable. The tests verify disabled recovery, the retry limit, temperature selection, context-preserving/context-free ordering and early termination after a healthy candidate.
@@ -87,9 +99,9 @@ Hardware detection verifies the actual CTranslate2 CUDA capability instead of tr
 
 When CUDA is selected, the Whisper model executes on the GPU. CPU resources are still used by the surrounding Python/media pipeline, but `cpu_threads` must not be interpreted as a mechanism for splitting one Whisper inference between CPU and GPU. The project therefore does **not** claim single-inference CPU+GPU model partitioning.
 
-The supported throughput strategy is parallelism between independent video jobs when the resource budget permits it. Each video worker owns its Whisper instance (`num_workers=1` inside that instance), while the pipeline-level concurrency ceiling accounts for CPU threads, available RAM and GPU memory. This avoids duplicating work or creating uncontrolled concurrent generation inside a single model instance.
+The supported throughput strategy is parallelism between independent video jobs when the resource budget permits it. Each video worker owns its Whisper instance (`num_workers = 1` inside that instance), while the pipeline-level concurrency ceiling accounts for CPU threads, available RAM and GPU memory. This avoids duplicating work or creating uncontrolled concurrent generation inside a single model instance.
 
-The upstream `faster-whisper` API exposes explicit `device`, `compute_type`, `cpu_threads` and `num_workers` controls. Its documented GPU examples select `device="cuda"`; CPU execution selects `device="cpu"`. The project follows that backend contract rather than inventing an unsupported hybrid inference mode.
+The upstream `faster-whisper` API exposes explicit `device`, `compute_type`, `cpu_threads` and `num_workers` controls. Its documented GPU examples select `device = "cuda"`; CPU execution selects `device = "cpu"`. The project follows that backend contract rather than inventing an unsupported hybrid inference mode.
 
 If CUDA initialization fails, the application performs one controlled fallback to CPU rather than repeatedly retrying the same failed GPU initialization.
 
@@ -117,4 +129,4 @@ The model is not bundled into the repository by default.
 
 ## Reprocessing
 
-If an existing original VTT is missing or invalid but the normal video exists, `reprocess-subtitles --stt-only` can regenerate the transcription without regenerating the normal video.
+The latest `1.7.0` baseline adds the reprocessing/manifests workflows. If an existing original VTT is missing or invalid but the normal video exists, `reprocess-subtitles --stt-only` can regenerate the transcription without regenerating the normal video. The `1.7.1` fix does not alter that workflow.

@@ -29,6 +29,7 @@ tools/tts/*
 !tools/tts/.gitkeep
 build/
 dist/
+*.egg-info/
 *.spec
 *.log
 *.tmp

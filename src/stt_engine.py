@@ -130,7 +130,7 @@ class STTEngine:
         *,
         condition_on_previous_text: bool,
         temperature: float | tuple[float, ...],
-        clip_timestamps: list[dict[str, float]] | None = None,
+        clip_timestamps: list[float] | None = None,
     ) -> dict[str, Any]:
         vad_parameters = None
         if self.settings.whisper_vad_filter and clip_timestamps is None:
@@ -183,7 +183,7 @@ class STTEngine:
             kwargs = self._transcribe_kwargs(
                 condition_on_previous_text=True,
                 temperature=temperature,
-                clip_timestamps=[{"start": start, "end": end}],
+                clip_timestamps=[start, end],
             )
             attempt_candidates = self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0])
             candidates.extend(attempt_candidates)
@@ -193,7 +193,7 @@ class STTEngine:
             kwargs = self._transcribe_kwargs(
                 condition_on_previous_text=False,
                 temperature=temperature,
-                clip_timestamps=[{"start": start, "end": end}],
+                clip_timestamps=[start, end],
             )
             context_free_candidates = self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0])
             candidates.extend(context_free_candidates)
