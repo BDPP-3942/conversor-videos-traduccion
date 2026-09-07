@@ -38,11 +38,13 @@ local://storage/input → pipeline → local://storage/output
 
 See [INSTALLATION.md](INSTALLATION.md), [CONFIGURATION.md](CONFIGURATION.md) and [CLI.md](CLI.md) for operational details.
 
-## Current candidate vs published release
+## Current published release vs maintenance candidate
 
-The latest published release remains `1.5.1`. The current branch prepares the compatible PATCH candidate `1.6.1`, which fixes the `faster-whisper` selective STT recovery regression introduced in the `1.6.0` feature line.
+The latest published product release is `1.7.0` (`v1.7.0`). The `1.6.x` line remains a maintained release line, and this branch prepares the PATCH maintenance release `1.6.1` (`v1.6.1`) from the published `v1.6.0` baseline.
 
-Release `1.6.0` introduced optional local translation, GPU/runtime hardening and configurable selective STT recovery. Release `1.6.1` corrects the recovery backend contract without changing the public recovery configuration or the audiovisual pipeline.
+Release `1.6.0` introduced optional local translation, GPU/runtime hardening and configurable selective STT recovery. Release `1.6.1` corrects the `faster-whisper` recovery backend contract without changing the public recovery configuration or the audiovisual pipeline. Release `1.7.0` subsequently consolidated reprocessing, manifest persistence, Unicode naming/filesystem behavior and the local translation runtime; those `1.7.0` changes are not silently backported into the `1.6.1` maintenance branch.
+
+Therefore, for the `1.6.1` correction itself, the immediate compatibility baseline is **`v1.6.0`**, while `v1.7.0` is the latest published project release overall. This distinction is intentional and must be preserved in release documentation.
 
 See [RELEASES.md](RELEASES.md) for the release history and [../RELEASE_CANDIDATE.md](../RELEASE_CANDIDATE.md) for the exact release-gate scope.
 
@@ -61,5 +63,6 @@ See [RELEASES.md](RELEASES.md) for the release history and [../RELEASE_CANDIDATE
 | ZIP/filesystem hardening | `1.5.1` | release history |
 | Local translation, GPU/runtime hardening and configurable STT recovery | `1.6.0` | release history |
 | `faster-whisper` selective recovery `clip_timestamps` compatibility fix | `1.6.1` | `CHANGELOG.md` / `RELEASES.md` |
+| Reprocessing/manifests, Unicode naming/filesystem consolidation and translation runtime improvements | `1.7.0` | published GitHub release |
 
-The table records only functionality for which the repository provides release evidence. `1.6.1` remains a candidate until its final SHA passes the release gate and the tag is created after merge.
+The table records functionality by introduction release. `1.6.1` remains a maintenance candidate until its final SHA passes the release gate and its tag is created according to the maintenance-release policy.
