@@ -1,6 +1,6 @@
 # Local translation runtime
 
-PR2 añade un proveedor opcional de traducción local basado en CTranslate2 + SentencePiece.
+`1.7.2` corrige la preparación del proveedor opcional de traducción local basado en CTranslate2 + SentencePiece. La funcionalidad y el modelo fijado no cambian; se corrige el gestor que prepara sus ficheros.
 
 ## Modelo actual
 
@@ -22,7 +22,11 @@ python scripts/manage_local_translation.py status
 python scripts/manage_local_translation.py download
 ```
 
+`1.7.2` corrige un fallo en el cálculo del límite de descarga que impedía alcanzar la descarga real: el código anterior evaluaba `SMALL_MODEL_FILES[name]` incluso cuando el fichero estaba definido en `MODEL_FILES`, provocando `KeyError: 'model.bin'`. Ahora el límite se selecciona explícitamente según la colección que contiene el fichero.
+
 La descarga usa `huggingface_hub.hf_hub_download` con la revisión fijada. Este cliente soporta el backend Xet utilizado por los ficheros grandes del modelo y, para repositorios públicos, no necesita autenticación. Si el repositorio o la infraestructura de descarga exige autenticación en el entorno donde se ejecuta, puede proporcionarse un token mediante `LOCAL_TRANSLATION_HF_TOKEN`; como alternativa se reconoce el estándar `HF_TOKEN`. El token se entrega al cliente de Hugging Face solo durante la descarga y nunca se persiste junto al modelo.
+
+La descarga se realiza sobre un directorio temporal gestionado y solo sustituye el modelo final después de superar las validaciones de integridad. Los ficheros parciales se conservan en caso de error para facilitar diagnóstico/reanudación.
 
 Para eliminar el modelo:
 
@@ -73,6 +77,15 @@ python scripts/benchmark_local_translation.py --sentences 100
 ```
 
 El benchmark informa revisión, hardware, RAM, dispositivo, compute type, cues, caracteres, carga, tiempo de traducción, throughput y tiempo por cue. Además verifica que cada entrada produzca una salida textual no vacía; un modelo que carga pero no genera traducciones válidas hace fallar el benchmark. No se considera verificado ningún benchmark hasta ejecutarlo en el hardware correspondiente.
+
+Para una instalación real en macOS, la validación mínima posterior a `download` es:
+
+```bash
+python scripts/manage_local_translation.py status
+python scripts/benchmark_local_translation.py --sentences 1
+```
+
+El segundo comando cruza la frontera de inicialización de CTranslate2 + SentencePiece y ejecuta una traducción real con el modelo preparado.
 
 ## Privacidad/offline
 
