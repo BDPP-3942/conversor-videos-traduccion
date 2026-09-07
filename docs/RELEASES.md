@@ -27,8 +27,8 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 | Wrappers multiplataforma, naming de referencia y contexto externo de Whisper | `1.5.0` |
 | Endurecimiento ZIP/filesystem multiplataforma | `1.5.1` |
 | Traducción local opcional, recuperación STT configurable y endurecimiento GPU/runtime | `1.6.0` |
-| Corrección del contrato `clip_timestamps` en la recuperación selectiva de STT con `faster-whisper` | `1.6.1` |
 | Reprocessing/manifests, consolidación de naming Unicode/filesystem y mejoras del runtime de traducción local | `1.7.0` |
+| Corrección del contrato `clip_timestamps` en la recuperación selectiva de STT con `faster-whisper` | `1.7.1` |
 
 ## Releases publicadas
 
@@ -38,9 +38,7 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 
 **Tag publicado:** `v1.7.0`.
 
-Esta es la **release publicada más reciente del proyecto**. Consolida el reprocesado y la persistencia de manifests, refuerza el almacenamiento local multiplataforma, consolida el naming determinista y la normalización Unicode, endurece los límites reales de filesystem y consolida el proveedor de traducción local y su runtime.
-
-Los cambios propios de `1.7.0` no forman parte automáticamente de la rama de mantenimiento `1.6.x`. La candidata `1.6.1` se mantiene como corrección específica de la línea `1.6.x`.
+Esta es la **release publicada más reciente antes de la candidata 1.7.1**. Consolida el reprocesado y la persistencia de manifests, refuerza el almacenamiento local multiplataforma, consolida el naming determinista y la normalización Unicode, endurece los límites reales de filesystem y consolida el proveedor de traducción local y su runtime.
 
 ### 1.6.0 — Local Translation & GPU Runtime Hardening
 
@@ -137,30 +135,28 @@ Los cambios propios de `1.7.0` no forman parte automáticamente de la rama de ma
 
 **Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
 
-## Candidata de mantenimiento 1.6.1
+## Candidata 1.7.1
 
 ### Posición en la línea de releases
 
 **Tipo:** `PATCH`.
 
-`1.6.1` es una **release de mantenimiento de la línea `1.6.x`**, no una release posterior a `1.7.0` en la secuencia principal. La última release publicada globalmente es `1.7.0`, pero el objetivo de esta rama es corregir `1.6.0` sin incorporar los cambios funcionales posteriores de `1.7.0`.
+`1.7.1` es una **release de mantenimiento inmediata de la release publicada `1.7.0`**. La revisión no debe utilizar `1.5.1` como baseline funcional ni tratar `1.6.0` como release previa inmediata.
 
 Por tanto:
 
-- **Previous release en la línea de mantenimiento:** `v1.6.0` → `a6cf0ee183a4802814fe0e061b4704e427166b85`.
-- **Baseline histórico anterior a la línea 1.6.x:** `v1.5.1` → `06ee8d265b57214596f079f3bb426b9b27042b1e`.
-- **Latest published release del proyecto:** `v1.7.0`.
-- **Target maintenance tag:** `v1.6.1` — pendiente de validación y creación.
+- **Previous release:** `v1.7.0`.
+- **Baseline funcional:** el estado completo publicado en `v1.7.0`.
+- **Antecedentes:** `v1.6.0` y `v1.5.1` permanecen como historia y contexto.
+- **Target tag:** `v1.7.1` — pendiente de validación y creación.
 
-La revisión de esta corrección debe compararse contra **`v1.6.0`**, porque esa es la versión publicada de la misma línea funcional que contiene la regresión. No debe utilizar `1.5.1` como baseline funcional inmediato ni incorporar silenciosamente cambios de `1.7.0`.
+La candidata corrige la regresión de recuperación selectiva de STT sobre el producto tal como existe en `1.7.0`. No debe omitir ni sobrescribir las capacidades introducidas por `1.7.0`.
 
 ### Alcance
 
-La candidata `1.6.1` corrige una regresión de compatibilidad en la recuperación selectiva de segmentos STT. `WhisperModel.transcribe()` recibe ahora intervalos `clip_timestamps` como valores temporales numéricos `[start, end]`, conforme al contrato de `faster-whisper` utilizado por el proyecto, evitando que los diccionarios de segmentos se sometan a operaciones aritméticas internas y produzcan `TypeError`.
+La candidata `1.7.1` corrige el contrato de `clip_timestamps` utilizado por la recuperación selectiva de segmentos STT. `WhisperModel.transcribe()` recibe intervalos como valores temporales numéricos `[start, end]`, evitando que los diccionarios de segmentos se sometan a operaciones aritméticas internas y produzcan `TypeError: unsupported operand type(s) for *: 'dict' and 'int'`.
 
-La corrección conserva como baseline todas las capacidades de `1.6.0`, especialmente traducción local opcional, runtime GPU/CUDA, recuperación STT configurable y endurecimiento ZIP/filesystem heredado de `1.5.1`.
-
-No incorpora cambios funcionales de `1.7.0` salvo que fueran imprescindibles para resolver una dependencia directa de esta corrección; cualquier backport adicional debe quedar documentado explícitamente.
+La corrección debe conservar el baseline completo de `1.7.0`, especialmente reprocessing/manifests, almacenamiento y naming Unicode/filesystem, runtime de traducción local, endurecimiento ZIP/filesystem y las capacidades de `1.6.0` heredadas.
 
 ### Cambios
 
@@ -171,7 +167,7 @@ No incorpora cambios funcionales de `1.7.0` salvo que fueran imprescindibles par
 
 ### Dependencias
 
-La release fija explícitamente el stack compatible con la corrección:
+La candidata mantiene el stack compatible actualmente declarado por el proyecto:
 
 - `faster-whisper>=1.2.1,<1.3`
 - `ctranslate2>=4.8.2,<4.9`
@@ -184,9 +180,9 @@ La misma base de dependencias se refleja en `pyproject.toml` y `requirements.txt
 
 La candidata final pre-merge debe completar CI y Release Gate sobre su SHA exacto, incluyendo Linux, Windows y macOS con Python 3.11–3.13, tests, lint/security/format, compile, audits, packaging, instalación limpia, `pip check` y entry points.
 
-Debe verificarse explícitamente que las capacidades de `1.6.0` no se han regresado durante la corrección. No se declara ningún benchmark GPU ni prueba A/B de un MP4 externo que no esté disponible y registrado.
+Debe verificarse explícitamente que las capacidades de `1.7.0` no se han regresado durante la corrección. No se declara ningún benchmark GPU ni prueba A/B de un MP4 externo que no esté disponible y registrado.
 
-El tag `v1.6.1` se creará únicamente después de validar el SHA resultante de `main` según la política de releases de mantenimiento.
+El tag `v1.7.1` se creará únicamente después de validar el SHA resultante de `main`.
 
 ## Política de tags
 
