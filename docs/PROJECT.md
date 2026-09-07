@@ -38,15 +38,13 @@ local://storage/input → pipeline → local://storage/output
 
 See [INSTALLATION.md](INSTALLATION.md), [CONFIGURATION.md](CONFIGURATION.md) and [CLI.md](CLI.md) for operational details.
 
-## Current main vs published release
+## Current candidate vs published release
 
-The latest published release is `1.2.2`, and `pyproject.toml` on `main` is aligned to `1.2.2`. The current `main` branch also contains changes merged after that release. These post-release changes are documented separately and must not be retroactively attributed to `1.2.2`.
+The latest published release remains `1.5.1`. The current branch prepares the compatible PATCH candidate `1.6.1`, which fixes the `faster-whisper` selective STT recovery regression introduced in the `1.6.0` feature line.
 
-The most relevant post-release functional change is PR #20: resource-aware video concurrency. It makes `max_parallel_videos = 0` mean AUTO and calculates a conservative concurrency ceiling from the resolved Whisper configuration and available CPU, RAM and GPU resources. Positive values remain upper bounds and may be clamped. This behavior is part of current `main`, not the published `1.2.2` release.
+Release `1.6.0` introduced optional local translation, GPU/runtime hardening and configurable selective STT recovery. Release `1.6.1` corrects the recovery backend contract without changing the public recovery configuration or the audiovisual pipeline.
 
-PR #21 only aligns the package metadata with the already published `1.2.2` release; it does not introduce a product capability.
-
-See [RELEASES.md](RELEASES.md) for the release history and the distinction between published releases and subsequent changes on `main`.
+See [RELEASES.md](RELEASES.md) for the release history and [../RELEASE_CANDIDATE.md](../RELEASE_CANDIDATE.md) for the exact release-gate scope.
 
 ## Verified release evidence
 
@@ -57,6 +55,11 @@ See [RELEASES.md](RELEASES.md) for the release history and the distinction betwe
 | Naming improvements and TTS asset bootstrap | `1.2.0` | `CHANGELOG.md` / release history |
 | TTS installation fix | `1.2.1` | release history |
 | Timestamp cleanup in naming | `1.2.2` | release history |
-| Resource-aware video concurrency | **Post-`1.2.2`** | PR #20; not yet assigned to a published release |
+| Resource-aware video concurrency | `1.3.0` | release history |
+| Clean regeneration | `1.4.0` | release history |
+| Multiplatform Whisper/context and packaging | `1.5.0` | release history |
+| ZIP/filesystem hardening | `1.5.1` | release history |
+| Local translation, GPU/runtime hardening and configurable STT recovery | `1.6.0` | release history |
+| `faster-whisper` selective recovery `clip_timestamps` compatibility fix | `1.6.1` | `CHANGELOG.md` / `RELEASES.md` |
 
-The table records only functionality for which the repository provides evidence. Post-release changes are not assigned a release version until a corresponding release exists.
+The table records only functionality for which the repository provides release evidence. `1.6.1` remains a candidate until its final SHA passes the release gate and the tag is created after merge.
