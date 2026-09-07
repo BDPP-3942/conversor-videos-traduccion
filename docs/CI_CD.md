@@ -64,11 +64,7 @@ PR jobs explicitly check out `github.event.pull_request.head.sha`. Therefore, ev
 
 `release-gate.yml` validates the exact candidate SHA, release metadata, distributions, packaged resources, clean wheel installation and source compilation. On normal pull requests it validates release consistency without requiring the next version tag to be absent; the explicit manual release invocation additionally checks that the candidate tag does not already exist.
 
-For the current `1.7.1` candidate, release consistency includes the version declared by `pyproject.toml`, the application version recorded in `config/app.toml`, the `CHANGELOG.md` heading and the `docs/RELEASES.md` candidate entry. These values must remain aligned before merge approval. The comparison baseline for functional review is the latest published `v1.7.0`, not `v1.5.1` or `v1.6.0`.
-
-## Resource policy
-
-The workflow uses concurrency cancellation so a newer commit supersedes an obsolete run. Do not rerun successful jobs merely to obtain duplicate evidence. Focused local checks are encouraged before pushing; the final SHA must receive the authoritative CI/Release Gate evidence before release approval.
+For the current `1.7.2` candidate, release consistency includes the version declared by `pyproject.toml`, the application version recorded in `config/app.toml`, the `CHANGELOG.md` heading and the `docs/RELEASES.md` candidate entry. These values must remain aligned before merge approval. The functional baseline is the merged `1.7.1` state; `v1.7.0` remains the latest published release confirmed in the repository documentation until `v1.7.1` is formally published.
 
 ## Local parity
 
@@ -83,6 +79,17 @@ python -m compileall config src main.py process_raw_videos.py process_videos.py
 python -m pip check
 python -m build
 ```
+
+For local translation specifically, the target environment should additionally run:
+
+```bash
+python scripts/manage_local_translation.py status
+python scripts/manage_local_translation.py download
+python scripts/manage_local_translation.py status
+python scripts/benchmark_local_translation.py --sentences 1
+```
+
+The benchmark is the real-model smoke test; CI uses deterministic doubles for the model download/runtime regression so the full ~78.7 MiB model is not downloaded on every runner.
 
 For platform-specific confidence, run the test suite under Python 3.11, 3.12 and 3.13 on Windows, Linux/WSL2 and macOS when available. Windows should also exercise the `.bat` wrapper; POSIX systems should validate the `.sh` wrappers.
 
