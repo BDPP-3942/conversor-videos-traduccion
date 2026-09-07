@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.7.2] — Local translation model download fix
+
+**Tipo:** PATCH — corrección compatible del gestor de preparación del modelo de traducción local.
+
+### Fixed
+
+- Corregido el cálculo del límite de descarga de los ficheros del modelo local.
+- Evitada la evaluación eager del fallback de `dict.get` que provocaba `KeyError: 'model.bin'` aunque `model.bin` estuviera correctamente definido en `MODEL_FILES`.
+- La preparación vuelve a poder recorrer los tres ficheros principales (`model.bin`, `source.spm`, `target.spm`) y los metadatos JSON antes de validar y activar el modelo.
+
+### Tests
+
+- Añadida regresión que ejercita la descarga gestionada de todos los ficheros del modelo.
+- Añadida regresión que prepara el modelo y comprueba la inicialización del proveedor y una llamada de traducción a través de CTranslate2 + SentencePiece.
+- Se mantiene el benchmark real `scripts/benchmark_local_translation.py` como validación funcional del modelo fijado en el hardware objetivo.
+
+### Documentation
+
+- Actualizadas las instrucciones de preparación del modelo local y la explicación del fallo corregido.
+- Actualizada la documentación de release y versionado para `1.7.2`.
+
+### Compatibility
+
+- No cambian el modelo/revisión fijados, la configuración pública, el pipeline audiovisual ni el contrato de dependencias.
+- Se conserva la corrección `clip_timestamps` de `1.7.1`.
+
 ## [1.7.1] — STT selective recovery compatibility
 
 **Tipo:** PATCH — corrección compatible sobre la release `1.7.0` para la recuperación selectiva de segmentos sospechosos de STT.
