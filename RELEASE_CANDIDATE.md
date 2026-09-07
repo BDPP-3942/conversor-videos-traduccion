@@ -4,11 +4,15 @@
 
 - **Version:** 1.6.1
 - **Candidate SHA:** debe ser validado por CI y Release Gate sobre el SHA exacto final pre-merge; el tag debe apuntar al SHA exacto resultante de `main` tras el merge.
-- **Previous release:** `v1.5.1` → `06ee8d265b57214596f079f3bb426b9b27042b1e`
-- **Prior candidate:** `1.6.0` — no se crea desde esta rama de corrección.
+- **Previous release:** `v1.6.0` → `a6cf0ee183a4802814fe0e061b4704e427166b85`
+- **Previous baseline:** `v1.5.1` → `06ee8d265b57214596f079f3bb426b9b27042b1e`
 - **Target tag:** `v1.6.1` — not created
 
 This report is the release-gate record for the faster-whisper selective-recovery compatibility fix. The tag must be created only after merge, must point to the exact final `main` commit and must never be moved afterward.
+
+## Baseline for the 1.6.1 review
+
+The comparison baseline for this candidate is the **published `v1.6.0`**, not `v1.5.1`. Therefore the review must treat all functionality introduced by `1.6.0` as existing product functionality that must remain intact, including local translation, GPU/runtime hardening and configurable STT recovery. `1.5.1` remains documented as the previous release before the `1.6.0` feature line.
 
 ## Scope
 
@@ -16,7 +20,7 @@ This report is the release-gate record for the faster-whisper selective-recovery
 - Los intervalos se envían como valores temporales numéricos `[start, end]` a `WhisperModel.transcribe()`.
 - Conservación de la recuperación limitada por segmento, el contexto preservado/contexto libre y la parada temprana ante candidatos saludables.
 - Sin sustitución del pipeline audiovisual, almacenamiento, naming, VTT ni contratos públicos de recuperación.
-- El endurecimiento ZIP/filesystem, la traducción local opcional y el runtime GPU de `1.6.0` permanecen como baseline funcional del proyecto.
+- El endurecimiento ZIP/filesystem de `1.5.1`, la traducción local opcional y el runtime GPU de `1.6.0` permanecen como baseline funcional del proyecto.
 
 ## Root cause
 
@@ -40,6 +44,8 @@ The release stack is explicitly constrained to the compatible versions:
 Required validation includes the complete pytest suite, STT recovery regressions, configuration/provider regressions, ZIP/filesystem security tests, packaging validation and dependency audits.
 
 The STT regressions verify the numeric `clip_timestamps` contract received by `model.transcribe()`, normal transcription, recovery result integration, bounded retry behavior and early termination after a healthy candidate.
+
+The 1.6.1 review must also preserve the `1.6.0` feature baseline: local translation resource management and validation, NVIDIA/CUDA capability detection and fallback behavior, configurable STT recovery, and the security hardening inherited from `1.5.1`.
 
 ## CI
 
@@ -76,7 +82,7 @@ The release documentation for `1.6.1` is maintained in `CHANGELOG.md`, `docs/REL
 
 | Gate | Status |
 |---|---|
-| Existing functionality | **PENDING final CI** |
+| Existing functionality from `1.6.0` baseline | **PENDING final CI** |
 | STT selective recovery compatibility | **IMPLEMENTED** |
 | faster-whisper dependency contract | **IMPLEMENTED** |
 | Tests | **PENDING final CI** |
