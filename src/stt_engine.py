@@ -263,7 +263,8 @@ class STTEngine:
                 else:
                     logger.warning(
                         "STT suspicious result rejected after recovery: start=%.3f end=%.3f",
-                        float(segment.start), float(segment.end),
+                        float(segment.start),
+                        float(segment.end),
                     )
                     continue
             else:

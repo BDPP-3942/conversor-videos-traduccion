@@ -22,6 +22,8 @@ def _recovery_engine(model, retries=1, temperatures=(0.2,)):
     )
     engine._quality_thresholds = STTQualityThresholds()
     engine.model = model
+    engine.device = "cpu"
+    engine.compute_type = "int8"
     return engine
 
 
