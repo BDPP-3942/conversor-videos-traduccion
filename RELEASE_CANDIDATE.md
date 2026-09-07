@@ -1,77 +1,55 @@
-# Release Candidate — 1.6.0
+# Release Candidate — 1.6.1
 
 ## Release
 
-- **Version:** 1.6.0
-- **Candidate SHA:** validated by CI on the final pre-merge commit; the release tag must point to the exact post-merge `main` SHA.
+- **Version:** 1.6.1
+- **Candidate SHA:** debe ser validado por CI y Release Gate sobre el SHA exacto final pre-merge; el tag debe apuntar al SHA exacto resultante de `main` tras el merge.
 - **Previous release:** `v1.5.1` → `06ee8d265b57214596f079f3bb426b9b27042b1e`
-- **Target tag:** `v1.6.0` — not created
+- **Prior candidate:** `1.6.0` — no se crea desde esta rama de corrección.
+- **Target tag:** `v1.6.1` — not created
 
-This report is the release-gate record for PR #35. The tag must be created only after merge, must point to the exact final `main` commit and must never be moved afterward.
+This report is the release-gate record for the faster-whisper selective-recovery compatibility fix. The tag must be created only after merge, must point to the exact final `main` commit and must never be moved afterward.
 
 ## Scope
 
-- Optional offline Spanish→English translation through CTranslate2 + SentencePiece.
-- Pinned model revision with resource integrity validation.
-- Hardened NVIDIA/CUDA detection and conservative CPU fallback.
-- Managed CUDA Python runtime resources under `tools/cuda/`.
-- Selective STT recovery for detected repetition/hallucination degeneration.
-- ZIP/filesystem hardening from the 1.5.x baseline.
-- No replacement of the existing audiovisual pipeline, storage architecture or naming contract.
+- Corrección del contrato de `clip_timestamps` usado por la recuperación selectiva de `faster-whisper`.
+- Los intervalos se envían como valores temporales numéricos `[start, end]` a `WhisperModel.transcribe()`.
+- Conservación de la recuperación limitada por segmento, el contexto preservado/contexto libre y la parada temprana ante candidatos saludables.
+- Sin sustitución del pipeline audiovisual, almacenamiento, naming, VTT ni contratos públicos de recuperación.
+- El endurecimiento ZIP/filesystem, la traducción local opcional y el runtime GPU de `1.6.0` permanecen como baseline funcional del proyecto.
 
-## PRs included
+## Root cause
 
-- PR #35 — `feat(pr2): local translation and GPU runtime hardening`.
+La recuperación selectiva construía `clip_timestamps` como diccionarios de segmento. El flujo utilizado por el proyecto llama directamente a `WhisperModel.transcribe()`, cuyo contrato espera timestamps numéricos. `faster-whisper` realiza operaciones aritméticas sobre esos valores durante el procesamiento del clip; recibir un diccionario provoca `TypeError: unsupported operand type(s) for *: 'dict' and 'int'`.
 
-## Existing functionality preserved
+La corrección convierte el intervalo recuperado en `[float(start), float(end)]` antes de invocar `transcribe()`.
 
-- Common `MediaPipeline` remains authoritative.
-- Existing local, cloud and rclone storage providers remain available.
-- Existing deterministic naming policy remains authoritative.
-- Existing TTS, regeneration, scheduling, resume and deduplication flows remain available.
+## Dependencies
 
-## Local translation
+The release stack is explicitly constrained to the compatible versions:
 
-- Provider: CTranslate2 + SentencePiece.
-- Model: `Prukario/opus-mt-es-en-ct2-int8`.
-- Revision: `ad91ad1697ea1761111ff4c179400796d085b347`.
-- Model identity is pinned; arbitrary repository/revision overrides are rejected.
-- `model.bin`, `source.spm` and `target.spm` are validated by expected size and SHA-256.
-- `config.json`, `shared_vocabulary.json` and `tokenizer_config.json` are required, rejected when symlinked, checked for bounded size/UTF-8 JSON and validated for required model metadata.
-- Preparation uses staging and atomic replacement; interrupted downloads keep partial files available for a subsequent resumable attempt and are never treated as ready resources.
-- Local-provider-specific options are environment variables (`LOCAL_TRANSLATION_*`), not `[local_translation]` TOML fields.
+- `faster-whisper>=1.2.1,<1.3`
+- `ctranslate2>=4.8.2,<4.9`
+- `sentencepiece>=0.2,<0.3`
+- `huggingface-hub>=0.32,<1.31`
 
-## CUDA / hardware
-
-- `WHISPER_DEVICE=auto` and local translation `device=auto` require verified CTranslate2 CUDA capability, not merely `nvidia-smi`.
-- CUDA 12 cuBLAS and cuDNN 9 managed Python runtime dependencies are installed only through explicit interactive preparation when required.
-- Managed CUDA cleanup is restricted to `tools/cuda/`.
-- If CUDA capability validation fails, the affected runtime falls back to CPU `int8`.
-
-## STT recovery
-
-Suspicious segments are evaluated using repetition, compression, log-probability and no-speech metrics when available. Recovery retries are segment-scoped and prefer preserving context before trying context-free transcription. Logs contain diagnostic metadata rather than transcript text.
-
-## ZIP/filesystem hardening
-
-- ZIP traversal, absolute/UNC paths, symlinks, reserved Windows names and normalization/case collisions are rejected before extraction.
-- Generated filesystem components are normalized and sanitized consistently across platforms.
+`pyproject.toml` and `requirements.txt` use the same runtime constraints. `requirements-google.txt` and `requirements-dev.txt` inherit from `requirements.txt` rather than duplicating the `faster-whisper` constraint.
 
 ## Tests
 
-Required validation includes the complete pytest suite, configuration/provider regressions, model integrity checks, CUDA fallback branch coverage, STT quality/recovery regressions, ZIP/filesystem security tests and packaging validation.
+Required validation includes the complete pytest suite, STT recovery regressions, configuration/provider regressions, ZIP/filesystem security tests, packaging validation and dependency audits.
 
-The CUDA fallback test explicitly mocks hardware detection and the CTranslate2 capability probe so it exercises the intended failure branch rather than depending on the host runner having no GPU.
+The STT regressions verify the numeric `clip_timestamps` contract received by `model.transcribe()`, normal transcription, recovery result integration, bounded retry behavior and early termination after a healthy candidate.
 
 ## CI
 
 CI validates the exact PR head on Linux, Windows and macOS with Python 3.11, 3.12 and 3.13, plus project-wide Ruff lint/security/format checks, compile checks, dependency audits, packaging, clean-wheel installation, `pip check` and entry points. Release Gate validates the candidate SHA, version metadata, distribution build and clean installation.
 
-**Current validation status:** PASS. The final pre-merge candidate has completed the required CI and Release Gate checks successfully.
+**Current validation status:** PENDING until the final candidate SHA completes the authoritative CI and Release Gate checks.
 
 ## Packaging
 
-`pyproject.toml` declares `1.6.0`.
+`pyproject.toml` declares `1.6.1`.
 
 Supported packaged entry points are:
 
@@ -84,7 +62,7 @@ Supported packaged entry points are:
 
 ## Documentation
 
-README, `docs/CONFIGURATION.md`, `docs/CUDA.md`, `docs/LOCAL_TRANSLATION.md`, `docs/RELEASES.md`, `CHANGELOG.md` and this report describe the final 1.6.0 behavior. No unvalidated GPU benchmark or real-media A/B result is claimed.
+The release documentation for `1.6.1` is maintained in `CHANGELOG.md`, `docs/RELEASES.md`, `RELEASE_SCOPE.md`, this report and the STT/installation documentation. Historical release entries must remain intact and must not be deleted when adding the new candidate.
 
 ## Known limitations
 
@@ -92,22 +70,21 @@ README, `docs/CONFIGURATION.md`, `docs/CUDA.md`, `docs/LOCAL_TRANSLATION.md`, `d
 - Google Drive and rclone production credentials remain outside deterministic CI.
 - Full external TTS provider execution is not a mandatory networked CI dependency.
 - CI validates the local translation provider with deterministic test doubles; it does not download and execute the full model on every runner.
+- No real-media A/B claim is made without an actual recorded fixture/execution.
 
 ## Release Gate
 
 | Gate | Status |
 |---|---|
-| Existing functionality | **PASS** |
-| Local translation architecture | **PASS** |
-| CUDA/runtime architecture | **PASS** |
-| STT recovery architecture | **PASS** |
-| ZIP/filesystem hardening | **PASS** |
-| Tests | **PASS** |
-| CI | **PASS** |
-| Packaging | **PASS** |
-| Documentation | **PASS** |
-| Versioning | **PASS** |
+| Existing functionality | **PENDING final CI** |
+| STT selective recovery compatibility | **IMPLEMENTED** |
+| faster-whisper dependency contract | **IMPLEMENTED** |
+| Tests | **PENDING final CI** |
+| CI | **PENDING** |
+| Packaging | **PENDING final CI** |
+| Documentation | **UPDATED** |
+| Versioning | **UPDATED to 1.6.1** |
 
 ## Decision
 
-**Merge only after the final pre-merge SHA remains green.** Do not create `v1.6.0` from the PR branch. After merge, validate the resulting `main` SHA and create the immutable `v1.6.0` tag/release on that exact SHA.
+**Do not merge or create `v1.6.1` until the final pre-merge SHA remains green in CI and Release Gate.** After merge, validate the resulting `main` SHA and create the immutable `v1.6.1` tag/release on that exact SHA.
