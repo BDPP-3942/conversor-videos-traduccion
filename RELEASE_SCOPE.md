@@ -2,13 +2,19 @@
 
 ## Previous release
 
-`v1.5.1` → `06ee8d265b57214596f079f3bb426b9b27042b1e`.
+`v1.6.0` → `a6cf0ee183a4802814fe0e061b4704e427166b85`.
 
 The tag is historical and MUST NOT be moved, deleted, or reused.
 
-## Changes since v1.5.1
+## Previous baseline release
 
-The `1.6.x` line introduced local translation, GPU/runtime hardening and selective STT recovery. Release `1.6.1` is a PATCH correction for a compatibility regression in that STT recovery path.
+`v1.5.1` → `06ee8d265b57214596f079f3bb426b9b27042b1e`.
+
+This remains part of the release history, but it is **not** the immediate baseline for the 1.6.1 candidate review because `1.6.0` is already a published release.
+
+## Changes since v1.6.0
+
+Release `1.6.0` introduced local translation, GPU/runtime hardening and selective STT recovery. Release `1.6.1` is a PATCH correction for a compatibility regression in that STT recovery path. The review baseline is therefore the complete published `v1.6.0` product state.
 
 ## Functional scope
 
@@ -16,7 +22,8 @@ The `1.6.x` line introduced local translation, GPU/runtime hardening and selecti
 - Pass numeric `[start, end]` timestamps to `WhisperModel.transcribe()`.
 - Preserve segment-scoped recovery, bounded rounds, context-preserving/context-free ordering and early stop on a healthy candidate.
 - Preserve the existing audiovisual pipeline, VTT format, storage architecture and public recovery configuration.
-- Keep the `1.6.0` local-translation, CUDA/runtime and ZIP/filesystem hardening baseline unchanged.
+- Keep the `1.6.0` local-translation and CUDA/runtime baseline unchanged.
+- Keep the ZIP/filesystem hardening inherited from `1.5.1` unchanged.
 
 ## Dependency scope
 
@@ -39,9 +46,10 @@ The canonical application configuration remains `config/app.toml`, with environm
 ## Version scope
 
 - `pyproject.toml` declares `1.6.1`.
+- `config/app.toml` identifies the candidate as `1.6.1`.
 - `CHANGELOG.md` contains the `1.6.1` release entry before the historical `1.6.0` entry.
-- `docs/RELEASES.md` records `1.6.1` as the current candidate and preserves the complete previous release history.
-- `RELEASE_CANDIDATE.md` and this file refer to `1.6.1`.
+- `docs/RELEASES.md` records `1.6.1` as the current candidate and preserves the complete previous release history, including `1.6.0`.
+- `RELEASE_CANDIDATE.md` and this file refer to `1.6.1` and use published `v1.6.0` as the immediate previous release.
 - No `v1.6.1` tag exists until after merge; the tag must point to the exact resulting `main` SHA.
 
 ## Validation state
@@ -54,6 +62,7 @@ No real-media regression or GPU benchmark is claimed unless the corresponding ex
 
 - STT recovery regressions verify numeric `clip_timestamps` and recovered result integration.
 - Existing STT retry-limit, temperature, context-order and early-stop tests remain mandatory.
+- `1.6.0` local-translation, CUDA/runtime, configuration and provider regressions remain part of the release baseline.
 - ZIP/filesystem security and all project-wide quality/packaging/dependency checks remain mandatory.
 
 ## Excluded
