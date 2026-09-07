@@ -48,7 +48,7 @@ Suspicious segments are recovered selectively; normal segments are not retranscr
 The recovery path calls `WhisperModel.transcribe()` directly. Its `clip_timestamps` argument must therefore contain numeric time values, not segment dictionaries. The project passes each suspicious interval as:
 
 ```python
-clip_timestamps=[float(start), float(end)]
+clip_timestamps = [float(start), float(end)]
 ```
 
 This is intentionally distinct from APIs that may represent batched segments as dictionaries. Passing dictionaries to the `WhisperModel` path causes arithmetic inside `faster-whisper` to fail with `TypeError: unsupported operand type(s) for *: 'dict' and 'int'`. Regression tests verify that the recovery call receives numeric timestamps.
@@ -85,8 +85,8 @@ whisper_recovery_temperatures = [0.2]
 Environment overrides:
 
 ```text
-WHISPER_RECOVERY_RETRIES=1
-WHISPER_RECOVERY_TEMPERATURES=0.2,0.4
+WHISPER_RECOVERY_RETRIES = 1
+WHISPER_RECOVERY_TEMPERATURES = 0.2,0.4
 ```
 
 This policy deliberately bounds recovery work and makes `whisper_recovery_retries` observable and testable. The tests verify disabled recovery, the retry limit, temperature selection, context-preserving/context-free ordering and early termination after a healthy candidate.
@@ -99,9 +99,9 @@ Hardware detection verifies the actual CTranslate2 CUDA capability instead of tr
 
 When CUDA is selected, the Whisper model executes on the GPU. CPU resources are still used by the surrounding Python/media pipeline, but `cpu_threads` must not be interpreted as a mechanism for splitting one Whisper inference between CPU and GPU. The project therefore does **not** claim single-inference CPU+GPU model partitioning.
 
-The supported throughput strategy is parallelism between independent video jobs when the resource budget permits it. Each video worker owns its Whisper instance (`num_workers=1` inside that instance), while the pipeline-level concurrency ceiling accounts for CPU threads, available RAM and GPU memory. This avoids duplicating work or creating uncontrolled concurrent generation inside a single model instance.
+The supported throughput strategy is parallelism between independent video jobs when the resource budget permits it. Each video worker owns its Whisper instance (`num_workers = 1` inside that instance), while the pipeline-level concurrency ceiling accounts for CPU threads, available RAM and GPU memory. This avoids duplicating work or creating uncontrolled concurrent generation inside a single model instance.
 
-The upstream `faster-whisper` API exposes explicit `device`, `compute_type`, `cpu_threads` and `num_workers` controls. Its documented GPU examples select `device="cuda"`; CPU execution selects `device="cpu"`. The project follows that backend contract rather than inventing an unsupported hybrid inference mode.
+The upstream `faster-whisper` API exposes explicit `device`, `compute_type`, `cpu_threads` and `num_workers` controls. Its documented GPU examples select `device = "cuda"`; CPU execution selects `device = "cpu"`. The project follows that backend contract rather than inventing an unsupported hybrid inference mode.
 
 If CUDA initialization fails, the application performs one controlled fallback to CPU rather than repeatedly retrying the same failed GPU initialization.
 
