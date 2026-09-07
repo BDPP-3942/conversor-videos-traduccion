@@ -24,6 +24,7 @@ def _small_model_files(monkeypatch):
             "tokenizer_config.json": (1024, ("source_lang", "target_lang")),
         },
     )
+    monkeypatch.setattr(local_translation, "BUNDLED_MODEL_FILES", ())
     monkeypatch.setattr(local_translation, "MODEL_SIZE_BYTES", 17)
     return files
 
@@ -136,6 +137,15 @@ def test_model_download_uses_optional_huggingface_token(monkeypatch, tmp_path: P
     assert destination.read_bytes() == b"abc"
 
 
+def test_bundled_metadata_files_are_available(tmp_path: Path) -> None:
+    for name in local_translation.BUNDLED_MODEL_FILES:
+        destination = tmp_path / name
+        local_translation._write_bundled_model_file(name, destination)
+        assert destination.is_file()
+        assert destination.stat().st_size > 0
+        assert destination.read_text(encoding="utf-8").startswith("{")
+
+
 def test_model_download_fetches_large_and_metadata_files(monkeypatch, tmp_path: Path) -> None:
     _small_model_files(monkeypatch)
     manager = LocalTranslationModelManager(tmp_path / "model")
@@ -160,7 +170,7 @@ def test_model_download_fetches_large_and_metadata_files(monkeypatch, tmp_path: 
     result = manager.download()
 
     assert result == manager.model_dir
-    assert downloaded == [*local_translation.MODEL_FILES, *local_translation.SMALL_MODEL_FILES]
+    assert downloaded == ["model.bin", "source.spm", "target.spm", "shared_vocabulary.json"]
     assert manager.status().available
     assert not manager.download_dir.exists()
 
