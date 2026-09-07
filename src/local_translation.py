@@ -146,10 +146,11 @@ class LocalTranslationModelManager:
         try:
             for name in (*MODEL_FILES, *SMALL_MODEL_FILES):
                 url = f"https://huggingface.co/{MODEL_REPOSITORY}/resolve/{MODEL_REVISION}/{name}?download=true"
-                max_bytes = min(
-                    MODEL_MAX_DOWNLOAD_BYTES,
-                    MODEL_FILES.get(name, (0, SMALL_MODEL_FILES[name][0]))[1],
-                )
+                if name in MODEL_FILES:
+                    file_limit = MODEL_FILES[name][1]
+                else:
+                    file_limit = SMALL_MODEL_FILES[name][0]
+                max_bytes = min(MODEL_MAX_DOWNLOAD_BYTES, file_limit)
                 _download_file(
                     url,
                     download_dir / name,
