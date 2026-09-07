@@ -59,9 +59,13 @@ python -m pip install -e ".[package]"
 
 They can be combined, for example `.[tts,google,dev,package]`.
 
+## Release compatibility
+
+The current candidate is `1.7.1`, based on the latest published release `v1.7.0`. The candidate keeps the project's current runtime stack, including `faster-whisper>=1.2.1,<1.3` and `ctranslate2>=4.8.2,<4.9`, while correcting the selective-recovery `clip_timestamps` contract.
+
 ## NVIDIA/CUDA and Whisper
 
-NVIDIA acceleration is optional. Release 1.6.1 uses the `faster-whisper>=1.2.1,<1.3` and `ctranslate2>=4.8.2,<4.9` compatibility stack. The 1.6.1 change is a PATCH correction to selective recovery; the GPU runtime path still requires CUDA 12, cuBLAS for CUDA 12 and cuDNN 9 for CUDA 12.
+NVIDIA acceleration is optional. The `1.7.1` correction does not change the GPU runtime architecture introduced and consolidated through `1.7.0`; the GPU path still requires CUDA 12, cuBLAS for CUDA 12 and cuDNN 9 for CUDA 12.
 
 `WHISPER_DEVICE=auto` does not treat the presence of `nvidia-smi` as sufficient. At Whisper initialization the project checks the NVIDIA driver, searches for an installed CUDA Toolkit, checks the required NVIDIA runtime libraries and asks CTranslate2 whether a CUDA device and supported compute types are actually available.
 
