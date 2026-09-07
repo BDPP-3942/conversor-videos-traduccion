@@ -148,6 +148,7 @@ def test_bundled_metadata_files_are_available(tmp_path: Path) -> None:
 
 def test_model_download_fetches_large_and_metadata_files(monkeypatch, tmp_path: Path) -> None:
     _small_model_files(monkeypatch)
+    monkeypatch.setattr(local_translation, "BUNDLED_MODEL_FILES", ("config.json", "tokenizer_config.json"))
     manager = LocalTranslationModelManager(tmp_path / "model")
     downloaded = []
     contents = {
@@ -159,6 +160,12 @@ def test_model_download_fetches_large_and_metadata_files(monkeypatch, tmp_path: 
         "tokenizer_config.json": b'{"source_lang": "spa", "target_lang": "eng"}',
     }
 
+    def fake_bundled_writer(name, destination):
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(contents[name])
+
+    monkeypatch.setattr(local_translation, "_write_bundled_model_file", fake_bundled_writer)
+
     def fake_download(url, destination, max_bytes, *, auth_token=None):
         del max_bytes, auth_token
         filename = url.rsplit("/", 1)[-1].split("?", 1)[0]
@@ -169,14 +176,18 @@ def test_model_download_fetches_large_and_metadata_files(monkeypatch, tmp_path: 
     monkeypatch.setattr(local_translation, "_download_file", fake_download)
     result = manager.download()
 
+    expected_downloads = [name for name in (*local_translation.MODEL_FILES, *local_translation.SMALL_MODEL_FILES) if name not in local_translation.BUNDLED_MODEL_FILES]
     assert result == manager.model_dir
-    assert downloaded == ["model.bin", "source.spm", "target.spm", "shared_vocabulary.json"]
+    assert downloaded == expected_downloads
+    assert set(downloaded).isdisjoint(local_translation.BUNDLED_MODEL_FILES)
+    assert all((manager.model_dir / name).is_file() for name in local_translation.BUNDLED_MODEL_FILES)
     assert manager.status().available
     assert not manager.download_dir.exists()
 
 
 def test_downloaded_model_can_be_loaded_and_called_by_provider(monkeypatch, tmp_path: Path) -> None:
     _small_model_files(monkeypatch)
+    monkeypatch.setattr(local_translation, "BUNDLED_MODEL_FILES", ("config.json", "tokenizer_config.json"))
     manager = LocalTranslationModelManager(tmp_path / "model")
     contents = {
         "model.bin": b"model",
@@ -186,6 +197,12 @@ def test_downloaded_model_can_be_loaded_and_called_by_provider(monkeypatch, tmp_
         "shared_vocabulary.json": b"{}",
         "tokenizer_config.json": b'{"source_lang": "spa", "target_lang": "eng"}',
     }
+
+    def fake_bundled_writer(name, destination):
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(contents[name])
+
+    monkeypatch.setattr(local_translation, "_write_bundled_model_file", fake_bundled_writer)
 
     def fake_download(_url, destination, _max_bytes, *, auth_token=None):
         del auth_token
