@@ -4,19 +4,21 @@ La línea de releases de producto actualmente publicada es `1.x`.
 
 ## Releases publicadas
 
-- `v1.3.0` → commit `620af6acbe3fca7d42ccd57f3585b3952cccf0a7`.
+- `v1.5.1` → commit `06ee8d265b57214596f079f3bb426b9b27042b1e`.
 
-`v1.3.0` es historia publicada y no debe modificarse, moverse ni reutilizarse.
+`v1.5.1` es historia publicada y no debe modificarse, moverse ni reutilizarse.
 
-## Candidata 1.4.0
+## Candidata 1.6.1
 
-La evolución posterior a `v1.3.0` se agrupa en una nueva release coherente:
+La candidata actual es una corrección PATCH compatible con la línea `1.6.x`:
 
-- PR #24: regeneración limpia explícita desde la fuente mediante `MediaPipeline`.
-- PR #25: gobernanza e higiene del repositorio.
-- Hardening adicional solo cuando exista evidencia y regresión asociada.
+- Corrige el contrato de `clip_timestamps` en la recuperación selectiva de `faster-whisper`.
+- Mantiene el pipeline audiovisual, la configuración pública de recuperación y los formatos de salida.
+- Fija el stack compatible de `faster-whisper`/CTranslate2 mediante `pyproject.toml` y `requirements.txt`.
+- Debe terminar en un único SHA validado por CI y Release Gate.
+- Solo después del merge se crea el tag inmutable `v1.6.1` sobre el SHA exacto resultante de `main`.
 
-La candidata debe terminar en un único SHA validado. Solo después se crea el tag inmutable `v1.4.0` sobre ese SHA.
+La candidata anterior `1.6.0` queda documentada como la línea funcional que introdujo traducción local, endurecimiento GPU/runtime y recuperación STT configurable; no debe crearse `v1.6.0` desde esta rama de corrección.
 
 ## Semantic Versioning
 
@@ -28,7 +30,7 @@ MAJOR.MINOR.PATCH
 - **MINOR**: funcionalidad nueva compatible hacia atrás.
 - **PATCH**: correcciones compatibles, seguridad, documentación y mantenimiento.
 
-La regeneración limpia es una operación nueva y explícita, compatible con la ejecución normal, por lo que `1.4.0` es semánticamente apropiado salvo que la auditoría detecte un cambio incompatible.
+La corrección de `1.6.1` no cambia contratos públicos ni añade funcionalidad de producto incompatible, por lo que `PATCH` es la clasificación adecuada.
 
 ## Trazabilidad
 
@@ -52,4 +54,4 @@ No se crean tags retrospectivos ni se reasignan tags publicados.
 
 ## Historial de reconstrucción
 
-El repositorio conserva documentación histórica de una etapa de reconstrucción anterior (`5.x`) para trazabilidad. Esa historia no constituye la línea actual de releases de producto y no debe usarse para alterar la secuencia `1.x`.
+El repositorio conserva documentación histórica de etapas de reconstrucción anteriores (`4.x`/`5.x`) para trazabilidad. Esa historia no constituye la línea actual de releases de producto y no debe usarse para alterar la secuencia `1.x`.
