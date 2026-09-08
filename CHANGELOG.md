@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.7.4] — Local translation shared vocabulary validation
+
+**Tipo:** PATCH — corrección compatible del validador de metadatos del modelo de traducción local.
+
+### Fixed
+
+- Corregida la validación de `shared_vocabulary.json` del modelo CTranslate2 local.
+- `shared_vocabulary.json` puede tener una raíz JSON de tipo array, que es la estructura real del artefacto fijado `Prukario/opus-mt-es-en-ct2-int8@ad91ad1697ea1761111ff4c179400796d085b347`.
+- Se mantiene la validación estricta de raíz objeto y claves obligatorias para `config.json` y `tokenizer_config.json`.
+- La descarga desde cero del modelo ya puede completar la validación y activar el directorio gestionado del modelo local.
+
+### Tests
+
+- Añadida regresión específica para aceptar un `shared_vocabulary.json` con raíz array.
+- Añadida regresión para rechazar `shared_vocabulary.json` con JSON inválido.
+- Actualizados los fixtures de descarga y carga del proveedor para representar la estructura real del vocabulario compartido.
+- CI multiplataforma validada sobre Linux, Windows y macOS con Python 3.11, 3.12 y 3.13.
+
+### Compatibility
+
+- No cambian el modelo ni la revisión fijados.
+- No cambian los hashes ni tamaños esperados de `model.bin`, `source.spm` y `target.spm`.
+- No cambia la configuración pública del proveedor de traducción local.
+- Se conserva íntegramente la corrección de metadatos empaquetados introducida en `1.7.3`.
+
 ## [1.7.3] — Local translation model metadata bootstrap
 
 **Tipo:** PATCH — corrección compatible para garantizar la disponibilidad de los metadatos JSON requeridos por el runtime de traducción local.
