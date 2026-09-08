@@ -2,7 +2,9 @@ name: Bootstrap uv lockfile
 
 on:
   push:
-    branches: [chore/uv-migration-preview]
+    branches:
+      - chore/uv-migration-preview
+      - uv-lock-export
 
 permissions:
   contents: write
