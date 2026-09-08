@@ -30,12 +30,13 @@ def test_reprocess_wrappers_exist_and_dispatch_to_reprocess_command():
     assert 'run_unattended.sh "$@"' in scheduled_sh
 
 
-def test_local_wrappers_dispatch_duplicates_without_adding_run_command():
+def test_local_wrappers_forward_arguments_without_hardcoding_commands():
     root = Path(__file__).parents[1]
     local_bat = (root / "scripts" / "run_local.bat").read_text(encoding="utf-8")
     local_sh = (root / "scripts" / "run_local.sh").read_text(encoding="utf-8")
-    assert '"%~1"=="duplicates"' in local_bat
-    assert "duplicates" in local_sh
+    assert "scripts\\run_local.py %*" in local_bat
+    assert "scripts/run_local.py \"$@\"" in local_sh
+    assert '"%~1"=="duplicates"' not in local_bat
 
 
 def test_duplicates_parser_supports_scan_analyze_and_delete_dry_run():
