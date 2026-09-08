@@ -176,7 +176,11 @@ def test_model_download_fetches_large_and_metadata_files(monkeypatch, tmp_path: 
     monkeypatch.setattr(local_translation, "_download_file", fake_download)
     result = manager.download()
 
-    expected_downloads = [name for name in (*local_translation.MODEL_FILES, *local_translation.SMALL_MODEL_FILES) if name not in local_translation.BUNDLED_MODEL_FILES]
+    expected_downloads = [
+        name
+        for name in (*local_translation.MODEL_FILES, *local_translation.SMALL_MODEL_FILES)
+        if name not in local_translation.BUNDLED_MODEL_FILES
+    ]
     assert result == manager.model_dir
     assert downloaded == expected_downloads
     assert set(downloaded).isdisjoint(local_translation.BUNDLED_MODEL_FILES)
