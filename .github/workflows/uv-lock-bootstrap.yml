@@ -23,16 +23,46 @@ jobs:
           enable-cache: true
       - run: uv python install 3.13
       - run: uv lock
-      - name: Commit generated lockfile
+      - name: Commit generated lockfile through GitHub Contents API
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git ls-files --error-unmatch uv.lock >/dev/null 2>&1 && git diff --quiet -- uv.lock; then
-            echo "uv.lock is already up to date"
-            exit 0
-          fi
-          git add uv.lock
-          git commit -m "build: add uv lockfile"
-          git push
+          python - <<'PY'
+          import base64
+          import json
+          import os
+          import urllib.request
+
+          path = "uv.lock"
+          branch = os.environ["GITHUB_REF_NAME"]
+          with open(path, "rb") as handle:
+              encoded = base64.b64encode(handle.read()).decode("ascii")
+          payload = json.dumps({
+              "message": "build: add uv lockfile",
+              "content": encoded,
+              "branch": branch,
+              "committer": {
+                  "name": "github-actions[bot]",
+                  "email": "41898282+github-actions[bot]@users.noreply.github.com",
+              },
+          }).encode("utf-8")
+          request = urllib.request.Request(
+              "https://api.github.com/repos/BDPP-3942/conversor-videos-traduccion/contents/uv.lock",
+              data=payload,
+              method="PUT",
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+                  "X-GitHub-Api-Version": "2026-03-10",
+                  "Content-Type": "application/json",
+              },
+          )
+          try:
+              with urllib.request.urlopen(request) as response:
+                  print(response.read().decode("utf-8"))
+          except urllib.error.HTTPError as exc:
+              print(exc.read().decode("utf-8"), flush=True)
+              raise
+          PY
