@@ -33,7 +33,7 @@ echo "[INFO] uv: $(uv --version)"
 echo "[INFO] Python solicitado: $PYTHON_VERSION"
 uv python install "$PYTHON_VERSION"
 uv venv --python "$PYTHON_VERSION"
-uv sync --python "$PYTHON_VERSION" --group dev ${INSTALL_CLOUD:+}
+uv sync --python "$PYTHON_VERSION" --group dev
 
 if $INSTALL_CLOUD; then
     uv sync --python "$PYTHON_VERSION" --group dev --extra google
