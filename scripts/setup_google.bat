@@ -1,12 +1,11 @@
 @echo off
 setlocal
 cd /d "%~dp0.."
-if not exist ".venv\Scripts\python.exe" (
-  echo [ERROR] Ejecuta primero scripts\setup_env.bat
-  exit /b 1
-)
-".venv\Scripts\python.exe" -m pip install -r requirements-google.txt
+where uv.exe >nul 2>&1
+if errorlevel 1 (echo [ERROR] uv no esta instalado. & exit /b 1)
+if not exist ".venv\Scripts\python.exe" (echo [ERROR] Ejecuta primero scripts\setup_env.bat & exit /b 1)
+uv sync --extra google
 if errorlevel 1 exit /b 1
-".venv\Scripts\python.exe" main.py auth google
+uv run python main.py auth google
 set CODE=%ERRORLEVEL%
 endlocal & exit /b %CODE%
