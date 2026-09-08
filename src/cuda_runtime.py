@@ -69,13 +69,7 @@ def _package_version(name: str) -> str | None:
 
 def _run(command: list[str]) -> tuple[int, str]:
     try:
-        result = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
+        result = subprocess.run(command, capture_output=True, text=True, timeout=5, check=False)
         return result.returncode, f"{result.stdout}\n{result.stderr}"
     except (OSError, subprocess.SubprocessError):
         return 127, ""
@@ -128,10 +122,7 @@ def _library_candidates() -> tuple[list[Path], list[Path]]:
 
 def _prepend_managed_libraries() -> None:
     if platform.system() == "Windows":
-        paths = [
-            MANAGED_PYTHON_DIR / "nvidia" / "cublas" / "bin",
-            MANAGED_PYTHON_DIR / "nvidia" / "cudnn" / "bin",
-        ]
+        paths = [MANAGED_PYTHON_DIR / "nvidia" / "cublas" / "bin", MANAGED_PYTHON_DIR / "nvidia" / "cudnn" / "bin"]
         existing = os.getenv("PATH", "").split(os.pathsep)
         os.environ["PATH"] = os.pathsep.join([str(path) for path in paths if path.is_dir()] + existing)
         if hasattr(os, "add_dll_directory"):
@@ -142,10 +133,7 @@ def _prepend_managed_libraries() -> None:
                     except OSError:
                         pass
     else:
-        paths = [
-            MANAGED_PYTHON_DIR / "nvidia" / "cublas" / "lib",
-            MANAGED_PYTHON_DIR / "nvidia" / "cudnn" / "lib",
-        ]
+        paths = [MANAGED_PYTHON_DIR / "nvidia" / "cublas" / "lib", MANAGED_PYTHON_DIR / "nvidia" / "cudnn" / "lib"]
         existing = os.getenv("LD_LIBRARY_PATH", "").split(os.pathsep) if os.getenv("LD_LIBRARY_PATH") else []
         os.environ["LD_LIBRARY_PATH"] = os.pathsep.join([str(path) for path in paths if path.is_dir()] + existing)
 
@@ -174,90 +162,48 @@ def inspect_cuda_runtime() -> CUDARuntimeStatus:
     cudnn_available = cudnn_pkg is not None or any(path.is_file() for path in cudnn_files)
     ct2 = _package_version("ctranslate2")
     fw = _package_version("faster-whisper")
-
-    common = (
-        driver_version,
-        driver_cuda_max,
-        toolkit_version,
-        toolkit_path,
-        cublas_pkg,
-        cudnn_pkg,
-        cublas_available,
-        cudnn_available,
-        ct2,
-        fw,
-    )
+    common = (driver_version, driver_cuda_max, toolkit_version, toolkit_path, cublas_pkg, cudnn_pkg, cublas_available, cudnn_available, ct2, fw)
     if not nvidia_gpu:
-        return CUDARuntimeStatus(
-            False,
-            *common,
-            False,
-            "No NVIDIA GPU detected",
-            str(MANAGED_DIR),
-        )
+        return CUDARuntimeStatus(False, *common, False, "No NVIDIA GPU detected", str(MANAGED_DIR))
     if driver_cuda_max and _version_tuple(driver_cuda_max)[0:1] < (CUDA_MAJOR,):
-        return CUDARuntimeStatus(
-            True,
-            *common,
-            False,
-            f"NVIDIA driver advertises CUDA {driver_cuda_max}; CUDA {CUDA_MAJOR}.x is required",
-            str(MANAGED_DIR),
-        )
+        return CUDARuntimeStatus(True, *common, False, f"NVIDIA driver advertises CUDA {driver_cuda_max}; CUDA {CUDA_MAJOR}.x is required", str(MANAGED_DIR))
     if not cublas_available or not cudnn_available:
-        missing = ", ".join(
-            name
-            for name, ok in (
-                ("cuBLAS CUDA 12", cublas_available),
-                ("cuDNN 9 CUDA 12", cudnn_available),
-            )
-            if not ok
-        )
-        return CUDARuntimeStatus(
-            True,
-            *common,
-            False,
-            f"Missing NVIDIA runtime libraries: {missing}",
-            str(MANAGED_DIR),
-        )
+        missing = ", ".join(name for name, ok in (("cuBLAS CUDA 12", cublas_available), ("cuDNN 9 CUDA 12", cudnn_available)) if not ok)
+        return CUDARuntimeStatus(True, *common, False, f"Missing NVIDIA runtime libraries: {missing}", str(MANAGED_DIR))
     try:
         import ctranslate2
-
         count = int(ctranslate2.get_cuda_device_count())
         supported = ctranslate2.get_supported_compute_types("cuda", 0) if count else set()
         if not supported:
             raise RuntimeError("CTranslate2 reports no supported CUDA compute types")
     except (ImportError, AttributeError, RuntimeError, TypeError) as exc:
-        return CUDARuntimeStatus(
-            True,
-            *common,
-            False,
-            f"CTranslate2 CUDA validation failed: {exc}",
-            str(MANAGED_DIR),
-        )
-    return CUDARuntimeStatus(
-        True,
-        *common,
-        True,
-        "CUDA runtime and CTranslate2 capability validated",
-        str(MANAGED_DIR),
-    )
+        return CUDARuntimeStatus(True, *common, False, f"CTranslate2 CUDA validation failed: {exc}", str(MANAGED_DIR))
+    return CUDARuntimeStatus(True, *common, True, "CUDA runtime and CTranslate2 capability validated", str(MANAGED_DIR))
+
+
+def _uv_command() -> list[str] | None:
+    configured = os.getenv("UV_BIN")
+    if configured:
+        return [configured]
+    executable = shutil.which("uv")
+    return [executable] if executable else None
 
 
 def install_managed_cuda_runtime() -> CUDARuntimeStatus:
     MANAGED_PYTHON_DIR.mkdir(parents=True, exist_ok=True)
-    command = [
-        sys.executable,
-        "-m",
-        "pip",
-        "install",
-        "--disable-pip-version-check",
-        "--no-input",
-        "--upgrade",
-        "--target",
-        str(MANAGED_PYTHON_DIR),
-        CUBLAS_SPEC,
-        CUDNN_SPEC,
-    ]
+    uv = _uv_command()
+    if uv:
+        command = uv + [
+            "pip", "install", "--system", "--disable-pip-version-check", "--no-input", "--upgrade",
+            "--target", str(MANAGED_PYTHON_DIR), CUBLAS_SPEC, CUDNN_SPEC,
+        ]
+    else:
+        # Packaged executables may intentionally not ship uv. Preserve the runtime
+        # bootstrap contract with pip rather than making CUDA depend on a developer tool.
+        command = [
+            sys.executable, "-m", "pip", "install", "--disable-pip-version-check", "--no-input", "--upgrade",
+            "--target", str(MANAGED_PYTHON_DIR), CUBLAS_SPEC, CUDNN_SPEC,
+        ]
     result = subprocess.run(command, timeout=1800, check=False)
     if result.returncode != 0:
         raise RuntimeError(f"Managed CUDA library installation failed with exit code {result.returncode}")
@@ -265,13 +211,7 @@ def install_managed_cuda_runtime() -> CUDARuntimeStatus:
     _prepend_managed_libraries()
     selected = {name: _package_version(name) for name in ("nvidia-cublas-cu12", "nvidia-cudnn-cu12")}
     MANIFEST.parent.mkdir(parents=True, exist_ok=True)
-    manifest = {
-        "cuda_major": CUDA_MAJOR,
-        "cudnn_major": CUDNN_MAJOR,
-        "packages": selected,
-        "python_target": str(MANAGED_PYTHON_DIR),
-    }
-    MANIFEST.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    MANIFEST.write_text(json.dumps({"cuda_major": CUDA_MAJOR, "cudnn_major": CUDNN_MAJOR, "packages": selected, "python_target": str(MANAGED_PYTHON_DIR)}, indent=2), encoding="utf-8")
     return inspect_cuda_runtime()
 
 
@@ -286,22 +226,13 @@ def ensure_cuda_runtime(*, interactive: bool = True) -> CUDARuntimeStatus:
         if _interactive_decision is False:
             return status
         if _interactive_decision is None:
-            print(
-                "\nNVIDIA GPU detected, but the CUDA runtime required by the pinned "
-                "faster-whisper/CTranslate2 stack is not ready."
-            )
+            print("\nNVIDIA GPU detected, but the CUDA runtime required by the pinned faster-whisper/CTranslate2 stack is not ready.")
             print(f"Reason: {status.reason}")
-            print(
-                f"Detected driver: {status.driver_version or 'unknown'}; "
-                f"advertised CUDA: {status.driver_cuda_max or 'unknown'}"
-            )
+            print(f"Detected driver: {status.driver_version or 'unknown'}; advertised CUDA: {status.driver_cuda_max or 'unknown'}")
             print(f"Requirements: CUDA {CUDA_MAJOR}.x + cuBLAS for CUDA 12 + cuDNN {CUDNN_MAJOR} for CUDA 12.")
             print(f"Managed installation: {MANAGED_DIR}")
             print(f"Runtime libraries will be installed into: {MANAGED_PYTHON_DIR}")
-            print(
-                "The NVIDIA driver is not replaced. A full CUDA Toolkit is optional "
-                "and is not installed by this operation."
-            )
+            print("The NVIDIA driver is not replaced. A full CUDA Toolkit is optional and is not installed by this operation.")
             answer = input("Install the managed NVIDIA runtime libraries now? [y/N]: ").strip().lower()
             _interactive_decision = answer in {"y", "yes"}
         if not _interactive_decision:
