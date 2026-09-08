@@ -29,9 +29,9 @@ def _small_model_files(monkeypatch):
     return files
 
 
-def _write_small_metadata(path: Path) -> None:
+def _write_small_metadata(path: Path, shared_vocabulary: str = "{}") -> None:
     path.joinpath("config.json").write_text('{"decoder_start_token": "</s>", "eos_token": "</s>"}', encoding="utf-8")
-    path.joinpath("shared_vocabulary.json").write_text("{}", encoding="utf-8")
+    path.joinpath("shared_vocabulary.json").write_text(shared_vocabulary, encoding="utf-8")
     path.joinpath("tokenizer_config.json").write_text('{"source_lang": "spa", "target_lang": "eng"}', encoding="utf-8")
 
 
@@ -56,6 +56,16 @@ def test_model_status_accepts_verified_files(monkeypatch, tmp_path: Path) -> Non
     assert files["model.bin"][0] == hashlib.sha256(b"model").hexdigest()
 
 
+def test_model_status_accepts_shared_vocabulary_array(monkeypatch, tmp_path: Path) -> None:
+    _small_model_files(monkeypatch)
+    tmp_path.joinpath("model.bin").write_bytes(b"model")
+    tmp_path.joinpath("source.spm").write_bytes(b"source")
+    tmp_path.joinpath("target.spm").write_bytes(b"target")
+    _write_small_metadata(tmp_path, '["</s>", "<unk>", "hola"]')
+    status = LocalTranslationModelManager(tmp_path).status()
+    assert status.available
+
+
 def test_model_status_rejects_wrong_hash(monkeypatch, tmp_path: Path) -> None:
     _small_model_files(monkeypatch)
     tmp_path.joinpath("model.bin").write_bytes(b"wrong")
@@ -77,6 +87,17 @@ def test_model_status_rejects_malformed_metadata(monkeypatch, tmp_path: Path) ->
     status = LocalTranslationModelManager(tmp_path).status()
     assert not status.available
     assert "invalid metadata: config.json" in status.reason
+
+
+def test_model_status_rejects_invalid_shared_vocabulary_json(monkeypatch, tmp_path: Path) -> None:
+    _small_model_files(monkeypatch)
+    tmp_path.joinpath("model.bin").write_bytes(b"model")
+    tmp_path.joinpath("source.spm").write_bytes(b"source")
+    tmp_path.joinpath("target.spm").write_bytes(b"target")
+    _write_small_metadata(tmp_path, "not-json")
+    status = LocalTranslationModelManager(tmp_path).status()
+    assert not status.available
+    assert "invalid metadata: shared_vocabulary.json" in status.reason
 
 
 def test_model_ensure_does_not_download_without_explicit_confirmation(monkeypatch, tmp_path: Path) -> None:
@@ -156,7 +177,7 @@ def test_model_download_fetches_large_and_metadata_files(monkeypatch, tmp_path: 
         "source.spm": b"source",
         "target.spm": b"target",
         "config.json": b'{"decoder_start_token": "</s>", "eos_token": "</s>"}',
-        "shared_vocabulary.json": b"{}",
+        "shared_vocabulary.json": b'["</s>", "<unk>", "hola"]',
         "tokenizer_config.json": b'{"source_lang": "spa", "target_lang": "eng"}',
     }
 
@@ -198,7 +219,7 @@ def test_downloaded_model_can_be_loaded_and_called_by_provider(monkeypatch, tmp_
         "source.spm": b"source",
         "target.spm": b"target",
         "config.json": b'{"decoder_start_token": "</s>", "eos_token": "</s>"}',
-        "shared_vocabulary.json": b"{}",
+        "shared_vocabulary.json": b'["</s>", "<unk>", "hola"]',
         "tokenizer_config.json": b'{"source_lang": "spa", "target_lang": "eng"}',
     }
 

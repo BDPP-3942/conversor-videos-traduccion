@@ -368,11 +368,12 @@ def _validate_small_model_file(path: Path, max_size: int, required_keys: tuple[s
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         return f"invalid UTF-8 JSON: {exc}"
-    if not isinstance(data, dict):
+    if required_keys and not isinstance(data, dict):
         return "root must be a JSON object"
-    missing = [key for key in required_keys if key not in data]
-    if missing:
-        return f"missing keys: {', '.join(missing)}"
+    if required_keys:
+        missing = [key for key in required_keys if key not in data]
+        if missing:
+            return f"missing keys: {', '.join(missing)}"
     return ""
 
 
