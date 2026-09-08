@@ -24,7 +24,9 @@ Estos dos JSON, fijados por la misma revisión del modelo, pasan a distribuirse 
 
 ## Dependency scope
 
-The runtime dependency contract remains unchanged:
+The runtime dependency contract remains unchanged. Python dependency declarations are maintained only in `pyproject.toml`; the resolved development graph is managed by the versioned `uv.lock` file.
+
+Runtime dependencies:
 
 - `faster-whisper>=1.2.1,<1.3`
 - `ctranslate2>=4.8.2,<4.9`
@@ -34,11 +36,13 @@ The runtime dependency contract remains unchanged:
 - `imageio-ffmpeg>=0.6,<1`
 - `python-dotenv>=1,<2`
 
-`requirements.txt` and `pyproject.toml` must remain aligned.
+Optional project features are declared as uv-compatible PEP 621 extras/groups in `pyproject.toml`. The duplicated `requirements.txt`, `requirements-dev.txt` and `requirements-google.txt` files are no longer dependency sources.
 
 ## Configuration scope
 
-No new public configuration key is required. The existing `LOCAL_TRANSLATION_*` environment configuration and pinned model/revision contract remain unchanged.
+No new public configuration key is required by `1.7.3`. The existing `LOCAL_TRANSLATION_*` environment configuration and pinned model/revision contract remain unchanged.
+
+The uv migration prototype is infrastructure-only and does not alter application configuration semantics.
 
 ## Version scope
 
