@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.7.3] — Local translation model metadata bootstrap
+
+**Tipo:** PATCH — corrección compatible para garantizar la disponibilidad de los metadatos JSON requeridos por el runtime de traducción local.
+
+### Fixed
+
+- Añadidos al paquete los metadatos `config.json` y `tokenizer_config.json` correspondientes exactamente a la revisión fijada `Prukario/opus-mt-es-en-ct2-int8@ad91ad1697ea1761111ff4c179400796d085b347`.
+- La preparación del modelo ya no depende de una descarga independiente desde Hugging Face para esos dos JSON pequeños.
+- El gestor instala los metadatos empaquetados en el directorio final del modelo antes de validar y activar el runtime.
+- `shared_vocabulary.json` continúa descargándose y validándose como artefacto del modelo, ya que forma parte del contenido generado por CTranslate2 y no se duplica innecesariamente dentro del paquete Python.
+
+### Tests
+
+- Añadida una regresión que verifica que los metadatos JSON empaquetados están disponibles.
+- Ajustada la regresión de descarga para comprobar explícitamente que los ficheros descargados son `model.bin`, `source.spm`, `target.spm` y `shared_vocabulary.json`, mientras que los dos metadatos pequeños proceden del paquete.
+- Se mantiene la prueba de inicialización del proveedor y traducción mediante CTranslate2 + SentencePiece.
+
+### Packaging
+
+- Añadido el subpaquete `config.local_translation_model` al artefacto Python para que los JSON necesarios estén presentes también en instalaciones empaquetadas.
+
+### Compatibility
+
+- No cambian el modelo/revisión fijados, la configuración pública ni el contrato de dependencias.
+- Se conserva la corrección de descarga de `1.7.2` y la corrección `clip_timestamps` de `1.7.1`.
+
 ## [1.7.2] — Local translation model download fix
 
 **Tipo:** PATCH — corrección compatible del gestor de preparación del modelo de traducción local.

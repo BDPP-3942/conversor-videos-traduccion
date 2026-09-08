@@ -1,33 +1,26 @@
-# Release Scope — 1.7.2
+# Release Scope — 1.7.3
 
 ## Previous release
 
-`v1.7.1` es la release PATCH inmediatamente anterior en el historial de producto y corresponde al estado de `main` que corrigió la recuperación selectiva STT; su tag/release debe apuntar al SHA exacto del merge ya validado.
+`v1.7.2` es la release PATCH inmediatamente anterior y contiene la corrección del gestor de descarga del modelo de traducción local.
 
-El tag `v1.7.0` es histórico y MUST NOT be moved, deleted, or reused.
+Los tags publicados históricos MUST NOT be moved, deleted, or reused.
 
-## Historical baselines
+## Changes since v1.7.2
 
-`v1.7.0` → `036a9a4cf33012d0fcd0a784f8ff34db6e30b0f5`.
+`1.7.3` es una PATCH que corrige una consideración de packaging/runtime: `config.json` y `tokenizer_config.json` son metadatos necesarios para que CTranslate2 pueda abrir correctamente el modelo local preparado.
 
-`v1.6.0` → `a6cf0ee183a4802814fe0e061b4704e427166b85`.
-
-`v1.5.1` → `06ee8d265b57214596f079f3bb426b9b27042b1e`.
-
-## Changes since v1.7.1
-
-`1.7.2` es una PATCH que corrige el gestor de descarga del modelo de traducción local. La expresión que calculaba el límite de descarga evaluaba de forma eager el fallback de `dict.get`, provocando `KeyError: 'model.bin'` al procesar precisamente uno de los ficheros principales definidos en `MODEL_FILES`.
-
-La corrección selecciona explícitamente el límite según el tipo de fichero y añade regresiones para el flujo completo de preparación y carga del proveedor local.
+Estos dos JSON, fijados por la misma revisión del modelo, pasan a distribuirse con el paquete Python y se copian al directorio gestionado durante la preparación. `shared_vocabulary.json`, que es un artefacto de mayor tamaño del modelo, continúa descargándose desde la revisión fijada y validándose antes de activar el modelo.
 
 ## Functional scope
 
-- Corregir la descarga del modelo local fijado sin `KeyError` en `model.bin`.
-- Mantener la validación por tamaño, SHA-256 y metadatos JSON.
-- Verificar mediante tests el flujo completo de descarga gestionada hasta un modelo utilizable por el proveedor.
+- Garantizar que `config.json` y `tokenizer_config.json` estén disponibles sin depender de una descarga independiente de Hugging Face.
+- Instalar los metadatos empaquetados junto a `model.bin` antes de validar el modelo.
+- Mantener la descarga y validación de `shared_vocabulary.json`, `model.bin`, `source.spm` y `target.spm`.
+- Verificar mediante tests el flujo completo de preparación hasta un modelo utilizable por el proveedor.
 - Verificar mediante tests que un modelo preparado puede inicializar CTranslate2 + SentencePiece y ejecutar una traducción.
 - Mantener el benchmark real como validación del modelo completo en hardware objetivo.
-- Mantener intacta la corrección de recuperación selectiva STT introducida en `1.7.1`.
+- Mantener intactas las correcciones de `1.7.1` y `1.7.2`.
 
 ## Dependency scope
 
@@ -49,11 +42,11 @@ No new public configuration key is required. The existing `LOCAL_TRANSLATION_*` 
 
 ## Version scope
 
-- `pyproject.toml` declares `1.7.2`.
-- `config/app.toml` identifies the candidate as `1.7.2`.
-- `CHANGELOG.md` must contain the `1.7.2` release entry before `1.7.1`.
-- `docs/RELEASES.md`, `docs/VERSIONING.md`, `RELEASE_CANDIDATE.md` and this file identify `1.7.2` as the candidate.
-- The `v1.7.2` tag must point to the exact resulting `main` SHA after merge and final validation.
+- `pyproject.toml` declares `1.7.3`.
+- `config/app.toml` identifies the candidate as `1.7.3`.
+- `CHANGELOG.md` must contain the `1.7.3` release entry before `1.7.2`.
+- `docs/RELEASES.md`, `docs/VERSIONING.md`, `RELEASE_CANDIDATE.md` and this file identify `1.7.3` as the candidate.
+- The `v1.7.3` tag must point to the exact resulting `main` SHA after merge and final validation.
 
 ## Validation state
 
@@ -63,8 +56,9 @@ The real model benchmark should be executed on the target macOS environment afte
 
 ## Tests and hardening
 
-- Download regression covers every managed model file, including `model.bin` and all metadata.
-- Provider regression covers initialization from the downloaded model directory and a real provider call through the mocked CTranslate2/SentencePiece boundary.
+- Bundled metadata regression verifies both packaged JSON resources.
+- Download regression verifies that the two bundled JSON files are not fetched remotely and that `shared_vocabulary.json` remains a managed downloaded artifact.
+- Provider regression covers initialization from the prepared model directory and a provider translation call through the mocked CTranslate2/SentencePiece boundary.
 - Existing STT selective-recovery regressions remain mandatory.
 - Existing reprocessing/manifests, Unicode/filesystem, ZIP security, configuration, packaging and dependency checks remain part of the release baseline.
 

@@ -9,6 +9,7 @@ import tempfile
 import urllib.parse
 from collections.abc import Callable
 from dataclasses import dataclass
+from importlib import resources
 from pathlib import Path
 
 from config.settings import BASE_DIR
@@ -39,6 +40,7 @@ SMALL_MODEL_FILES = {
     "shared_vocabulary.json": (4_000_000, ()),
     "tokenizer_config.json": (4_096, ("source_lang", "target_lang")),
 }
+BUNDLED_MODEL_FILES = ("config.json", "tokenizer_config.json")
 
 
 @dataclass(frozen=True)
@@ -145,6 +147,9 @@ class LocalTranslationModelManager:
         download_dir.mkdir(parents=True, exist_ok=True)
         try:
             for name in (*MODEL_FILES, *SMALL_MODEL_FILES):
+                if name in BUNDLED_MODEL_FILES:
+                    _write_bundled_model_file(name, download_dir / name)
+                    continue
                 url = f"https://huggingface.co/{MODEL_REPOSITORY}/resolve/{MODEL_REVISION}/{name}?download=true"
                 if name in MODEL_FILES:
                     file_limit = MODEL_FILES[name][1]
@@ -336,6 +341,18 @@ class LocalTranslationProvider:
         if len(outputs) != len(texts):
             raise RuntimeError(f"Local translation returned {len(outputs)} results for {len(texts)} inputs")
         return outputs
+
+
+def _write_bundled_model_file(name: str, destination: Path) -> None:
+    if name not in BUNDLED_MODEL_FILES:
+        raise ValueError(f"Model file is not bundled: {name}")
+    try:
+        source = resources.files("config.local_translation_model").joinpath(name)
+        content = source.read_bytes()
+    except (FileNotFoundError, ModuleNotFoundError, OSError) as exc:
+        raise RuntimeError(f"Bundled local translation metadata is unavailable: {name}") from exc
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(content)
 
 
 def _validate_small_model_file(path: Path, max_size: int, required_keys: tuple[str, ...]) -> str:

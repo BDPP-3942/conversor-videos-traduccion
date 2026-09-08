@@ -30,8 +30,17 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 | Reprocessing/manifests, consolidación de naming Unicode/filesystem y mejoras del runtime de traducción local | `1.7.0` |
 | Corrección del contrato `clip_timestamps` en la recuperación selectiva de STT con `faster-whisper` | `1.7.1` |
 | Corrección de descarga del modelo local y validación del flujo proveedor-modelo | `1.7.2` |
+| Bootstrap de metadatos JSON del modelo local y validación de packaging | `1.7.3` |
 
 ## Releases publicadas
+
+### 1.7.2 — Local Translation Model Download Fix
+
+**Tipo:** `PATCH`.
+
+**Tag publicado:** `v1.7.2`.
+
+Corrige el cálculo del límite de descarga del modelo local y evita el `KeyError: 'model.bin'` provocado por la evaluación eager del fallback de `dict.get`. Mantiene la validación de integridad y añade regresiones para el flujo proveedor-modelo.
 
 ### 1.7.0 — Reprocessing, Unicode Naming & Translation Runtime
 
@@ -39,7 +48,7 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 
 **Tag publicado:** `v1.7.0`.
 
-Esta es la **release publicada más reciente confirmada** antes de la línea candidata 1.7.2. Consolida el reprocesado y la persistencia de manifests, refuerza el almacenamiento local multiplataforma, consolida el naming determinista y la normalización Unicode, endurece los límites reales de filesystem y consolida el proveedor de traducción local y su runtime.
+Consolida el reprocesado y la persistencia de manifests, refuerza el almacenamiento local multiplataforma, consolida el naming determinista y la normalización Unicode, endurece los límites reales de filesystem y consolida el proveedor de traducción local y su runtime.
 
 ### 1.6.0 — Local Translation & GPU Runtime Hardening
 
@@ -136,36 +145,32 @@ Esta es la **release publicada más reciente confirmada** antes de la línea can
 
 **Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
 
-## Candidata 1.7.2
+## Candidata 1.7.3
 
 ### Posición en la línea de releases
 
 **Tipo:** `PATCH`.
 
-`1.7.2` es una release de mantenimiento del estado `1.7.1`, que contiene la corrección previa de recuperación selectiva STT. La release publicada más reciente confirmada sigue siendo `v1.7.0` hasta que se publique formalmente `v1.7.1`.
+`1.7.3` es una release de mantenimiento sobre el estado publicado `1.7.2` y conserva las correcciones de `1.7.1` y `1.7.2`.
 
 Por tanto:
 
-- **Previous functional state:** `1.7.1` integrado en `main`.
-- **Published release:** `v1.7.0`.
-- **Baseline funcional inmediato:** estado completo de `1.7.1`.
-- **Target tag:** `v1.7.2` — pendiente de validación y creación.
+- **Previous published release:** `1.7.2`.
+- **Baseline funcional inmediato:** estado completo publicado de `1.7.2`.
+- **Target tag:** `v1.7.3` — pendiente de validación y creación.
 
 ### Alcance
 
-La candidata `1.7.2` corrige el gestor de descarga del modelo de traducción local. El código anterior calculaba el límite con una expresión equivalente a `MODEL_FILES.get(name, (0, SMALL_MODEL_FILES[name][0]))[1]`. El argumento por defecto de `dict.get` se evalúa antes de la llamada, por lo que `SMALL_MODEL_FILES['model.bin']` provocaba `KeyError` aunque `model.bin` sí existiera en `MODEL_FILES`.
-
-La corrección selecciona explícitamente el límite correspondiente al fichero actual. Esto permite que la preparación alcance la descarga de los tres ficheros principales y los tres metadatos, manteniendo las validaciones de integridad y el reemplazo atómico.
+La candidata `1.7.3` corrige la disponibilidad de los metadatos JSON requeridos por CTranslate2. `config.json` y `tokenizer_config.json`, fijados por la misma revisión del modelo, pasan a distribuirse con el paquete Python y se copian al directorio gestionado durante la preparación. `shared_vocabulary.json` continúa siendo un artefacto del modelo descargado y validado desde Hugging Face.
 
 ### Cambios
 
-- Corregido el cálculo del límite de descarga para separar ficheros principales y metadatos.
-- Añadida regresión que recorre todos los ficheros gestionados durante `LocalTranslationModelManager.download()`.
-- Añadida regresión que prepara el modelo y verifica la inicialización del proveedor y una llamada de traducción mediante las fronteras CTranslate2/SentencePiece.
-- Documentada la causa del `KeyError: 'model.bin'` y el procedimiento de validación real con el benchmark.
-- Conservada la descarga pública sin autenticación y el token opcional para entornos que lo requieran.
-- Conservada la revisión/modelo fijados y la validación por tamaño, SHA-256 y estructura de metadatos.
-- Conservada la corrección `clip_timestamps` de `1.7.1`.
+- Añadidos al paquete los metadatos exactos `config.json` y `tokenizer_config.json` de la revisión fijada.
+- Evitada la dependencia de una descarga independiente de Hugging Face para esos dos JSON pequeños.
+- Conservada la descarga y validación de `shared_vocabulary.json`, `model.bin`, `source.spm` y `target.spm`.
+- Añadida regresión que verifica la disponibilidad de los metadatos empaquetados.
+- Añadida regresión que comprueba la descarga selectiva de los artefactos remotos y la preparación completa del modelo.
+- Conservada la regresión del proveedor y la llamada de traducción mediante las fronteras CTranslate2/SentencePiece.
 
 ### Dependencias
 
@@ -195,7 +200,7 @@ El benchmark constituye la prueba funcional real de carga y traducción del mode
 
 Los tags utilizan `vMAJOR.MINOR.PATCH` y no deben reutilizarse ni moverse después de publicar una release.
 
-`v1.7.0`, `v1.6.0`, `v1.5.1` y las releases anteriores permanecen asociados a sus commits publicados y no deben modificarse. `v1.7.1` y `v1.7.2` solo deben crearse sobre los SHA exactos validados por Release Gate.
+Los tags publicados anteriores permanecen asociados a sus commits publicados y no deben modificarse. `v1.7.3` solo debe crearse sobre el SHA exacto validado por Release Gate y resultante del merge a `main`.
 
 ## Historial anterior
 
