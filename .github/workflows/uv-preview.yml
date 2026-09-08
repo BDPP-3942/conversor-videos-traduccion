@@ -4,7 +4,8 @@ on:
   pull_request:
     paths:
       - "pyproject.toml"
-      - ".github/workflows/uv-preview.yml"
+      - "uv.lock"
+      - ".github/workflows/**"
       - "scripts/**"
       - "src/**"
       - "tests/**"
@@ -26,16 +27,14 @@ jobs:
       - name: Install Python
         run: uv python install 3.13
 
-      # Preview only: the migration PR must commit uv.lock and switch this
-      # command to --locked once pyproject.toml is fully migrated.
       - name: Resolve lockfile
         run: uv lock
 
       - name: Sync development environment
-        run: uv sync --extra dev --extra google --extra package
+        run: uv sync --group dev --extra google --extra tts
 
       - name: Check dependency consistency
-        run: uv pip check
+        run: uv run pip check
 
       - name: Run tests through uv
         run: uv run pytest
@@ -59,3 +58,6 @@ jobs:
           /tmp/wheel-venv/bin/video-translation-regenerate --help
           /tmp/wheel-venv/bin/video-subtitle-qa --help
           /tmp/wheel-venv/bin/video-translation-tts --help
+
+      - name: Report generated lockfile
+        run: git diff --check -- uv.lock
