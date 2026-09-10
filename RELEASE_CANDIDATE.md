@@ -53,17 +53,18 @@ Required before publication:
 
 ## Version consistency
 
-The release version must agree in:
+The candidate version must agree in:
 
 - `pyproject.toml` → `1.8.0`.
 - `config/app.toml` → `1.8.0`.
-- `CHANGELOG.md` → complete published history retained plus a new `1.8.0` entry before publication.
 - `docs/RELEASES.md` → published `1.7.4` plus candidate `1.8.0`.
 - `docs/VERSIONING.md` → published `1.7.4` plus candidate `1.8.0`.
 - `RELEASE_SCOPE.md` → `1.8.0`.
 - This file → `1.8.0`.
 - `uv.lock` → project package metadata synchronized to `1.8.0` after the branch is rebased onto the final uv-migration base.
 
+`CHANGELOG.md` is deliberately retained as the complete published-history ledger during the candidate phase. The `1.8.0` changelog entry is to be added at publication, after the final `main` SHA is validated, so the candidate does not rewrite or remove historical release annotations merely to satisfy a pre-release check.
+
 ## Decision
 
-**Do not merge or create `v1.8.0` until the final candidate SHA is green in CI and Release Gate.** After merge, validate `main` again and create the immutable `v1.8.0` tag/release on that exact SHA.
+**Do not merge or create `v1.8.0` until the final candidate SHA is green in CI and Release Gate.** After merge, validate `main` again, add the immutable `1.8.0` changelog entry preserving the entire existing history, and create the `v1.8.0` tag/release on that exact SHA.
