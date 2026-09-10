@@ -133,8 +133,10 @@ jobs:
           PYTHONWARNINGS: default
         run: uv sync --locked --extra google --group dev --group audit
       - run: uv pip check
+      - name: Remove editable project before PyPI audit
+        run: uv pip uninstall -y video-translation-pipeline
       - name: Run pip-audit from the locked audit group
-        run: uv run --locked --group audit pip-audit --strict
+        run: uv run --locked --no-sync --group audit pip-audit --strict
 
   tts-dependency-audit:
     runs-on: ubuntu-latest
@@ -153,5 +155,7 @@ jobs:
           PYTHONWARNINGS: default
         run: uv sync --locked --extra tts --group audit
       - run: uv pip check
+      - name: Remove editable project before PyPI audit
+        run: uv pip uninstall -y video-translation-pipeline
       - name: Run pip-audit from the locked audit group
-        run: uv run --locked --group audit pip-audit --strict
+        run: uv run --locked --no-sync --group audit pip-audit --strict
