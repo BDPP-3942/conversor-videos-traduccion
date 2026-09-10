@@ -13,6 +13,10 @@ def _load_dotenv() -> None:
         from dotenv import load_dotenv
     except ImportError:
         return
+
+    if os.getenv("E2E_TEST_MODE") == "1":
+        return
+
     load_dotenv(BASE_DIR / ".env", override=False)
     load_dotenv(BASE_DIR / ".env.default", override=False)
 
@@ -137,7 +141,10 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             auto_tune_resources=bool(runtime_cfg.get("auto_tune_resources", True)),
         )
 
-    settings = _apply_runtime_provider(settings)
+    default_config = (BASE_DIR / "config" / "app.toml").resolve()
+    if path.resolve() == default_config:
+        settings = _apply_runtime_provider(settings)
+
     settings = _apply_environment_overrides(settings)
 
     from src.resource_profile import apply_resource_profile

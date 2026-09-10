@@ -35,7 +35,7 @@ def test_local_wrappers_forward_arguments_without_hardcoding_commands():
     local_bat = (root / "scripts" / "run_local.bat").read_text(encoding="utf-8")
     local_sh = (root / "scripts" / "run_local.sh").read_text(encoding="utf-8")
     assert "scripts\\run_local.py %*" in local_bat
-    assert "scripts/run_local.py \"$@\"" in local_sh
+    assert 'scripts/run_local.py "$@"' in local_sh
     assert '"%~1"=="duplicates"' not in local_bat
 
 

@@ -32,6 +32,7 @@ class FFmpegResolver:
 
         try:
             import imageio_ffmpeg
+
             return Path(imageio_ffmpeg.get_ffmpeg_exe()).resolve()
         except Exception as exc:
             system_ffmpeg = shutil.which("ffmpeg")

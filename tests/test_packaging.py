@@ -6,7 +6,7 @@ from pathlib import Path
 
 def _wheel_path() -> Path:
     candidates = sorted(Path("dist").glob("*.whl"))
-    assert candidates, "python -m build did not produce a wheel"
+    assert candidates, "uv build did not produce a wheel"
     return candidates[-1]
 
 
