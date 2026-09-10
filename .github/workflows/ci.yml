@@ -32,7 +32,10 @@ jobs:
           enable-cache: true
       - run: uv python install 3.13
       - run: uv lock --check
-      - run: uv sync --locked --extra google --group dev
+      - name: Sync locked development environment
+        env:
+          PYTHONWARNINGS: default
+        run: uv sync --locked --extra google --group dev
       - run: uv run pip check
       - run: uv run ruff check . --select F401,I001
       - run: uv run ruff check .
@@ -58,7 +61,10 @@ jobs:
           enable-cache: true
       - run: uv python install ${{ matrix.python-version }}
       - run: uv lock --check
-      - run: uv sync --locked --extra google --group dev
+      - name: Sync locked test environment
+        env:
+          PYTHONWARNINGS: default
+        run: uv sync --locked --extra google --group dev
       - run: uv run pip check
       - run: uv run pytest -q --ignore=tests/test_packaging.py
       - name: Verify installed entry points
@@ -91,7 +97,10 @@ jobs:
           enable-cache: true
       - run: uv python install 3.13
       - run: uv lock --check
-      - run: uv sync --locked --group dev
+      - name: Sync locked packaging environment
+        env:
+          PYTHONWARNINGS: default
+        run: uv sync --locked --group dev
       - run: uv build
       - run: uv run pytest -q tests/test_packaging.py
       - name: Install wheel with pip compatibility gate
@@ -117,7 +126,10 @@ jobs:
           enable-cache: true
       - run: uv python install 3.13
       - run: uv lock --check
-      - run: uv sync --locked --extra google --group dev --group audit
+      - name: Sync locked audit environment
+        env:
+          PYTHONWARNINGS: default
+        run: uv sync --locked --extra google --group dev --group audit
       - run: uv run pip check
       - run: uv run pip-audit --strict
 
@@ -133,6 +145,9 @@ jobs:
           enable-cache: true
       - run: uv python install 3.13
       - run: uv lock --check
-      - run: uv sync --locked --extra tts --group audit
+      - name: Sync locked TTS audit environment
+        env:
+          PYTHONWARNINGS: default
+        run: uv sync --locked --extra tts --group audit
       - run: uv run pip check
       - run: uv run pip-audit --strict
