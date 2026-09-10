@@ -36,7 +36,7 @@ jobs:
         env:
           PYTHONWARNINGS: default
         run: uv sync --locked --extra google --group dev
-      - run: uv run pip check
+      - run: uv pip check
       - run: uv run ruff check . --select F401,I001
       - run: uv run ruff check .
       - run: uv run ruff check . --select S
@@ -65,7 +65,7 @@ jobs:
         env:
           PYTHONWARNINGS: default
         run: uv sync --locked --extra google --group dev
-      - run: uv run pip check
+      - run: uv pip check
       - run: uv run pytest -q --ignore=tests/test_packaging.py
       - name: Verify installed entry points
         run: |
@@ -130,8 +130,9 @@ jobs:
         env:
           PYTHONWARNINGS: default
         run: uv sync --locked --extra google --group dev --group audit
-      - run: uv run pip check
-      - run: uv run pip-audit --strict
+      - run: uv pip check
+      - name: Run pip-audit from the locked audit group
+        run: uv run --locked --group audit pip-audit --strict
 
   tts-dependency-audit:
     runs-on: ubuntu-latest
@@ -149,5 +150,6 @@ jobs:
         env:
           PYTHONWARNINGS: default
         run: uv sync --locked --extra tts --group audit
-      - run: uv run pip check
-      - run: uv run pip-audit --strict
+      - run: uv pip check
+      - name: Run pip-audit from the locked audit group
+        run: uv run --locked --group audit pip-audit --strict
