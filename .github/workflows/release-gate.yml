@@ -40,6 +40,8 @@ jobs:
       - name: Verify lockfile
         run: uv lock --check
       - name: Sync locked release environment
+        env:
+          PYTHONWARNINGS: default
         run: uv sync --locked --group dev
       - name: Verify release metadata and repository invariants
         env:
