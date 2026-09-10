@@ -18,9 +18,10 @@
 - Separate Whisper VAD silence (`1500 ms`) from subtitle split silence (`750 ms`).
 - Retry suspicious STT segments without the large initial prompt or previous-text context.
 - Preserve numeric `clip_timestamps` for selective recovery.
-- Upgrade the local Spanish→English fallback to pinned MADLAD-400 3B CT2 INT8.
-- Use MADLAD's shared SentencePiece tokenizer and `<2en>` target prefix.
-- Enforce a 3,000,000,000-byte installation budget and validate required model artifacts.
+- Upgrade the local Spanish→English fallback to pinned MADLAD-400 3B CT2 INT8 **without removing the existing OPUS-MT CT2 INT8 fallback**.
+- Keep independent model directories, repository/revision pins, integrity checks and tokenizer handling for MADLAD and OPUS-MT.
+- Use MADLAD's shared SentencePiece tokenizer and `<2en>` target prefix; preserve OPUS-MT `source.spm`/`target.spm` handling.
+- Enforce a 3,000,000,000-byte installation budget for MADLAD and validate required model artifacts.
 - Keep local model auto-download disabled by default.
 - Complete the uv migration for development, CI, packaging and dependency auditing while preserving pip wheel compatibility.
 
@@ -42,13 +43,13 @@ Required before publication:
 
 - Linux, Windows and macOS.
 - Python 3.11, 3.12 and 3.13.
-- Full pytest suite.
+- Full pytest suite, including the cross-platform release E2E tests.
 - Ruff lint/security/format and `compileall`.
 - `uv lock --check`, locked sync and `uv pip check`.
 - Packaging, clean wheel installation and entry points.
 - Dependency audits.
 - Release Gate on the exact final SHA.
-- Real MADLAD model preparation/benchmark on the target hardware.
+- Real MADLAD model preparation/benchmark on the target hardware; OPUS-MT remains independently benchmarkable on low-disk deployments.
 
 ## Version consistency
 
@@ -56,7 +57,7 @@ The release version must agree in:
 
 - `pyproject.toml` → `1.8.0`.
 - `config/app.toml` → `1.8.0`.
-- `CHANGELOG.md` → published `1.7.4` retained as history plus a new `1.8.0` entry before publication.
+- `CHANGELOG.md` → complete published history retained plus a new `1.8.0` entry before publication.
 - `docs/RELEASES.md` → published `1.7.4` plus candidate `1.8.0`.
 - `docs/VERSIONING.md` → published `1.7.4` plus candidate `1.8.0`.
 - `RELEASE_SCOPE.md` → `1.8.0`.
