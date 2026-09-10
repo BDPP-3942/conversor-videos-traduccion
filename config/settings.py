@@ -53,6 +53,14 @@ class AppSettings:
     translation_max_backoff_seconds: float = 16.0
     translation_max_parallel_requests: int = 2
     translation_provider_max_parallel_requests: int = 0
+    local_translation_model: str = "madlad400-3b-ct2-int8"
+    local_translation_model_dir: Path = BASE_DIR / "tools" / "models" / "translation" / "madlad400-3b-ct2-int8"
+    local_translation_model_id: str = "cstr/madlad400-3b-ct2-int8"
+    local_translation_model_revision: str = "12eff26f7d93623e2b2d3b5345e5863e14599dae"
+    local_translation_device: str = "auto"
+    local_translation_compute_type: str = "auto"
+    local_translation_beam_size: int = 2
+    local_translation_auto_download: bool = False
     max_zip_depth: int = 5
     max_extracted_files: int = 10_000
     max_extracted_size_gb: float = 10.0
@@ -134,14 +142,11 @@ class AppSettings:
         fallback_default = ",".join(cls.translation_fallback_providers)
         fallback_raw = os.getenv("TRANSLATION_FALLBACK_PROVIDERS", fallback_default)
         fallback = tuple(item.strip() for item in fallback_raw.split(",") if item.strip())
-        temperatures = (
-            tuple(
-                float(item.strip())
-                for item in os.getenv("WHISPER_RECOVERY_TEMPERATURES", "0.2").split(",")
-                if item.strip()
-            )
-            or cls.whisper_recovery_temperatures
-        )
+        temperatures = tuple(
+            float(item.strip())
+            for item in os.getenv("WHISPER_RECOVERY_TEMPERATURES", "0.2").split(",")
+            if item.strip()
+        ) or cls.whisper_recovery_temperatures
         condition_env = os.getenv("WHISPER_CONDITION_ON_PREVIOUS_TEXT", "true")
         return cls(
             provider=os.getenv("STORAGE_PROVIDER", cls.provider),
@@ -155,55 +160,38 @@ class AppSettings:
             whisper_compute_type=os.getenv("WHISPER_COMPUTE_TYPE", cls.whisper_compute_type),
             whisper_beam_size=int(os.getenv("WHISPER_BEAM_SIZE", cls.whisper_beam_size)),
             whisper_vad_filter=os.getenv("WHISPER_VAD_FILTER", "true").lower() == "true",
-            whisper_min_silence_duration_ms=int(
-                os.getenv("WHISPER_MIN_SILENCE_DURATION_MS", cls.whisper_min_silence_duration_ms)
-            ),
+            whisper_min_silence_duration_ms=int(os.getenv("WHISPER_MIN_SILENCE_DURATION_MS", cls.whisper_min_silence_duration_ms)),
             whisper_subtitle_split_silence_duration_ms=int(
-                os.getenv(
-                    "WHISPER_SUBTITLE_SPLIT_SILENCE_DURATION_MS",
-                    cls.whisper_subtitle_split_silence_duration_ms,
-                )
+                os.getenv("WHISPER_SUBTITLE_SPLIT_SILENCE_DURATION_MS", cls.whisper_subtitle_split_silence_duration_ms)
             ),
             whisper_condition_on_previous_text=condition_env.lower() == "true",
             whisper_initial_prompt=os.getenv("WHISPER_INITIAL_PROMPT", cls.whisper_initial_prompt),
             whisper_cpu_threads=int(os.getenv("WHISPER_CPU_THREADS", cls.whisper_cpu_threads)),
-            whisper_repetition_threshold=float(
-                os.getenv("WHISPER_REPETITION_THRESHOLD", cls.whisper_repetition_threshold)
-            ),
-            whisper_compression_ratio_threshold=float(
-                os.getenv("WHISPER_COMPRESSION_RATIO_THRESHOLD", cls.whisper_compression_ratio_threshold)
-            ),
+            whisper_repetition_threshold=float(os.getenv("WHISPER_REPETITION_THRESHOLD", cls.whisper_repetition_threshold)),
+            whisper_compression_ratio_threshold=float(os.getenv("WHISPER_COMPRESSION_RATIO_THRESHOLD", cls.whisper_compression_ratio_threshold)),
             whisper_log_prob_threshold=float(os.getenv("WHISPER_LOG_PROB_THRESHOLD", cls.whisper_log_prob_threshold)),
-            whisper_no_speech_threshold=float(
-                os.getenv("WHISPER_NO_SPEECH_THRESHOLD", cls.whisper_no_speech_threshold)
-            ),
-            whisper_min_repetition_words=int(
-                os.getenv("WHISPER_MIN_REPETITION_WORDS", cls.whisper_min_repetition_words)
-            ),
+            whisper_no_speech_threshold=float(os.getenv("WHISPER_NO_SPEECH_THRESHOLD", cls.whisper_no_speech_threshold)),
+            whisper_min_repetition_words=int(os.getenv("WHISPER_MIN_REPETITION_WORDS", cls.whisper_min_repetition_words)),
             whisper_recovery_retries=int(os.getenv("WHISPER_RECOVERY_RETRIES", cls.whisper_recovery_retries)),
             whisper_recovery_temperatures=temperatures,
             translation_provider=os.getenv("TRANSLATION_PROVIDER", cls.translation_provider),
             translation_fallback_providers=fallback,
             translation_retries=int(os.getenv("TRANSLATION_RETRIES", cls.translation_retries)),
-            translation_max_retries_per_provider=int(
-                os.getenv("TRANSLATION_MAX_RETRIES_PER_PROVIDER", cls.translation_max_retries_per_provider)
-            ),
+            translation_max_retries_per_provider=int(os.getenv("TRANSLATION_MAX_RETRIES_PER_PROVIDER", cls.translation_max_retries_per_provider)),
             translation_batch_size=int(os.getenv("TRANSLATION_BATCH_SIZE", cls.translation_batch_size)),
-            translation_retry_delay_seconds=float(
-                os.getenv("TRANSLATION_RETRY_DELAY_SECONDS", cls.translation_retry_delay_seconds)
-            ),
-            translation_min_request_interval_seconds=float(
-                os.getenv("TRANSLATION_MIN_REQUEST_INTERVAL_SECONDS", cls.translation_min_request_interval_seconds)
-            ),
-            translation_max_backoff_seconds=float(
-                os.getenv("TRANSLATION_MAX_BACKOFF_SECONDS", cls.translation_max_backoff_seconds)
-            ),
-            translation_max_parallel_requests=int(
-                os.getenv("TRANSLATION_MAX_PARALLEL_REQUESTS", cls.translation_max_parallel_requests)
-            ),
-            translation_provider_max_parallel_requests=int(
-                os.getenv("TRANSLATION_PROVIDER_MAX_PARALLEL_REQUESTS", cls.translation_provider_max_parallel_requests)
-            ),
+            translation_retry_delay_seconds=float(os.getenv("TRANSLATION_RETRY_DELAY_SECONDS", cls.translation_retry_delay_seconds)),
+            translation_min_request_interval_seconds=float(os.getenv("TRANSLATION_MIN_REQUEST_INTERVAL_SECONDS", cls.translation_min_request_interval_seconds)),
+            translation_max_backoff_seconds=float(os.getenv("TRANSLATION_MAX_BACKOFF_SECONDS", cls.translation_max_backoff_seconds)),
+            translation_max_parallel_requests=int(os.getenv("TRANSLATION_MAX_PARALLEL_REQUESTS", cls.translation_max_parallel_requests)),
+            translation_provider_max_parallel_requests=int(os.getenv("TRANSLATION_PROVIDER_MAX_PARALLEL_REQUESTS", cls.translation_provider_max_parallel_requests)),
+            local_translation_model=os.getenv("LOCAL_TRANSLATION_MODEL", cls.local_translation_model),
+            local_translation_model_dir=Path(os.getenv("LOCAL_TRANSLATION_MODEL_DIR", cls.local_translation_model_dir)),
+            local_translation_model_id=os.getenv("LOCAL_TRANSLATION_MODEL_ID", cls.local_translation_model_id),
+            local_translation_model_revision=os.getenv("LOCAL_TRANSLATION_MODEL_REVISION", cls.local_translation_model_revision),
+            local_translation_device=os.getenv("LOCAL_TRANSLATION_DEVICE", cls.local_translation_device),
+            local_translation_compute_type=os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", cls.local_translation_compute_type),
+            local_translation_beam_size=int(os.getenv("LOCAL_TRANSLATION_BEAM_SIZE", cls.local_translation_beam_size)),
+            local_translation_auto_download=os.getenv("LOCAL_TRANSLATION_AUTO_DOWNLOAD", "false").lower() == "true",
             max_zip_depth=int(os.getenv("MAX_ZIP_DEPTH", cls.max_zip_depth)),
             max_extracted_files=int(os.getenv("MAX_EXTRACTED_FILES", cls.max_extracted_files)),
             max_extracted_size_gb=float(os.getenv("MAX_EXTRACTED_SIZE_GB", cls.max_extracted_size_gb)),
@@ -232,15 +220,9 @@ class AppSettings:
             rename_processed_duplicates=os.getenv("RENAME_PROCESSED_DUPLICATES", "true").lower() == "true",
             automatic_output_deduplication=os.getenv("AUTOMATIC_OUTPUT_DEDUPLICATION", "false").lower() == "true",
             max_parallel_videos=int(os.getenv("MAX_PARALLEL_VIDEOS", cls.max_parallel_videos)),
-            duplicate_name_similarity_threshold=float(
-                os.getenv("DUPLICATE_NAME_SIMILARITY_THRESHOLD", cls.duplicate_name_similarity_threshold)
-            ),
-            duplicate_duration_tolerance_seconds=float(
-                os.getenv("DUPLICATE_DURATION_TOLERANCE_SECONDS", cls.duplicate_duration_tolerance_seconds)
-            ),
-            duplicate_visual_similarity_threshold=float(
-                os.getenv("DUPLICATE_VISUAL_SIMILARITY_THRESHOLD", cls.duplicate_visual_similarity_threshold)
-            ),
+            duplicate_name_similarity_threshold=float(os.getenv("DUPLICATE_NAME_SIMILARITY_THRESHOLD", cls.duplicate_name_similarity_threshold)),
+            duplicate_duration_tolerance_seconds=float(os.getenv("DUPLICATE_DURATION_TOLERANCE_SECONDS", cls.duplicate_duration_tolerance_seconds)),
+            duplicate_visual_similarity_threshold=float(os.getenv("DUPLICATE_VISUAL_SIMILARITY_THRESHOLD", cls.duplicate_visual_similarity_threshold)),
             ffmpeg_avoid_reencode=os.getenv("FFMPEG_AVOID_REENCODE", "true").lower() == "true",
             tts_enabled=os.getenv("TTS_ENABLED", "false").lower() == "true",
             tts_required=os.getenv("TTS_REQUIRED", "false").lower() == "true",
@@ -264,7 +246,7 @@ class AppSettings:
             provider_profile_dir=Path(os.getenv("PROVIDER_PROFILE_DIR", cls.provider_profile_dir)),
             run_lock_file=Path(os.getenv("RUN_LOCK_FILE", cls.run_lock_file)),
             auto_bootstrap_rclone=os.getenv("AUTO_BOOTSTRAP_RCLONE", "true").lower() == "true",
-            auto_update_rclone=os.getenv("AUTO_UPDATE_RCLONE", "false").lower() == "true",
+            auto_update_rclone=os.getenv("AUTO_UPDATE_RCLONE", "false").lower() == "false",
             auto_tune_resources=os.getenv("AUTO_TUNE_RESOURCES", "true").lower() == "true",
             resource_profile=os.getenv("RESOURCE_PROFILE", cls.resource_profile),
             detected_logical_cpus=int(os.getenv("DETECTED_LOGICAL_CPUS", cls.detected_logical_cpus)),
