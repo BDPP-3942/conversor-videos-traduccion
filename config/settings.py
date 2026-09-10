@@ -142,11 +142,7 @@ class AppSettings:
         fallback_default = ",".join(cls.translation_fallback_providers)
         fallback_raw = os.getenv("TRANSLATION_FALLBACK_PROVIDERS", fallback_default)
         fallback = tuple(item.strip() for item in fallback_raw.split(",") if item.strip())
-        temperatures = tuple(
-            float(item.strip())
-            for item in os.getenv("WHISPER_RECOVERY_TEMPERATURES", "0.2").split(",")
-            if item.strip()
-        ) or cls.whisper_recovery_temperatures
+        temperatures = tuple(float(item.strip()) for item in os.getenv("WHISPER_RECOVERY_TEMPERATURES", "0.2").split(",") if item.strip()) or cls.whisper_recovery_temperatures
         condition_env = os.getenv("WHISPER_CONDITION_ON_PREVIOUS_TEXT", "true")
         return cls(
             provider=os.getenv("STORAGE_PROVIDER", cls.provider),
@@ -161,9 +157,7 @@ class AppSettings:
             whisper_beam_size=int(os.getenv("WHISPER_BEAM_SIZE", cls.whisper_beam_size)),
             whisper_vad_filter=os.getenv("WHISPER_VAD_FILTER", "true").lower() == "true",
             whisper_min_silence_duration_ms=int(os.getenv("WHISPER_MIN_SILENCE_DURATION_MS", cls.whisper_min_silence_duration_ms)),
-            whisper_subtitle_split_silence_duration_ms=int(
-                os.getenv("WHISPER_SUBTITLE_SPLIT_SILENCE_DURATION_MS", cls.whisper_subtitle_split_silence_duration_ms)
-            ),
+            whisper_subtitle_split_silence_duration_ms=int(os.getenv("WHISPER_SUBTITLE_SPLIT_SILENCE_DURATION_MS", cls.whisper_subtitle_split_silence_duration_ms)),
             whisper_condition_on_previous_text=condition_env.lower() == "true",
             whisper_initial_prompt=os.getenv("WHISPER_INITIAL_PROMPT", cls.whisper_initial_prompt),
             whisper_cpu_threads=int(os.getenv("WHISPER_CPU_THREADS", cls.whisper_cpu_threads)),
@@ -185,7 +179,7 @@ class AppSettings:
             translation_max_parallel_requests=int(os.getenv("TRANSLATION_MAX_PARALLEL_REQUESTS", cls.translation_max_parallel_requests)),
             translation_provider_max_parallel_requests=int(os.getenv("TRANSLATION_PROVIDER_MAX_PARALLEL_REQUESTS", cls.translation_provider_max_parallel_requests)),
             local_translation_model=os.getenv("LOCAL_TRANSLATION_MODEL", cls.local_translation_model),
-            local_translation_model_dir=Path(os.getenv("LOCAL_TRANSLATION_MODEL_DIR", cls.local_translation_model_dir)),
+            local_translation_model_dir=Path(os.getenv("LOCAL_TRANSLATION_MODEL_DIR", str(cls.local_translation_model_dir))),
             local_translation_model_id=os.getenv("LOCAL_TRANSLATION_MODEL_ID", cls.local_translation_model_id),
             local_translation_model_revision=os.getenv("LOCAL_TRANSLATION_MODEL_REVISION", cls.local_translation_model_revision),
             local_translation_device=os.getenv("LOCAL_TRANSLATION_DEVICE", cls.local_translation_device),
@@ -228,8 +222,8 @@ class AppSettings:
             tts_required=os.getenv("TTS_REQUIRED", "false").lower() == "true",
             tts_provider=os.getenv("TTS_PROVIDER", cls.tts_provider),
             tts_voice=os.getenv("TTS_VOICE", cls.tts_voice),
-            tts_model_path=Path(os.getenv("TTS_MODEL_PATH", cls.tts_model_path)),
-            tts_voices_path=Path(os.getenv("TTS_VOICES_PATH", cls.tts_voices_path)),
+            tts_model_path=Path(os.getenv("TTS_MODEL_PATH", str(cls.tts_model_path))),
+            tts_voices_path=Path(os.getenv("TTS_VOICES_PATH", str(cls.tts_voices_path))),
             tts_speed=float(os.getenv("TTS_SPEED", cls.tts_speed)),
             tts_max_speed=float(os.getenv("TTS_MAX_SPEED", cls.tts_max_speed)),
             tts_duration_tolerance=float(os.getenv("TTS_DURATION_TOLERANCE", cls.tts_duration_tolerance)),
@@ -237,16 +231,16 @@ class AppSettings:
             tts_audio_bitrate=os.getenv("TTS_AUDIO_BITRATE", cls.tts_audio_bitrate),
             tts_webm_audio_bitrate=os.getenv("TTS_WEBM_AUDIO_BITRATE", cls.tts_webm_audio_bitrate),
             tts_generate_webm=os.getenv("TTS_GENERATE_WEBM", "true").lower() == "true",
-            google_credentials_file=Path(os.getenv("GOOGLE_CREDENTIALS_FILE", cls.google_credentials_file)),
-            google_token_file=Path(os.getenv("GOOGLE_TOKEN_FILE", cls.google_token_file)),
+            google_credentials_file=Path(os.getenv("GOOGLE_CREDENTIALS_FILE", str(cls.google_credentials_file))),
+            google_token_file=Path(os.getenv("GOOGLE_TOKEN_FILE", str(cls.google_token_file))),
             google_profile=os.getenv("GOOGLE_PROFILE", cls.google_profile),
-            rclone_config_file=Path(os.getenv("RCLONE_CONFIG_FILE", cls.rclone_config_file)),
-            rclone_binary_file=Path(os.getenv("RCLONE_BINARY_FILE", cls.rclone_binary_file)),
+            rclone_config_file=Path(os.getenv("RCLONE_CONFIG_FILE", str(cls.rclone_config_file))),
+            rclone_binary_file=Path(os.getenv("RCLONE_BINARY_FILE", str(cls.rclone_binary_file))),
             rclone_remote=os.getenv("RCLONE_REMOTE", cls.rclone_remote),
-            provider_profile_dir=Path(os.getenv("PROVIDER_PROFILE_DIR", cls.provider_profile_dir)),
-            run_lock_file=Path(os.getenv("RUN_LOCK_FILE", cls.run_lock_file)),
+            provider_profile_dir=Path(os.getenv("PROVIDER_PROFILE_DIR", str(cls.provider_profile_dir))),
+            run_lock_file=Path(os.getenv("RUN_LOCK_FILE", str(cls.run_lock_file))),
             auto_bootstrap_rclone=os.getenv("AUTO_BOOTSTRAP_RCLONE", "true").lower() == "true",
-            auto_update_rclone=os.getenv("AUTO_UPDATE_RCLONE", "false").lower() == "false",
+            auto_update_rclone=os.getenv("AUTO_UPDATE_RCLONE", "false").lower() == "true",
             auto_tune_resources=os.getenv("AUTO_TUNE_RESOURCES", "true").lower() == "true",
             resource_profile=os.getenv("RESOURCE_PROFILE", cls.resource_profile),
             detected_logical_cpus=int(os.getenv("DETECTED_LOGICAL_CPUS", cls.detected_logical_cpus)),
@@ -262,17 +256,7 @@ def resolve_project_path(value: str | Path) -> Path:
 
 
 def local_storage_paths() -> dict[str, Path]:
-    return {
-        "input": STORAGE_DIR / "input",
-        "output": STORAGE_DIR / "output",
-        "work": STORAGE_DIR / "work",
-        "failures": STORAGE_DIR / "failures",
-        "archive": STORAGE_DIR / "archive",
-        "archive_sources": STORAGE_DIR / "archive" / "sources",
-        "logs": STORAGE_DIR / "logs",
-        "state": STORAGE_DIR / "state",
-        "manifests": STORAGE_DIR / "output/_manifests",
-    }
+    return {"input": STORAGE_DIR / "input", "output": STORAGE_DIR / "output", "work": STORAGE_DIR / "work", "failures": STORAGE_DIR / "failures", "archive": STORAGE_DIR / "archive", "archive_sources": STORAGE_DIR / "archive" / "sources", "logs": STORAGE_DIR / "logs", "state": STORAGE_DIR / "state", "manifests": STORAGE_DIR / "output/_manifests"}
 
 
 def ensure_directories() -> None:
