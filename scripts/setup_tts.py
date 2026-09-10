@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import subprocess
-import sys
 import tempfile
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -64,12 +62,10 @@ def _download(url: str, destination: Path) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Install the optional Kokoro TTS dependency and model files.")
-    parser.add_argument(
-        "--enable",
-        action="store_true",
-        help="Install/bootstrap TTS even when TTS_ENABLED is not true.",
+    parser = argparse.ArgumentParser(
+        description="Bootstrap the optional Kokoro TTS assets. Install the Python dependency with uv first."
     )
+    parser.add_argument("--enable", action="store_true", help="Bootstrap TTS even when TTS_ENABLED is not true.")
     parser.add_argument("--force", action="store_true", help="Replace existing model files.")
     parser.add_argument("--model-path", type=Path, default=None)
     parser.add_argument("--voices-path", type=Path, default=None)
@@ -78,18 +74,16 @@ def main() -> int:
     env = _env_values()
     enabled = args.enable or env.get("TTS_ENABLED", "").lower() == "true"
     if not enabled:
-        print("[INFO] TTS is disabled; skipping Kokoro installation.")
+        print("[INFO] TTS is disabled; skipping Kokoro asset bootstrap.")
         return 0
+
+    try:
+        import kokoro_onnx  # noqa: F401
+    except ImportError as exc:
+        raise RuntimeError("Kokoro dependency is missing. Run 'uv sync --extra tts' first.") from exc
 
     model_path = args.model_path or _resolve_configured_path(env.get("TTS_MODEL_PATH", ""), DEFAULT_MODEL)
     voices_path = args.voices_path or _resolve_configured_path(env.get("TTS_VOICES_PATH", ""), DEFAULT_VOICES)
-
-    print("[INFO] Installing optional Kokoro TTS dependency...")
-    subprocess.run(  # noqa: S603 -- executable is the active Python interpreter and arguments are fixed.
-        [sys.executable, "-m", "pip", "install", "-e", ".[tts]"],
-        cwd=BASE_DIR,
-        check=True,
-    )
 
     if args.force:
         model_path.unlink(missing_ok=True)

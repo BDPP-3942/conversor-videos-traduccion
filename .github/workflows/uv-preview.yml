@@ -1,0 +1,69 @@
+name: UV Preview
+
+on:
+  pull_request:
+    paths:
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/**"
+      - "scripts/**"
+      - "src/**"
+      - "tests/**"
+  workflow_dispatch:
+
+jobs:
+  uv-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "latest-known"
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install 3.13
+
+      - name: Resolve lockfile
+        run: uv lock
+
+      - name: Sync development environment
+        run: uv sync --group dev --extra google --extra tts
+
+      - name: Check dependency consistency
+        run: uv run pip check
+
+      - name: Run tests through uv
+        run: uv run pytest --ignore=tests/test_packaging.py
+
+      - name: Run Ruff lint through uv
+        continue-on-error: true
+        run: uv run ruff check .
+
+      - name: Run Ruff format check through uv
+        continue-on-error: true
+        run: uv run ruff format --check .
+
+      - name: Build distributions through uv
+        run: uv build
+
+      - name: Run packaging tests through uv
+        run: uv run pytest tests/test_packaging.py
+
+      # Keep a real pip installation as the compatibility gate for the wheel.
+      - name: Verify wheel with pip
+        run: |
+          python -m venv /tmp/wheel-venv
+          /tmp/wheel-venv/bin/python -m pip install --upgrade pip
+          /tmp/wheel-venv/bin/python -m pip install dist/*.whl
+          /tmp/wheel-venv/bin/python -m pip check
+          /tmp/wheel-venv/bin/video-translation-pipeline --help
+          /tmp/wheel-venv/bin/video-translation-regenerate --help
+          /tmp/wheel-venv/bin/video-subtitle-qa --help
+          /tmp/wheel-venv/bin/video-translation-tts --help
+
+      - name: Report generated lockfile
+        run: git diff --check -- uv.lock

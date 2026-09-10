@@ -12,7 +12,6 @@ class FFmpegResolver:
     @staticmethod
     def resolve(settings: AppSettings) -> Path:
         candidates: list[Path] = []
-
         configured = settings.ffmpeg_bin.strip()
         if configured:
             configured_path = Path(configured).expanduser()
@@ -27,7 +26,6 @@ class FFmpegResolver:
 
         name = "ffmpeg.exe" if __import__("sys").platform.startswith("win") else "ffmpeg"
         candidates.append(BASE_DIR / "tools" / "ffmpeg" / "bin" / name)
-
         for candidate in candidates:
             if candidate.is_file():
                 return candidate.resolve()
@@ -41,8 +39,7 @@ class FFmpegResolver:
             if system_ffmpeg:
                 return Path(system_ffmpeg).resolve()
             raise RuntimeError(
-                "No se ha encontrado FFmpeg. Instala las dependencias del proyecto "
-                "(`pip install -r requirements.txt`), coloca ffmpeg en "
+                "No se ha encontrado FFmpeg. Ejecuta `uv sync`, coloca ffmpeg en "
                 "tools/ffmpeg/bin/ o configura FFMPEG_BIN en .env."
             ) from exc
 

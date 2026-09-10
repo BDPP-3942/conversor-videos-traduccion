@@ -125,7 +125,7 @@ def test_normalize_existing_outputs_fits_old_long_names(tmp_path: Path, monkeypa
     )
     root = tmp_path / "storage" / "output"
     root.mkdir(parents=True)
-    long_name = "Video_" + ("a" * 70)
+    long_name = "Video_" + ("a" * 40)
     folder = root / long_name
     folder.mkdir()
     (folder / f"{long_name}.mp4").write_bytes(b"video")

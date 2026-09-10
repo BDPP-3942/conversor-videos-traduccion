@@ -1,30 +1,36 @@
-# Release Scope — 1.7.3
+# Release Scope — 1.7.4
 
 ## Previous release
 
-`v1.7.2` es la release PATCH inmediatamente anterior y contiene la corrección del gestor de descarga del modelo de traducción local.
+`v1.7.2` es la release PATCH inmediatamente anterior publicada. Las correcciones de `1.7.1` y `1.7.2` forman parte del baseline funcional conservado.
 
 Los tags publicados históricos MUST NOT be moved, deleted, or reused.
 
 ## Changes since v1.7.2
 
-`1.7.3` es una PATCH que corrige una consideración de packaging/runtime: `config.json` y `tokenizer_config.json` son metadatos necesarios para que CTranslate2 pueda abrir correctamente el modelo local preparado.
+`1.7.4` es una PATCH de mantenimiento que consolida las correcciones del modelo local y la migración reproducible de desarrollo/CI/build a `uv`.
 
-Estos dos JSON, fijados por la misma revisión del modelo, pasan a distribuirse con el paquete Python y se copian al directorio gestionado durante la preparación. `shared_vocabulary.json`, que es un artefacto de mayor tamaño del modelo, continúa descargándose desde la revisión fijada y validándose antes de activar el modelo.
+### Local translation fixes
 
-## Functional scope
+- `shared_vocabulary.json` puede utilizar una raíz JSON array, que es la estructura real del artefacto fijado.
+- Se mantiene el bootstrap empaquetado de `config.json` y `tokenizer_config.json` introducido en la corrección anterior.
+- Las regresiones cubren validación, preparación e integración del proveedor local.
 
-- Garantizar que `config.json` y `tokenizer_config.json` estén disponibles sin depender de una descarga independiente de Hugging Face.
-- Instalar los metadatos empaquetados junto a `model.bin` antes de validar el modelo.
-- Mantener la descarga y validación de `shared_vocabulary.json`, `model.bin`, `source.spm` y `target.spm`.
-- Verificar mediante tests el flujo completo de preparación hasta un modelo utilizable por el proveedor.
-- Verificar mediante tests que un modelo preparado puede inicializar CTranslate2 + SentencePiece y ejecutar una traducción.
-- Mantener el benchmark real como validación del modelo completo en hardware objetivo.
-- Mantener intactas las correcciones de `1.7.1` y `1.7.2`.
+### uv migration
+
+- `pyproject.toml` es la única declaración de dependencias Python.
+- `uv.lock` queda versionado como resolución reproducible.
+- Los entornos de desarrollo, tests, packaging y auditoría se crean mediante `uv sync --locked`.
+- Quality, tests y Release Gate utilizan comandos nativos de `uv` para comprobar el entorno.
+- `pip-audit` pertenece al grupo `audit` y se ejecuta mediante `uv run --locked --group audit pip-audit --strict`.
+- El wheel continúa instalándose mediante `pip` en un entorno limpio como prueba explícita de compatibilidad de distribución.
+- La excepción de runtime CUDA conserva el fallback `pip` para ejecutables portables que no contienen `uv`.
 
 ## Dependency scope
 
-The runtime dependency contract remains unchanged:
+The runtime dependency contract remains unchanged. Python dependency declarations are maintained only in `pyproject.toml`; the resolved development graph is managed by the versioned `uv.lock` file.
+
+Runtime dependencies:
 
 - `faster-whisper>=1.2.1,<1.3`
 - `ctranslate2>=4.8.2,<4.9`
@@ -34,33 +40,28 @@ The runtime dependency contract remains unchanged:
 - `imageio-ffmpeg>=0.6,<1`
 - `python-dotenv>=1,<2`
 
-`requirements.txt` and `pyproject.toml` must remain aligned.
-
-## Configuration scope
-
-No new public configuration key is required. The existing `LOCAL_TRANSLATION_*` environment configuration and pinned model/revision contract remain unchanged.
+Optional project features are declared as PEP 621 extras/groups in `pyproject.toml`. The duplicated `requirements.txt`, `requirements-dev.txt` and `requirements-google.txt` files are no longer dependency sources.
 
 ## Version scope
 
-- `pyproject.toml` declares `1.7.3`.
-- `config/app.toml` identifies the candidate as `1.7.3`.
-- `CHANGELOG.md` must contain the `1.7.3` release entry before `1.7.2`.
-- `docs/RELEASES.md`, `docs/VERSIONING.md`, `RELEASE_CANDIDATE.md` and this file identify `1.7.3` as the candidate.
-- The `v1.7.3` tag must point to the exact resulting `main` SHA after merge and final validation.
+- `pyproject.toml` declares `1.7.4`.
+- `config/app.toml` identifies the candidate as `1.7.4`.
+- `CHANGELOG.md` contains the `1.7.4` release entry before `1.7.3`.
+- `docs/RELEASES.md`, `docs/VERSIONING.md`, `RELEASE_CANDIDATE.md` and this file identify `1.7.4` as the candidate.
+- The `v1.7.4` tag must point to the exact resulting `main` SHA after merge and final validation.
 
 ## Validation state
 
 The final candidate SHA must complete CI and Release Gate successfully before merge approval. No older SHA is sufficient evidence for the final candidate.
 
-The real model benchmark should be executed on the target macOS environment after download to validate the actual CTranslate2 + SentencePiece runtime; deterministic CI tests do not substitute for that hardware validation.
-
 ## Tests and hardening
 
-- Bundled metadata regression verifies both packaged JSON resources.
-- Download regression verifies that the two bundled JSON files are not fetched remotely and that `shared_vocabulary.json` remains a managed downloaded artifact.
-- Provider regression covers initialization from the prepared model directory and a provider translation call through the mocked CTranslate2/SentencePiece boundary.
-- Existing STT selective-recovery regressions remain mandatory.
-- Existing reprocessing/manifests, Unicode/filesystem, ZIP security, configuration, packaging and dependency checks remain part of the release baseline.
+- Full pytest suite remains mandatory on Linux, Windows and macOS with Python 3.11, 3.12 and 3.13.
+- Ruff lint, Ruff Security, format and `compileall` remain mandatory.
+- `uv lock --check`, locked environment sync and dependency consistency are mandatory.
+- Packaging, clean-wheel installation, `pip check` and console entry points remain mandatory.
+- Dependency audits cover the base/Google development graph and the optional TTS graph using the locked audit group.
+- Release Gate validates exact SHA, version metadata, packaged resources and clean-wheel compatibility.
 
 ## Excluded
 

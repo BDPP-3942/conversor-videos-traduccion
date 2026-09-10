@@ -11,6 +11,9 @@ from pathlib import Path
 
 import pytest
 
+from config.settings import AppSettings
+from src.ffmpeg_resolver import FFmpegResolver
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -92,6 +95,7 @@ def _env(storage_dir: Path) -> dict[str, str]:
         [str(ROOT / "tests" / "e2e_support"), str(ROOT), env.get("PYTHONPATH", "")]
     )
     env["E2E_STORAGE_DIR"] = str(storage_dir)
+    env["E2E_TEST_MODE"] = "1"
     return env
 
 
@@ -143,9 +147,11 @@ def _json_output(result: _ProcessResult) -> dict:
 
 
 def _make_video_zip(tmp_path: Path, name: str = "lesson.zip") -> Path:
-    ffmpeg = shutil.which("ffmpeg")
-    if not ffmpeg:
+    try:
+        ffmpeg = str(FFmpegResolver.resolve(AppSettings()))
+    except RuntimeError:
         pytest.skip("ffmpeg is required for the local media E2E suite")
+
     media = tmp_path / "lesson.mp4"
     result = _spawn(
         [
@@ -177,16 +183,13 @@ def _make_video_zip(tmp_path: Path, name: str = "lesson.zip") -> Path:
     return archive
 
 
-def _fixture_dirs(config: Path) -> tuple[Path, Path]:
-    data = config.read_text(encoding="utf-8")
-    source = Path(data.split('source = "local://', 1)[1].split('"', 1)[0])
-    target = Path(data.split('target = "local://', 1)[1].split('"', 1)[0])
-    return source, target
+def _fixture_dirs(tmp_path: Path) -> tuple[Path, Path]:
+    return tmp_path / "input", tmp_path / "output"
 
 
 def test_e2e_real_cli_dry_run_has_no_processing_side_effects(tmp_path: Path):
     config = _config(tmp_path)
-    source, target = _fixture_dirs(config)
+    source, target = _fixture_dirs(tmp_path)
     result = _run("run", "--dry-run", config=config, storage_dir=tmp_path / "storage")
     assert result.returncode == 0, result.stdout
     assert _json_output(result)["status"] == "ready"
@@ -219,11 +222,18 @@ def test_e2e_real_cli_scheduled_mode_uses_same_entry_point(tmp_path: Path):
 
 def test_e2e_real_pipeline_and_regeneration_success(tmp_path: Path):
     config = _config(tmp_path)
-    source, target = _fixture_dirs(config)
+    source, target = _fixture_dirs(tmp_path)
     archive = _make_video_zip(tmp_path)
     shutil.copy2(archive, source / archive.name)
     first = _run("run", "--no-retain-sources", config=config, storage_dir=tmp_path / "storage")
     assert first.returncode == 0, first.stdout
+
+    first_payload = _json_output(first)
+
+    assert first_payload["status"] == "success", first.stdout
+    assert first_payload["zips_found"] == 1, first.stdout
+    assert first_payload["zips_processed"] == 1, first.stdout
+
     outputs = [path for folder in target.iterdir() if folder.is_dir() for path in folder.glob("*.mp4")]
     assert len(outputs) == 1
     output = outputs[0]
@@ -241,11 +251,18 @@ def test_e2e_real_pipeline_and_regeneration_success(tmp_path: Path):
 
 def test_e2e_real_regeneration_failure_rolls_back_previous_output(tmp_path: Path):
     config = _config(tmp_path)
-    source, target = _fixture_dirs(config)
+    source, target = _fixture_dirs(tmp_path)
     archive = _make_video_zip(tmp_path, "rollback.zip")
     shutil.copy2(archive, source / archive.name)
     first = _run("run", "--no-retain-sources", config=config, storage_dir=tmp_path / "storage")
     assert first.returncode == 0, first.stdout
+
+    first_payload = _json_output(first)
+
+    assert first_payload["status"] == "success", first.stdout
+    assert first_payload["zips_found"] == 1, first.stdout
+    assert first_payload["zips_processed"] == 1, first.stdout
+
     outputs = [path for folder in target.iterdir() if folder.is_dir() for path in folder.glob("*.mp4")]
     assert len(outputs) == 1
     output = outputs[0]

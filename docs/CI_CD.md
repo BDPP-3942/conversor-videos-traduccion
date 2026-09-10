@@ -2,95 +2,84 @@
 
 GitHub Actions runs on pushes to `main` and release branches, and on pull requests targeting `main`.
 
-The workflow is deliberately not triggered by every push to `feat/**` or `fix/**`: pull-request events validate the submitted head SHA, while concurrency cancellation prevents obsolete runs from consuming resources.
+The workflow checks out the exact submitted PR head SHA. Concurrency cancellation prevents obsolete runs from consuming resources, but an older successful SHA is never evidence for a newer candidate.
 
 ## CI jobs
 
-The CI is split by the type of evidence each check provides. Project-wide checks run once; platform compatibility checks are the only jobs kept as the 3 × 3 operating-system/interpreter matrix.
-
 ### `quality`
 
-Runs once on `ubuntu-latest` with Python 3.13. It checks:
+Runs once on `ubuntu-latest` with Python 3.13. It provisions the locked development environment with uv and checks:
 
-- dependency consistency (`pip check`);
+- `uv lock --check`;
+- locked dependency consistency with `uv pip check`;
 - Ruff imports/unused imports, lint, security and formatting;
 - Python bytecode compilation.
 
-These checks are not materially improved by running them nine times. They validate the source tree or the project environment rather than OS-specific behavior.
+### `tests`
 
-### `windows-test`
+Runs on Linux, Windows and macOS with Python 3.11, 3.12 and 3.13. Each runner executes `uv sync --locked`, `uv pip check`, the complete pytest suite except the wheel-only packaging test, installed entry points and the platform-specific wrapper checks.
 
-Runs on `windows-latest` with Python 3.11, 3.12 and 3.13. It checks the complete test suite except the wheel-only packaging test, installed entry points and the Windows `.bat` wrapper.
-
-### `linux-test`
-
-Runs on `ubuntu-latest` with Python 3.11, 3.12 and 3.13. It checks the complete test suite except the wheel-only packaging test, installed entry points and POSIX shell syntax for the `.sh` wrappers.
-
-### `macos-test`
-
-Runs on `macos-latest` with Python 3.11, 3.12 and 3.13. It checks the complete test suite except the wheel-only packaging test, installed entry points and POSIX shell syntax.
-
-macOS remains a real hosted target because Windows/Linux cannot prove macOS filesystem, process, native-library and path-normalization behavior.
+The platform matrix is intentionally retained because filesystem, process, native-library and path-normalization behavior cannot be proven on one operating system.
 
 ### `packaging`
 
-Builds distributions, installs the wheel into a clean virtual environment, runs `pip check` and verifies the installed console entry points. It runs once because this is packaging evidence, not OS compatibility evidence.
+Builds distributions with `uv build`, verifies packaged resources, installs the wheel into a clean virtual environment using `pip`, runs `pip check` and verifies the installed console entry points. The pip installation is deliberate: it proves that the published distribution remains usable without requiring uv.
 
 ### `dependency-audit`
 
-Installs the project with CI/cloud dependencies and runs `pip-audit --strict` against the dependency graph once.
+Creates a locked environment containing the development, Google and audit dependency groups. `pip-audit` is declared in the `audit` group and is executed as `uv run --locked --group audit pip-audit --strict`; no globally installed audit executable is assumed.
 
 ### `tts-dependency-audit`
 
-Audits the optional `[tts]` dependency graph separately with `pip-audit --strict` once.
+Creates a locked environment containing the TTS extra and audit group and executes the same uv-managed `pip-audit --strict` command. This keeps the optional TTS dependency graph independently auditable.
 
-## Why the checks are separated
+## uv policy
 
-The separation is about responsibility, not runner type:
+`pyproject.toml` is the single declarative source for Python dependencies. `uv.lock` is committed and must pass `uv lock --check` on every CI/release candidate. CI uses `uv sync --locked` so the runner cannot silently resolve a different dependency graph.
 
-- **Quality** owns static/project-wide validation.
-- **Windows/Linux/macOS tests** own runtime and platform compatibility.
-- **Packaging** owns distribution and clean-wheel validation.
-- **Dependency audits** own dependency security validation.
-- **Release Gate** owns release metadata and exact-candidate invariants.
-
-A platform matrix must not repeat project-wide checks simply because it has multiple OS/Python combinations. Conversely, platform-specific behavior must not be reduced to a single Linux check.
-
-## Exact SHA policy
-
-PR jobs explicitly check out `github.event.pull_request.head.sha`. Therefore, evidence from an older SHA is not evidence for the current PR state. After a correction, the complete relevant workflow must finish again for the new final SHA.
+The project does not require uv for the final wheel consumer. The clean-wheel compatibility gate uses pip explicitly. Portable CUDA runtime installation also retains its deliberate pip fallback for executables that do not ship with uv.
 
 ## Release Gate
 
-`release-gate.yml` validates the exact candidate SHA, release metadata, distributions, packaged resources, clean wheel installation and source compilation. On normal pull requests it validates release consistency without requiring the next version tag to be absent; the explicit manual release invocation additionally checks that the candidate tag does not already exist.
+`release-gate.yml` validates the exact candidate SHA, the static project version, the application version in `config/app.toml`, the `CHANGELOG.md` release heading, `docs/RELEASES.md`, packaged resources, clean wheel installation and source compilation.
 
-For the current `1.7.2` candidate, release consistency includes the version declared by `pyproject.toml`, the application version recorded in `config/app.toml`, the `CHANGELOG.md` heading and the `docs/RELEASES.md` candidate entry. These values must remain aligned before merge approval. The functional baseline is the merged `1.7.1` state; `v1.7.0` remains the latest published release confirmed in the repository documentation until `v1.7.1` is formally published.
+For the `1.7.4` candidate, all versioning documents must identify the same candidate and the release tag must remain absent during the manual release invocation. The final tag `v1.7.4` must be created only on the exact `main` SHA resulting from the validated merge.
 
 ## Local parity
 
-At minimum, run:
+At minimum, run the same project checks locally through uv:
 
 ```bash
-pytest
-ruff check .
-ruff check . --select S
-ruff format --check .
-python -m compileall config src main.py process_raw_videos.py process_videos.py
-python -m pip check
-python -m build
+uv lock --check
+uv sync --locked --extra google --group dev
+uv pip check
+uv run pytest -q
+uv run ruff check .
+uv run ruff check . --select S
+uv run ruff format --check .
+uv run python -m compileall .
+uv build
+```
+
+For dependency auditing:
+
+```bash
+uv sync --locked --extra google --group dev --group audit
+uv run --locked --group audit pip-audit --strict
+
+uv sync --locked --extra tts --group audit
+uv run --locked --group audit pip-audit --strict
 ```
 
 For local translation specifically, the target environment should additionally run:
 
 ```bash
-python scripts/manage_local_translation.py status
-python scripts/manage_local_translation.py download
-python scripts/manage_local_translation.py status
-python scripts/benchmark_local_translation.py --sentences 1
+uv run python scripts/manage_local_translation.py status
+uv run python scripts/manage_local_translation.py download
+uv run python scripts/manage_local_translation.py status
+uv run python scripts/benchmark_local_translation.py --sentences 1
 ```
 
-The benchmark is the real-model smoke test; CI uses deterministic doubles for the model download/runtime regression so the full ~78.7 MiB model is not downloaded on every runner.
-
-For platform-specific confidence, run the test suite under Python 3.11, 3.12 and 3.13 on Windows, Linux/WSL2 and macOS when available. Windows should also exercise the `.bat` wrapper; POSIX systems should validate the `.sh` wrappers.
+The real-model benchmark is hardware-specific; CI uses deterministic doubles for the model download/runtime regressions so the production model is not downloaded on every runner.
 
 The CI workflow is authoritative for the exact commands and matrix.

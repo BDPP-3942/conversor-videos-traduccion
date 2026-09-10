@@ -2,13 +2,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 NO_WEBM=false
-if [[ "${1:-}" == "--no-webm" ]]; then
-  NO_WEBM=true
-fi
-[[ -x ".venv/bin/python" ]] || { echo "[ERROR] Ejecuta scripts/setup_env.sh"; exit 1; }
-".venv/bin/python" -m pip install -r requirements-dev.txt
-".venv/bin/python" -m pip install ".[tts]"
-".venv/bin/python" -m PyInstaller \
+if [[ "${1:-}" == "--no-webm" ]]; then NO_WEBM=true; fi
+command -v uv >/dev/null 2>&1 || { echo "[ERROR] uv no está instalado."; exit 1; }
+[[ -d ".venv" ]] || { echo "[ERROR] Ejecuta scripts/setup_env.sh"; exit 1; }
+uv sync --group dev --extra tts
+uv run python -m PyInstaller \
     --noconfirm --clean --onedir --name VideoTranslationPipeline \
     --collect-all faster_whisper \
     --collect-all ctranslate2 \

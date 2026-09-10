@@ -3,24 +3,19 @@ setlocal
 cd /d "%~dp0.."
 set "NO_WEBM=0"
 if /I "%~1"=="--no-webm" set "NO_WEBM=1"
-if not exist ".venv\Scripts\python.exe" (
-  echo [ERROR] Ejecuta scripts\setup_env.bat
-  exit /b 1
-)
-".venv\Scripts\python.exe" -m pip install -r requirements-dev.txt
+where uv.exe >nul 2>&1
+if errorlevel 1 (echo [ERROR] uv no esta instalado. & exit /b 1)
+if not exist ".venv\Scripts\python.exe" (echo [ERROR] Ejecuta scripts\setup_env.bat & exit /b 1)
+uv sync --group dev --extra tts
 if errorlevel 1 exit /b 1
-".venv\Scripts\python.exe" -m pip install ".[tts]"
-if errorlevel 1 exit /b 1
-".venv\Scripts\python.exe" -m PyInstaller --noconfirm --clean --onedir --name VideoTranslationPipeline --collect-all faster_whisper --collect-all ctranslate2 --collect-all kokoro_onnx --collect-all onnxruntime main.py
+uv run python -m PyInstaller --noconfirm --clean --onedir --name VideoTranslationPipeline --collect-all faster_whisper --collect-all ctranslate2 --collect-all kokoro_onnx --collect-all onnxruntime main.py
 if errorlevel 1 exit /b 1
 if not exist "dist\VideoTranslationPipeline\config" mkdir "dist\VideoTranslationPipeline\config"
 if not exist "dist\VideoTranslationPipeline\secrets" mkdir "dist\VideoTranslationPipeline\secrets"
 if not exist "dist\VideoTranslationPipeline\storage" mkdir "dist\VideoTranslationPipeline\storage"
 if not exist "dist\VideoTranslationPipeline\tools" mkdir "dist\VideoTranslationPipeline\tools"
 copy /Y "config\app.toml" "dist\VideoTranslationPipeline\config\app.toml" >nul
-if "%NO_WEBM%"=="1" (
-  powershell -NoProfile -Command "(Get-Content -Raw 'dist\VideoTranslationPipeline\config\app.toml').Replace('generate_webm = true','generate_webm = false') | Set-Content -NoNewline 'dist\VideoTranslationPipeline\config\app.toml'"
-)
+if "%NO_WEBM%"=="1" powershell -NoProfile -Command "(Get-Content -Raw 'dist\VideoTranslationPipeline\config\app.toml').Replace('generate_webm = true','generate_webm = false') | Set-Content -NoNewline 'dist\VideoTranslationPipeline\config\app.toml'"
 copy /Y ".env.example" "dist\VideoTranslationPipeline\.env.example" >nul
 xcopy /E /I /Y "storage" "dist\VideoTranslationPipeline\storage" >nul
 xcopy /E /I /Y "tools" "dist\VideoTranslationPipeline\tools" >nul
