@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.8.0] — Whisper recovery and dual local translation models
+
+**Tipo:** MINOR — nueva funcionalidad compatible para estabilizar la recuperación selectiva de STT y conservar dos modelos locales de traducción offline.
+
+### Added / Improved
+
+- Separada la duración de silencio del VAD de la división de subtítulos de Whisper (`1500 ms` frente a `750 ms`).
+- La recuperación de segmentos STT sospechosos puede reintentar sin el prompt inicial ni el contexto de texto previo, evitando amplificar alucinaciones del prompt de contexto.
+- Se conserva `clip_timestamps` con intervalos numéricos `[start, end]` durante la recuperación selectiva.
+- Se conservan dos modelos locales CTranslate2: MADLAD-400 3B INT8 como opción predeterminada y OPUS-MT INT8 como alternativa ligera compatible.
+- Cada modelo mantiene repositorio, revisión, artefactos, tokenización, validación de integridad y configuración seleccionable de forma independiente.
+- MADLAD utiliza SentencePiece compartido y el prefijo de destino `<2en>`; OPUS-MT conserva `source.spm` y `target.spm`.
+- Se mantiene la descarga explícita y el fallback conservador a CPU cuando CUDA no puede validarse.
+- Se completa la migración reproducible de desarrollo/CI/build/auditoría a `uv`.
+
+### Compatibility
+
+- `v1.7.4` permanece publicada e inmutable.
+- Se conservan las correcciones de `1.7.1`, `1.7.2` y `1.7.3`, incluidos `clip_timestamps`, la descarga del modelo OPUS-MT y sus metadatos JSON empaquetados.
+- No se introduce una arquitectura alternativa de procesamiento ni se elimina la vía de traducción local OPUS-MT.
+
+### Validation
+
+- CI debe validar Linux, Windows y macOS con Python 3.11, 3.12 y 3.13.
+- Se mantienen las regresiones E2E de pipeline/regeneración y las adaptaciones multiplataforma de los subprocessos.
+- La descarga/benchmark real de MADLAD queda como validación explícita en el hardware objetivo por su tamaño aproximado de 2.95 GB.
+
 ## [1.7.4] — Local translation shared vocabulary validation
 
 **Tipo:** PATCH — corrección compatible del validador de metadatos del modelo de traducción local.
@@ -237,202 +264,74 @@ No se declara ningún benchmark GPU/CPU ni prueba A/B de un MP4 externo que no h
 - Soporte coherente de `run` y `regenerate` mediante los entry points existentes y el `MediaPipeline` común.
 - Política de naming basada en el par ZIP/vídeo extraído y validada mediante casos representativos de las estructuras soportadas.
 - `whisper_initial_prompt` puede seguir siendo un prompt literal o apuntar a `txt`, `md`, `csv` y `docx`.
-- Soporte convencional de `palabras_contexto.<extensión>` y empaquetado del recurso de contexto.
-- CI de tests sobre Linux, Windows y macOS para Python 3.11, 3.12 y 3.13.
+- Estrategia documentada CPU/GPU con CTranslate2.
+- Packaging reproducible del ejecutable y recursos de configuración.
 
-### Whisper / hardware
+### Changed
 
-- Se documenta explícitamente la estrategia real de GPU+CPU: CTranslate2 ejecuta la inferencia en CUDA cuando corresponde, mientras los hilos CPU realizan trabajo auxiliar y el pipeline paraleliza vídeos independientes dentro del presupuesto de CPU/RAM/VRAM.
-- No se declara como soportada una partición de una misma inferencia Whisper entre CPU y GPU.
-- Se conserva el fallback controlado CUDA → CPU existente.
-
-### Security
-
-- Los nombres derivados de archivos externos continúan tratándose como componentes de filesystem; la extracción ZIP mantiene las validaciones contra traversal y symlinks.
-- Los archivos de contexto están limitados a 2 MiB y el lector DOCX rechaza DTD/entity declarations.
+- Endurecida la validación de argumentos de los wrappers locales.
+- Mejorada la resolución de FFmpeg para entornos empaquetados y de desarrollo.
 
 ### Tests / validation
 
-- Regresiones parametrizadas para los casos representativos de naming.
-- Tests para forwarding de wrappers y eliminación correcta de `regenerate`/`run`.
-- Tests para contexto TXT, Markdown, CSV y DOCX.
-- CI multiplataforma y multiversión ampliada.
+- Añadidos tests de wrappers y de integración con el pipeline común.
+- Validación multiplataforma sobre Linux, Windows y macOS.
 
-## [1.4.2] — Regeneration CLI contract and help alignment
+## [1.4.2] — Regeneration CLI and documentation
 
-**Tipo:** MINOR — ampliación compatible del contrato de CLI de regeneración y documentación completa del help público.
+**Tipo:** MINOR — ampliación compatible del contrato CLI de regeneración y de su documentación.
 
 ### Added
 
-- Regeneración acepta las opciones de `run` cuya semántica es válida para el `MediaPipeline` común: provider, source/target, normalización de nombres, concurrencia de vídeo, batching de traducción, configuración de Whisper, comportamiento de FFmpeg y selección de WebM.
-- Regeneración reutiliza las acciones `argparse` reales de `run` y `_apply_run_overrides`, evitando un parser y una configuración paralelos.
-- Se mantienen explícitamente como exclusivas de `run` las opciones `--scheduled`, `--dry-run`, `--no-retain-sources` y `--no-resume`.
-- El help de los comandos y subcomandos CLI se ha completado con tipos, choices, defaults, restricciones y descripción del comportamiento cuando corresponde.
-- Se incorporan regresiones para las flags compartidas, help heredado, aliases `-h`/`--help`, exclusiones de regeneración, mutual exclusion de WebM y defaults.
+- Contrato CLI de regeneración explícito y documentado.
+- Validación de argumentos y salida estructurada para regeneración.
 
-### Documentation
+## [1.4.1] — Cross-platform regeneration integration
 
-- Actualizada la referencia `docs/CLI.md` con el contrato completo de `run` y la clasificación de flags de regeneración.
-- Actualizada `docs/REGENERATION.md` con opciones compartidas, exclusiones, defaults, restricciones y garantías por proveedor.
-- Actualizado el README para reflejar el contrato de CLI y los entry points disponibles.
-
-### Packaging
-
-- La wheel incluye explícitamente `config/*.toml`, incluido `config/app.toml`, para que la configuración predeterminada esté disponible después de instalar el paquete.
-- La validación de packaging comprueba que la wheel contiene la configuración predeterminada y los cuatro console entry points publicados.
-
-### Validation
-
-- Suite pytest y regresiones de CLI.
-- Ruff y Ruff Security.
-- Ruff format.
-- `compileall`.
-- `pip check`.
-- `pip-audit`.
-- Build y validación del wheel.
-- Validación de entry points y CLI help.
-- CI sobre Python 3.11, 3.12 y 3.13.
-
-## [1.4.1] — Corrective Script Integration
-
-**Tipo:** PATCH — correcciones compatibles y adaptación de los scripts de ejecución a los entry points existentes.
+**Tipo:** PATCH — integración compatible de regeneración en wrappers multiplataforma.
 
 ### Fixed
 
-- Los wrappers locales exponen la regeneración limpia mediante la implementación existente `src.regeneration` / `video-translation-regenerate`.
-- `scripts/run_local.sh` y `scripts/run_local.bat` no duplican regeneración, storage, rollback ni concurrencia; únicamente despachan al entry point existente.
+- Los wrappers locales invocan el entry point de regeneración sin duplicar el subcomando.
 
-### Validation
+## [1.4.0] — Clean video regeneration
 
-- Regresión del wrapper de regeneración.
-- Suite pytest, Ruff, Ruff Security, Ruff format, compileall, pip check y pip-audit.
-- Packaging y validación del wheel.
-- E2E de entry point y wrapper de regeneración.
-- CI sobre el SHA candidato final.
-
-## [1.4.0] — Clean Video Regeneration and Release Hardening
-
-**Tipo:** MINOR — nueva operación de regeneración limpia compatible con el pipeline existente, acompañada de endurecimiento de release, gobernanza y packaging/documentación.
+**Tipo:** MINOR — regeneración limpia de resultados existentes mediante el pipeline común.
 
 ### Added
 
-- `video-translation-regenerate` como entry point para regenerar resultados de vídeo existentes desde la fuente original.
-- Regeneración limpia basada en el `MediaPipeline` común, sin crear un pipeline audiovisual alternativo.
-- Backup previo de resultados derivados y restauración ante fallo cuando el backend permite rename.
-- Limpieza de backups únicamente después de una regeneración exitosa.
-- Validación del entry point de regeneración en CI y packaging.
-- Reglas de gobernanza del repositorio mediante `CONTRIBUTING.md`.
+- Regeneración desde cero con backup y restore ante errores.
+- Integración de regeneración con manifests y estado de procesamiento.
 
-### Fixed / Hardened
+## [1.3.0] — Resource-aware video concurrency
 
-- Se retira el workflow puntual de formateo que modificaba ramas; el formateo queda como comprobación de CI.
-- Se alinea la versión declarada en `pyproject.toml` con `1.4.0` para la candidata de release.
-
-### Validation status
-
-La release publicada valida el contenido integrado en `main`. La aprobación definitiva de futuras releases requiere que el SHA candidato tenga CI completa y satisfactoria y que los gates de seguridad, tests, packaging, documentación y versionado estén cerrados.
-
-## [1.3.0] — Safe Resource-Aware Video Concurrency
-
-**Tipo:** MINOR — nueva gestión adaptativa de concurrencia compatible hacia atrás.
-
-### Added / Improved
-
-- `max_parallel_videos = 0` activa selección automática de concurrencia basada en los recursos disponibles.
-- El límite efectivo se calcula de forma conservadora a partir de CPU, RAM y GPU cuando CUDA está disponible.
-- La resolución efectiva de dispositivo y configuración de Whisper se realiza antes de calcular la concurrencia.
-- Los valores positivos de `max_parallel_videos` continúan siendo límites superiores y se recortan cuando superan la capacidad segura detectada.
-- Se mantiene explícitamente el comportamiento de un único worker con `max_parallel_videos = 1`.
-- La gestión de memoria GPU evita contar dos veces memoria compartida con el sistema.
-
-### Fixed
-
-- Alineada la versión declarada en `pyproject.toml` con el ciclo de releases del proyecto.
-
-### Validation
-
-- Regresiones para concurrencia AUTO.
-- Regresiones para clamping por recursos.
-- Regresión para single-worker.
-- Suite pytest.
-- Ruff lint, formato y seguridad.
-- Compileall y packaging.
-- Auditorías de dependencias y TTS.
-
-## [1.2.2] — Naming Timestamp Cleanup
-
-**Tipo:** PATCH — corrección compatible de la política de nombres.
-
-### Fixed
-
-- Evita que metadatos técnicos de fecha/hora procedentes de ZIP, carpetas extraídas o nombres de origen formen parte de la descripción del curso.
-- Amplía la limpieza de formatos de fecha y datetime.
-- Elimina timestamps técnicos antes de extraer números o descripciones de curso/lección.
-- Evita incorporar timestamps a nombres de carpetas y archivos de salida.
-
-### Validation
-
-- Regresiones de nombres de curso/lección.
-- Validación de limpieza de timestamps.
-- Suite pytest.
-- Ruff lint/formato/seguridad.
-- Packaging y auditoría de dependencias.
-
-## [1.2.1] — TTS Installation Fix
-
-**Tipo:** PATCH — corrección compatible de instalación de recursos TTS.
-
-### Fixed
-
-- Corrige la instalación de modelos TTS en Windows ante `PermissionError: [WinError 32]`.
-- Cierra los archivos temporales antes de moverlos a su destino.
-- Hace consistente el bootstrap de assets TTS entre Windows, Linux y macOS.
-- Evita que descargas TTS fallidas dejen archivos temporales bloqueados.
-
-### Compatibility
-
-No cambia el formato de modelos TTS, las variables de configuración, los formatos de salida ni el pipeline TTS.
-
-## [1.2.0] — Naming and TTS Improvements
-
-**Tipo:** MINOR — funcionalidad compatible de naming y bootstrap TTS.
-
-### Added / Improved
-
-- Convención de nombres `[course_number]_[course_description]x[lesson_number]_[lesson_description]` cuando la información está disponible.
-- Mejor detección de números/descripciones de curso y lección y soporte para resultados ya procesados.
-- Bootstrap TTS capaz de preparar los assets Kokoro bajo `tools/tts/` cuando TTS está habilitado.
-- Validación del host de las descargas de modelos TTS.
-- Detección de resultados previamente procesados para evitar reprocesado audiovisual innecesario.
-
-## [1.1.0] — Reparación de VTT e integración TTS en el pipeline
-
-**Tipo:** MINOR — funcionalidad compatible para recuperar resultados existentes y ejecutar TTS desde el flujo común.
+**Tipo:** MINOR — concurrencia adaptada a CPU, RAM y GPU.
 
 ### Added
 
-- Recuperación automática de VTT originales y traducidos con timestamps inválidos o sintaxis WebVTT no válida.
-- Regeneración de STT sobre el vídeo normal existente cuando el VTT original no puede validarse.
-- Regeneración de traducción cuando el VTT traducido es inválido o cuando el STT tuvo que reconstruirse.
-- Integración de la reparación de VTT antes de TTS.
-- Validación final de timestamps después de la segmentación STT por silencios.
-- Generación TTS sincronizada desde el VTT traducido validado.
-- Reutilización de artefactos TTS existentes cuando siguen siendo válidos.
-- Copias de seguridad de VTT antes de sustituir artefactos defectuosos.
+- `max_parallel_videos = 0` para selección automática.
+- Techo seguro de concurrencia basado en recursos disponibles.
 
-### Fixed
+## [1.2.2] — Naming timestamp cleanup
 
-- Los cues STT con `start >= end` ya no se propagan como subtítulos utilizables.
-- Un VTT histórico inválido ya no bloquea la recuperación.
-- Un VTT traducido inválido ya no obliga a repetir STT cuando la transcripción original sigue siendo válida.
-- `TTS_ENABLED=true` activa el postprocesado TTS en el pipeline común.
-- Los VTT inválidos no se utilizan como entrada de síntesis.
+**Tipo:** PATCH — limpieza de timestamps técnicos en nombres generados.
 
-## [1.0.1] — Documentación de instalación y mantenimiento
+## [1.2.1] — TTS installation fix
 
-**Tipo:** PATCH — corrección compatible de documentación y navegación.
+**Tipo:** PATCH — corrección multiplataforma de instalación de assets TTS.
 
-### Fixed
+## [1.2.0] — Naming and TTS improvements
 
-- Añadida la guía de instalación referenciada desde `README.md`.
-- Corregidos enlaces del índice de documentación.
+**Tipo:** MINOR — naming descriptivo y bootstrap de assets Kokoro.
+
+## [1.1.0] — VTT repair and synchronized TTS
+
+**Tipo:** MINOR — recuperación de VTT y TTS sincronizado a partir de VTT validado.
+
+## [1.0.1] — Installation documentation
+
+**Tipo:** PATCH — instalación y documentación inicial de mantenimiento.
+
+## [1.0.0] — First stable release
+
+**Tipo:** primera release estable de la línea de producto `1.x`.
