@@ -22,9 +22,10 @@ El incremento MINOR está justificado por funcionalidad nueva compatible:
 
 - separación entre silencio VAD y separación de subtítulos de Whisper;
 - recuperación STT sospechosa sin prompt ni contexto previo;
-- migración del fallback local al modelo MADLAD-400 3B CT2 INT8 fijado;
-- soporte SentencePiece y prefijo de idioma de MADLAD;
-- límite de instalación e integridad del modelo local;
+- conservación de `clip_timestamps` numérico durante la recuperación selectiva;
+- incorporación de MADLAD-400 3B CT2 INT8 como modelo local predeterminado sin eliminar OPUS-MT;
+- soporte explícito de dos modelos locales con configuraciones, revisiones y tokenizadores independientes;
+- límite de instalación e integridad de los modelos locales;
 - gestión reproducible de dependencias de desarrollo/CI/build mediante `uv`.
 
 No se requiere `1.7.5` para este conjunto: `1.7.4` ya está publicada y el alcance combinado de PR #42 + PR #45 contiene cambios funcionales que corresponden a MINOR.
