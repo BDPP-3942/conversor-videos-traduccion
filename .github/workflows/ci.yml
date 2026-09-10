@@ -104,6 +104,8 @@ jobs:
       - run: uv build
       - run: uv run pytest -q tests/test_packaging.py
       - name: Install wheel with pip compatibility gate
+        env:
+          PYTHONWARNINGS: default
         run: |
           python -m venv /tmp/package-check
           /tmp/package-check/bin/python -m pip install --upgrade pip
