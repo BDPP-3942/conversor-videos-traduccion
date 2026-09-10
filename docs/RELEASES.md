@@ -24,13 +24,15 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 | Concurrencia adaptada a CPU/RAM/GPU | `1.3.0` |
 | Regeneración limpia explícita de resultados | `1.4.0` |
 | Integración de regeneración en wrappers locales | `1.4.1` |
+| Contrato CLI ampliado y documentación completa de regeneración | `1.4.2` |
 | Wrappers multiplataforma, naming de referencia y contexto externo de Whisper | `1.5.0` |
 | Endurecimiento ZIP/filesystem multiplataforma | `1.5.1` |
 | Traducción local opcional, recuperación STT configurable y endurecimiento GPU/runtime | `1.6.0` |
 | Reprocessing/manifests, consolidación de naming Unicode/filesystem y mejoras del runtime de traducción local | `1.7.0` |
 | Corrección del contrato `clip_timestamps` en la recuperación selectiva de STT con `faster-whisper` | `1.7.1` |
 | Corrección de descarga del modelo local y validación del flujo proveedor-modelo | `1.7.2` |
-| Bootstrap de metadatos JSON del modelo local y validación de packaging | `1.7.3` |
+| Bootstrap de metadatos JSON del modelo local | `1.7.3` |
+| Validación de `shared_vocabulary.json` y migración reproducible de desarrollo/CI/build a `uv` | `1.7.4` |
 
 ## Releases publicadas
 
@@ -145,62 +147,50 @@ Consolida el reprocesado y la persistencia de manifests, refuerza el almacenamie
 
 **Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
 
-## Candidata 1.7.3
+## Candidata 1.7.4
 
 ### Posición en la línea de releases
 
 **Tipo:** `PATCH`.
 
-`1.7.3` es una release de mantenimiento sobre el estado publicado `1.7.2` y conserva las correcciones de `1.7.1` y `1.7.2`.
+`1.7.4` es una release de mantenimiento sobre el estado publicado `1.7.2` y conserva las correcciones de `1.7.1`, `1.7.2` y el bootstrap de metadatos de `1.7.3`.
 
 Por tanto:
 
 - **Previous published release:** `1.7.2`.
 - **Baseline funcional inmediato:** estado completo publicado de `1.7.2`.
-- **Target tag:** `v1.7.3` — pendiente de validación y creación.
+- **Target tag:** `v1.7.4` — pendiente de validación y creación.
 
 ### Alcance
 
-La candidata `1.7.3` corrige la disponibilidad de los metadatos JSON requeridos por CTranslate2. `config.json` y `tokenizer_config.json`, fijados por la misma revisión del modelo, pasan a distribuirse con el paquete Python y se copian al directorio gestionado durante la preparación. `shared_vocabulary.json` continúa siendo un artefacto del modelo descargado y validado desde Hugging Face.
+La candidata `1.7.4` consolida la corrección del validador de `shared_vocabulary.json` y la migración de desarrollo/CI/build/auditoría a `uv`. `pyproject.toml` es la única declaración de dependencias y `uv.lock` es la resolución versionada y reproducible.
+
+El wheel publicado continúa verificándose e instalándose mediante `pip` en un entorno limpio, por lo que la migración no rompe el contrato de distribución de usuarios finales.
 
 ### Cambios
 
-- Añadidos al paquete los metadatos exactos `config.json` y `tokenizer_config.json` de la revisión fijada.
-- Evitada la dependencia de una descarga independiente de Hugging Face para esos dos JSON pequeños.
-- Conservada la descarga y validación de `shared_vocabulary.json`, `model.bin`, `source.spm` y `target.spm`.
-- Añadida regresión que verifica la disponibilidad de los metadatos empaquetados.
-- Añadida regresión que comprueba la descarga selectiva de los artefactos remotos y la preparación completa del modelo.
-- Conservada la regresión del proveedor y la llamada de traducción mediante las fronteras CTranslate2/SentencePiece.
+- Aceptada la raíz JSON array real de `shared_vocabulary.json` y añadidas regresiones para esa estructura y para JSON inválido.
+- Conservados los metadatos `config.json` y `tokenizer_config.json` empaquetados en la release anterior.
+- Eliminados los `requirements*.txt` como fuentes de dependencia y centralizada la declaración en `pyproject.toml`.
+- Añadido `uv.lock` generado por uv y validado con `uv lock --check`.
+- Migrados setup, scripts, CI, build y automatizaciones de desarrollo a `uv` donde corresponde.
+- Los jobs de quality/tests/package usan entornos bloqueados mediante `uv sync --locked`.
+- `pip-audit` pertenece al grupo `audit` y se ejecuta desde ese entorno mediante `uv run --locked --group audit pip-audit --strict`.
+- Se mantiene `pip` para la validación de compatibilidad del wheel y el fallback deliberado de runtime CUDA para ejecutables portables.
 
 ### Dependencias
 
-La candidata mantiene el stack compatible actualmente declarado por el proyecto:
-
-- `faster-whisper>=1.2.1,<1.3`
-- `ctranslate2>=4.8.2,<4.9`
-- `sentencepiece>=0.2,<0.3`
-- `huggingface-hub>=0.32,<1.31`
+La release mantiene el contrato runtime de `faster-whisper`, CTranslate2, SentencePiece, Hugging Face Hub, WebVTT, imageio-ffmpeg y python-dotenv declarado en `pyproject.toml`. Los extras `google` y `tts` y los grupos `dev` y `audit` quedan gestionados por uv.
 
 ### Validación
 
-La candidata final pre-merge debe completar CI y Release Gate sobre su SHA exacto, incluyendo Linux, Windows y macOS con Python 3.11–3.13, tests, lint/security/format, compile, audits, packaging, instalación limpia, `pip check` y entry points.
-
-Además, en el entorno macOS objetivo debe ejecutarse:
-
-```bash
-python scripts/manage_local_translation.py status
-python scripts/manage_local_translation.py download
-python scripts/manage_local_translation.py status
-python scripts/benchmark_local_translation.py --sentences 1
-```
-
-El benchmark constituye la prueba funcional real de carga y traducción del modelo preparado; los tests CI utilizan dobles deterministas para evitar descargar 78.7 MiB en cada runner.
+La candidata final pre-merge debe completar CI y Release Gate sobre su SHA exacto, incluyendo Linux, Windows y macOS con Python 3.11–3.13, tests, lint/security/format, compile, audits, packaging, instalación limpia, `pip check`, entry points y validación del lockfile.
 
 ### Política de tags
 
 Los tags utilizan `vMAJOR.MINOR.PATCH` y no deben reutilizarse ni moverse después de publicar una release.
 
-Los tags publicados anteriores permanecen asociados a sus commits publicados y no deben modificarse. `v1.7.3` solo debe crearse sobre el SHA exacto validado por Release Gate y resultante del merge a `main`.
+`v1.7.4` solo debe crearse sobre el SHA exacto validado por Release Gate y resultante del merge a `main`. No se debe crear el tag desde la rama de la PR.
 
 ## Historial anterior
 
