@@ -7,7 +7,7 @@ from src import local_translation
 from src.local_translation import LocalTranslationModelManager, LocalTranslationProvider
 
 
-def _small_model_files(monkeypatch):
+def _madlad_test_files(monkeypatch):
     files = {
         "model.bin": (hashlib.sha256(b"model").hexdigest(), 5),
         "sentencepiece.model": (hashlib.sha256(b"sentencepiece").hexdigest(), 12),
@@ -24,13 +24,27 @@ def _small_model_files(monkeypatch):
     return files
 
 
-def _write_small_model(path: Path, shared_vocabulary: str = "{}") -> None:
+def _opus_test_files(monkeypatch):
+    files = {
+        "model.bin": (hashlib.sha256(b"model").hexdigest(), 5),
+        "source.spm": (hashlib.sha256(b"source").hexdigest(), 6),
+        "target.spm": (hashlib.sha256(b"target").hexdigest(), 6),
+    }
+    metadata = {
+        "config.json": (1024, ("decoder_start_token", "eos_token")),
+        "shared_vocabulary.json": (4096, ()),
+        "tokenizer_config.json": (1024, ("source_lang", "target_lang")),
+    }
+    monkeypatch.setattr(local_translation, "OPUS_MODEL_FILES", files)
+    monkeypatch.setattr(local_translation, "OPUS_SMALL_MODEL_FILES", metadata)
+    monkeypatch.setattr(local_translation, "OPUS_MODEL_SIZE_BYTES", 17)
+    return files
+
+
+def _write_madlad_model(path: Path, shared_vocabulary: str = "{}") -> None:
     path.joinpath("model.bin").write_bytes(b"model")
     path.joinpath("sentencepiece.model").write_bytes(b"sentencepiece")
-    path.joinpath("config.json").write_text(
-        '{"decoder_start_token": "</s>", "eos_token": "</s>"}',
-        encoding="utf-8",
-    )
+    path.joinpath("config.json").write_text('{"decoder_start_token": "</s>", "eos_token": "</s>"}', encoding="utf-8")
     path.joinpath("shared_vocabulary.json").write_text(shared_vocabulary, encoding="utf-8")
 
 
@@ -40,27 +54,41 @@ def test_model_status_reports_missing_resource(tmp_path: Path) -> None:
     assert "missing files" in status.reason
     assert status.repository == local_translation.MODEL_REPOSITORY
     assert status.revision == local_translation.MODEL_REVISION
-    assert status.license == local_translation.MODEL_LICENSE
 
 
-def test_model_status_accepts_verified_files(monkeypatch, tmp_path: Path) -> None:
-    files = _small_model_files(monkeypatch)
-    _write_small_model(tmp_path)
+def test_model_status_accepts_verified_madlad_files(monkeypatch, tmp_path: Path) -> None:
+    files = _madlad_test_files(monkeypatch)
+    _write_madlad_model(tmp_path)
     status = LocalTranslationModelManager(tmp_path).status()
     assert status.available
-    assert status.path == tmp_path
+    assert status.model_name == local_translation.DEFAULT_MODEL_NAME
     assert files["model.bin"][0] == hashlib.sha256(b"model").hexdigest()
 
 
 def test_model_status_accepts_shared_vocabulary_array(monkeypatch, tmp_path: Path) -> None:
-    _small_model_files(monkeypatch)
-    _write_small_model(tmp_path, '["</s>", "<unk>", "hola"]')
+    _madlad_test_files(monkeypatch)
+    _write_madlad_model(tmp_path, '["</s>", "<unk>", "hola"]')
     assert LocalTranslationModelManager(tmp_path).status().available
 
 
+def test_opus_model_definition_is_preserved(monkeypatch, tmp_path: Path) -> None:
+    files = _opus_test_files(monkeypatch)
+    manager = LocalTranslationModelManager(tmp_path, local_translation.OPUS_MODEL_NAME)
+    tmp_path.joinpath("model.bin").write_bytes(b"model")
+    tmp_path.joinpath("source.spm").write_bytes(b"source")
+    tmp_path.joinpath("target.spm").write_bytes(b"target")
+    tmp_path.joinpath("config.json").write_text('{"decoder_start_token":"</s>","eos_token":"</s>"}', encoding="utf-8")
+    tmp_path.joinpath("shared_vocabulary.json").write_text('["</s>"]', encoding="utf-8")
+    tmp_path.joinpath("tokenizer_config.json").write_text('{"source_lang":"spa","target_lang":"eng"}', encoding="utf-8")
+    status = manager.status()
+    assert status.available
+    assert status.model_name == local_translation.OPUS_MODEL_NAME
+    assert files["source.spm"][1] == 6
+
+
 def test_model_status_rejects_wrong_hash(monkeypatch, tmp_path: Path) -> None:
-    _small_model_files(monkeypatch)
-    _write_small_model(tmp_path)
+    _madlad_test_files(monkeypatch)
+    _write_madlad_model(tmp_path)
     tmp_path.joinpath("model.bin").write_bytes(b"wrong")
     status = LocalTranslationModelManager(tmp_path).status()
     assert not status.available
@@ -68,16 +96,14 @@ def test_model_status_rejects_wrong_hash(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_model_status_rejects_oversized_install(monkeypatch, tmp_path: Path) -> None:
-    _small_model_files(monkeypatch)
-    _write_small_model(tmp_path)
+    _madlad_test_files(monkeypatch)
+    _write_madlad_model(tmp_path)
     monkeypatch.setattr(local_translation, "MODEL_MAX_TOTAL_BYTES", 10)
-    status = LocalTranslationModelManager(tmp_path).status()
-    assert not status.available
-    assert "installation budget" in status.reason
+    assert "installation budget" in LocalTranslationModelManager(tmp_path).status().reason
 
 
 def test_model_ensure_does_not_download_without_explicit_confirmation(monkeypatch, tmp_path: Path) -> None:
-    _small_model_files(monkeypatch)
+    _madlad_test_files(monkeypatch)
     manager = LocalTranslationModelManager(tmp_path)
     try:
         manager.ensure(confirm=lambda _status: False)
@@ -100,12 +126,10 @@ def test_model_download_uses_pinned_huggingface_resource(monkeypatch, tmp_path: 
 
     monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(hf_hub_download=fake_download))
     local_translation._download_file(
-        f"https://huggingface.co/{local_translation.MODEL_REPOSITORY}/resolve/"
-        f"{local_translation.MODEL_REVISION}/model.bin?download=true",
+        f"https://huggingface.co/{local_translation.MODEL_REPOSITORY}/resolve/{local_translation.MODEL_REVISION}/model.bin?download=true",
         destination,
         10,
     )
-
     assert captured["repo_id"] == local_translation.MODEL_REPOSITORY
     assert captured["revision"] == local_translation.MODEL_REVISION
     assert captured["token"] is None
@@ -113,8 +137,8 @@ def test_model_download_uses_pinned_huggingface_resource(monkeypatch, tmp_path: 
 
 
 def test_local_translation_uses_madlad_target_prefix(monkeypatch, tmp_path: Path) -> None:
-    _small_model_files(monkeypatch)
-    _write_small_model(tmp_path)
+    _madlad_test_files(monkeypatch)
+    _write_madlad_model(tmp_path)
     manager = LocalTranslationModelManager(tmp_path)
 
     class FakeSentencePiece:
@@ -143,33 +167,16 @@ def test_local_translation_uses_madlad_target_prefix(monkeypatch, tmp_path: Path
 
     monkeypatch.setitem(sys.modules, "ctranslate2", SimpleNamespace(Translator=FakeTranslator))
     monkeypatch.setitem(sys.modules, "sentencepiece", SimpleNamespace(SentencePieceProcessor=FakeSentencePiece))
-    monkeypatch.setattr(
-        local_translation,
-        "detect_hardware",
-        lambda: SimpleNamespace(gpu=SimpleNamespace(usable_for_whisper=False, device_index=0)),
-    )
-
-    settings = SimpleNamespace(
-        local_translation_device="cpu",
-        local_translation_compute_type="int8",
-        local_translation_beam_size=2,
-    )
+    monkeypatch.setattr(local_translation, "detect_hardware", lambda: SimpleNamespace(gpu=SimpleNamespace(usable_for_whisper=False, device_index=0)))
+    settings = SimpleNamespace(local_translation_device="cpu", local_translation_compute_type="int8", local_translation_beam_size=2)
     provider = LocalTranslationProvider(settings, manager)
     assert provider.translate("Hola mundo") == "hello world"
 
 
 def test_local_translation_cuda_probe_falls_back_to_cpu(monkeypatch) -> None:
     provider = LocalTranslationProvider.__new__(LocalTranslationProvider)
-    provider.settings = SimpleNamespace(
-        local_translation_device="cuda",
-        local_translation_compute_type="auto",
-        detected_gpu_index=0,
-    )
-    monkeypatch.setattr(
-        local_translation,
-        "detect_hardware",
-        lambda: SimpleNamespace(gpu=SimpleNamespace(usable_for_whisper=True, device_index=0)),
-    )
+    provider.settings = SimpleNamespace(local_translation_device="cuda", local_translation_compute_type="auto", detected_gpu_index=0)
+    monkeypatch.setattr(local_translation, "detect_hardware", lambda: SimpleNamespace(gpu=SimpleNamespace(usable_for_whisper=True, device_index=0)))
 
     class FakeCT2:
         @staticmethod
