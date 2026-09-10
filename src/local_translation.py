@@ -16,8 +16,9 @@ from src.hardware import detect_hardware
 
 logger = logging.getLogger(__name__)
 
-# MADLAD-400 3B is the quality-oriented offline default. This CTranslate2
-# INT8 conversion is Apache-2.0 and keeps the model below the 3 GB disk budget.
+# The project keeps both local translation engines available. MADLAD is the
+# preferred quality-oriented model; OPUS-MT remains a small compatibility and
+# low-disk fallback model instead of being replaced or discarded.
 MODEL_REPOSITORY = "cstr/madlad400-3b-ct2-int8"
 MODEL_REVISION = "12eff26f7d93623e2b2d3b5345e5863e14599dae"
 MODEL_LICENSE = "Apache-2.0"
@@ -41,6 +42,59 @@ SMALL_MODEL_FILES = {
 }
 REQUIRED_FILES = (*MODEL_FILES, *SMALL_MODEL_FILES)
 
+OPUS_MODEL_NAME = "opus-mt-es-en-ct2-int8"
+OPUS_MODEL_REPOSITORY = "Prukario/opus-mt-es-en-ct2-int8"
+OPUS_MODEL_REVISION = "ad91ad1697ea1761111ff4c179400796d085b347"
+OPUS_MODEL_LICENSE = "CC-BY-4.0"
+OPUS_MODEL_SIZE_BYTES = 82_500_000
+OPUS_MODEL_MAX_DOWNLOAD_BYTES = 120_000_000
+OPUS_MODEL_FILES = {
+    "model.bin": (
+        "44c5adc2c680f27c14c991e5ab7f74f38b41597153f7123bc8f6455f09a3b38b",
+        79_567_635,
+    ),
+    "source.spm": (
+        "e236ee6d866b635c0142114f8647f39831f9d92534aa2aad75c942f6a78ad0e3",
+        825_924,
+    ),
+    "target.spm": (
+        "4dd547c24816a335e7b0b2e63376a8f1b3cbfc671eda5ab808dd44fdadaa8791",
+        801_636,
+    ),
+}
+OPUS_SMALL_MODEL_FILES = {
+    "config.json": (1_024, ("decoder_start_token", "eos_token")),
+    "shared_vocabulary.json": (4_000_000, ()),
+    "tokenizer_config.json": (4_096, ("source_lang", "target_lang")),
+}
+OPUS_BUNDLED_MODEL_FILES = ("config.json", "tokenizer_config.json")
+
+MODEL_ALIASES = {
+    "madlad": "madlad400-3b-ct2-int8",
+    "madlad400": "madlad400-3b-ct2-int8",
+    "madlad400-3b-ct2-int8": "madlad400-3b-ct2-int8",
+    "opus": OPUS_MODEL_NAME,
+    "opus_mt": OPUS_MODEL_NAME,
+    "opus-mt": OPUS_MODEL_NAME,
+    OPUS_MODEL_NAME: OPUS_MODEL_NAME,
+}
+DEFAULT_MODEL_NAME = "madlad400-3b-ct2-int8"
+
+
+@dataclass(frozen=True)
+class LocalModelDefinition:
+    name: str
+    repository: str
+    revision: str
+    license: str
+    expected_size_bytes: int
+    max_download_bytes: int
+    max_total_bytes: int
+    model_files: dict[str, tuple[str, int]]
+    small_model_files: dict[str, tuple[int, tuple[str, ...]]]
+    bundled_model_files: tuple[str, ...] = ()
+    tokenizer_kind: str = "madlad"
+
 
 @dataclass(frozen=True)
 class LocalModelStatus:
@@ -50,16 +104,57 @@ class LocalModelStatus:
     revision: str
     expected_size_bytes: int
     license: str
+    model_name: str = DEFAULT_MODEL_NAME
     reason: str = ""
 
 
-class LocalTranslationModelManager:
-    """Manage the pinned, offline-capable MADLAD CTranslate2 model."""
+def _definition(model_name: str) -> LocalModelDefinition:
+    normalized = MODEL_ALIASES.get(model_name.strip().lower(), model_name.strip().lower())
+    if normalized == OPUS_MODEL_NAME:
+        return LocalModelDefinition(
+            OPUS_MODEL_NAME,
+            OPUS_MODEL_REPOSITORY,
+            OPUS_MODEL_REVISION,
+            OPUS_MODEL_LICENSE,
+            OPUS_MODEL_SIZE_BYTES,
+            OPUS_MODEL_MAX_DOWNLOAD_BYTES,
+            OPUS_MODEL_SIZE_BYTES + 10_000_000,
+            OPUS_MODEL_FILES,
+            OPUS_SMALL_MODEL_FILES,
+            OPUS_BUNDLED_MODEL_FILES,
+            "opus",
+        )
+    if normalized == DEFAULT_MODEL_NAME:
+        return LocalModelDefinition(
+            DEFAULT_MODEL_NAME,
+            MODEL_REPOSITORY,
+            MODEL_REVISION,
+            MODEL_LICENSE,
+            MODEL_SIZE_BYTES,
+            MODEL_MAX_DOWNLOAD_BYTES,
+            MODEL_MAX_TOTAL_BYTES,
+            MODEL_FILES,
+            SMALL_MODEL_FILES,
+            (),
+            "madlad",
+        )
+    raise ValueError(f"Unsupported local translation model: {model_name}")
 
-    def __init__(self, model_dir: Path | None = None) -> None:
+
+class LocalTranslationModelManager:
+    """Manage one of the project's pinned offline CTranslate2 models."""
+
+    def __init__(self, model_dir: Path | None = None, model_name: str | None = None) -> None:
+        configured_name = os.getenv("LOCAL_TRANSLATION_MODEL", DEFAULT_MODEL_NAME)
+        self.model_name = MODEL_ALIASES.get((model_name or configured_name).strip().lower(), (model_name or configured_name).strip().lower())
+        self.definition = _definition(self.model_name)
         configured = os.getenv("LOCAL_TRANSLATION_MODEL_DIR", "").strip()
-        default_dir = BASE_DIR / "tools" / "models" / "translation" / "madlad400-3b-ct2-int8"
-        self.model_dir = Path(model_dir or configured or default_dir)
+        if model_dir is not None:
+            self.model_dir = Path(model_dir)
+        elif configured:
+            self.model_dir = Path(configured)
+        else:
+            self.model_dir = BASE_DIR / "tools" / "models" / "translation" / self.model_name
 
     @property
     def download_dir(self) -> Path:
@@ -73,13 +168,14 @@ class LocalTranslationModelManager:
         return token or None
 
     def status(self) -> LocalModelStatus:
-        missing = [name for name in REQUIRED_FILES if not (self.model_dir / name).is_file()]
+        required = (*self.definition.model_files, *self.definition.small_model_files)
+        missing = [name for name in required if not (self.model_dir / name).is_file()]
         if missing:
             return self._unavailable(f"missing files: {', '.join(missing)}")
         if self.model_dir.is_symlink():
             return self._unavailable("managed model directory is a symlink")
         total_size = 0
-        for name, (expected_hash, expected_size) in MODEL_FILES.items():
+        for name, (expected_hash, expected_size) in self.definition.model_files.items():
             path = self.model_dir / name
             if path.is_symlink():
                 return self._unavailable(f"symlinked model file: {name}")
@@ -89,33 +185,35 @@ class LocalTranslationModelManager:
                 return self._unavailable(f"size mismatch: {name}")
             if _sha256(path) != expected_hash:
                 return self._unavailable(f"SHA-256 mismatch: {name}")
-        for name, (max_size, required_keys) in SMALL_MODEL_FILES.items():
+        for name, (max_size, required_keys) in self.definition.small_model_files.items():
             path = self.model_dir / name
             total_size += path.stat().st_size
             reason = _validate_small_model_file(path, max_size, required_keys)
             if reason:
                 return self._unavailable(f"invalid metadata: {name}: {reason}")
-        if total_size > MODEL_MAX_TOTAL_BYTES:
+        if total_size > self.definition.max_total_bytes:
             return self._unavailable(
-                f"model exceeds {MODEL_MAX_TOTAL_BYTES} byte installation budget: {total_size} bytes"
+                f"model exceeds {self.definition.max_total_bytes} byte installation budget: {total_size} bytes"
             )
         return LocalModelStatus(
             True,
             self.model_dir,
-            MODEL_REPOSITORY,
-            MODEL_REVISION,
-            MODEL_SIZE_BYTES,
-            MODEL_LICENSE,
+            self.definition.repository,
+            self.definition.revision,
+            self.definition.expected_size_bytes,
+            self.definition.license,
+            self.definition.name,
         )
 
     def _unavailable(self, reason: str) -> LocalModelStatus:
         return LocalModelStatus(
             False,
             self.model_dir,
-            MODEL_REPOSITORY,
-            MODEL_REVISION,
-            MODEL_SIZE_BYTES,
-            MODEL_LICENSE,
+            self.definition.repository,
+            self.definition.revision,
+            self.definition.expected_size_bytes,
+            self.definition.license,
+            self.definition.name,
             reason,
         )
 
@@ -124,13 +222,15 @@ class LocalTranslationModelManager:
         if status.available:
             return status.path
         if confirm is None or not confirm(status):
-            workspace_mib = MODEL_DOWNLOAD_WORKSPACE_BYTES / 1024**2
+            workspace_bytes = (
+                MODEL_DOWNLOAD_WORKSPACE_BYTES if self.definition.tokenizer_kind == "madlad" else self.definition.expected_size_bytes * 2
+            )
             raise RuntimeError(
                 f"Local translation model is not ready ({status.reason}). "
-                f"Resource: {MODEL_REPOSITORY}@{MODEL_REVISION}; "
-                f"model size: {MODEL_SIZE_BYTES / 1_000_000:.0f} MB; "
-                f"temporary download workspace: about {workspace_mib:.0f} MiB; "
-                f"destination: {self.model_dir}; license: {MODEL_LICENSE}. "
+                f"Resource: {status.repository}@{status.revision}; "
+                f"model size: {status.expected_size_bytes / 1_000_000:.0f} MB; "
+                f"temporary download workspace: about {workspace_bytes / 1024**2:.0f} MiB; "
+                f"destination: {self.model_dir}; license: {status.license}. "
                 "Prepare it explicitly before offline processing."
             )
         self.download()
@@ -150,29 +250,43 @@ class LocalTranslationModelManager:
             raise RuntimeError(f"Model download path is not a directory: {download_dir}")
         download_dir.mkdir(parents=True, exist_ok=True)
         try:
-            for name in REQUIRED_FILES:
-                url = f"https://huggingface.co/{MODEL_REPOSITORY}/resolve/{MODEL_REVISION}/{name}?download=true"
-                limit = MODEL_FILES[name][1] if name in MODEL_FILES else SMALL_MODEL_FILES[name][0]
-                _download_file(url, download_dir / name, min(MODEL_MAX_DOWNLOAD_BYTES, limit), self.huggingface_token)
-            for name, (expected_hash, expected_size) in MODEL_FILES.items():
+            for name in (*self.definition.model_files, *self.definition.small_model_files):
+                destination = download_dir / name
+                if name in self.definition.bundled_model_files:
+                    _write_bundled_model_file(name, destination)
+                    continue
+                url = (
+                    f"https://huggingface.co/{self.definition.repository}/resolve/"
+                    f"{self.definition.revision}/{name}?download=true"
+                )
+                limit = (
+                    self.definition.model_files[name][1]
+                    if name in self.definition.model_files
+                    else self.definition.small_model_files[name][0]
+                )
+                _download_file(url, destination, min(self.definition.max_download_bytes, limit), self.huggingface_token)
+            for name, (expected_hash, expected_size) in self.definition.model_files.items():
                 path = download_dir / name
                 if path.stat().st_size != expected_size or _sha256(path) != expected_hash:
                     raise RuntimeError(f"Integrity validation failed for downloaded model file: {name}")
-            for name, (max_size, required_keys) in SMALL_MODEL_FILES.items():
+            for name, (max_size, required_keys) in self.definition.small_model_files.items():
                 reason = _validate_small_model_file(download_dir / name, max_size, required_keys)
                 if reason:
                     raise RuntimeError(f"Integrity validation failed for downloaded metadata: {name}: {reason}")
-            total_size = sum((download_dir / name).stat().st_size for name in REQUIRED_FILES)
-            if total_size > MODEL_MAX_TOTAL_BYTES:
-                raise RuntimeError(f"Downloaded model exceeds 3 GB installation budget: {total_size} bytes")
+            total_size = sum((download_dir / name).stat().st_size for name in (*self.definition.model_files, *self.definition.small_model_files))
+            if total_size > self.definition.max_total_bytes:
+                raise RuntimeError(
+                    f"Downloaded model exceeds {self.definition.max_total_bytes} byte installation budget: {total_size} bytes"
+                )
             metadata = {
-                "repository": MODEL_REPOSITORY,
-                "revision": MODEL_REVISION,
-                "license": MODEL_LICENSE,
-                "expected_size_bytes": MODEL_SIZE_BYTES,
+                "model": self.definition.name,
+                "repository": self.definition.repository,
+                "revision": self.definition.revision,
+                "license": self.definition.license,
+                "expected_size_bytes": self.definition.expected_size_bytes,
                 "files": {
                     name: {"sha256": expected_hash, "size": expected_size}
-                    for name, (expected_hash, expected_size) in MODEL_FILES.items()
+                    for name, (expected_hash, expected_size) in self.definition.model_files.items()
                 },
             }
             (download_dir / "model.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
@@ -211,27 +325,34 @@ class LocalTranslationModelManager:
 
 
 class LocalTranslationProvider:
-    """Offline Spanish→English translation using MADLAD, CTranslate2 and SentencePiece."""
+    """Offline Spanish→English translation using either pinned local model."""
 
     source_lang = "es"
     target_lang = "en"
 
-    def __init__(self, settings, model_manager: LocalTranslationModelManager | None = None) -> None:
+    def __init__(
+        self,
+        settings,
+        model_manager: LocalTranslationModelManager | None = None,
+        model_name: str | None = None,
+    ) -> None:
+        selected_name = model_name or getattr(settings, "local_translation_model", os.getenv("LOCAL_TRANSLATION_MODEL", DEFAULT_MODEL_NAME))
+        self.settings = settings
+        model_dir = getattr(settings, "local_translation_model_dir", None) if model_name is None else None
+        self.manager = model_manager or LocalTranslationModelManager(model_dir, selected_name)
+        self.definition = self.manager.definition
         configured_id = str(
-            getattr(settings, "local_translation_model_id", os.getenv("LOCAL_TRANSLATION_MODEL_ID", MODEL_REPOSITORY))
+            getattr(settings, "local_translation_model_id", os.getenv("LOCAL_TRANSLATION_MODEL_ID", self.definition.repository))
         )
         configured_revision = str(
             getattr(
                 settings,
                 "local_translation_model_revision",
-                os.getenv("LOCAL_TRANSLATION_MODEL_REVISION", MODEL_REVISION),
+                os.getenv("LOCAL_TRANSLATION_MODEL_REVISION", self.definition.revision),
             )
         )
-        if configured_id != MODEL_REPOSITORY or configured_revision != MODEL_REVISION:
-            raise ValueError("The local translation provider only accepts its pinned model repository and revision")
-        self.settings = settings
-        model_dir = getattr(settings, "local_translation_model_dir", None)
-        self.manager = model_manager or LocalTranslationModelManager(model_dir)
+        if configured_id != self.definition.repository or configured_revision != self.definition.revision:
+            raise ValueError("The local translation provider only accepts the pinned model repository and revision")
         self.model_path = self.manager.ensure(confirm=self._confirm_download)
         self.device, self.compute_type, self.device_index = self._resolve_runtime()
         try:
@@ -243,7 +364,11 @@ class LocalTranslationProvider:
         if self.device == "cuda":
             translator_kwargs["device_index"] = self.device_index
         self._translator = ctranslate2.Translator(str(self.model_path), **translator_kwargs)
-        self._tokenizer = spm.SentencePieceProcessor(model_file=str(self.model_path / "sentencepiece.model"))
+        if self.definition.tokenizer_kind == "opus":
+            self._source = spm.SentencePieceProcessor(model_file=str(self.model_path / "source.spm"))
+            self._target = spm.SentencePieceProcessor(model_file=str(self.model_path / "target.spm"))
+        else:
+            self._tokenizer = spm.SentencePieceProcessor(model_file=str(self.model_path / "sentencepiece.model"))
 
     def _confirm_download(self, status: LocalModelStatus) -> bool:
         return bool(
@@ -259,11 +384,7 @@ class LocalTranslationProvider:
             getattr(self.settings, "local_translation_device", os.getenv("LOCAL_TRANSLATION_DEVICE", "auto"))
         ).lower().strip()
         requested_compute = str(
-            getattr(
-                self.settings,
-                "local_translation_compute_type",
-                os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto"),
-            )
+            getattr(self.settings, "local_translation_compute_type", os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto"))
         ).lower().strip()
         if requested_device not in {"auto", "cpu", "cuda"}:
             raise ValueError("local_translation_device must be one of: auto, cpu, cuda")
@@ -308,25 +429,48 @@ class LocalTranslationProvider:
     def translate_batch(self, texts: list[str]) -> list[str]:
         if not texts:
             return []
-        target_prefix = f"<2{self.target_lang}>"
-        tokens = [self._tokenizer.encode(f"{target_prefix} {text}", out_type=str) for text in texts]
         beam_size = max(
             1,
             int(getattr(self.settings, "local_translation_beam_size", os.getenv("LOCAL_TRANSLATION_BEAM_SIZE", 2))),
         )
-        results = self._translator.translate_batch(
-            tokens,
-            batch_type="tokens",
-            beam_size=beam_size,
-            no_repeat_ngram_size=1,
-        )
+        if self.definition.tokenizer_kind == "opus":
+            tokens = [self._source.encode(text, out_type=str) + ["</s>"] for text in texts]
+            results = self._translator.translate_batch(tokens, beam_size=beam_size)
+        else:
+            target_prefix = f"<2{self.target_lang}>"
+            tokens = [self._tokenizer.encode(f"{target_prefix} {text}", out_type=str) for text in texts]
+            results = self._translator.translate_batch(
+                tokens,
+                batch_type="tokens",
+                beam_size=beam_size,
+                no_repeat_ngram_size=1,
+            )
         outputs: list[str] = []
         for result in results:
             hypotheses = getattr(result, "hypotheses", None) or []
-            outputs.append(self._tokenizer.decode(list(hypotheses[0])).strip() if hypotheses else "")
+            if not hypotheses:
+                outputs.append("")
+                continue
+            tokens_out = list(hypotheses[0])
+            if self.definition.tokenizer_kind == "opus":
+                if "</s>" in tokens_out:
+                    tokens_out = tokens_out[: tokens_out.index("</s>")]
+                outputs.append(self._target.decode(tokens_out).strip())
+            else:
+                outputs.append(self._tokenizer.decode(tokens_out).strip())
         if len(outputs) != len(texts):
             raise RuntimeError(f"Local translation returned {len(outputs)} results for {len(texts)} inputs")
         return outputs
+
+
+def _write_bundled_model_file(name: str, destination: Path) -> None:
+    try:
+        source = __import__("importlib").resources.files("config.local_translation_model").joinpath(name)
+        content = source.read_bytes()
+    except (FileNotFoundError, ModuleNotFoundError, OSError) as exc:
+        raise RuntimeError(f"Bundled local translation metadata is unavailable: {name}") from exc
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(content)
 
 
 def _validate_small_model_file(path: Path, max_size: int, required_keys: tuple[str, ...]) -> str:
@@ -361,12 +505,25 @@ def _sha256(path: Path) -> str:
 
 def _download_file(url: str, destination: Path, max_bytes: int, auth_token: str | None = None) -> None:
     parsed = urllib.parse.urlsplit(url)
-    prefix = f"/{MODEL_REPOSITORY}/resolve/{MODEL_REVISION}/"
-    if parsed.scheme != "https" or parsed.netloc != "huggingface.co" or not parsed.path.startswith(prefix):
-        raise ValueError("Model downloads are restricted to the pinned Hugging Face origin and revision")
-    filename = parsed.path.removeprefix(prefix)
-    if not filename or "/" in filename:
-        raise ValueError("Model download path is not a valid repository file")
+    if parsed.scheme != "https" or parsed.netloc != "huggingface.co":
+        raise ValueError("Model downloads are restricted to the pinned Hugging Face origin")
+    parts = parsed.path.strip("/").split("/")
+    if len(parts) < 5 or parts[2] != "resolve":
+        raise ValueError("Model download path is not a valid pinned repository file")
+    repository = f"{parts[0]}/{parts[1]}"
+    revision = parts[3]
+    filename = "/".join(parts[4:])
+    definition = None
+    for candidate in (MODEL_ALIASES.values()):
+        try:
+            candidate_definition = _definition(candidate)
+        except ValueError:
+            continue
+        if candidate_definition.repository == repository and candidate_definition.revision == revision:
+            definition = candidate_definition
+            break
+    if definition is None or not filename or "/" in filename:
+        raise ValueError("Model download path is not pinned to one of the supported model revisions")
     cache_dir = Path(tempfile.mkdtemp(prefix="video-translation-hf-cache-"))
     try:
         try:
@@ -374,9 +531,9 @@ def _download_file(url: str, destination: Path, max_bytes: int, auth_token: str 
 
             cached = Path(
                 hf_hub_download(
-                    repo_id=MODEL_REPOSITORY,
+                    repo_id=repository,
                     filename=filename,
-                    revision=MODEL_REVISION,
+                    revision=revision,
                     token=auth_token,
                     cache_dir=cache_dir,
                 )
