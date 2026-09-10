@@ -69,7 +69,7 @@ Optional features remain declared as PEP 621 extras and uv dependency groups.
 
 - `pyproject.toml` declares `1.8.0`.
 - `config/app.toml` identifies the application as `1.8.0`.
-- `CHANGELOG.md` must retain the complete published history and add the `1.8.0` entry above it before release publication.
+- `CHANGELOG.md` retains the complete published history during the candidate phase; the `1.8.0` entry is added at publication without removing or rewriting any historical release annotations.
 - `docs/RELEASES.md`, `docs/VERSIONING.md`, `RELEASE_CANDIDATE.md` and this file identify `1.8.0` as the next release candidate.
 - The `v1.8.0` tag must point to the exact validated `main` SHA after all prerequisite PRs are merged.
 
