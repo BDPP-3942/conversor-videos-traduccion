@@ -32,6 +32,7 @@ class AppSettings:
     whisper_beam_size: int = 5
     whisper_vad_filter: bool = True
     whisper_min_silence_duration_ms: int = 1500
+    whisper_subtitle_split_silence_duration_ms: int = 750
     whisper_condition_on_previous_text: bool = True
     whisper_initial_prompt: str = ""
     whisper_cpu_threads: int = 0
@@ -156,6 +157,12 @@ class AppSettings:
             whisper_vad_filter=os.getenv("WHISPER_VAD_FILTER", "true").lower() == "true",
             whisper_min_silence_duration_ms=int(
                 os.getenv("WHISPER_MIN_SILENCE_DURATION_MS", cls.whisper_min_silence_duration_ms)
+            ),
+            whisper_subtitle_split_silence_duration_ms=int(
+                os.getenv(
+                    "WHISPER_SUBTITLE_SPLIT_SILENCE_DURATION_MS",
+                    cls.whisper_subtitle_split_silence_duration_ms,
+                )
             ),
             whisper_condition_on_previous_text=condition_env.lower() == "true",
             whisper_initial_prompt=os.getenv("WHISPER_INITIAL_PROMPT", cls.whisper_initial_prompt),

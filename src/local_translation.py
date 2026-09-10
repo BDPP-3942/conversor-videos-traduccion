@@ -9,38 +9,37 @@ import tempfile
 import urllib.parse
 from collections.abc import Callable
 from dataclasses import dataclass
-from importlib import resources
 from pathlib import Path
 
 from config.settings import BASE_DIR
 from src.hardware import detect_hardware
 
 logger = logging.getLogger(__name__)
-MODEL_REPOSITORY = "Prukario/opus-mt-es-en-ct2-int8"
-MODEL_REVISION = "ad91ad1697ea1761111ff4c179400796d085b347"
-MODEL_LICENSE = "CC-BY-4.0"
-MODEL_SIZE_BYTES = 82_500_000
-MODEL_MAX_DOWNLOAD_BYTES = 120_000_000
+
+# MADLAD-400 3B is the quality-oriented offline default. This CTranslate2
+# INT8 conversion is Apache-2.0 and keeps the model below the 3 GB disk budget.
+MODEL_REPOSITORY = "cstr/madlad400-3b-ct2-int8"
+MODEL_REVISION = "12eff26f7d93623e2b2d3b5345e5863e14599dae"
+MODEL_LICENSE = "Apache-2.0"
+MODEL_SIZE_BYTES = 2_950_208_290
+MODEL_MAX_DOWNLOAD_BYTES = 3_000_000_000
+MODEL_MAX_TOTAL_BYTES = 3_000_000_000
+MODEL_DOWNLOAD_WORKSPACE_BYTES = MODEL_SIZE_BYTES * 2 + 100_000_000
 MODEL_FILES = {
     "model.bin": (
-        "44c5adc2c680f27c14c991e5ab7f74f38b41597153f7123bc8f6455f09a3b38b",
-        79_567_635,
+        "890ed3b7e4654dcf1b9e7f2ce6ce641447462e782881e81aac443568eb1ca702",
+        2_950_208_290,
     ),
-    "source.spm": (
-        "e236ee6d866b635c0142114f8647f39831f9d92534aa2aad75c942f6a78ad0e3",
-        825_924,
-    ),
-    "target.spm": (
-        "4dd547c24816a335e7b0b2e63376a8f1b3cbfc671eda5ab808dd44fdadaa8791",
-        801_636,
+    "sentencepiece.model": (
+        "ef11ac9a22c7503492f56d48dce53be20e339b63605983e9f27d2cd0e0f3922c",
+        4_427_844,
     ),
 }
 SMALL_MODEL_FILES = {
-    "config.json": (1_024, ("decoder_start_token", "eos_token")),
-    "shared_vocabulary.json": (4_000_000, ()),
-    "tokenizer_config.json": (4_096, ("source_lang", "target_lang")),
+    "config.json": (4_096, ("decoder_start_token", "eos_token")),
+    "shared_vocabulary.json": (20_000_000, ()),
 }
-BUNDLED_MODEL_FILES = ("config.json", "tokenizer_config.json")
+REQUIRED_FILES = (*MODEL_FILES, *SMALL_MODEL_FILES)
 
 
 @dataclass(frozen=True)
@@ -55,11 +54,11 @@ class LocalModelStatus:
 
 
 class LocalTranslationModelManager:
-    """Manage a pinned, offline-capable CTranslate2 translation model."""
+    """Manage the pinned, offline-capable MADLAD CTranslate2 model."""
 
     def __init__(self, model_dir: Path | None = None) -> None:
         configured = os.getenv("LOCAL_TRANSLATION_MODEL_DIR", "").strip()
-        default_dir = BASE_DIR / "tools" / "models" / "translation" / "opus-mt-es-en-ct2-int8"
+        default_dir = BASE_DIR / "tools" / "models" / "translation" / "madlad400-3b-ct2-int8"
         self.model_dir = Path(model_dir or configured or default_dir)
 
     @property
@@ -68,31 +67,38 @@ class LocalTranslationModelManager:
 
     @property
     def huggingface_token(self) -> str | None:
-        """Return an optional HF token without requiring authentication for public models."""
         token = os.getenv("LOCAL_TRANSLATION_HF_TOKEN", "").strip()
         if not token:
             token = os.getenv("HF_TOKEN", "").strip()
         return token or None
 
     def status(self) -> LocalModelStatus:
-        required = (*MODEL_FILES, *SMALL_MODEL_FILES)
-        missing = [name for name in required if not (self.model_dir / name).is_file()]
+        missing = [name for name in REQUIRED_FILES if not (self.model_dir / name).is_file()]
         if missing:
             return self._unavailable(f"missing files: {', '.join(missing)}")
         if self.model_dir.is_symlink():
             return self._unavailable("managed model directory is a symlink")
+        total_size = 0
         for name, (expected_hash, expected_size) in MODEL_FILES.items():
             path = self.model_dir / name
             if path.is_symlink():
                 return self._unavailable(f"symlinked model file: {name}")
-            if path.stat().st_size != expected_size:
+            size = path.stat().st_size
+            total_size += size
+            if size != expected_size:
                 return self._unavailable(f"size mismatch: {name}")
             if _sha256(path) != expected_hash:
                 return self._unavailable(f"SHA-256 mismatch: {name}")
         for name, (max_size, required_keys) in SMALL_MODEL_FILES.items():
-            reason = _validate_small_model_file(self.model_dir / name, max_size, required_keys)
+            path = self.model_dir / name
+            total_size += path.stat().st_size
+            reason = _validate_small_model_file(path, max_size, required_keys)
             if reason:
                 return self._unavailable(f"invalid metadata: {name}: {reason}")
+        if total_size > MODEL_MAX_TOTAL_BYTES:
+            return self._unavailable(
+                f"model exceeds {MODEL_MAX_TOTAL_BYTES} byte installation budget: {total_size} bytes"
+            )
         return LocalModelStatus(
             True,
             self.model_dir,
@@ -102,11 +108,10 @@ class LocalTranslationModelManager:
             MODEL_LICENSE,
         )
 
-    @staticmethod
-    def _status(path: Path, reason: str) -> LocalModelStatus:
+    def _unavailable(self, reason: str) -> LocalModelStatus:
         return LocalModelStatus(
             False,
-            path,
+            self.model_dir,
             MODEL_REPOSITORY,
             MODEL_REVISION,
             MODEL_SIZE_BYTES,
@@ -114,18 +119,17 @@ class LocalTranslationModelManager:
             reason,
         )
 
-    def _unavailable(self, reason: str) -> LocalModelStatus:
-        return self._status(self.model_dir, reason)
-
     def ensure(self, *, confirm: Callable[[LocalModelStatus], bool] | None = None) -> Path:
         status = self.status()
         if status.available:
             return status.path
         if confirm is None or not confirm(status):
+            workspace_mib = MODEL_DOWNLOAD_WORKSPACE_BYTES / 1024**2
             raise RuntimeError(
                 f"Local translation model is not ready ({status.reason}). "
                 f"Resource: {MODEL_REPOSITORY}@{MODEL_REVISION}; "
-                f"approximate size: {MODEL_SIZE_BYTES / 1024**2:.1f} MiB; "
+                f"model size: {MODEL_SIZE_BYTES / 1_000_000:.0f} MB; "
+                f"temporary download workspace: about {workspace_mib:.0f} MiB; "
                 f"destination: {self.model_dir}; license: {MODEL_LICENSE}. "
                 "Prepare it explicitly before offline processing."
             )
@@ -146,22 +150,10 @@ class LocalTranslationModelManager:
             raise RuntimeError(f"Model download path is not a directory: {download_dir}")
         download_dir.mkdir(parents=True, exist_ok=True)
         try:
-            for name in (*MODEL_FILES, *SMALL_MODEL_FILES):
-                if name in BUNDLED_MODEL_FILES:
-                    _write_bundled_model_file(name, download_dir / name)
-                    continue
+            for name in REQUIRED_FILES:
                 url = f"https://huggingface.co/{MODEL_REPOSITORY}/resolve/{MODEL_REVISION}/{name}?download=true"
-                if name in MODEL_FILES:
-                    file_limit = MODEL_FILES[name][1]
-                else:
-                    file_limit = SMALL_MODEL_FILES[name][0]
-                max_bytes = min(MODEL_MAX_DOWNLOAD_BYTES, file_limit)
-                _download_file(
-                    url,
-                    download_dir / name,
-                    max_bytes,
-                    auth_token=self.huggingface_token,
-                )
+                limit = MODEL_FILES[name][1] if name in MODEL_FILES else SMALL_MODEL_FILES[name][0]
+                _download_file(url, download_dir / name, min(MODEL_MAX_DOWNLOAD_BYTES, limit), self.huggingface_token)
             for name, (expected_hash, expected_size) in MODEL_FILES.items():
                 path = download_dir / name
                 if path.stat().st_size != expected_size or _sha256(path) != expected_hash:
@@ -170,11 +162,18 @@ class LocalTranslationModelManager:
                 reason = _validate_small_model_file(download_dir / name, max_size, required_keys)
                 if reason:
                     raise RuntimeError(f"Integrity validation failed for downloaded metadata: {name}: {reason}")
+            total_size = sum((download_dir / name).stat().st_size for name in REQUIRED_FILES)
+            if total_size > MODEL_MAX_TOTAL_BYTES:
+                raise RuntimeError(f"Downloaded model exceeds 3 GB installation budget: {total_size} bytes")
             metadata = {
                 "repository": MODEL_REPOSITORY,
                 "revision": MODEL_REVISION,
                 "license": MODEL_LICENSE,
-                "files": MODEL_FILES,
+                "expected_size_bytes": MODEL_SIZE_BYTES,
+                "files": {
+                    name: {"sha256": expected_hash, "size": expected_size}
+                    for name, (expected_hash, expected_size) in MODEL_FILES.items()
+                },
             }
             (download_dir / "model.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
             if self.model_dir.exists():
@@ -199,9 +198,6 @@ class LocalTranslationModelManager:
         except Exception:
             logger.warning("Local translation model download interrupted or failed; partial files were preserved")
             raise
-        finally:
-            if download_dir.exists() and download_dir != self.model_dir:
-                pass
 
     def cleanup(self) -> None:
         if self.model_dir.is_symlink():
@@ -215,7 +211,7 @@ class LocalTranslationModelManager:
 
 
 class LocalTranslationProvider:
-    """Offline Spanish→English translation using CTranslate2 + SentencePiece."""
+    """Offline Spanish→English translation using MADLAD, CTranslate2 and SentencePiece."""
 
     source_lang = "es"
     target_lang = "en"
@@ -247,8 +243,7 @@ class LocalTranslationProvider:
         if self.device == "cuda":
             translator_kwargs["device_index"] = self.device_index
         self._translator = ctranslate2.Translator(str(self.model_path), **translator_kwargs)
-        self._source = spm.SentencePieceProcessor(model_file=str(self.model_path / "source.spm"))
-        self._target = spm.SentencePieceProcessor(model_file=str(self.model_path / "target.spm"))
+        self._tokenizer = spm.SentencePieceProcessor(model_file=str(self.model_path / "sentencepiece.model"))
 
     def _confirm_download(self, status: LocalModelStatus) -> bool:
         return bool(
@@ -260,22 +255,16 @@ class LocalTranslationProvider:
         )
 
     def _resolve_runtime(self) -> tuple[str, str, int]:
-        requested_device = (
-            str(getattr(self.settings, "local_translation_device", os.getenv("LOCAL_TRANSLATION_DEVICE", "auto")))
-            .lower()
-            .strip()
-        )
-        requested_compute = (
-            str(
-                getattr(
-                    self.settings,
-                    "local_translation_compute_type",
-                    os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto"),
-                )
+        requested_device = str(
+            getattr(self.settings, "local_translation_device", os.getenv("LOCAL_TRANSLATION_DEVICE", "auto"))
+        ).lower().strip()
+        requested_compute = str(
+            getattr(
+                self.settings,
+                "local_translation_compute_type",
+                os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto"),
             )
-            .lower()
-            .strip()
-        )
+        ).lower().strip()
         if requested_device not in {"auto", "cpu", "cuda"}:
             raise ValueError("local_translation_device must be one of: auto, cpu, cuda")
         hardware = detect_hardware()
@@ -293,10 +282,7 @@ class LocalTranslationProvider:
             requested_compute = "float16" if requested_device == "cuda" else "int8"
         if requested_device == "cuda":
             if not detected_gpu.usable_for_whisper:
-                logger.warning(
-                    "Local translation CUDA requested but no verified CTranslate2 CUDA GPU is available; "
-                    "falling back to CPU"
-                )
+                logger.warning("Local translation CUDA requested but no verified GPU is available; falling back to CPU")
                 return "cpu", "int8", 0
             try:
                 import ctranslate2
@@ -322,37 +308,25 @@ class LocalTranslationProvider:
     def translate_batch(self, texts: list[str]) -> list[str]:
         if not texts:
             return []
-        tokens = [self._source.encode(text, out_type=str) + ["</s>"] for text in texts]
+        target_prefix = f"<2{self.target_lang}>"
+        tokens = [self._tokenizer.encode(f"{target_prefix} {text}", out_type=str) for text in texts]
         beam_size = max(
             1,
             int(getattr(self.settings, "local_translation_beam_size", os.getenv("LOCAL_TRANSLATION_BEAM_SIZE", 2))),
         )
-        results = self._translator.translate_batch(tokens, beam_size=beam_size)
+        results = self._translator.translate_batch(
+            tokens,
+            batch_type="tokens",
+            beam_size=beam_size,
+            no_repeat_ngram_size=1,
+        )
         outputs: list[str] = []
         for result in results:
             hypotheses = getattr(result, "hypotheses", None) or []
-            if not hypotheses:
-                outputs.append("")
-                continue
-            tokens_out = list(hypotheses[0])
-            if "</s>" in tokens_out:
-                tokens_out = tokens_out[: tokens_out.index("</s>")]
-            outputs.append(self._target.decode(tokens_out).strip())
+            outputs.append(self._tokenizer.decode(list(hypotheses[0])).strip() if hypotheses else "")
         if len(outputs) != len(texts):
             raise RuntimeError(f"Local translation returned {len(outputs)} results for {len(texts)} inputs")
         return outputs
-
-
-def _write_bundled_model_file(name: str, destination: Path) -> None:
-    if name not in BUNDLED_MODEL_FILES:
-        raise ValueError(f"Model file is not bundled: {name}")
-    try:
-        source = resources.files("config.local_translation_model").joinpath(name)
-        content = source.read_bytes()
-    except (FileNotFoundError, ModuleNotFoundError, OSError) as exc:
-        raise RuntimeError(f"Bundled local translation metadata is unavailable: {name}") from exc
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_bytes(content)
 
 
 def _validate_small_model_file(path: Path, max_size: int, required_keys: tuple[str, ...]) -> str:
@@ -385,13 +359,7 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _download_file(
-    url: str,
-    destination: Path,
-    max_bytes: int,
-    *,
-    auth_token: str | None = None,
-) -> None:
+def _download_file(url: str, destination: Path, max_bytes: int, auth_token: str | None = None) -> None:
     parsed = urllib.parse.urlsplit(url)
     prefix = f"/{MODEL_REPOSITORY}/resolve/{MODEL_REVISION}/"
     if parsed.scheme != "https" or parsed.netloc != "huggingface.co" or not parsed.path.startswith(prefix):

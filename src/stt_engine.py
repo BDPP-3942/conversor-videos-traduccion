@@ -100,7 +100,7 @@ class STTEngine:
             start = float(segment.start)
             end = float(segment.end)
             return [{"start": start, "end": end, "text": text}] if text and self._valid_interval(start, end) else []
-        threshold = max(0.1, self.settings.whisper_min_silence_duration_ms / 1000.0)
+        threshold = max(0.1, self.settings.whisper_subtitle_split_silence_duration_ms / 1000.0)
         groups: list[list[Any]] = []
         current: list[Any] = []
         previous_end: float | None = None
@@ -131,6 +131,7 @@ class STTEngine:
         condition_on_previous_text: bool,
         temperature: float | tuple[float, ...],
         clip_timestamps: list[float] | None = None,
+        include_initial_prompt: bool = True,
     ) -> dict[str, Any]:
         vad_parameters = None
         if self.settings.whisper_vad_filter and clip_timestamps is None:
@@ -156,17 +157,18 @@ class STTEngine:
         }
         if clip_timestamps is not None:
             kwargs["clip_timestamps"] = clip_timestamps
-        prompt, prompt_source = resolve_initial_prompt(
-            self.settings.whisper_initial_prompt,
-            BASE_DIR,
-        )
-        if prompt:
-            kwargs["initial_prompt"] = prompt
-        logger.debug(
-            "Whisper initial prompt source=%s length=%d",
-            prompt_source,
-            len(prompt),
-        )
+        if include_initial_prompt:
+            prompt, prompt_source = resolve_initial_prompt(
+                self.settings.whisper_initial_prompt,
+                BASE_DIR,
+            )
+            if prompt:
+                kwargs["initial_prompt"] = prompt
+            logger.debug(
+                "Whisper initial prompt source=%s length=%d",
+                prompt_source,
+                len(prompt),
+            )
         return kwargs
 
     def _collect_segments(self, segments: Any) -> list[Any]:
@@ -184,6 +186,7 @@ class STTEngine:
                 condition_on_previous_text=True,
                 temperature=temperature,
                 clip_timestamps=[start, end],
+                include_initial_prompt=True,
             )
             attempt_candidates = self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0])
             candidates.extend(attempt_candidates)
@@ -194,6 +197,7 @@ class STTEngine:
                 condition_on_previous_text=False,
                 temperature=temperature,
                 clip_timestamps=[start, end],
+                include_initial_prompt=False,
             )
             context_free_candidates = self._collect_segments(self.model.transcribe(str(media_path), **kwargs)[0])
             candidates.extend(context_free_candidates)
@@ -253,6 +257,7 @@ class STTEngine:
         result: list[dict[str, Any]] = []
         recovered = 0
         suspicious = 0
+        rejected_intervals: list[tuple[float, float]] = []
         for segment in segments:
             if self._is_suspicious(segment):
                 suspicious += 1
@@ -261,10 +266,13 @@ class STTEngine:
                     segments_to_emit = recovered_segments
                     recovered += 1
                 else:
+                    start = float(segment.start)
+                    end = float(segment.end)
+                    rejected_intervals.append((start, end))
                     logger.warning(
                         "STT suspicious result rejected after recovery: start=%.3f end=%.3f",
-                        float(segment.start),
-                        float(segment.end),
+                        start,
+                        end,
                     )
                     continue
             else:
@@ -273,9 +281,10 @@ class STTEngine:
                 result.extend(self._split_segment_on_silence(candidate))
         result.sort(key=lambda item: (float(item["start"]), float(item["end"])))
         logger.info(
-            "STT completed: %d subtitle segments; suspicious=%d recovered=%d",
+            "STT completed: %d subtitle segments; suspicious=%d recovered=%d rejected_intervals=%d",
             len(result),
             suspicious,
             recovered,
+            len(rejected_intervals),
         )
         return result

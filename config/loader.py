@@ -13,10 +13,6 @@ def _load_dotenv() -> None:
         from dotenv import load_dotenv
     except ImportError:
         return
-
-    if os.getenv("E2E_TEST_MODE") == "1":
-        return
-
     load_dotenv(BASE_DIR / ".env", override=False)
     load_dotenv(BASE_DIR / ".env.default", override=False)
 
@@ -58,6 +54,9 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             whisper_beam_size=int(processing.get("whisper_beam_size", 5)),
             whisper_vad_filter=bool(processing.get("whisper_vad_filter", True)),
             whisper_min_silence_duration_ms=int(processing.get("whisper_min_silence_duration_ms", 1500)),
+            whisper_subtitle_split_silence_duration_ms=int(
+                processing.get("whisper_subtitle_split_silence_duration_ms", 750)
+            ),
             whisper_condition_on_previous_text=bool(processing.get("whisper_condition_on_previous_text", True)),
             whisper_initial_prompt=str(processing.get("whisper_initial_prompt", "")),
             whisper_cpu_threads=int(processing.get("whisper_cpu_threads", 0)),
@@ -141,10 +140,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             auto_tune_resources=bool(runtime_cfg.get("auto_tune_resources", True)),
         )
 
-    default_config = (BASE_DIR / "config" / "app.toml").resolve()
-    if path.resolve() == default_config:
-        settings = _apply_runtime_provider(settings)
-
+    settings = _apply_runtime_provider(settings)
     settings = _apply_environment_overrides(settings)
 
     from src.resource_profile import apply_resource_profile
@@ -168,6 +164,7 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
         "WHISPER_BEAM_SIZE": "whisper_beam_size",
         "WHISPER_VAD_FILTER": "whisper_vad_filter",
         "WHISPER_MIN_SILENCE_DURATION_MS": "whisper_min_silence_duration_ms",
+        "WHISPER_SUBTITLE_SPLIT_SILENCE_DURATION_MS": "whisper_subtitle_split_silence_duration_ms",
         "WHISPER_CONDITION_ON_PREVIOUS_TEXT": "whisper_condition_on_previous_text",
         "WHISPER_INITIAL_PROMPT": "whisper_initial_prompt",
         "WHISPER_CPU_THREADS": "whisper_cpu_threads",

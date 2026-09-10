@@ -1,5 +1,5 @@
 [app]
-version = "1.7.4"
+version = "1.8.0"
 provider = "local"
 source = "local://storage/input"
 target = "local://storage/output"
@@ -41,6 +41,7 @@ whisper_initial_prompt = "config/palabras_contexto.txt"
 whisper_cpu_threads = 0
 whisper_vad_filter = true
 whisper_min_silence_duration_ms = 1500
+whisper_subtitle_split_silence_duration_ms = 750
 whisper_repetition_threshold = 0.60
 whisper_compression_ratio_threshold = 2.4
 whisper_log_prob_threshold = -1.0

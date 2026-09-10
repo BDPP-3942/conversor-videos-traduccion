@@ -12,29 +12,27 @@ Se utiliza Semantic Versioning (`MAJOR.MINOR.PATCH`):
 
 Una release agrupa un conjunto funcional coherente. Los tags publicados son inmutables.
 
-## Funcionalidades con evidencia de introducción
-
-| Funcionalidad | Primera versión verificada |
-|---|---:|
-| Pipeline audiovisual, STT, VTT, traducción, almacenamiento, resume/idempotencia, deduplicación, TTS, ejecución programada y packaging | `1.0.0` |
-| Recuperación/reparación de VTT e integración TTS en el pipeline común | `1.1.0` |
-| Naming descriptivo y bootstrap de assets TTS | `1.2.0` |
-| Corrección multiplataforma de assets TTS | `1.2.1` |
-| Limpieza de timestamps técnicos en naming | `1.2.2` |
-| Concurrencia adaptada a CPU/RAM/GPU | `1.3.0` |
-| Regeneración limpia explícita de resultados | `1.4.0` |
-| Integración de regeneración en wrappers locales | `1.4.1` |
-| Contrato CLI ampliado y documentación completa de regeneración | `1.4.2` |
-| Wrappers multiplataforma, naming de referencia y contexto externo de Whisper | `1.5.0` |
-| Endurecimiento ZIP/filesystem multiplataforma | `1.5.1` |
-| Traducción local opcional, recuperación STT configurable y endurecimiento GPU/runtime | `1.6.0` |
-| Reprocessing/manifests, consolidación de naming Unicode/filesystem y mejoras del runtime de traducción local | `1.7.0` |
-| Corrección del contrato `clip_timestamps` en la recuperación selectiva de STT con `faster-whisper` | `1.7.1` |
-| Corrección de descarga del modelo local y validación del flujo proveedor-modelo | `1.7.2` |
-| Bootstrap de metadatos JSON del modelo local | `1.7.3` |
-| Validación de `shared_vocabulary.json` y migración reproducible de desarrollo/CI/build a `uv` | `1.7.4` |
-
 ## Releases publicadas
+
+### 1.7.4 — Fix local translation shared vocabulary validation
+
+**Tipo:** `PATCH`.
+
+**Tag publicado:** `v1.7.4`.
+
+**Publicado:** 8 de septiembre de 2026.
+
+Corrige la validación de `shared_vocabulary.json` del modelo `Prukario/opus-mt-es-en-ct2-int8`. El artefacto real utiliza una raíz JSON de tipo array; la validación anterior exigía incorrectamente una raíz objeto. Se mantienen la validación estricta de `config.json` y `tokenizer_config.json`, los hashes/tamaños de los artefactos principales y la revisión fijada del modelo.
+
+La release `v1.7.4` ya existe en GitHub y **no debe recrearse, mover su tag ni tratarse como candidata futura**.
+
+### 1.7.3 — Local translation model metadata bootstrap
+
+**Tipo:** `PATCH`.
+
+**Tag publicado:** `v1.7.3`.
+
+Distribuye `config.json` y `tokenizer_config.json` del modelo local fijado junto al paquete Python y conserva `shared_vocabulary.json`, `model.bin`, `source.spm` y `target.spm` como artefactos descargados y validados.
 
 ### 1.7.2 — Local Translation Model Download Fix
 
@@ -42,7 +40,15 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 
 **Tag publicado:** `v1.7.2`.
 
-Corrige el cálculo del límite de descarga del modelo local y evita el `KeyError: 'model.bin'` provocado por la evaluación eager del fallback de `dict.get`. Mantiene la validación de integridad y añade regresiones para el flujo proveedor-modelo.
+Corrige el cálculo del límite de descarga del modelo local y evita el `KeyError: 'model.bin'` provocado por la evaluación eager del fallback de `dict.get`.
+
+### 1.7.1 — STT selective recovery compatibility
+
+**Tipo:** `PATCH`.
+
+**Tag publicado:** `v1.7.1`.
+
+Corrige el contrato `clip_timestamps` de la recuperación selectiva de `faster-whisper`, utilizando intervalos numéricos `[start, end]`.
 
 ### 1.7.0 — Reprocessing, Unicode Naming & Translation Runtime
 
@@ -50,7 +56,7 @@ Corrige el cálculo del límite de descarga del modelo local y evita el `KeyErro
 
 **Tag publicado:** `v1.7.0`.
 
-Consolida el reprocesado y la persistencia de manifests, refuerza el almacenamiento local multiplataforma, consolida el naming determinista y la normalización Unicode, endurece los límites reales de filesystem y consolida el proveedor de traducción local y su runtime.
+Consolida reprocessing/manifests, naming Unicode/filesystem, límites multiplataforma y el runtime de traducción local.
 
 ### 1.6.0 — Local Translation & GPU Runtime Hardening
 
@@ -58,13 +64,7 @@ Consolida el reprocesado y la persistencia de manifests, refuerza el almacenamie
 
 **Commit/tag publicado:** `a6cf0ee183a4802814fe0e061b4704e427166b85` / `v1.6.0`.
 
-- Traducción local opcional español→inglés basada en CTranslate2 + SentencePiece.
-- Modelo local fijado y validado mediante tamaño y SHA-256.
-- Descarga reanudable, validación estructural y reemplazo atómico de recursos.
-- Runtime NVIDIA gestionado para cuBLAS CUDA 12 y cuDNN 9 CUDA 12.
-- Detección de capacidad CUDA real mediante CTranslate2 y fallback CPU conservador.
-- Recuperación configurable de segmentos STT sospechosos mediante rondas limitadas.
-- Endurecimiento ZIP/filesystem heredado de `1.5.1`.
+Introduce el proveedor local CTranslate2 + SentencePiece, gestión del modelo, runtime CUDA gestionado y recuperación STT configurable.
 
 ### 1.5.1 — ZIP Extraction & Cross-Platform Filesystem Hardening
 
@@ -72,12 +72,7 @@ Consolida el reprocesado y la persistencia de manifests, refuerza el almacenamie
 
 **Commit/tag publicado:** `06ee8d265b57214596f079f3bb426b9b27042b1e` / `v1.5.1`.
 
-- Protección contra rutas absolutas, UNC y traversal multiplataforma.
-- Protección contra symlinks y nombres reservados de Windows.
-- Detección de colisiones por case y normalización Unicode.
-- Prevención de sobrescritura silenciosa de entradas ZIP duplicadas.
-- Sanitización de componentes de filesystem generados por la aplicación.
-- Release publicada el 3 de septiembre de 2026.
+Endurece extracción ZIP, rutas absolutas/UNC, traversal, symlinks, nombres reservados de Windows y colisiones Unicode/case.
 
 ### 1.5.0 — Multiplatform Whisper, Context & Packaging
 
@@ -85,11 +80,7 @@ Consolida el reprocesado y la persistencia de manifests, refuerza el almacenamie
 
 **Commit/tag publicado:** `261f4b475f452b98880815f722aa8f8f43d28097` / `v1.5.0`.
 
-- Dispatcher común para `run_local.sh` y `run_local.bat`.
-- Naming determinista y validación multiplataforma.
-- `whisper_initial_prompt` mediante literal y archivos de contexto.
-- Estrategia documentada CPU/GPU con CTranslate2.
-- CI sobre Linux, Windows y macOS para Python 3.11–3.13.
+Consolida wrappers multiplataforma, naming determinista, contexto externo de Whisper y packaging.
 
 ### 1.4.0 — Clean Video Regeneration & Release Hardening
 
@@ -97,9 +88,7 @@ Consolida el reprocesado y la persistencia de manifests, refuerza el almacenamie
 
 **Commit/tag publicado:** `ce1da6ea69a89f5a789c0670b200d6038f1a746d` / `v1.4.0`.
 
-- Regeneración limpia mediante el `MediaPipeline` común.
-- Contrato público `StorageProvider` para backup, restore y eliminación.
-- Concurrencia segura y validación de release.
+Introduce regeneración limpia mediante el pipeline común y endurece backup/restore y validación de release.
 
 ### 1.3.0 — Safe Resource-Aware Video Concurrency
 
@@ -107,90 +96,79 @@ Consolida el reprocesado y la persistencia de manifests, refuerza el almacenamie
 
 **Commit/tag publicado:** `620af6acbe3fca7d42ccd57f3585b3952cccf0a7` / `v1.3.0`.
 
-- `max_parallel_videos = 0` significa AUTO.
-- Cálculo conservador según CPU, RAM y GPU.
-- Los valores positivos actúan como límites superiores sujetos al techo seguro.
+Introduce concurrencia adaptada a CPU/RAM/GPU.
 
 ### 1.2.2 — Naming Timestamp Cleanup
 
 **Tipo:** `PATCH`.
 
-- Elimina timestamps técnicos de descripciones y nombres generados.
+Elimina timestamps técnicos de descripciones y nombres generados.
 
 ### 1.2.1 — TTS Installation Fix
 
 **Tipo:** `PATCH`.
 
-- Corrige la instalación de modelos TTS en Windows y unifica el bootstrap multiplataforma.
+Corrige la instalación de modelos TTS en Windows y unifica el bootstrap multiplataforma.
 
 ### 1.2.0 — Naming and TTS Improvements
 
 **Tipo:** `MINOR`.
 
-- Introduce naming descriptivo y bootstrap de assets Kokoro.
+Introduce naming descriptivo y bootstrap de assets Kokoro.
 
 ### 1.1.0 — Reparación de VTT e integración TTS
 
 **Tipo:** `MINOR`.
 
-- Recuperación de VTT, regeneración selectiva y TTS sincronizado desde VTT validado.
+Introduce recuperación de VTT, regeneración selectiva y TTS sincronizado.
 
 ### 1.0.1 — Documentación de instalación y mantenimiento
 
 **Tipo:** `PATCH`.
 
-- Añade y corrige la guía documental de instalación.
-
 ### 1.0.0 — Primera release estable
-
-**Tipo:** primera release de producto de esta línea.
 
 **Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
 
-## Candidata 1.7.4
+## Próxima release — 1.8.0
 
 ### Posición en la línea de releases
 
-**Tipo:** `PATCH`.
+**Tipo:** `MINOR`.
 
-`1.7.4` es una release de mantenimiento sobre el estado publicado `1.7.2` y conserva las correcciones de `1.7.1`, `1.7.2` y el bootstrap de metadatos de `1.7.3`.
+**Previous published release:** `v1.7.4`.
 
-Por tanto:
+**Target tag:** `v1.8.0` — pendiente de validación final y publicación.
 
-- **Previous published release:** `1.7.2`.
-- **Baseline funcional inmediato:** estado completo publicado de `1.7.2`.
-- **Target tag:** `v1.7.4` — pendiente de validación y creación.
+No se propone `1.7.5`: el alcance combinado de la migración reproducible a `uv` y la estabilización de Whisper con el nuevo fallback local MADLAD introduce funcionalidad compatible nueva y, por SemVer, corresponde a una release MINOR.
 
-### Alcance
+### Alcance funcional
 
-La candidata `1.7.4` consolida la corrección del validador de `shared_vocabulary.json` y la migración de desarrollo/CI/build/auditoría a `uv`. `pyproject.toml` es la única declaración de dependencias y `uv.lock` es la resolución versionada y reproducible.
+- Separación del silencio VAD (`1500 ms`) y el silencio utilizado para separar subtítulos (`750 ms`).
+- Recuperación de segmentos sospechosos sin `initial_prompt` ni contexto previo.
+- Conservación de `clip_timestamps` numéricos.
+- Sustitución del fallback local OPUS-MT por MADLAD-400 3B CT2 INT8 fijado.
+- Tokenización SentencePiece compartida y prefijo `<2en>` para la traducción español→inglés.
+- Presupuesto de instalación de 3.000.000.000 bytes, validación SHA-256 y descarga automática desactivada por defecto.
+- Migración completa de desarrollo, CI, build y auditoría a `uv`, manteniendo instalación limpia del wheel con `pip`.
 
-El wheel publicado continúa verificándose e instalándose mediante `pip` en un entorno limpio, por lo que la migración no rompe el contrato de distribución de usuarios finales.
+### CI y auditoría
 
-### Cambios
+La CI debe ejecutar `uv lock --check`, `uv sync --locked`, `uv pip check`, tests, packaging y auditoría de dependencias. Para `pip-audit`, el proyecto editable se elimina del entorno de auditoría antes de ejecutar:
 
-- Aceptada la raíz JSON array real de `shared_vocabulary.json` y añadidas regresiones para esa estructura y para JSON inválido.
-- Conservados los metadatos `config.json` y `tokenizer_config.json` empaquetados en la release anterior.
-- Eliminados los `requirements*.txt` como fuentes de dependencia y centralizada la declaración en `pyproject.toml`.
-- Añadido `uv.lock` generado por uv y validado con `uv lock --check`.
-- Migrados setup, scripts, CI, build y automatizaciones de desarrollo a `uv` donde corresponde.
-- Los jobs de quality/tests/package usan entornos bloqueados mediante `uv sync --locked`.
-- `pip-audit` pertenece al grupo `audit` y se ejecuta desde ese entorno mediante `uv run --locked --group audit pip-audit --strict`.
-- Se mantiene `pip` para la validación de compatibilidad del wheel y el fallback deliberado de runtime CUDA para ejecutables portables.
+```bash
+uv run --locked --no-sync --group audit pip-audit --strict
+```
 
-### Dependencias
-
-La release mantiene el contrato runtime de `faster-whisper`, CTranslate2, SentencePiece, Hugging Face Hub, WebVTT, imageio-ffmpeg y python-dotenv declarado en `pyproject.toml`. Los extras `google` y `tts` y los grupos `dev` y `audit` quedan gestionados por uv.
+Así se audita el grafo instalable de dependencias y no el paquete fuente local del propio repositorio.
 
 ### Validación
 
-La candidata final pre-merge debe completar CI y Release Gate sobre su SHA exacto, incluyendo Linux, Windows y macOS con Python 3.11–3.13, tests, lint/security/format, compile, audits, packaging, instalación limpia, `pip check`, entry points y validación del lockfile.
+La candidata final debe completar CI y Release Gate sobre el SHA exacto final, con Linux, Windows y macOS y Python 3.11–3.13. También debe validarse el modelo MADLAD real en el hardware objetivo mediante el benchmark local.
 
-### Política de tags
+### Trazabilidad y tag
 
-Los tags utilizan `vMAJOR.MINOR.PATCH` y no deben reutilizarse ni moverse después de publicar una release.
-
-`v1.7.4` solo debe crearse sobre el SHA exacto validado por Release Gate y resultante del merge a `main`. No se debe crear el tag desde la rama de la PR.
+`v1.7.4` ya está publicado y es inmutable. `v1.8.0` solo debe crearse después del merge de las PR correspondientes, sobre el SHA exacto de `main` que haya pasado CI y Release Gate.
 
 ## Historial anterior
 
