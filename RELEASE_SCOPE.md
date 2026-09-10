@@ -12,8 +12,9 @@ Published tags are immutable and MUST NOT be moved, deleted, or reused.
 
 - separate Whisper VAD silence duration from subtitle split silence duration;
 - context-free and prompt-free suspicious-segment recovery;
-- a new pinned MADLAD-400 3B local translation fallback;
+- a new pinned MADLAD-400 3B local translation fallback while preserving the existing OPUS-MT fallback;
 - SentencePiece target-language handling for MADLAD;
+- independent configuration and integrity validation for both local models;
 - a hard local-model installation budget and integrity validation;
 - reproducible `uv` dependency management across development, CI, build and audit workflows.
 
@@ -31,9 +32,12 @@ The public CLI/configuration architecture remains backward compatible; no MAJOR 
 ### Local translation
 
 - The default local fallback is upgraded to `cstr/madlad400-3b-ct2-int8`.
-- The model revision is pinned and the installation is bounded by a 3,000,000,000-byte budget.
+- The existing `Prukario/opus-mt-es-en-ct2-int8` model remains available as the lightweight compatibility option.
+- MADLAD and OPUS-MT have independent model directories, repository/revision pins, artifact validation and tokenizer handling.
+- The MADLAD revision is pinned and its installation is bounded by a 3,000,000,000-byte budget.
 - Required artifacts are validated before activation.
 - MADLAD uses the shared SentencePiece tokenizer and `<2en>` target prefix for Spanish-to-English translation.
+- OPUS-MT retains `source.spm` and `target.spm` and its packaged JSON metadata path.
 - CPU fallback remains available when CUDA is unavailable.
 - Automatic model download remains disabled by default.
 
@@ -65,7 +69,7 @@ Optional features remain declared as PEP 621 extras and uv dependency groups.
 
 - `pyproject.toml` declares `1.8.0`.
 - `config/app.toml` identifies the application as `1.8.0`.
-- `CHANGELOG.md` must retain the published `1.7.4` entry as historical record and add the `1.8.0` entry above it before release publication.
+- `CHANGELOG.md` must retain the complete published history and add the `1.8.0` entry above it before release publication.
 - `docs/RELEASES.md`, `docs/VERSIONING.md`, `RELEASE_CANDIDATE.md` and this file identify `1.8.0` as the next release candidate.
 - The `v1.8.0` tag must point to the exact validated `main` SHA after all prerequisite PRs are merged.
 
@@ -73,7 +77,7 @@ Optional features remain declared as PEP 621 extras and uv dependency groups.
 
 The exact final candidate SHA must pass CI and Release Gate before merge approval and before publication of `v1.8.0`.
 
-The real MADLAD model benchmark remains a hardware-dependent validation step and is not replaced by deterministic CI fixtures.
+The real MADLAD model benchmark remains a hardware-dependent validation step and is not replaced by deterministic CI fixtures. OPUS-MT remains independently benchmarkable for low-disk deployments.
 
 ## Tests and hardening
 
@@ -83,8 +87,8 @@ The real MADLAD model benchmark remains a hardware-dependent validation step and
 - Packaging, clean-wheel installation and console entry points.
 - Base/Google and TTS dependency audits through the locked audit group.
 - Whisper recovery and subtitle-splitting regressions.
-- Local MADLAD provider and integrity-validation regressions.
-- Existing Unicode/filesystem, ZIP security, reprocessing and manifest regressions.
+- Local MADLAD and OPUS-MT provider, selection and integrity-validation regressions.
+- Existing Unicode/filesystem, ZIP security, reprocessing and manifest regressions, including the cross-platform E2E subprocess/storage fixes.
 
 ## Release sequence
 
