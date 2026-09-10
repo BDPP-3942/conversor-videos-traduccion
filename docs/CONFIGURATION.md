@@ -10,12 +10,12 @@ Configuration is loaded from `config/app.toml` with environment overrides. `.env
 - `[rclone]`: managed binary/config paths and default remote.
 - `[providers]`: persistent provider profile directory.
 - `[runtime]`: resource tuning, run lock, rclone bootstrap/update.
-- `[processing]`: Whisper/STT and translation behavior, ZIP safety limits and concurrency.
+- `[processing]`: Whisper/STT, local translation model selection, translation behavior and ZIP safety limits.
 - `[workflow]`: resume, naming migration, duplicate handling and video parallelism.
 - `[ffmpeg]`: media generation and WebM settings.
 - `[tts]`: optional Kokoro TTS settings.
 
-The local translation provider has an additional environment-only configuration surface (`LOCAL_TRANSLATION_*`). These settings are intentionally not duplicated in `config/app.toml`; they are consumed as environment overrides by the local provider.
+The local translation model is configurable both from `config/app.toml` and through the corresponding `LOCAL_TRANSLATION_*` environment overrides. Two pinned models are supported: MADLAD-400 3B as the default quality-oriented model and OPUS-MT as the lightweight compatibility model. Repository and revision must match the selected model; arbitrary model/revision combinations are not supported.
 
 ## Environment overrides
 
@@ -32,6 +32,10 @@ WHISPER_DEVICE=auto
 WHISPER_COMPUTE_TYPE=auto
 TRANSLATION_PROVIDER=mistral
 TRANSLATION_FALLBACK_PROVIDERS=local,deepl,mymemory
+LOCAL_TRANSLATION_MODEL=madlad400-3b-ct2-int8
+LOCAL_TRANSLATION_MODEL_DIR=tools/models/translation/madlad400-3b-ct2-int8
+LOCAL_TRANSLATION_MODEL_ID=cstr/madlad400-3b-ct2-int8
+LOCAL_TRANSLATION_MODEL_REVISION=12eff26f7d93623e2b2d3b5345e5863e14599dae
 LOCAL_TRANSLATION_DEVICE=auto
 LOCAL_TRANSLATION_COMPUTE_TYPE=auto
 LOCAL_TRANSLATION_BEAM_SIZE=2
@@ -40,9 +44,10 @@ LOCAL_TRANSLATION_HF_TOKEN=
 TTS_ENABLED=false
 ```
 
-The local model identity is pinned and is not an arbitrary configuration value:
+To select the lightweight OPUS-MT model, set the complete OPUS configuration together:
 
 ```dotenv
+LOCAL_TRANSLATION_MODEL=opus-mt-es-en-ct2-int8
 LOCAL_TRANSLATION_MODEL_DIR=tools/models/translation/opus-mt-es-en-ct2-int8
 LOCAL_TRANSLATION_MODEL_ID=Prukario/opus-mt-es-en-ct2-int8
 LOCAL_TRANSLATION_MODEL_REVISION=ad91ad1697ea1761111ff4c179400796d085b347
@@ -98,8 +103,10 @@ This behavior was introduced after the `1.2.2` release by PR #20 (`perf: enforce
 - rclone automatic update: disabled.
 - Whisper device: `auto`.
 - Whisper compute type: `auto`.
-- Whisper silence threshold: 1500 ms.
+- Whisper VAD silence threshold: 1500 ms.
+- Whisper subtitle split silence threshold: 750 ms.
 - Local translation auto-download: disabled.
+- Local translation model: MADLAD-400 3B CT2 INT8.
 - Local translation device: `auto`.
 - Local translation compute type: `auto`.
 - Local translation beam size: 2.
