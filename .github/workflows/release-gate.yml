@@ -54,6 +54,10 @@ jobs:
       - name: Verify packaged resources and entry points
         run: uv run pytest -q tests/test_packaging.py
       - name: Verify clean wheel installation with pip
+        env:
+          # pip/setuptools can emit deprecation warnings from their own internals;
+          # those warnings must not invalidate the compatibility gate.
+          PYTHONWARNINGS: default
         run: |
           python -m venv /tmp/release-gate-venv
           /tmp/release-gate-venv/bin/python -m pip install --upgrade pip
