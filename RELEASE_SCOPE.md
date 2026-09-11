@@ -2,7 +2,7 @@
 
 ## Previous release
 
-`v1.7.4` is the currently published release. Its GitHub Release is authoritative for the published 1.7.4 product state.
+`v1.7.4` is the previous published release and immutable baseline. PR #42 (the uv migration) is already integrated in that baseline; `1.8.0` records the subsequent PR #45 release scope on top of it. Its GitHub Release is authoritative for the published 1.7.4 product state.
 
 Published tags are immutable and MUST NOT be moved, deleted, or reused.
 
@@ -24,8 +24,8 @@ The public CLI/configuration architecture remains backward compatible; no MAJOR 
 
 ### Whisper / STT
 
-- VAD silence remains independently configurable at `1500 ms`.
-- Subtitle split silence defaults to `750 ms` and is configured separately.
+- VAD silence remains independently configurable at `2000 ms`.
+- Subtitle split silence defaults to `1000 ms` and is configured separately.
 - Suspicious-segment recovery retries without the initial prompt and without previous-text conditioning to prevent prompt-amplified hallucinations.
 - `clip_timestamps` remains numeric `[start, end]`.
 
@@ -71,7 +71,7 @@ Optional features remain declared as PEP 621 extras and uv dependency groups.
 - `config/app.toml` identifies the application as `1.8.0`.
 - `CHANGELOG.md` retains the complete published history during the candidate phase; the `1.8.0` entry is added at publication without removing or rewriting any historical release annotations.
 - `docs/RELEASES.md`, `docs/VERSIONING.md`, `RELEASE_CANDIDATE.md` and this file identify `1.8.0` as the next release candidate.
-- The `v1.8.0` tag must point to the exact validated `main` SHA after all prerequisite PRs are merged.
+- The `v1.8.0` tag must point to the exact validated `main` SHA after PR #45 is merged on top of the `main` baseline that already contains PR #42.
 
 ## Validation state
 

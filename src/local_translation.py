@@ -146,7 +146,9 @@ class LocalTranslationModelManager:
 
     def __init__(self, model_dir: Path | None = None, model_name: str | None = None) -> None:
         configured_name = os.getenv("LOCAL_TRANSLATION_MODEL", DEFAULT_MODEL_NAME)
-        self.model_name = MODEL_ALIASES.get((model_name or configured_name).strip().lower(), (model_name or configured_name).strip().lower())
+        self.model_name = MODEL_ALIASES.get(
+            (model_name or configured_name).strip().lower(), (model_name or configured_name).strip().lower()
+        )
         self.definition = _definition(self.model_name)
         configured = os.getenv("LOCAL_TRANSLATION_MODEL_DIR", "").strip()
         if model_dir is not None:
@@ -223,7 +225,9 @@ class LocalTranslationModelManager:
             return status.path
         if confirm is None or not confirm(status):
             workspace_bytes = (
-                MODEL_DOWNLOAD_WORKSPACE_BYTES if self.definition.tokenizer_kind == "madlad" else self.definition.expected_size_bytes * 2
+                MODEL_DOWNLOAD_WORKSPACE_BYTES
+                if self.definition.tokenizer_kind == "madlad"
+                else self.definition.expected_size_bytes * 2
             )
             raise RuntimeError(
                 f"Local translation model is not ready ({status.reason}). "
@@ -273,7 +277,10 @@ class LocalTranslationModelManager:
                 reason = _validate_small_model_file(download_dir / name, max_size, required_keys)
                 if reason:
                     raise RuntimeError(f"Integrity validation failed for downloaded metadata: {name}: {reason}")
-            total_size = sum((download_dir / name).stat().st_size for name in (*self.definition.model_files, *self.definition.small_model_files))
+            total_size = sum(
+                (download_dir / name).stat().st_size
+                for name in (*self.definition.model_files, *self.definition.small_model_files)
+            )
             if total_size > self.definition.max_total_bytes:
                 raise RuntimeError(
                     f"Downloaded model exceeds {self.definition.max_total_bytes} byte installation budget: {total_size} bytes"
@@ -336,13 +343,19 @@ class LocalTranslationProvider:
         model_manager: LocalTranslationModelManager | None = None,
         model_name: str | None = None,
     ) -> None:
-        selected_name = model_name or getattr(settings, "local_translation_model", os.getenv("LOCAL_TRANSLATION_MODEL", DEFAULT_MODEL_NAME))
+        selected_name = model_name or getattr(
+            settings, "local_translation_model", os.getenv("LOCAL_TRANSLATION_MODEL", DEFAULT_MODEL_NAME)
+        )
         self.settings = settings
         model_dir = getattr(settings, "local_translation_model_dir", None) if model_name is None else None
         self.manager = model_manager or LocalTranslationModelManager(model_dir, selected_name)
         self.definition = self.manager.definition
         configured_id = str(
-            getattr(settings, "local_translation_model_id", os.getenv("LOCAL_TRANSLATION_MODEL_ID", self.definition.repository))
+            getattr(
+                settings,
+                "local_translation_model_id",
+                os.getenv("LOCAL_TRANSLATION_MODEL_ID", self.definition.repository),
+            )
         )
         configured_revision = str(
             getattr(
@@ -380,12 +393,20 @@ class LocalTranslationProvider:
         )
 
     def _resolve_runtime(self) -> tuple[str, str, int]:
-        requested_device = str(
-            getattr(self.settings, "local_translation_device", os.getenv("LOCAL_TRANSLATION_DEVICE", "auto"))
-        ).lower().strip()
-        requested_compute = str(
-            getattr(self.settings, "local_translation_compute_type", os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto"))
-        ).lower().strip()
+        requested_device = (
+            str(getattr(self.settings, "local_translation_device", os.getenv("LOCAL_TRANSLATION_DEVICE", "auto")))
+            .lower()
+            .strip()
+        )
+        requested_compute = (
+            str(
+                getattr(
+                    self.settings, "local_translation_compute_type", os.getenv("LOCAL_TRANSLATION_COMPUTE_TYPE", "auto")
+                )
+            )
+            .lower()
+            .strip()
+        )
         if requested_device not in {"auto", "cpu", "cuda"}:
             raise ValueError("local_translation_device must be one of: auto, cpu, cuda")
         hardware = detect_hardware()
@@ -514,7 +535,7 @@ def _download_file(url: str, destination: Path, max_bytes: int, auth_token: str 
     revision = parts[3]
     filename = "/".join(parts[4:])
     definition = None
-    for candidate in (MODEL_ALIASES.values()):
+    for candidate in MODEL_ALIASES.values():
         try:
             candidate_definition = _definition(candidate)
         except ValueError:

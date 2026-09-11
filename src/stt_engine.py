@@ -109,7 +109,7 @@ class STTEngine:
             end = float(word.end)
             if not self._valid_interval(start, end):
                 continue
-            if current and previous_end is not None and start - previous_end >= threshold:
+            if current and previous_end is not None and start - previous_end > threshold:
                 groups.append(current)
                 current = []
             current.append(word)

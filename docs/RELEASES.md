@@ -33,7 +33,7 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 | Corrección de descarga del modelo local y validación del flujo proveedor-modelo | `1.7.2` |
 | Bootstrap de metadatos JSON del modelo local | `1.7.3` |
 | Validación de `shared_vocabulary.json` y migración reproducible de desarrollo/CI/build a `uv` | `1.7.4` |
-| Recuperación STT refinada y soporte de dos modelos locales fijados, incluyendo MADLAD-400 3B y OPUS-MT | `1.8.0` |
+| Recuperación STT refinada y soporte de dos modelos locales fijados, incluyendo MADLAD-400 3B y OPUS-MT | `1.8.0` (candidata) |
 
 ## Releases publicadas
 
@@ -156,9 +156,6 @@ Consolida el reprocesado y la persistencia de manifests, refuerza el almacenamie
 
 **Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
 
-## Candidata 1.7.4
-
-La candidata histórica `1.7.4` queda documentada por compatibilidad con el registro de release; su tag `v1.7.4` ya es publicado e inmutable. Su alcance fue la validación de `shared_vocabulary.json` y la migración reproducible a `uv` descrita en la sección publicada anterior.
 
 ## Candidata 1.8.0
 
@@ -168,15 +165,18 @@ La candidata histórica `1.7.4` queda documentada por compatibilidad con el regi
 
 **Previous published release:** `1.7.4`.
 
-**Target tag:** `v1.8.0`, pendiente de validación y publicación sobre el SHA exacto final de `main`.
+**Target tag:** `v1.8.0`, pendiente de validación final, merge de PR #45 y publicación sobre el SHA exacto resultante de `main`.
 
 ### Alcance
 
-- Separación de la duración de silencio VAD de la división de subtítulos (`1500 ms` frente a `750 ms`).
+- Separación de la duración de silencio VAD de la división de subtítulos (`2000 ms` frente a `1000 ms`).
 - Recuperación de segmentos STT sospechosos sin prompt inicial ni contexto de texto previo.
 - Conservación de `clip_timestamps` numérico durante la recuperación selectiva.
 - Conservación de **dos modelos locales**: MADLAD-400 3B CT2 INT8 como opción predeterminada y OPUS-MT CT2 INT8 como alternativa ligera compatible.
 - Validación de integridad, revisiones fijadas, tokenización específica de cada modelo y configuración explícita del modelo seleccionado.
+- Voz TTS predeterminada `am_michael` y generación WebM desactivada por defecto, con activación explícita mediante las opciones de CLI correspondientes.
+- Regresiones de tests para MADLAD, selección explícita de OPUS-MT y aislamiento de configuración frente a overrides del entorno.
+- Base reproducible de desarrollo/CI/build/auditoría con `uv` ya integrada mediante PR #42 en el baseline `1.7.4`.
 
 ### Validación
 

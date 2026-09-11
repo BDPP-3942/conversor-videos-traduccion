@@ -10,7 +10,7 @@ from src.local_translation import LocalTranslationModelManager, LocalTranslation
 def _madlad_test_files(monkeypatch):
     files = {
         "model.bin": (hashlib.sha256(b"model").hexdigest(), 5),
-        "sentencepiece.model": (hashlib.sha256(b"sentencepiece").hexdigest(), 12),
+        "sentencepiece.model": (hashlib.sha256(b"sentencepiece").hexdigest(), 13),
     }
     metadata = {
         "config.json": (1024, ("decoder_start_token", "eos_token")),
@@ -19,7 +19,7 @@ def _madlad_test_files(monkeypatch):
     monkeypatch.setattr(local_translation, "MODEL_FILES", files)
     monkeypatch.setattr(local_translation, "SMALL_MODEL_FILES", metadata)
     monkeypatch.setattr(local_translation, "REQUIRED_FILES", (*files, *metadata))
-    monkeypatch.setattr(local_translation, "MODEL_SIZE_BYTES", 17)
+    monkeypatch.setattr(local_translation, "MODEL_SIZE_BYTES", 18)
     monkeypatch.setattr(local_translation, "MODEL_MAX_TOTAL_BYTES", 4096)
     return files
 
@@ -167,16 +167,28 @@ def test_local_translation_uses_madlad_target_prefix(monkeypatch, tmp_path: Path
 
     monkeypatch.setitem(sys.modules, "ctranslate2", SimpleNamespace(Translator=FakeTranslator))
     monkeypatch.setitem(sys.modules, "sentencepiece", SimpleNamespace(SentencePieceProcessor=FakeSentencePiece))
-    monkeypatch.setattr(local_translation, "detect_hardware", lambda: SimpleNamespace(gpu=SimpleNamespace(usable_for_whisper=False, device_index=0)))
-    settings = SimpleNamespace(local_translation_device="cpu", local_translation_compute_type="int8", local_translation_beam_size=2)
+    monkeypatch.setattr(
+        local_translation,
+        "detect_hardware",
+        lambda: SimpleNamespace(gpu=SimpleNamespace(usable_for_whisper=False, device_index=0)),
+    )
+    settings = SimpleNamespace(
+        local_translation_device="cpu", local_translation_compute_type="int8", local_translation_beam_size=2
+    )
     provider = LocalTranslationProvider(settings, manager)
     assert provider.translate("Hola mundo") == "hello world"
 
 
 def test_local_translation_cuda_probe_falls_back_to_cpu(monkeypatch) -> None:
     provider = LocalTranslationProvider.__new__(LocalTranslationProvider)
-    provider.settings = SimpleNamespace(local_translation_device="cuda", local_translation_compute_type="auto", detected_gpu_index=0)
-    monkeypatch.setattr(local_translation, "detect_hardware", lambda: SimpleNamespace(gpu=SimpleNamespace(usable_for_whisper=True, device_index=0)))
+    provider.settings = SimpleNamespace(
+        local_translation_device="cuda", local_translation_compute_type="auto", detected_gpu_index=0
+    )
+    monkeypatch.setattr(
+        local_translation,
+        "detect_hardware",
+        lambda: SimpleNamespace(gpu=SimpleNamespace(usable_for_whisper=True, device_index=0)),
+    )
 
     class FakeCT2:
         @staticmethod

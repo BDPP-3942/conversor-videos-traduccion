@@ -99,12 +99,12 @@ This behavior was introduced after the `1.2.2` release by PR #20 (`perf: enforce
 - Resume: enabled.
 - Automatic local output deduplication: disabled.
 - TTS: disabled.
-- WebM generation: enabled.
+- WebM generation: disabled by default; `--generate-webm` explicitly enables it.
 - rclone automatic update: disabled.
 - Whisper device: `auto`.
 - Whisper compute type: `auto`.
-- Whisper VAD silence threshold: 1500 ms.
-- Whisper subtitle split silence threshold: 750 ms.
+- Whisper VAD silence threshold: 2000 ms.
+- Whisper subtitle split silence threshold: 1000 ms.
 - Local translation auto-download: disabled.
 - Local translation model: MADLAD-400 3B CT2 INT8.
 - Local translation device: `auto`.

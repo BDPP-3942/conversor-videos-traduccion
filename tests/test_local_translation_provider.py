@@ -23,6 +23,7 @@ def test_translate_batch_preserves_input_order_and_one_result_per_cue() -> None:
     provider._target = FakeSentencePiece()
     provider._translator = FakeTranslator()
     provider.settings = SimpleNamespace(local_translation_beam_size=2)
+    provider.definition = SimpleNamespace(tokenizer_kind="opus")
 
     assert provider.translate_batch(["uno", "dos", "tres"]) == ["uno", "dos", "tres"]
 

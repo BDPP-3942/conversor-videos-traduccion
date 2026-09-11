@@ -5,7 +5,7 @@
 - **Version:** 1.8.0
 - **Previous published release:** `v1.7.4` — published on 8 September 2026.
 - **Target tag:** `v1.8.0` — pending final CI, Release Gate and merge validation.
-- **Candidate SHA:** must be the exact final `main` SHA after all release PRs are merged and validated.
+- **Candidate SHA:** must be the exact final `main` SHA after PR #45 is merged and validated; PR #42 is already present in the `main` baseline.
 
 `v1.7.4` is already a published GitHub Release. It is historical state, not a candidate, and its tag must not be recreated or moved.
 
@@ -15,7 +15,7 @@
 
 ## Scope
 
-- Separate Whisper VAD silence (`1500 ms`) from subtitle split silence (`750 ms`).
+- Separate Whisper VAD silence (`2000 ms`) from subtitle split silence (`1000 ms`).
 - Retry suspicious STT segments without the large initial prompt or previous-text context.
 - Preserve numeric `clip_timestamps` for selective recovery.
 - Upgrade the local Spanish→English fallback to pinned MADLAD-400 3B CT2 INT8 **without removing the existing OPUS-MT CT2 INT8 fallback**.
@@ -23,7 +23,7 @@
 - Use MADLAD's shared SentencePiece tokenizer and `<2en>` target prefix; preserve OPUS-MT `source.spm`/`target.spm` handling.
 - Enforce a 3,000,000,000-byte installation budget for MADLAD and validate required model artifacts.
 - Keep local model auto-download disabled by default.
-- Complete the uv migration for development, CI, packaging and dependency auditing while preserving pip wheel compatibility.
+- Complete and preserve the uv-based development/CI/build/audit foundation already integrated through PR #42, while preserving pip wheel compatibility.
 
 ## Dependency audit
 

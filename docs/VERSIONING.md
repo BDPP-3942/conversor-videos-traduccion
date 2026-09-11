@@ -9,14 +9,25 @@ La línea de releases de producto actualmente publicada es `1.x`.
 - `v1.7.2` → release PATCH de corrección del gestor de descarga del modelo local.
 - `v1.7.1` → release PATCH de corrección de recuperación selectiva STT.
 - `v1.7.0` → release MINOR de reprocessing, manifests, naming Unicode/filesystem y runtime de traducción local.
-- `v1.6.0` → commit `a6cf0ee183a4802814fe0e061b4704e427166b85`.
-- `v1.5.1` → commit `06ee8d265b57214596f079f3bb426b9b27042b1e`.
+- `v1.6.0` → release MINOR de traducción local, recuperación STT configurable y endurecimiento GPU/runtime.
+- `v1.5.1` → release PATCH de endurecimiento ZIP/filesystem multiplataforma.
+- `v1.5.0` → release MINOR de wrappers multiplataforma, contexto Whisper y packaging.
+- `v1.4.2` → release MINOR de contrato CLI de regeneración y alineación del help.
+- `v1.4.1` → release PATCH de integración de wrappers de regeneración.
+- `v1.4.0` → release MINOR de regeneración limpia y endurecimiento de release.
+- `v1.3.0` → release MINOR de concurrencia adaptativa por recursos.
+- `v1.2.2` → release PATCH de limpieza de timestamps en naming.
+- `v1.2.1` → release PATCH de instalación de recursos TTS.
+- `v1.2.0` → release MINOR de naming y mejoras TTS.
+- `v1.1.0` → release MINOR de reparación VTT e integración TTS.
+- `v1.0.1` → release PATCH de documentación de instalación y mantenimiento.
+- `v1.0.0` → primera release estable de la línea de producto.
 
 Los tags publicados son historia inmutable y no deben modificarse, moverse ni reutilizarse.
 
-## Próxima release: 1.8.0
+## Release candidata: 1.8.0
 
-La próxima release prevista es `1.8.0`, una **MINOR** compatible sobre la release publicada `1.7.4`.
+La candidata actual es `1.8.0`, una **MINOR** compatible sobre la release publicada `1.7.4`. Su publicación queda condicionada al merge de PR #45 y a CI/Release Gate verdes sobre el SHA final de `main`.
 
 El incremento MINOR está justificado por funcionalidad nueva compatible:
 
@@ -58,7 +69,7 @@ tag vX.Y.Z
 GitHub Release
 ```
 
-`v1.7.4` ya existe y no debe recrearse ni moverse. `v1.8.0` solo debe etiquetarse sobre el SHA exacto de `main` que haya pasado CI y Release Gate después de integrar todos los cambios de la release.
+`v1.7.4` ya existe y no debe recrearse ni moverse. PR #42 forma parte del `main` y del baseline publicado `1.7.4`; `v1.8.0` será el tag de la release resultante de integrar PR #45 sobre ese baseline, únicamente después de que el SHA final de `main` pase CI y Release Gate.
 
 ## Política de dependencias
 

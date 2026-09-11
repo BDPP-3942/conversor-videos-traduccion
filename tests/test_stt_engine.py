@@ -30,8 +30,8 @@ def _recovery_engine(model, retries=1, temperatures=(0.2,)):
 def test_split_segment_uses_independent_subtitle_silence_threshold():
     engine = STTEngine.__new__(STTEngine)
     engine.settings = AppSettings(
-        whisper_min_silence_duration_ms=1500,
-        whisper_subtitle_split_silence_duration_ms=750,
+        whisper_min_silence_duration_ms=2000,
+        whisper_subtitle_split_silence_duration_ms=1000,
     )
     segment = _segment(
         "Hola. Adiós.",
@@ -57,6 +57,23 @@ def test_short_pause_does_not_split_a_whisper_segment():
     )
 
     assert engine._split_segment_on_silence(segment) == [{"start": 1.0, "end": 2.2, "text": "Hola mundo"}]
+
+
+def test_one_second_pause_does_not_split():
+    engine = STTEngine.__new__(STTEngine)
+    engine.settings = AppSettings(whisper_subtitle_split_silence_duration_ms=1000)
+    segment = _segment("Hola mundo", 1.0, 3.0, [_word("Hola ", 1.0, 1.5), _word("mundo", 2.5, 3.0)])
+    assert engine._split_segment_on_silence(segment) == [{"start": 1.0, "end": 3.0, "text": "Hola mundo"}]
+
+
+def test_pause_longer_than_one_second_splits():
+    engine = STTEngine.__new__(STTEngine)
+    engine.settings = AppSettings(whisper_subtitle_split_silence_duration_ms=1000)
+    segment = _segment("Hola. Adiós.", 1.0, 3.01, [_word("Hola. ", 1.0, 1.5), _word("Adiós.", 2.51, 3.01)])
+    assert engine._split_segment_on_silence(segment) == [
+        {"start": 1.0, "end": 1.5, "text": "Hola."},
+        {"start": 2.51, "end": 3.01, "text": "Adiós."},
+    ]
 
 
 def test_recovery_retries_zero_disables_recovery():
@@ -167,3 +184,14 @@ def test_recovery_preserves_recovered_timestamps_and_text():
         {"start": 1.0, "end": 1.4, "text": "Hola."},
         {"start": 4.0, "end": 4.5, "text": "Adiós."},
     ]
+
+
+def test_vad_uses_two_second_silence_threshold_independently_of_subtitle_split():
+    engine = STTEngine.__new__(STTEngine)
+    engine.settings = AppSettings(
+        whisper_vad_filter=True,
+        whisper_min_silence_duration_ms=2000,
+        whisper_subtitle_split_silence_duration_ms=1000,
+    )
+    kwargs = engine._transcribe_kwargs(condition_on_previous_text=True, temperature=0)
+    assert kwargs["vad_parameters"] == {"min_silence_duration_ms": 2000}

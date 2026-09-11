@@ -1,9 +1,24 @@
 from pathlib import Path
 
+import config.loader as loader
 from config.loader import load_settings
 
 
-def test_local_translation_model_configuration_is_loaded_from_toml(tmp_path: Path) -> None:
+def test_local_translation_model_configuration_is_loaded_from_toml(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(loader, "_load_dotenv", lambda: None)
+    for name in (
+        "LOCAL_TRANSLATION_MODEL",
+        "LOCAL_TRANSLATION_MODEL_DIR",
+        "LOCAL_TRANSLATION_MODEL_ID",
+        "LOCAL_TRANSLATION_MODEL_REVISION",
+        "LOCAL_TRANSLATION_DEVICE",
+        "LOCAL_TRANSLATION_COMPUTE_TYPE",
+        "LOCAL_TRANSLATION_BEAM_SIZE",
+        "LOCAL_TRANSLATION_AUTO_DOWNLOAD",
+        "LOCAL_TRANSLATION_HF_TOKEN",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
     config = tmp_path / "app.toml"
     config.write_text(
         """
