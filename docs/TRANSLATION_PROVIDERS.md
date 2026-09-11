@@ -21,12 +21,13 @@ DEEPL_API_KEY=...
 MYMEMORY_EMAIL=...
 ```
 
-El proveedor local se configura mediante `LOCAL_TRANSLATION_*`. Solo admite actualmente español→inglés y utiliza el modelo/revisión fijados por el proyecto; la preparación del modelo es explícita y está documentada en `LOCAL_TRANSLATION.md`.
+El proveedor local se configura mediante `LOCAL_TRANSLATION_*`. Solo admite actualmente español→inglés. En `1.8.0`, MADLAD-400 3B es el modelo predeterminado orientado a calidad y OPUS-MT se conserva como alternativa ligera; cada modelo tiene su propia configuración, revisión, directorio, tokenización y validación. La preparación es explícita y está documentada en `LOCAL_TRANSLATION.md`.
 
 ```env
-LOCAL_TRANSLATION_MODEL_DIR=tools/models/translation/opus-mt-es-en-ct2-int8
-LOCAL_TRANSLATION_MODEL_ID=Prukario/opus-mt-es-en-ct2-int8
-LOCAL_TRANSLATION_MODEL_REVISION=ad91ad1697ea1761111ff4c179400796d085b347
+LOCAL_TRANSLATION_MODEL=madlad400-3b-ct2-int8
+LOCAL_TRANSLATION_MODEL_DIR=tools/models/translation/madlad400-3b-ct2-int8
+LOCAL_TRANSLATION_MODEL_ID=cstr/madlad400-3b-ct2-int8
+LOCAL_TRANSLATION_MODEL_REVISION=12eff26f7d93623e2b2d3b5345e5863e14599dae
 LOCAL_TRANSLATION_DEVICE=auto
 LOCAL_TRANSLATION_COMPUTE_TYPE=auto
 LOCAL_TRANSLATION_BEAM_SIZE=2

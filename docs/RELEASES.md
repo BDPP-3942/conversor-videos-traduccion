@@ -33,8 +33,17 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 | Corrección de descarga del modelo local y validación del flujo proveedor-modelo | `1.7.2` |
 | Bootstrap de metadatos JSON del modelo local | `1.7.3` |
 | Validación de `shared_vocabulary.json` y migración reproducible de desarrollo/CI/build a `uv` | `1.7.4` |
+| Recuperación STT refinada y soporte de dos modelos locales fijados, incluyendo MADLAD-400 3B y OPUS-MT | `1.8.0` (candidata) |
 
 ## Releases publicadas
+
+### 1.7.4 — uv and Local Translation Validation
+
+**Tipo:** `PATCH`.
+
+**Tag publicado:** `v1.7.4`.
+
+Consolida la validación de `shared_vocabulary.json` y la migración reproducible de desarrollo, CI, build y auditoría a `uv`, conservando la compatibilidad del wheel con `pip` y los metadatos del modelo local.
 
 ### 1.7.2 — Local Translation Model Download Fix
 
@@ -147,50 +156,37 @@ Consolida el reprocesado y la persistencia de manifests, refuerza el almacenamie
 
 **Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
 
-## Candidata 1.7.4
+
+## Candidata 1.8.0
 
 ### Posición en la línea de releases
 
-**Tipo:** `PATCH`.
+**Tipo:** `MINOR`.
 
-`1.7.4` es una release de mantenimiento sobre el estado publicado `1.7.2` y conserva las correcciones de `1.7.1`, `1.7.2` y el bootstrap de metadatos de `1.7.3`.
+**Previous published release:** `1.7.4`.
 
-Por tanto:
-
-- **Previous published release:** `1.7.2`.
-- **Baseline funcional inmediato:** estado completo publicado de `1.7.2`.
-- **Target tag:** `v1.7.4` — pendiente de validación y creación.
+**Target tag:** `v1.8.0`, pendiente de validación final, merge de PR #45 y publicación sobre el SHA exacto resultante de `main`.
 
 ### Alcance
 
-La candidata `1.7.4` consolida la corrección del validador de `shared_vocabulary.json` y la migración de desarrollo/CI/build/auditoría a `uv`. `pyproject.toml` es la única declaración de dependencias y `uv.lock` es la resolución versionada y reproducible.
-
-El wheel publicado continúa verificándose e instalándose mediante `pip` en un entorno limpio, por lo que la migración no rompe el contrato de distribución de usuarios finales.
-
-### Cambios
-
-- Aceptada la raíz JSON array real de `shared_vocabulary.json` y añadidas regresiones para esa estructura y para JSON inválido.
-- Conservados los metadatos `config.json` y `tokenizer_config.json` empaquetados en la release anterior.
-- Eliminados los `requirements*.txt` como fuentes de dependencia y centralizada la declaración en `pyproject.toml`.
-- Añadido `uv.lock` generado por uv y validado con `uv lock --check`.
-- Migrados setup, scripts, CI, build y automatizaciones de desarrollo a `uv` donde corresponde.
-- Los jobs de quality/tests/package usan entornos bloqueados mediante `uv sync --locked`.
-- `pip-audit` pertenece al grupo `audit` y se ejecuta desde ese entorno mediante `uv run --locked --group audit pip-audit --strict`.
-- Se mantiene `pip` para la validación de compatibilidad del wheel y el fallback deliberado de runtime CUDA para ejecutables portables.
-
-### Dependencias
-
-La release mantiene el contrato runtime de `faster-whisper`, CTranslate2, SentencePiece, Hugging Face Hub, WebVTT, imageio-ffmpeg y python-dotenv declarado en `pyproject.toml`. Los extras `google` y `tts` y los grupos `dev` y `audit` quedan gestionados por uv.
+- Separación de la duración de silencio VAD de la división de subtítulos (`2000 ms` frente a `1000 ms`).
+- Recuperación de segmentos STT sospechosos sin prompt inicial ni contexto de texto previo.
+- Conservación de `clip_timestamps` numérico durante la recuperación selectiva.
+- Conservación de **dos modelos locales**: MADLAD-400 3B CT2 INT8 como opción predeterminada y OPUS-MT CT2 INT8 como alternativa ligera compatible.
+- Validación de integridad, revisiones fijadas, tokenización específica de cada modelo y configuración explícita del modelo seleccionado.
+- Voz TTS predeterminada `am_michael` y generación WebM desactivada por defecto, con activación explícita mediante las opciones de CLI correspondientes.
+- Regresiones de tests para MADLAD, selección explícita de OPUS-MT y aislamiento de configuración frente a overrides del entorno.
+- Base reproducible de desarrollo/CI/build/auditoría con `uv` ya integrada mediante PR #42 en el baseline `1.7.4`.
 
 ### Validación
 
-La candidata final pre-merge debe completar CI y Release Gate sobre su SHA exacto, incluyendo Linux, Windows y macOS con Python 3.11–3.13, tests, lint/security/format, compile, audits, packaging, instalación limpia, `pip check`, entry points y validación del lockfile.
+La candidata final debe completar CI y Release Gate sobre su SHA exacto, incluyendo Linux, Windows y macOS con Python 3.11–3.13, tests, lint/format, audits, packaging, instalación limpia, `pip check`, entry points y validación del lockfile.
+
+La descarga del modelo MADLAD (~2.95 GB) no forma parte del CI normal; su benchmark real debe ejecutarse explícitamente en el hardware objetivo. OPUS-MT conserva una vía de preparación independiente para entornos con poco espacio.
 
 ### Política de tags
 
-Los tags utilizan `vMAJOR.MINOR.PATCH` y no deben reutilizarse ni moverse después de publicar una release.
-
-`v1.7.4` solo debe crearse sobre el SHA exacto validado por Release Gate y resultante del merge a `main`. No se debe crear el tag desde la rama de la PR.
+`v1.8.0` solo debe crearse sobre el SHA exacto validado por Release Gate y resultante del merge a `main`. No se debe crear ni mover el tag desde la rama de la PR.
 
 ## Historial anterior
 

@@ -55,7 +55,7 @@ El VTT final es la fuente de verdad temporal para TTS. La traducción cambia el 
 
 ## 4. Silencios y timestamps
 
-Los silencios largos son relevantes porque determinan cuándo termina una intervención y cuándo empieza la siguiente. El STT utiliza un umbral configurable para separar cues cuando existe un hueco de silencio significativo. El valor por defecto actual es 1500 ms.
+Los silencios largos son relevantes porque determinan cuándo termina una intervención y cuándo empieza la siguiente. El STT utiliza un umbral configurable para separar cues cuando existe un hueco de silencio significativo. En `1.8.0`, el valor por defecto del VAD es 2000 ms y la división de subtítulos usa de forma independiente un hueco de 1000 ms entre timestamps de palabras.
 
 Una pausa no debe rellenarse con el texto anterior ni absorberse en el siguiente cue por el mero hecho de que exista un hueco audiovisual. Los VTT resultantes deben conservar esos huecos.
 

@@ -245,7 +245,7 @@ tools/rclone/
 secrets/rclone/rclone.conf
 ```
 
-No hace falta una instalación global de rclone para el modo gestionado. fileciteturn396file0 fileciteturn397file0
+No hace falta una instalación global de rclone para el modo gestionado. El flujo soportado con uv es `uv run python main.py provider bootstrap`; los wrappers `scripts/setup_rclone.sh` y `scripts\setup_rclone.bat` llaman al mismo bootstrap y `--rclone` en `setup_env.*` prepara ese binario gestionado. La aplicación no usa `rclone` desde PATH. fileciteturn396file0 fileciteturn397file0
 
 Después configura el remoto, por ejemplo:
 
@@ -299,7 +299,7 @@ Para la salida secundaria:
 
 ```toml
 [ffmpeg]
-generate_webm = true
+generate_webm = false
 ```
 
 También puede forzarse por ejecución con `--generate-webm` o `--no-webm`. fileciteturn410file0

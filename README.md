@@ -68,14 +68,14 @@ python main.py run --scheduled
 
 ## Traducción local offline
 
-La línea `1.7.x` consolida el proveedor opcional español→inglés basado en CTranslate2 + SentencePiece. El modelo no se descarga automáticamente por defecto: debe prepararse explícitamente.
+La release `1.8.0` consolida el proveedor local opcional español→inglés basado en CTranslate2 + SentencePiece. MADLAD-400 3B CT2 INT8 es el modelo predeterminado orientado a calidad y OPUS-MT CT2 INT8 se conserva como alternativa ligera. Ningún modelo local se descarga automáticamente por defecto: debe prepararse explícitamente.
 
 ```bash
 python scripts/manage_local_translation.py status
 python scripts/manage_local_translation.py download
 ```
 
-En `1.7.2` se corrige el gestor de descarga para que procese correctamente tanto `model.bin`, `source.spm` y `target.spm` como los metadatos JSON. Una expresión anterior evaluaba eagermente un fallback de `dict.get` y provocaba `KeyError: 'model.bin'` antes de iniciar la descarga real.
+Desde `1.7.2` el gestor de descarga procesa correctamente los ficheros principales y metadatos del modelo local, y desde `1.8.0` mantiene validaciones específicas para MADLAD y OPUS-MT, incluyendo tamaño, SHA-256, estructura de metadatos y tokenización. MADLAD usa `sentencepiece.model` y el prefijo de destino `<2en>`; OPUS-MT conserva `source.spm` y `target.spm`.
 
 Después de preparar el modelo, puede seleccionarse con:
 
@@ -181,7 +181,7 @@ TTS está desactivado por defecto. Con `TTS_ENABLED=true`, el pipeline valida/re
 TTS_ENABLED=true
 TTS_REQUIRED=false
 TTS_PROVIDER=kokoro
-TTS_VOICE=af_sarah
+TTS_VOICE=am_michael
 TTS_MODEL_PATH=tools/tts/kokoro-v1.0.onnx
 TTS_VOICES_PATH=tools/tts/voices-v1.0.bin
 ```
@@ -265,13 +265,11 @@ Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` 
 
 ## Versionado
 
-La release publicada más reciente confirmada es `1.7.0` (`v1.7.0`). La candidata actual es **`1.7.2` (`v1.7.2`)**. El estado `1.7.1` está integrado en `main` y constituye el baseline funcional inmediato de `1.7.2`; su tag/release debe conservar el SHA exacto del merge cuando se publique.
+La release publicada más reciente es `1.7.4` (`v1.7.4`). La release actual de producto es `1.8.0`, cuya publicación queda asociada a la integración final de PR #45 sobre la base de `main` que ya incorpora PR #42 y las correcciones publicadas hasta `1.7.4`.
 
-La release `1.7.0` corresponde a la consolidación de reprocessing/manifests, naming Unicode/filesystem y runtime de traducción local, además de las capacidades heredadas de `1.6.0` y `1.5.1`.
+`1.8.0` consolida la recuperación STT de Whisper, separa el silencio VAD de la división de subtítulos, incorpora MADLAD-400 3B como modelo local predeterminado manteniendo OPUS-MT como alternativa, refuerza la validación de ambos modelos, conserva la migración reproducible a `uv` introducida en la línea anterior y actualiza los defaults de TTS/WebM.
 
-La corrección `1.7.1` resolvió el contrato `clip_timestamps` de la recuperación selectiva de `faster-whisper`. La candidata `1.7.2` corrige el gestor de descarga del modelo de traducción local sin cambiar la configuración pública ni el pipeline audiovisual.
-
-No se modifica el historial de releases anteriores.
+El historial completo de releases, incluyendo `1.0.0`–`1.7.4` y la candidata `1.8.0`, se mantiene en `docs/RELEASES.md` y `docs/VERSIONING.md`.
 
 ## Seguridad y licencias
 

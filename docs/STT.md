@@ -2,7 +2,7 @@
 
 STT uses `faster-whisper` backed by CTranslate2. The selected model, device, compute type, beam size, CPU threads, VAD behavior, initial prompt and degeneration-recovery policy are configurable.
 
-The `1.7.2` release uses the compatibility range `faster-whisper>=1.2.1,<1.3` with `ctranslate2>=4.8.2,<4.9`. It is a PATCH correction on the merged `1.7.1` state. The release does not change the STT architecture or the public recovery configuration.
+The `1.8.0` release uses `faster-whisper>=1.2.1,<1.3` with `ctranslate2>=4.8.2,<4.9`. It refines the existing selective-recovery mechanism rather than replacing the STT architecture.
 
 Defaults in `config/app.toml` include automatic model/device/compute selection, beam size `5`, VAD enabled and a minimum silence duration of `1500` ms. `.env.example` exposes explicit environment overrides.
 
@@ -107,6 +107,9 @@ If CUDA initialization fails, the application performs one controlled fallback t
 
 ## Segmentation
 
+For `1.8.0`, Whisper VAD uses a `2000 ms` minimum silence duration. Subtitle cue splitting is intentionally independent and uses a `1000 ms` word-timestamp gap threshold. The subtitle threshold must not be implemented by lowering the VAD threshold, because VAD and subtitle segmentation serve different purposes.
+
+
 Whisper timestamps are used to construct subtitle cues. The pipeline can split cues around significant detected silences. Final intervals are validated before a VTT is accepted.
 
 The invariant is:
@@ -129,4 +132,4 @@ The model is not bundled into the repository by default.
 
 ## Reprocessing
 
-The latest `1.7.0` baseline adds the reprocessing/manifests workflows. The `1.7.1` state corrected the selective `clip_timestamps` contract. The `1.7.2` release does not alter either workflow.
+The `1.7.0` baseline introduced the reprocessing/manifests workflows and `1.7.1` corrected the selective `clip_timestamps` backend contract. `1.8.0` preserves those workflows while refining suspicious-segment recovery and its context handling.

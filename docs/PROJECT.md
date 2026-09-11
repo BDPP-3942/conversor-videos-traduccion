@@ -40,11 +40,11 @@ See [INSTALLATION.md](INSTALLATION.md), [CONFIGURATION.md](CONFIGURATION.md) and
 
 ## Current published release vs candidate
 
-The latest published product release is `1.7.0` (`v1.7.0`). The current branch prepares PATCH release `1.7.2`; `1.7.1` is the immediately preceding merged STT compatibility fix whose release tag must remain immutable once published.
+The latest published release before the current candidate is `1.7.4` (`v1.7.4`). The current release candidate is `1.8.0`, associated with PR #45 and built on `main`, where PR #42 is already integrated and the `1.7.4` release baseline is preserved.
 
-Release `1.7.0` consolidated reprocessing/manifests, local-storage race hardening, deterministic Unicode naming/filesystem behavior and the local translation runtime. Release `1.7.1` corrected the `faster-whisper` selective-recovery backend contract. Release `1.7.2` corrects the local translation model download manager and adds end-to-end provider regression coverage.
+`1.8.0` refines Whisper selective recovery, separates VAD and subtitle silence thresholds, upgrades the default local translation model to pinned MADLAD-400 3B while retaining OPUS-MT, strengthens model integrity/provider tests, and keeps the reproducible `uv` foundation introduced by PR #42.
 
-The previous releases `1.6.0` and `1.5.1` remain historical context only. The compatibility review for `1.7.2` must preserve the complete `1.7.1` state.
+The previous releases `1.0.0` through `1.7.4` remain immutable history. `docs/RELEASES.md` is the canonical human-readable ledger for that history and the `1.8.0` candidate.
 
 See [RELEASES.md](RELEASES.md) for the release history and [../RELEASE_CANDIDATE.md](../RELEASE_CANDIDATE.md) for the exact release-gate scope.
 
@@ -65,5 +65,6 @@ See [RELEASES.md](RELEASES.md) for the release history and [../RELEASE_CANDIDATE
 | Reprocessing/manifests, Unicode naming/filesystem consolidation and translation runtime improvements | `1.7.0` | published GitHub release |
 | `faster-whisper` selective recovery `clip_timestamps` compatibility fix | `1.7.1` | `CHANGELOG.md` / `RELEASES.md` |
 | Local translation model download and provider runtime fix | `1.7.2` | `tests/test_local_translation.py` / `RELEASES.md` |
+| Refined Whisper recovery, dual pinned local models, uv-based reproducibility and updated TTS/WebM defaults | `1.8.0` | `RELEASE_CANDIDATE.md` / `RELEASES.md` |
 
-The table records functionality by introduction release. `1.7.2` remains a candidate until its final SHA passes the release gate and its tag is created according to the release policy.
+The table records functionality by introduction release. `1.8.0` is the current candidate until its final SHA passes CI and Release Gate and the immutable tag is created on the resulting `main` SHA.

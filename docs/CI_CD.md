@@ -21,13 +21,15 @@ Runs on Linux, Windows and macOS with Python 3.11, 3.12 and 3.13. Each runner ex
 
 The platform matrix is intentionally retained because filesystem, process, native-library and path-normalization behavior cannot be proven on one operating system.
 
+The release E2E suite includes deterministic STT/translation adapters and isolated storage per subprocess. Its ZIP/input fixture and Windows/POSIX path handling are part of the cross-platform release validation rather than optional local-only checks.
+
 ### `packaging`
 
 Builds distributions with `uv build`, verifies packaged resources, installs the wheel into a clean virtual environment using `pip`, runs `pip check` and verifies the installed console entry points. The pip installation is deliberate: it proves that the published distribution remains usable without requiring uv.
 
 ### `dependency-audit`
 
-Creates a locked environment containing the development, Google and audit dependency groups. `pip-audit` is declared in the `audit` group and is executed as `uv run --locked --group audit pip-audit --strict`; no globally installed audit executable is assumed.
+Creates a locked environment containing the development, Google and audit dependency groups. `pip-audit` is declared in the `audit` group and is executed as `uv run --locked --no-sync --group audit pip-audit --strict` after removing the editable project package.
 
 ### `tts-dependency-audit`
 
@@ -41,9 +43,9 @@ The project does not require uv for the final wheel consumer. The clean-wheel co
 
 ## Release Gate
 
-`release-gate.yml` validates the exact candidate SHA, the static project version, the application version in `config/app.toml`, the `CHANGELOG.md` release heading, `docs/RELEASES.md`, packaged resources, clean wheel installation and source compilation.
+`release-gate.yml` validates the exact candidate SHA, the static project version, the application version in `config/app.toml`, the release heading in `CHANGELOG.md`, `docs/RELEASES.md`, packaged resources, clean wheel installation and source compilation.
 
-For the `1.7.4` candidate, all versioning documents must identify the same candidate and the release tag must remain absent during the manual release invocation. The final tag `v1.7.4` must be created only on the exact `main` SHA resulting from the validated merge.
+For the `1.8.0` candidate, all versioning documents must identify `1.8.0` as the next release and `v1.7.4` as the immutable previous published release. The final tag `v1.8.0` must be created only on the exact `main` SHA resulting from the validated merge; it must not be created or moved from the PR branch.
 
 ## Local parity
 
@@ -65,10 +67,10 @@ For dependency auditing:
 
 ```bash
 uv sync --locked --extra google --group dev --group audit
-uv run --locked --group audit pip-audit --strict
+uv run --locked --no-sync --group audit pip-audit --strict
 
 uv sync --locked --extra tts --group audit
-uv run --locked --group audit pip-audit --strict
+uv run --locked --no-sync --group audit pip-audit --strict
 ```
 
 For local translation specifically, the target environment should additionally run:
@@ -80,6 +82,6 @@ uv run python scripts/manage_local_translation.py status
 uv run python scripts/benchmark_local_translation.py --sentences 1
 ```
 
-The real-model benchmark is hardware-specific; CI uses deterministic doubles for the model download/runtime regressions so the production model is not downloaded on every runner.
+Both supported local models remain available: MADLAD-400 3B is the default quality-oriented model, while OPUS-MT is retained for low-disk/compatibility deployments. The real-model benchmark is hardware-specific; CI uses deterministic doubles for model download/runtime regressions so the production model is not downloaded on every runner.
 
 The CI workflow is authoritative for the exact commands and matrix.

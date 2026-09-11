@@ -20,7 +20,7 @@ class RcloneStorageProvider(StorageProvider):
         if not self.binary_file.is_file():
             raise FileNotFoundError(
                 f"Managed rclone executable not found: {self.binary_file}. "
-                "Run `python main.py provider bootstrap` or enable the rclone provider setup."
+                "Run `uv run python main.py provider bootstrap` or `scripts/setup_rclone.*`."
             )
         if not self.config_file.is_file():
             raise FileNotFoundError(

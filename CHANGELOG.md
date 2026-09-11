@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.8.0] — Release candidate
+
+**Estado:** CANDIDATA — pendiente de merge de PR #45, validación final de CI/Release Gate y publicación del tag `v1.8.0`.
+
+**Baseline publicado:** `v1.7.4`. PR #42 (migración reproducible a `uv`) ya forma parte de `main` y del baseline `1.7.4`; esta candidata registra las mejoras finales de PR #45 sobre ese estado.
+
+### Scope
+
+- Refinada la recuperación selectiva de segmentos sospechosos de Whisper, con reintento sin prompt inicial ni contexto de texto previo.
+- Separados el silencio VAD (`1500 ms`) y la división de subtítulos (`500 ms`).
+- Conservado el contrato numérico de `clip_timestamps` durante la recuperación.
+- Incorporado MADLAD-400 3B CT2 INT8 como modelo local predeterminado, manteniendo OPUS-MT como alternativa ligera.
+- Añadida validación específica de integridad, tokenización, revisiones fijadas y presupuesto de instalación del modelo MADLAD.
+- Reforzadas las regresiones de modelos locales, selección explícita de OPUS-MT y aislamiento de los tests de configuración frente a overrides del entorno.
+- Actualizado el contexto de Whisper para vocabulario de Tai Chi.
+- Cambiada la voz TTS predeterminada a `am_michael` y desactivada la generación WebM por defecto.
+- Conservada la base de desarrollo, CI, build y auditoría con `uv` introducida por PR #42.
+
+### Validation
+
+La candidata requiere suite completa de tests, CI multiplataforma, Release Gate, packaging y validación del lockfile sobre el SHA exacto final.
+
 ## [1.7.4] — Local translation shared vocabulary validation
 
 **Tipo:** PATCH — corrección compatible del validador de metadatos del modelo de traducción local.

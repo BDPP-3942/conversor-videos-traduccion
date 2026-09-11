@@ -11,7 +11,9 @@ python scripts/manage_runtime_resources.py translation-model cleanup
 Esto elimina:
 
 ```text
-tools/models/translation/opus-mt-es-en-ct2-int8/
+tools/models/translation/madlad400-3b-ct2-int8/
+
+(or the independently managed `tools/models/translation/opus-mt-es-en-ct2-int8/` directory when OPUS-MT is selected).
 ```
 
 No elimina código, vídeos, subtítulos, manifests, configuración ni credenciales.

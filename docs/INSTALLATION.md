@@ -61,11 +61,11 @@ They can be combined, for example `.[tts,google,dev,package]`.
 
 ## Release compatibility
 
-The current candidate is `1.7.2`, based on the merged `1.7.1` state. The candidate keeps the project's current runtime stack, including `faster-whisper>=1.2.1,<1.3` and `ctranslate2>=4.8.2,<4.9`, while correcting the local translation model download manager.
+The current product release is `1.8.0`, based on the published `1.7.4` state plus the final PR #45 changes. The release keeps `faster-whisper>=1.2.1,<1.3` and `ctranslate2>=4.8.2,<4.9`, and adds the stabilized Whisper recovery policy plus the dual local-model runtime (MADLAD-400 3B default, OPUS-MT lightweight alternative).
 
 ## NVIDIA/CUDA and Whisper
 
-NVIDIA acceleration is optional. The `1.7.2` correction does not change the GPU runtime architecture introduced and consolidated through `1.7.0`; the GPU path still requires CUDA 12, cuBLAS for CUDA 12 and cuDNN 9 for CUDA 12.
+NVIDIA acceleration is optional. The `1.8.0` release does not change the GPU runtime architecture introduced and consolidated through `1.7.0`; the GPU path still requires CUDA 12, cuBLAS for CUDA 12 and cuDNN 9 for CUDA 12.
 
 `WHISPER_DEVICE=auto` does not treat the presence of `nvidia-smi` as sufficient. At Whisper initialization the project checks the NVIDIA driver, searches for an installed CUDA Toolkit, checks the required NVIDIA runtime libraries and asks CTranslate2 whether a CUDA device and supported compute types are actually available.
 
@@ -134,7 +134,7 @@ python scripts/manage_local_translation.py status
 python scripts/manage_local_translation.py download
 ```
 
-In `1.7.2`, the preparation path correctly handles both the large CTranslate2 model files and the small JSON metadata files. Previous `1.7.1` code could fail immediately with `KeyError: 'model.bin'` while calculating the download limit because a `dict.get` fallback was evaluated eagerly. The corrected implementation selects the limit explicitly by file class.
+In `1.8.0`, local-model preparation validates the selected pinned model before activation. MADLAD requires `model.bin`, `sentencepiece.model`, `config.json` and `shared_vocabulary.json`; OPUS-MT retains its `model.bin`, `source.spm`, `target.spm` and JSON metadata contract. The MADLAD installation is bounded by the project installation budget and model integrity is checked before offline use. The historical `1.7.2` eager-`dict.get` download bug remains documented in `CHANGELOG.md`.
 
 The model is stored below `tools/models/translation/`. See [LOCAL_TRANSLATION.md](LOCAL_TRANSLATION.md).
 
@@ -176,7 +176,7 @@ python main.py provider setup-google --help
 rclone is not a Python dependency. The project can bootstrap its managed rclone binary and then configure a remote through the provider CLI:
 
 ```bash
-python main.py provider bootstrap
+uv run python main.py provider bootstrap
 python main.py provider setup-rclone --help
 ```
 

@@ -31,7 +31,8 @@ class AppSettings:
     whisper_compute_type: str = "auto"
     whisper_beam_size: int = 5
     whisper_vad_filter: bool = True
-    whisper_min_silence_duration_ms: int = 1500
+    whisper_min_silence_duration_ms: int = 2000
+    whisper_subtitle_split_silence_duration_ms: int = 1000
     whisper_condition_on_previous_text: bool = True
     whisper_initial_prompt: str = ""
     whisper_cpu_threads: int = 0
@@ -52,6 +53,14 @@ class AppSettings:
     translation_max_backoff_seconds: float = 16.0
     translation_max_parallel_requests: int = 2
     translation_provider_max_parallel_requests: int = 0
+    local_translation_model: str = "madlad400-3b-ct2-int8"
+    local_translation_model_dir: Path = BASE_DIR / "tools" / "models" / "translation" / "madlad400-3b-ct2-int8"
+    local_translation_model_id: str = "cstr/madlad400-3b-ct2-int8"
+    local_translation_model_revision: str = "12eff26f7d93623e2b2d3b5345e5863e14599dae"
+    local_translation_device: str = "auto"
+    local_translation_compute_type: str = "auto"
+    local_translation_beam_size: int = 2
+    local_translation_auto_download: bool = False
     max_zip_depth: int = 5
     max_extracted_files: int = 10_000
     max_extracted_size_gb: float = 10.0
@@ -59,7 +68,7 @@ class AppSettings:
     ffmpeg_preset: str = "medium"
     ffmpeg_crf: int = 23
     ffmpeg_audio_bitrate: str = "256k"
-    generate_webm: bool = True
+    generate_webm: bool = False
     secondary_video_extension: str = "webm"
     secondary_video_codec: str = "libvpx-vp9"
     secondary_video_crf: int = 0
@@ -87,7 +96,7 @@ class AppSettings:
     tts_enabled: bool = False
     tts_required: bool = False
     tts_provider: str = "kokoro"
-    tts_voice: str = "af_sarah"
+    tts_voice: str = "am_michael"
     tts_model_path: Path = BASE_DIR / "tools" / "tts" / "kokoro-v1.0.onnx"
     tts_voices_path: Path = BASE_DIR / "tools" / "tts" / "voices-v1.0.bin"
     tts_speed: float = 1.0
@@ -96,7 +105,7 @@ class AppSettings:
     tts_sample_rate: int = 24000
     tts_audio_bitrate: str = "192k"
     tts_webm_audio_bitrate: str = "192k"
-    tts_generate_webm: bool = True
+    tts_generate_webm: bool = False
     google_credentials_file: Path = SECRETS_DIR / "providers" / "google" / "default" / "credentials.json"
     google_token_file: Path = SECRETS_DIR / "providers" / "google" / "default" / "token.json"
     google_profile: str = "default"
@@ -157,6 +166,9 @@ class AppSettings:
             whisper_min_silence_duration_ms=int(
                 os.getenv("WHISPER_MIN_SILENCE_DURATION_MS", cls.whisper_min_silence_duration_ms)
             ),
+            whisper_subtitle_split_silence_duration_ms=int(
+                os.getenv("WHISPER_SUBTITLE_SPLIT_SILENCE_DURATION_MS", cls.whisper_subtitle_split_silence_duration_ms)
+            ),
             whisper_condition_on_previous_text=condition_env.lower() == "true",
             whisper_initial_prompt=os.getenv("WHISPER_INITIAL_PROMPT", cls.whisper_initial_prompt),
             whisper_cpu_threads=int(os.getenv("WHISPER_CPU_THREADS", cls.whisper_cpu_threads)),
@@ -197,6 +209,20 @@ class AppSettings:
             translation_provider_max_parallel_requests=int(
                 os.getenv("TRANSLATION_PROVIDER_MAX_PARALLEL_REQUESTS", cls.translation_provider_max_parallel_requests)
             ),
+            local_translation_model=os.getenv("LOCAL_TRANSLATION_MODEL", cls.local_translation_model),
+            local_translation_model_dir=Path(
+                os.getenv("LOCAL_TRANSLATION_MODEL_DIR", str(cls.local_translation_model_dir))
+            ),
+            local_translation_model_id=os.getenv("LOCAL_TRANSLATION_MODEL_ID", cls.local_translation_model_id),
+            local_translation_model_revision=os.getenv(
+                "LOCAL_TRANSLATION_MODEL_REVISION", cls.local_translation_model_revision
+            ),
+            local_translation_device=os.getenv("LOCAL_TRANSLATION_DEVICE", cls.local_translation_device),
+            local_translation_compute_type=os.getenv(
+                "LOCAL_TRANSLATION_COMPUTE_TYPE", cls.local_translation_compute_type
+            ),
+            local_translation_beam_size=int(os.getenv("LOCAL_TRANSLATION_BEAM_SIZE", cls.local_translation_beam_size)),
+            local_translation_auto_download=os.getenv("LOCAL_TRANSLATION_AUTO_DOWNLOAD", "false").lower() == "true",
             max_zip_depth=int(os.getenv("MAX_ZIP_DEPTH", cls.max_zip_depth)),
             max_extracted_files=int(os.getenv("MAX_EXTRACTED_FILES", cls.max_extracted_files)),
             max_extracted_size_gb=float(os.getenv("MAX_EXTRACTED_SIZE_GB", cls.max_extracted_size_gb)),
@@ -214,7 +240,7 @@ class AppSettings:
             secondary_video_audio_bitrate=os.getenv("SECONDARY_VIDEO_AUDIO_BITRATE", cls.secondary_video_audio_bitrate),
             secondary_video_cpu_used=int(os.getenv("SECONDARY_VIDEO_CPU_USED", cls.secondary_video_cpu_used)),
             ffmpeg_timeout_seconds=int(os.getenv("FFMPEG_TIMEOUT_SECONDS", cls.ffmpeg_timeout_seconds)),
-            local_retain_sources=os.getenv("LOCAL_RETAIN_SOURCES", "true").lower() == "true",
+            local_retain_sources=os.getenv("LOCAL_RETAIN_SOURCES", "false").lower() == "true",
             local_input_min_age_seconds=int(os.getenv("LOCAL_INPUT_MIN_AGE_SECONDS", cls.local_input_min_age_seconds)),
             source_folder_id=os.getenv("GDRIVE_SOURCE_FOLDER_ID", ""),
             target_folder_id=os.getenv("GDRIVE_TARGET_FOLDER_ID", ""),
@@ -239,23 +265,23 @@ class AppSettings:
             tts_required=os.getenv("TTS_REQUIRED", "false").lower() == "true",
             tts_provider=os.getenv("TTS_PROVIDER", cls.tts_provider),
             tts_voice=os.getenv("TTS_VOICE", cls.tts_voice),
-            tts_model_path=Path(os.getenv("TTS_MODEL_PATH", cls.tts_model_path)),
-            tts_voices_path=Path(os.getenv("TTS_VOICES_PATH", cls.tts_voices_path)),
+            tts_model_path=Path(os.getenv("TTS_MODEL_PATH", str(cls.tts_model_path))),
+            tts_voices_path=Path(os.getenv("TTS_VOICES_PATH", str(cls.tts_voices_path))),
             tts_speed=float(os.getenv("TTS_SPEED", cls.tts_speed)),
             tts_max_speed=float(os.getenv("TTS_MAX_SPEED", cls.tts_max_speed)),
             tts_duration_tolerance=float(os.getenv("TTS_DURATION_TOLERANCE", cls.tts_duration_tolerance)),
             tts_sample_rate=int(os.getenv("TTS_SAMPLE_RATE", cls.tts_sample_rate)),
             tts_audio_bitrate=os.getenv("TTS_AUDIO_BITRATE", cls.tts_audio_bitrate),
             tts_webm_audio_bitrate=os.getenv("TTS_WEBM_AUDIO_BITRATE", cls.tts_webm_audio_bitrate),
-            tts_generate_webm=os.getenv("TTS_GENERATE_WEBM", "true").lower() == "true",
-            google_credentials_file=Path(os.getenv("GOOGLE_CREDENTIALS_FILE", cls.google_credentials_file)),
-            google_token_file=Path(os.getenv("GOOGLE_TOKEN_FILE", cls.google_token_file)),
+            tts_generate_webm=os.getenv("TTS_GENERATE_WEBM", "false").lower() == "true",
+            google_credentials_file=Path(os.getenv("GOOGLE_CREDENTIALS_FILE", str(cls.google_credentials_file))),
+            google_token_file=Path(os.getenv("GOOGLE_TOKEN_FILE", str(cls.google_token_file))),
             google_profile=os.getenv("GOOGLE_PROFILE", cls.google_profile),
-            rclone_config_file=Path(os.getenv("RCLONE_CONFIG_FILE", cls.rclone_config_file)),
-            rclone_binary_file=Path(os.getenv("RCLONE_BINARY_FILE", cls.rclone_binary_file)),
+            rclone_config_file=Path(os.getenv("RCLONE_CONFIG_FILE", str(cls.rclone_config_file))),
+            rclone_binary_file=Path(os.getenv("RCLONE_BINARY_FILE", str(cls.rclone_binary_file))),
             rclone_remote=os.getenv("RCLONE_REMOTE", cls.rclone_remote),
-            provider_profile_dir=Path(os.getenv("PROVIDER_PROFILE_DIR", cls.provider_profile_dir)),
-            run_lock_file=Path(os.getenv("RUN_LOCK_FILE", cls.run_lock_file)),
+            provider_profile_dir=Path(os.getenv("PROVIDER_PROFILE_DIR", str(cls.provider_profile_dir))),
+            run_lock_file=Path(os.getenv("RUN_LOCK_FILE", str(cls.run_lock_file))),
             auto_bootstrap_rclone=os.getenv("AUTO_BOOTSTRAP_RCLONE", "true").lower() == "true",
             auto_update_rclone=os.getenv("AUTO_UPDATE_RCLONE", "false").lower() == "true",
             auto_tune_resources=os.getenv("AUTO_TUNE_RESOURCES", "true").lower() == "true",
