@@ -15,7 +15,7 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 ## Funcionalidades con evidencia de introducción
 
 | Funcionalidad | Primera versión verificada |
-|---|---:|
+| --- | ---: |
 | Pipeline audiovisual, STT, VTT, traducción, almacenamiento, resume/idempotencia, deduplicación, TTS, ejecución programada y packaging | `1.0.0` |
 | Recuperación/reparación de VTT e integración TTS en el pipeline común | `1.1.0` |
 | Naming descriptivo y bootstrap de assets TTS | `1.2.0` |
@@ -155,7 +155,6 @@ Consolida el reprocesado y la persistencia de manifests, refuerza el almacenamie
 **Tipo:** primera release de producto de esta línea.
 
 **Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
-
 
 ## Candidata 1.8.0
 

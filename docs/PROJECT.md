@@ -51,7 +51,7 @@ See [RELEASES.md](RELEASES.md) for the release history and [../RELEASE_CANDIDATE
 ## Verified release evidence
 
 | Capability | First verified product release | Evidence |
-|---|---:|---|
+| --- | ---: | --- |
 | Core audiovisual pipeline, STT, VTT, translation, storage, resume/idempotency, conservative deduplication, TTS, scheduling and packaging | `1.0.0` | `CHANGELOG.md` / release history |
 | VTT recovery/repair and integrated synchronized TTS | `1.1.0` | `CHANGELOG.md` / release history |
 | Naming improvements and TTS asset bootstrap | `1.2.0` | release history |

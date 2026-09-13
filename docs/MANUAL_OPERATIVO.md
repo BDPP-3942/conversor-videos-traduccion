@@ -13,7 +13,7 @@ La aplicación admite tres proveedores de almacenamiento: **local**, **Google Dr
 Hay cuatro formas prácticas de arrancar una ejecución normal:
 
 | Método | Windows | macOS/Linux | Uso recomendado |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Python directo | `python main.py ...` | `python3 main.py ...` | Desarrollo, diagnóstico y administración |
 | Wrapper local | `scripts\\run_local.bat` | `./scripts/run_local.sh` | Ejecución manual sencilla |
 | Wrapper desatendido | `scripts\\run_scheduled.bat` / `run_unattended.bat` | `./scripts/run_scheduled.sh` / `run_unattended.sh` | Scheduler y automatización |
@@ -779,7 +779,7 @@ python main.py duplicates delete --target "/ruta/storage/output" --dry-run
 ## 25. Qué comando utilizar según el problema
 
 | Situación | Acción |
-|---|---|
+| --- | --- |
 | Instalación nueva, sin resultados | `run` |
 | Instalación nueva y ejecución automática | `run --scheduled` |
 | Quiero comprobar entorno/proveedor/FFmpeg | `doctor` |
@@ -854,8 +854,8 @@ python main.py run --scheduled
 python main.py run --scheduled
 ```
 
-6. Revisa `storage/logs/` y el resultado JSON de la ejecución.
-7. Solo usa `reprocess-subtitles` si el problema afecta a un resultado ya existente.
+1. Revisa `storage/logs/` y el resultado JSON de la ejecución.
+2. Solo usa `reprocess-subtitles` si el problema afecta a un resultado ya existente.
 
 La ventaja de este procedimiento es que los resultados anteriores quedan disponibles para resume, identidad y deduplicación. `resume_enabled` está activado en la configuración base. fileciteturn410file0
 

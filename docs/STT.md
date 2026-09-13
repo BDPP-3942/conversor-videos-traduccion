@@ -109,7 +109,6 @@ If CUDA initialization fails, the application performs one controlled fallback t
 
 For `1.8.0`, Whisper VAD uses a `2000 ms` minimum silence duration. Subtitle cue splitting is intentionally independent and uses a `1000 ms` word-timestamp gap threshold. The subtitle threshold must not be implemented by lowering the VAD threshold, because VAD and subtitle segmentation serve different purposes.
 
-
 Whisper timestamps are used to construct subtitle cues. The pipeline can split cues around significant detected silences. Final intervals are validated before a VTT is accepted.
 
 The invariant is:

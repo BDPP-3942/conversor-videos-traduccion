@@ -44,7 +44,8 @@ fi
 
 uv run python -c 'import imageio_ffmpeg; print("[OK] FFmpeg:", imageio_ffmpeg.get_ffmpeg_exe())'
 if $INSTALL_RCLONE; then
-    command -v rclone >/dev/null 2>&1 || { echo "[ERROR] rclone no está instalado. Ejecuta scripts/setup_rclone.sh"; exit 1; }
+    echo "[INFO] Preparando el binario rclone gestionado por el proyecto..."
+    uv run python main.py provider bootstrap
 fi
 
 uv run python scripts/setup_tts.py

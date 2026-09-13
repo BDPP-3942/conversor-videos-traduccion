@@ -17,7 +17,7 @@ def test_rclone_setup_scripts_use_uv_managed_bootstrap() -> None:
 def test_rclone_is_external_not_a_python_dependency() -> None:
     pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
     migration = Path("docs/UV_MIGRATION.md").read_text(encoding="utf-8")
-    assert 'rclone = []' in pyproject
+    assert "rclone = []" in pyproject
     assert "external executable, not a Python dependency" in migration
     assert "tools/rclone/" in migration
     assert "secrets/rclone/rclone.conf" in migration

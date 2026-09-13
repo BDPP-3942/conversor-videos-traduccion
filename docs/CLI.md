@@ -27,7 +27,7 @@ python main.py run --scheduled
 #### `run` flags
 
 | Flag | Value / default | Description |
-|---|---|---|
+| --- | --- | --- |
 | `--scheduled` | flag; off by default | Runs in unattended scheduled-task mode and never opens a browser or asks for input. Provider/source/target must come from the saved active configuration. |
 | `--dry-run` | flag; off by default | Performs readiness validation and prints the effective readiness information without processing files. |
 | `--provider` | `local`, `google_drive`, `gdrive`, `rclone`; default: active configuration | Selects the storage provider for the run. |
@@ -86,7 +86,7 @@ These are not maintained as a second set of argparse definitions. Regeneration r
 The following `run` flags are intentionally **not** accepted by regeneration:
 
 | Flag | Reason |
-|---|---|
+| --- | --- |
 | `--scheduled` | A separate regeneration entry point already defines the operation; this flag is a `run` execution mode rather than a pipeline configuration override. |
 | `--dry-run` | Regeneration has no dry-run execution path. Accepting it would imply a different operation rather than a regeneration with a configuration override. |
 | `--no-retain-sources` | Contradicts the regeneration guarantee that source inputs are preserved. |

@@ -15,7 +15,6 @@ VTT original validado
    ↓
 Traducción conservando timestamps
    ↓
-VTT traducido validado
    ├────────→ subtítulos
    ├────────→ vídeo normal
    └────────→ TTS opcional
@@ -232,7 +231,7 @@ La CI además comprueba packaging, entry points, seguridad y dependencias en Lin
 ## Documentación canónica
 
 | Documento | Propósito |
-|---|---|
+| --- | --- |
 | `docs/PROJECT.md` | Propósito y alcance |
 | `docs/ARCHITECTURE.md` | Arquitectura y componentes |
 | `docs/USE_CASES.md` | Casos de uso soportados |

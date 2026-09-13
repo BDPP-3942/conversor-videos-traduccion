@@ -47,6 +47,7 @@ def test_resource_profile_keeps_medium_for_high_end_hardware(monkeypatch):
 def test_resource_profile_uses_small_on_8gb_class_machine(monkeypatch):
     monkeypatch.setattr("src.resource_profile._memory_gb", lambda: 8.0)
     monkeypatch.setattr("src.resource_profile.os.cpu_count", lambda: 4)
+    monkeypatch.setattr("src.resource_profile.available_gpu_memory", lambda _hw: 0.0)
     profile = __import__("src.resource_profile", fromlist=["detect_profile"]).detect_profile(AppSettings())
     assert profile.name == "low"
     assert profile.whisper_model == "small"

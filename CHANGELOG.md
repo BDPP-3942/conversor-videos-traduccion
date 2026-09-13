@@ -9,7 +9,7 @@
 ### Scope
 
 - Refinada la recuperación selectiva de segmentos sospechosos de Whisper, con reintento sin prompt inicial ni contexto de texto previo.
-- Separados el silencio VAD (`1500 ms`) y la división de subtítulos (`500 ms`).
+- Separados el silencio VAD (`2000 ms`) y la división de subtítulos (`1000 ms`).
 - Conservado el contrato numérico de `clip_timestamps` durante la recuperación.
 - Incorporado MADLAD-400 3B CT2 INT8 como modelo local predeterminado, manteniendo OPUS-MT como alternativa ligera.
 - Añadida validación específica de integridad, tokenización, revisiones fijadas y presupuesto de instalación del modelo MADLAD.

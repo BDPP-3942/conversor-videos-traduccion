@@ -41,7 +41,7 @@ LOCAL_TRANSLATION_AUTO_DOWNLOAD=false
 El proyecto no intenta adivinar límites que el proveedor pueda cambiar. Los límites de volumen que sí son suficientemente estables para proteger los planes gratuitos se controlan localmente:
 
 | Proveedor | Control local | Valor conservador | Ventana |
-|---|---|---:|---|
+| --- | --- | ---: | --- |
 | Mistral | rate/concurrency | 2 requests concurrentes | continuo |
 | DeepL | caracteres | 500.000 caracteres | mes |
 | DeepL | rate/concurrency | 2 requests concurrentes | continuo |

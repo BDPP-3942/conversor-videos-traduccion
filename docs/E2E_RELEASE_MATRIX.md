@@ -3,7 +3,7 @@
 The release E2E suite uses real subprocess execution, temporary local storage, deterministic test adapters for external STT/translation boundaries, the real `MediaPipeline`, and ffmpeg. Google Drive and rclone are represented by their public `StorageProvider` contract in isolated tests; production credentials are not required.
 
 | Caso de uso | Script / Entry point | Resultado esperado | Validación |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Procesamiento normal | `video-translation-pipeline run` / `scripts/run_local.*` | success | real local pipeline E2E |
 | Dry run | `video-translation-pipeline run --dry-run` | no side effects | real subprocess |
 | AUTO concurrency | `video-translation-pipeline run --dry-run --parallel-videos 0` | safe effective concurrency | real subprocess |
