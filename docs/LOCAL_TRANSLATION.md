@@ -1,6 +1,6 @@
 # Local translation runtime
 
-El proveedor local usa CTranslate2 + SentencePiece y está pensado como fallback offline cuando un proveedor remoto como Mistral está limitado o no disponible. **El proyecto conserva dos modelos locales fijados**: MADLAD-400 3B como opción de mayor calidad y OPUS-MT como opción ligera de compatibilidad cuando el espacio o el rendimiento de CPU sean prioritarios.
+El proveedor local usa CTranslate2 + SentencePiece y está pensado como fallback offline cuando un proveedor remoto como Mistral está limitado o no disponible. La release publicada **1.8.0** conserva dos modelos locales fijados: MADLAD-400 3B como opción de mayor calidad y OPUS-MT como opción ligera de compatibilidad cuando el espacio o el rendimiento de CPU sean prioritarios.
 
 ## Modelos fijados
 
@@ -29,7 +29,7 @@ Approximate download: 82.5 MB (~78.7 MiB)
 License: CC-BY-4.0
 ```
 
-Esta opción **no ha sido eliminada** por la incorporación de MADLAD. `model.bin`, `source.spm` y `target.spm` se validan por tamaño y SHA-256, y sus metadatos JSON obligatorios también se validan. Conserva además los metadatos empaquetados `config.json` y `tokenizer_config.json` que necesita su preparación.
+Esta opción no ha sido eliminada por la incorporación de MADLAD. `model.bin`, `source.spm` y `target.spm` se validan por tamaño y SHA-256, y sus metadatos JSON obligatorios también se validan. Conserva además los metadatos empaquetados `config.json` y `tokenizer_config.json` que necesita su preparación.
 
 ## Selección
 
