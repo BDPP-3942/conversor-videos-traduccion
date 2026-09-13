@@ -67,7 +67,7 @@ python main.py run --scheduled
 
 ## Traducción local offline
 
-La candidata `1.8.0` consolida el proveedor local opcional español→inglés basado en CTranslate2 + SentencePiece. MADLAD-400 3B CT2 INT8 es el modelo predeterminado orientado a calidad y OPUS-MT CT2 INT8 se conserva como alternativa ligera. Ningún modelo local se descarga automáticamente por defecto: debe prepararse explícitamente.
+La release publicada `1.8.0` consolida el proveedor local opcional español→inglés basado en CTranslate2 + SentencePiece. MADLAD-400 3B CT2 INT8 es el modelo predeterminado orientado a calidad y OPUS-MT CT2 INT8 se conserva como alternativa ligera. Ningún modelo local se descarga automáticamente por defecto: debe prepararse explícitamente.
 
 ```bash
 python scripts/manage_local_translation.py status
@@ -262,11 +262,11 @@ Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` 
 
 ## Versionado
 
-La release publicada más reciente es `1.7.4` (`v1.7.4`). La candidata actual es `1.8.0`, asociada a PR #45 y pendiente de merge/publicación. PR #42 ya forma parte de `main` y del baseline publicado `1.7.4`.
+La release publicada más reciente es `1.8.0` (`v1.8.0`). Los documentos de control histórico conservan la constancia de `1.8.0` como candidata respecto al momento de validación/publicación, pero la documentación operativa trata `1.8.0` como release publicada y vigente.
 
-`1.8.0` consolida la recuperación STT de Whisper, separa el silencio VAD de la división de subtítulos, incorpora MADLAD-400 3B como modelo local predeterminado manteniendo OPUS-MT como alternativa, refuerza la validación de ambos modelos, conserva la migración reproducible a `uv` introducida en la línea anterior y actualiza los defaults de TTS/WebM.
+`1.8.0` consolida la recuperación STT de Whisper, separa el silencio VAD del criterio de división de subtítulos con valores consolidados de **2000 ms para VAD y 1000 ms para subtitle split**, incorpora MADLAD-400 3B como modelo local predeterminado manteniendo OPUS-MT como alternativa, refuerza la validación de ambos modelos y conserva la migración reproducible a `uv`.
 
-El historial completo de releases, incluyendo `1.0.0`–`1.7.4` y la candidata `1.8.0`, se mantiene en `docs/RELEASES.md` y `docs/VERSIONING.md`.
+El historial completo de releases se mantiene en `docs/RELEASES.md` y `docs/VERSIONING.md`, donde la marca de candidata se conserva deliberadamente como registro histórico/control de publicación.
 
 ## Seguridad y licencias
 
