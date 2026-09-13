@@ -2,7 +2,7 @@
 
 STT uses `faster-whisper` backed by CTranslate2. The selected model, device, compute type, beam size, CPU threads, VAD behavior, initial prompt and degeneration-recovery policy are configurable.
 
-The `1.8.0` candidate uses `faster-whisper>=1.2.1,<1.3` with `ctranslate2>=4.8.2,<4.9`. It refines the existing selective-recovery mechanism rather than replacing the STT architecture.
+The published `1.8.0` release uses `faster-whisper>=1.2.1,<1.3` with `ctranslate2>=4.8.2,<4.9`. It refines the existing selective-recovery mechanism rather than replacing the STT architecture.
 
 Defaults in `config/app.toml` include automatic model/device/compute selection, beam size `5`, VAD enabled, a minimum VAD silence duration of `2000` ms and an independent subtitle split threshold of `1000` ms. `.env.example` exposes explicit environment overrides.
 
@@ -131,4 +131,4 @@ The model is not bundled into the repository by default.
 
 ## Reprocessing
 
-The `1.7.0` baseline introduced the reprocessing/manifests workflows and `1.7.1` corrected the selective `clip_timestamps` backend contract. The `1.8.0` candidate preserves those workflows while refining suspicious-segment recovery and its context handling.
+The `1.7.0` baseline introduced the reprocessing/manifests workflows and `1.7.1` corrected the selective `clip_timestamps` backend contract. The published `1.8.0` release preserves those workflows while refining suspicious-segment recovery and its context handling.
