@@ -1,2 +1,5 @@
 # rclone is an external command-line application, not a Python package.
-# Install rclone separately from https://rclone.org/ and run: rclone config
+# The supported project path uses the pinned, checksum-verified managed binary:
+#   uv run python main.py provider bootstrap
+# This file is retained only as a compatibility marker for the external tool;
+# it must not be consumed by pip or uv as a Python dependency list.

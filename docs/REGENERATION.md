@@ -44,7 +44,7 @@ La regeneración reutiliza el contrato de opciones de `run` para las opciones qu
 ### Opciones compartidas con `run`
 
 | Flag | Valor / default | Aplicabilidad |
-|---|---|---|
+| --- | --- | --- |
 | `--provider` | `local`, `google_drive`, `gdrive` o `rclone` | Compartida. Selecciona el backend de almacenamiento y exige URIs compatibles. Si se omite usa el provider activo de configuración. |
 | `--source` | URI | Compartida. Sustituye la fuente configurada; si se omite se usa la fuente activa. |
 | `--target` | URI | Compartida. Sustituye el destino configurado; si se omite se usa el destino activo. |
@@ -61,7 +61,7 @@ Las definiciones anteriores no se mantienen manualmente en dos parsers: regenera
 ### Opciones deliberadamente exclusivas de `run`
 
 | Flag | Motivo |
-|---|---|
+| --- | --- |
 | `--scheduled` | Es un modo de ejecución desatendida del comando `run`; la regeneración ya es un entry point explícito y no necesita cambiar su contrato mediante esta flag. |
 | `--dry-run` | No existe un modo de regeneración que ejecute solamente readiness y omita la operación; aceptar la flag sin regenerar produciría una semántica distinta a `run`. |
 | `--no-retain-sources` | Contradice una garantía fundamental de regeneración: la fuente original se conserva siempre. |

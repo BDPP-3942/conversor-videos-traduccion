@@ -1,62 +1,70 @@
-# Release Candidate — 1.7.4
+# Release Candidate — 1.8.0
 
 ## Release
 
-- **Version:** 1.7.4
-- **Candidate SHA:** debe ser validado por CI y Release Gate sobre el SHA exacto final pre-merge; el tag debe apuntar al SHA exacto resultante de `main` tras el merge.
-- **Previous release:** `v1.7.2` — release PATCH publicada con la corrección del gestor de descarga del modelo local.
-- **Historical baselines:** `v1.7.1` → corrección de recuperación STT; `v1.7.0` → `036a9a4cf33012d0fcd0a784f8ff34db6e30b0f5`; `v1.6.0` → `a6cf0ee183a4802814fe0e061b4704e427166b85`; `v1.5.1` → `06ee8d265b57214596f079f3bb426b9b27042b1e`.
-- **Target tag:** `v1.7.4` — pending validation and publication.
+- **Version:** 1.8.0
+- **Previous published release:** `v1.7.4` — published on 8 September 2026.
+- **Target tag:** `v1.8.0` — pending final CI, Release Gate and merge validation.
+- **Candidate SHA:** must be the exact final `main` SHA after PR #45 is merged and validated; PR #42 is already present in the `main` baseline.
 
-This report is the release-gate record for the maintenance release that consolidates local-translation validation fixes and the complete migration of development, CI, packaging and dependency auditing to `uv`.
+`v1.7.4` is already a published GitHub Release. It is historical state, not a candidate, and its tag must not be recreated or moved.
 
-## Baseline for the 1.7.4 review
+## Release classification
 
-The comparison baseline is the published `1.7.2` product state. The review preserves the STT selective-recovery fix and the local-translation fixes already integrated after that baseline.
+`1.8.0` is a MINOR release. The combined scope introduces compatible functionality rather than only corrective maintenance.
 
 ## Scope
 
-- Accept the real JSON-root shape of `shared_vocabulary.json`.
-- Preserve the packaged `config.json` and `tokenizer_config.json` metadata required by the pinned local translation model.
-- Make `pyproject.toml` the single dependency declaration source.
-- Commit `uv.lock` as the reproducible dependency resolution.
-- Run development, test, build and audit environments through locked uv environments.
-- Keep pip as the clean-wheel compatibility mechanism for published distributions.
+- Separate Whisper VAD silence (`2000 ms`) from subtitle split silence (`1000 ms`).
+- Retry suspicious STT segments without the large initial prompt or previous-text context.
+- Preserve numeric `clip_timestamps` for selective recovery.
+- Upgrade the local Spanish→English fallback to pinned MADLAD-400 3B CT2 INT8 **without removing the existing OPUS-MT CT2 INT8 fallback**.
+- Keep independent model directories, repository/revision pins, integrity checks and tokenizer handling for MADLAD and OPUS-MT.
+- Use MADLAD's shared SentencePiece tokenizer and `<2en>` target prefix; preserve OPUS-MT `source.spm`/`target.spm` handling.
+- Enforce a 3,000,000,000-byte installation budget for MADLAD and validate required model artifacts.
+- Keep local model auto-download disabled by default.
+- Complete and preserve the uv-based development/CI/build/audit foundation already integrated through PR #42, while preserving pip wheel compatibility.
 
-## CI / dependency audit
+## Dependency audit
 
-CI uses `uv sync --locked` for project environments and `uv pip check` for dependency consistency. The audit tooling is declared in the `audit` dependency group and invoked with `uv run --locked --group audit pip-audit --strict`; no global `pip-audit` installation is assumed.
+The audit environment is resolved from the versioned `uv.lock` file. The editable local project package is removed before the audit so `pip-audit` audits the PyPI-resolvable dependency graph rather than the source checkout itself.
 
-The test matrix remains Linux, Windows and macOS with Python 3.11, 3.12 and 3.13. Packaging still verifies a wheel in an isolated pip environment.
+The CI command is:
 
-## Tests
+```bash
+uv run --locked --no-sync --group audit pip-audit --strict
+```
 
-Required validation includes the complete pytest suite, local-translation regressions, STT regressions, configuration/provider regressions, reprocessing/manifests regressions, Unicode/filesystem and ZIP security tests, packaging validation, dependency consistency and dependency audits.
+Both the base/Google and TTS audit jobs use the same principle.
 
-## Documentation
+## Validation
 
-The release documentation for `1.7.4` is maintained in `CHANGELOG.md`, `docs/RELEASES.md`, `docs/VERSIONING.md`, `RELEASE_SCOPE.md`, this report and the CI/development documentation. Historical release entries must remain intact.
+Required before publication:
 
-## Known limitations
+- Linux, Windows and macOS.
+- Python 3.11, 3.12 and 3.13.
+- Full pytest suite, including the cross-platform release E2E tests.
+- Ruff lint/security/format and `compileall`.
+- `uv lock --check`, locked sync and `uv pip check`.
+- Packaging, clean wheel installation and entry points.
+- Dependency audits.
+- Release Gate on the exact final SHA.
+- Real MADLAD model preparation/benchmark on the target hardware; OPUS-MT remains independently benchmarkable on low-disk deployments.
 
-- CI uses deterministic test doubles for the local model runtime and does not download the full production model on every runner.
-- Real model benchmark performance remains hardware-dependent.
-- The uv migration does not remove pip from the published-wheel compatibility path or from portable CUDA runtime fallbacks.
+## Version consistency
 
-## Release Gate
+The candidate version must agree in:
 
-| Gate | Status |
-|---|---|
-| Existing functionality from `1.7.2` baseline | **PENDING final CI** |
-| Local translation validation | **IMPLEMENTED** |
-| uv dependency resolution | **IMPLEMENTED** |
-| Locked CI environments | **IMPLEMENTED** |
-| Tests | **PENDING final CI** |
-| CI | **PENDING** |
-| Packaging | **PENDING final CI** |
-| Documentation | **UPDATED** |
-| Versioning | **UPDATED to 1.7.4** |
+- `pyproject.toml` → `1.8.0`.
+- `config/app.toml` → `1.8.0`.
+- `docs/RELEASES.md` → published `1.7.4` plus candidate `1.8.0`.
+- `docs/VERSIONING.md` → published `1.7.4` plus candidate `1.8.0`.
+- `RELEASE_SCOPE.md` → `1.8.0`.
+- This file → `1.8.0`.
+- `uv.lock` → project package metadata synchronized to `1.8.0` after the branch is rebased onto the final uv-migration base.
+
+`CHANGELOG.md` is deliberately retained as the complete published-history ledger during the candidate phase. The `1.8.0` changelog entry is to be added at publication, after the final `main` SHA is validated, so the candidate does not rewrite or remove historical release annotations merely to satisfy a pre-release check.
 
 ## Decision
 
-**Do not merge or create `v1.7.4` until the final candidate SHA remains green in CI and Release Gate.** After merge, validate the resulting `main` SHA and create the immutable `v1.7.4` tag/release on that exact SHA.
+**Do not merge or create `v1.8.0` until the final candidate SHA is green in CI and Release Gate.** After merge, validate `main` again, add the immutable `1.8.0` changelog entry preserving the entire existing history, and create the `v1.8.0` tag/release on that exact SHA.

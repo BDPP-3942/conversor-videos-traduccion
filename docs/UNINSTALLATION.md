@@ -8,13 +8,16 @@ Para eliminar exclusivamente el modelo descargado por el proyecto:
 python scripts/manage_runtime_resources.py translation-model cleanup
 ```
 
-Esto elimina:
+Esto elimina el directorio del modelo seleccionado, sin borrar código, vídeos, subtítulos, manifests, configuración ni credenciales.
+
+Rutas gestionadas:
 
 ```text
+tools/models/translation/madlad400-3b-ct2-int8/
 tools/models/translation/opus-mt-es-en-ct2-int8/
 ```
 
-No elimina código, vídeos, subtítulos, manifests, configuración ni credenciales.
+Solo se elimina el directorio correspondiente al modelo que el comando gestiona en la configuración efectiva.
 
 También puede consultarse antes:
 
@@ -57,3 +60,7 @@ Si además se quiere eliminar el entorno virtual completo, detener primero cualq
 ## Importante
 
 La limpieza de recursos es deliberada y no debe ejecutarse mientras exista una ejecución activa que pueda necesitarlos. Los archivos del proyecto y los recursos gestionados tienen rutas separadas para que su eliminación sea explícita y reversible mediante una nueva preparación cuando sea necesario.
+
+## Release 1.8.0
+
+La release publicada `1.8.0` mantiene esta separación entre datos del proyecto y recursos gestionados. La limpieza de modelos locales o del runtime CUDA no elimina artefactos de usuario ni modifica las releases/tags del repositorio.

@@ -1,6 +1,6 @@
-# UV migration preview
+# UV migration — historical preview
 
-This document describes the proposed migration from the current pip/requirements workflow to `uv`. It is intentionally a preview: this PR does **not** replace the existing installers, requirements files, release process, or runtime CUDA installer.
+This document is retained as the historical design record for the migration from the pip/requirements development workflow to `uv`. The migration was implemented through PR #42 and is already integrated in `main`; it forms part of the published `1.7.4` baseline. The document is no longer a proposal or a pending production migration.
 
 ## Target architecture
 
@@ -26,9 +26,9 @@ pyproject.toml
 
 `pyproject.toml` remains the declaration source. `uv.lock` becomes the resolved, reproducible dependency graph and must be committed once the migration is implemented. Published wheels remain standard Python wheels and must continue to install with pip; end users must not be required to install uv.
 
-## Preview implemented in this PR
+## Historical preview implemented by PR #42
 
-`.github/workflows/uv-preview.yml` demonstrates the intended CI sequence without changing the production CI yet:
+The historical `.github/workflows/uv-preview.yml` demonstrated the intended CI sequence before the production migration. The authoritative current workflow is `.github/workflows/ci.yml`.
 
 1. Install a controlled uv action release.
 2. Provision Python through uv.
@@ -37,7 +37,7 @@ pyproject.toml
 5. Run dependency checks, tests, Ruff and packaging through uv.
 6. Install the resulting wheel with pip in a clean environment and run the existing entry-point compatibility checks.
 
-Once `uv.lock` is committed, the preview should change from `uv lock` + `uv sync` to `uv lock --check` + `uv sync --locked`.
+The migration is now complete: `uv.lock` is committed and current CI uses `uv lock --check` and locked synchronization. The remaining pip usage is deliberate for clean-wheel compatibility and selected bootstrap paths.
 
 ## Recommended repository migration
 
@@ -138,7 +138,7 @@ After a repository-wide audit confirms there are no external consumers, remove t
 - `requirements-dev.txt`
 - `requirements-google.txt`
 
-`requirements-rclone.txt` should not be converted into a uv dependency because rclone is an external executable, not a Python package. It can remain as an external-tool bootstrap/documentation file or be replaced by explicit installation documentation.
+`requirements-rclone.txt` should not be converted into a uv dependency because rclone is an external executable, not a Python package. It can remain as an external-tool bootstrap/documentation file or be replaced by the managed project bootstrap (`uv run python main.py provider bootstrap`) and explicit installation documentation.
 
 ## Migration acceptance criteria
 
@@ -155,4 +155,4 @@ The complete migration should not be considered finished until all of the follow
 - Documentation no longer presents requirements files as the primary installation path.
 - A repository-wide search shows no accidental stale `pip install -r requirements*.txt` instructions.
 
-This preview intentionally stops before those production changes so the migration can be implemented and reviewed as a separate infrastructure change.
+This historical preview intentionally records the state before those production changes. PR #42 completed the infrastructure migration; `docs/UV_MIGRATION.md` is the current operational reference.

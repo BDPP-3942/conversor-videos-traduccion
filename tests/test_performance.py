@@ -12,7 +12,7 @@ def test_settings_default_to_performance_oriented_values():
     assert settings.translation_batch_size == 25
     assert settings.max_parallel_videos == 0
     assert settings.ffmpeg_avoid_reencode is True
-    assert settings.generate_webm is True
+    assert settings.generate_webm is False
     assert settings.ffmpeg_preset == "medium"
     assert settings.ffmpeg_crf == 23
     assert settings.ffmpeg_audio_bitrate == "256k"
@@ -47,6 +47,7 @@ def test_resource_profile_keeps_medium_for_high_end_hardware(monkeypatch):
 def test_resource_profile_uses_small_on_8gb_class_machine(monkeypatch):
     monkeypatch.setattr("src.resource_profile._memory_gb", lambda: 8.0)
     monkeypatch.setattr("src.resource_profile.os.cpu_count", lambda: 4)
+    monkeypatch.setattr("src.resource_profile.available_gpu_memory", lambda _hw: 0.0)
     profile = __import__("src.resource_profile", fromlist=["detect_profile"]).detect_profile(AppSettings())
     assert profile.name == "low"
     assert profile.whisper_model == "small"

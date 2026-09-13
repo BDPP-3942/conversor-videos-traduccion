@@ -41,8 +41,9 @@ if errorlevel 1 exit /b 1
 uv run python -c "import imageio_ffmpeg; print('[OK] FFmpeg:', imageio_ffmpeg.get_ffmpeg_exe())"
 if errorlevel 1 exit /b 1
 if "%INSTALL_RCLONE%"=="true" (
-  where rclone >nul 2>&1
-  if errorlevel 1 (echo [ERROR] rclone no esta instalado. Ejecuta scripts\setup_rclone.bat & exit /b 1)
+  echo [INFO] Preparando el binario rclone gestionado por el proyecto...
+  uv run python main.py provider bootstrap
+  if errorlevel 1 exit /b 1
 )
 
 uv run python scripts\setup_tts.py

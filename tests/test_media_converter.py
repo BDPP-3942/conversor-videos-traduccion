@@ -65,8 +65,10 @@ def test_wmv_is_converted_to_mp4_and_webm(tmp_path: Path) -> None:
         ],
         check=True,
     )
-    artifacts = MediaConverter(AppSettings()).convert(source, "37x02_TEST", tmp_path / "out")
+    settings = AppSettings(generate_webm=True)
+    artifacts = MediaConverter(settings).convert(source, "37x02_TEST", tmp_path / "out")
     assert artifacts.mp4_path.is_file()
+    assert artifacts.secondary_video_path is not None
     assert artifacts.secondary_video_path.is_file()
     assert artifacts.mp4_path.stat().st_size > 0
     assert artifacts.secondary_video_path.stat().st_size > 0
@@ -101,9 +103,11 @@ def test_mp4_uses_copy_path_when_enabled(tmp_path: Path) -> None:
         ],
         check=True,
     )
-    converter = MediaConverter(AppSettings())
+    settings = AppSettings(generate_webm=True)
+    converter = MediaConverter(settings)
     artifacts = converter.convert(source, "copy_test", tmp_path / "out")
     assert artifacts.mp4_path.is_file()
+    assert artifacts.secondary_video_path is not None
     assert artifacts.secondary_video_path.is_file()
 
 

@@ -1,34 +1,57 @@
-# Release Scope — 1.7.4
+# Release Scope — 1.8.0
 
 ## Previous release
 
-`v1.7.2` es la release PATCH inmediatamente anterior publicada. Las correcciones de `1.7.1` y `1.7.2` forman parte del baseline funcional conservado.
+`v1.7.4` is the previous published release and immutable baseline. PR #42 (the uv migration) is already integrated in that baseline; `1.8.0` records the subsequent PR #45 release scope on top of it. Its GitHub Release is authoritative for the published 1.7.4 product state.
 
-Los tags publicados históricos MUST NOT be moved, deleted, or reused.
+Published tags are immutable and MUST NOT be moved, deleted, or reused.
 
-## Changes since v1.7.2
+## Release classification
 
-`1.7.4` es una PATCH de mantenimiento que consolida las correcciones del modelo local y la migración reproducible de desarrollo/CI/build a `uv`.
+`1.8.0` is a **MINOR** release because it introduces compatible product functionality beyond the maintenance corrections published in `1.7.4`:
 
-### Local translation fixes
+- separate Whisper VAD silence duration from subtitle split silence duration;
+- context-free and prompt-free suspicious-segment recovery;
+- a new pinned MADLAD-400 3B local translation fallback while preserving the existing OPUS-MT fallback;
+- SentencePiece target-language handling for MADLAD;
+- independent configuration and integrity validation for both local models;
+- a hard local-model installation budget and integrity validation;
+- reproducible `uv` dependency management across development, CI, build and audit workflows.
 
-- `shared_vocabulary.json` puede utilizar una raíz JSON array, que es la estructura real del artefacto fijado.
-- Se mantiene el bootstrap empaquetado de `config.json` y `tokenizer_config.json` introducido en la corrección anterior.
-- Las regresiones cubren validación, preparación e integración del proveedor local.
+The public CLI/configuration architecture remains backward compatible; no MAJOR increment is warranted.
 
-### uv migration
+## Changes since v1.7.4
 
-- `pyproject.toml` es la única declaración de dependencias Python.
-- `uv.lock` queda versionado como resolución reproducible.
-- Los entornos de desarrollo, tests, packaging y auditoría se crean mediante `uv sync --locked`.
-- Quality, tests y Release Gate utilizan comandos nativos de `uv` para comprobar el entorno.
-- `pip-audit` pertenece al grupo `audit` y se ejecuta mediante `uv run --locked --group audit pip-audit --strict`.
-- El wheel continúa instalándose mediante `pip` en un entorno limpio como prueba explícita de compatibilidad de distribución.
-- La excepción de runtime CUDA conserva el fallback `pip` para ejecutables portables que no contienen `uv`.
+### Whisper / STT
+
+- VAD silence remains independently configurable at `2000 ms`.
+- Subtitle split silence defaults to `1000 ms` and is configured separately.
+- Suspicious-segment recovery retries without the initial prompt and without previous-text conditioning to prevent prompt-amplified hallucinations.
+- `clip_timestamps` remains numeric `[start, end]`.
+
+### Local translation
+
+- The default local fallback is upgraded to `cstr/madlad400-3b-ct2-int8`.
+- The existing `Prukario/opus-mt-es-en-ct2-int8` model remains available as the lightweight compatibility option.
+- MADLAD and OPUS-MT have independent model directories, repository/revision pins, artifact validation and tokenizer handling.
+- The MADLAD revision is pinned and its installation is bounded by a 3,000,000,000-byte budget.
+- Required artifacts are validated before activation.
+- MADLAD uses the shared SentencePiece tokenizer and `<2en>` target prefix for Spanish-to-English translation.
+- OPUS-MT retains `source.spm` and `target.spm` and its packaged JSON metadata path.
+- CPU fallback remains available when CUDA is unavailable.
+- Automatic model download remains disabled by default.
+
+### uv / reproducibility
+
+- `pyproject.toml` is the single Python dependency declaration source.
+- `uv.lock` is the reproducible dependency resolution and is validated with `uv lock --check`.
+- Development, test, packaging and audit environments use locked uv environments.
+- The published wheel remains validated through clean `pip` installation.
+- `pip-audit` runs from the locked audit group after removing the editable project package, so the audit covers PyPI-resolvable dependencies rather than the local source tree.
 
 ## Dependency scope
 
-The runtime dependency contract remains unchanged. Python dependency declarations are maintained only in `pyproject.toml`; the resolved development graph is managed by the versioned `uv.lock` file.
+Runtime dependency declarations remain in `pyproject.toml`; the resolved graph is represented by `uv.lock`.
 
 Runtime dependencies:
 
@@ -40,28 +63,36 @@ Runtime dependencies:
 - `imageio-ffmpeg>=0.6,<1`
 - `python-dotenv>=1,<2`
 
-Optional project features are declared as PEP 621 extras/groups in `pyproject.toml`. The duplicated `requirements.txt`, `requirements-dev.txt` and `requirements-google.txt` files are no longer dependency sources.
+Optional features remain declared as PEP 621 extras and uv dependency groups.
 
 ## Version scope
 
-- `pyproject.toml` declares `1.7.4`.
-- `config/app.toml` identifies the candidate as `1.7.4`.
-- `CHANGELOG.md` contains the `1.7.4` release entry before `1.7.3`.
-- `docs/RELEASES.md`, `docs/VERSIONING.md`, `RELEASE_CANDIDATE.md` and this file identify `1.7.4` as the candidate.
-- The `v1.7.4` tag must point to the exact resulting `main` SHA after merge and final validation.
+- `pyproject.toml` declares `1.8.0`.
+- `config/app.toml` identifies the application as `1.8.0`.
+- `CHANGELOG.md` retains the complete published history during the candidate phase; the `1.8.0` entry is added at publication without removing or rewriting any historical release annotations.
+- `docs/RELEASES.md`, `docs/VERSIONING.md`, `RELEASE_CANDIDATE.md` and this file identify `1.8.0` as the next release candidate.
+- The `v1.8.0` tag must point to the exact validated `main` SHA after PR #45 is merged on top of the `main` baseline that already contains PR #42.
 
 ## Validation state
 
-The final candidate SHA must complete CI and Release Gate successfully before merge approval. No older SHA is sufficient evidence for the final candidate.
+The exact final candidate SHA must pass CI and Release Gate before merge approval and before publication of `v1.8.0`.
+
+The real MADLAD model benchmark remains a hardware-dependent validation step and is not replaced by deterministic CI fixtures. OPUS-MT remains independently benchmarkable for low-disk deployments.
 
 ## Tests and hardening
 
-- Full pytest suite remains mandatory on Linux, Windows and macOS with Python 3.11, 3.12 and 3.13.
-- Ruff lint, Ruff Security, format and `compileall` remain mandatory.
-- `uv lock --check`, locked environment sync and dependency consistency are mandatory.
-- Packaging, clean-wheel installation, `pip check` and console entry points remain mandatory.
-- Dependency audits cover the base/Google development graph and the optional TTS graph using the locked audit group.
-- Release Gate validates exact SHA, version metadata, packaged resources and clean-wheel compatibility.
+- Full pytest suite on Linux, Windows and macOS with Python 3.11, 3.12 and 3.13.
+- Ruff lint, Ruff security, format and `compileall`.
+- `uv lock --check`, locked environment synchronization and `uv pip check`.
+- Packaging, clean-wheel installation and console entry points.
+- Base/Google and TTS dependency audits through the locked audit group.
+- Whisper recovery and subtitle-splitting regressions.
+- Local MADLAD and OPUS-MT provider, selection and integrity-validation regressions.
+- Existing Unicode/filesystem, ZIP security, reprocessing and manifest regressions, including the cross-platform E2E subprocess/storage fixes.
+
+## Release sequence
+
+`v1.7.4` is already published and must remain unchanged. The next product release is `v1.8.0`; there is no reason to create a synthetic `v1.7.5` for the combined PR #42 + PR #45 scope.
 
 ## Excluded
 
@@ -70,4 +101,4 @@ The final candidate SHA must complete CI and Release Gate successfully before me
 - No arbitrary model/revision download support.
 - No automatic global CUDA Toolkit or NVIDIA driver installation/removal.
 - No unrelated product feature or broad refactor.
-- No release tag creation from the PR branch.
+- No release tag creation from a PR branch.

@@ -38,20 +38,18 @@ local://storage/input → pipeline → local://storage/output
 
 See [INSTALLATION.md](INSTALLATION.md), [CONFIGURATION.md](CONFIGURATION.md) and [CLI.md](CLI.md) for operational details.
 
-## Current published release vs candidate
+## Current published release
 
-The latest published product release is `1.7.0` (`v1.7.0`). The current branch prepares PATCH release `1.7.2`; `1.7.1` is the immediately preceding merged STT compatibility fix whose release tag must remain immutable once published.
+The current product release is `1.8.0` (`v1.8.0`). It incorporates the scope delivered by PR #45 on top of the `1.7.4` baseline, including the refined Whisper selective recovery, independent VAD/subtitle silence thresholds, pinned MADLAD-400 3B local translation with OPUS-MT retained as the lightweight alternative, strengthened model integrity/provider tests, and the reproducible `uv` foundation introduced by PR #42.
 
-Release `1.7.0` consolidated reprocessing/manifests, local-storage race hardening, deterministic Unicode naming/filesystem behavior and the local translation runtime. Release `1.7.1` corrected the `faster-whisper` selective-recovery backend contract. Release `1.7.2` corrects the local translation model download manager and adds end-to-end provider regression coverage.
+The previous releases `1.0.0` through `1.7.4` remain immutable history. `docs/RELEASES.md` and `docs/VERSIONING.md` retain the historical release ledger and the temporary `1.8.0` candidate record required for release traceability; they are not the source of the current runtime version.
 
-The previous releases `1.6.0` and `1.5.1` remain historical context only. The compatibility review for `1.7.2` must preserve the complete `1.7.1` state.
-
-See [RELEASES.md](RELEASES.md) for the release history and [../RELEASE_CANDIDATE.md](../RELEASE_CANDIDATE.md) for the exact release-gate scope.
+See [RELEASES.md](RELEASES.md) for historical release tracking and [../RELEASE_CANDIDATE.md](../RELEASE_CANDIDATE.md) for the retained publication checklist/history record.
 
 ## Verified release evidence
 
 | Capability | First verified product release | Evidence |
-|---|---:|---|
+| --- | ---: | --- |
 | Core audiovisual pipeline, STT, VTT, translation, storage, resume/idempotency, conservative deduplication, TTS, scheduling and packaging | `1.0.0` | `CHANGELOG.md` / release history |
 | VTT recovery/repair and integrated synchronized TTS | `1.1.0` | `CHANGELOG.md` / release history |
 | Naming improvements and TTS asset bootstrap | `1.2.0` | release history |
@@ -65,5 +63,6 @@ See [RELEASES.md](RELEASES.md) for the release history and [../RELEASE_CANDIDATE
 | Reprocessing/manifests, Unicode naming/filesystem consolidation and translation runtime improvements | `1.7.0` | published GitHub release |
 | `faster-whisper` selective recovery `clip_timestamps` compatibility fix | `1.7.1` | `CHANGELOG.md` / `RELEASES.md` |
 | Local translation model download and provider runtime fix | `1.7.2` | `tests/test_local_translation.py` / `RELEASES.md` |
+| Refined Whisper recovery, dual pinned local models, uv-based reproducibility and updated TTS/WebM defaults | `1.8.0` | release implementation and current product documentation |
 
-The table records functionality by introduction release. `1.7.2` remains a candidate until its final SHA passes the release gate and its tag is created according to the release policy.
+The table records functionality by introduction release. Release-control documents may retain `1.8.0` as a candidate marker for historical traceability even though the product documentation treats `1.8.0` as the current published release.

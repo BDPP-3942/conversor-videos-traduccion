@@ -77,7 +77,7 @@ Los parámetros relevantes pueden establecerse en `config/app.toml` o mediante l
 TTS_ENABLED=true
 TTS_REQUIRED=false
 TTS_PROVIDER=kokoro
-TTS_VOICE=af_sarah
+TTS_VOICE=am_michael
 TTS_MODEL_PATH=tools/tts/kokoro-v1.0.onnx
 TTS_VOICES_PATH=tools/tts/voices-v1.0.bin
 TTS_SPEED=1.0
@@ -86,7 +86,7 @@ TTS_DURATION_TOLERANCE=0.02
 TTS_SAMPLE_RATE=24000
 TTS_AUDIO_BITRATE=192k
 TTS_WEBM_AUDIO_BITRATE=192k
-TTS_GENERATE_WEBM=true
+TTS_GENERATE_WEBM=false
 ```
 
 `TTS_ENABLED=true` activa el postprocesado desde el pipeline común. El instalador prepara automáticamente la dependencia y los pesos cuando utiliza las rutas predeterminadas.

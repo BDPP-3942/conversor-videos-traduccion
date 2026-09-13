@@ -58,6 +58,9 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             whisper_beam_size=int(processing.get("whisper_beam_size", 5)),
             whisper_vad_filter=bool(processing.get("whisper_vad_filter", True)),
             whisper_min_silence_duration_ms=int(processing.get("whisper_min_silence_duration_ms", 1500)),
+            whisper_subtitle_split_silence_duration_ms=int(
+                processing.get("whisper_subtitle_split_silence_duration_ms", 1000)
+            ),
             whisper_condition_on_previous_text=bool(processing.get("whisper_condition_on_previous_text", True)),
             whisper_initial_prompt=str(processing.get("whisper_initial_prompt", "")),
             whisper_cpu_threads=int(processing.get("whisper_cpu_threads", 0)),
@@ -82,6 +85,18 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             translation_provider_max_parallel_requests=int(
                 processing.get("translation_provider_max_parallel_requests", 0)
             ),
+            local_translation_model=str(processing.get("local_translation_model", "madlad400-3b-ct2-int8")),
+            local_translation_model_dir=Path(
+                str(processing.get("local_translation_model_dir", "tools/models/translation/madlad400-3b-ct2-int8"))
+            ),
+            local_translation_model_id=str(processing.get("local_translation_model_id", "cstr/madlad400-3b-ct2-int8")),
+            local_translation_model_revision=str(
+                processing.get("local_translation_model_revision", "12eff26f7d93623e2b2d3b5345e5863e14599dae")
+            ),
+            local_translation_device=str(processing.get("local_translation_device", "auto")),
+            local_translation_compute_type=str(processing.get("local_translation_compute_type", "auto")),
+            local_translation_beam_size=int(processing.get("local_translation_beam_size", 2)),
+            local_translation_auto_download=bool(processing.get("local_translation_auto_download", False)),
             max_zip_depth=int(processing.get("max_zip_depth", 5)),
             max_extracted_files=int(processing.get("max_extracted_files", 10000)),
             max_extracted_size_gb=float(processing.get("max_extracted_size_gb", 10.0)),
@@ -89,7 +104,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             ffmpeg_preset=str(ffmpeg.get("preset", "medium")),
             ffmpeg_crf=int(ffmpeg.get("crf", 23)),
             ffmpeg_audio_bitrate=str(ffmpeg.get("audio_bitrate", "256k")),
-            generate_webm=bool(ffmpeg.get("generate_webm", True)),
+            generate_webm=bool(ffmpeg.get("generate_webm", False)),
             secondary_video_extension=str(ffmpeg.get("secondary_video_extension", "webm")),
             secondary_video_codec=str(ffmpeg.get("secondary_video_codec", "libvpx-vp9")),
             secondary_video_crf=int(ffmpeg.get("secondary_video_crf", 0)),
@@ -117,7 +132,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             tts_enabled=bool(tts.get("enabled", False)),
             tts_required=bool(tts.get("required", False)),
             tts_provider=str(tts.get("provider", "kokoro")),
-            tts_voice=str(tts.get("voice", "af_sarah")),
+            tts_voice=str(tts.get("voice", "am_michael")),
             tts_model_path=Path(str(tts.get("model_path", "tools/tts/kokoro-v1.0.onnx"))),
             tts_voices_path=Path(str(tts.get("voices_path", "tools/tts/voices-v1.0.bin"))),
             tts_speed=float(tts.get("speed", 1.0)),
@@ -126,7 +141,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             tts_sample_rate=int(tts.get("sample_rate", 24000)),
             tts_audio_bitrate=str(tts.get("audio_bitrate", "192k")),
             tts_webm_audio_bitrate=str(tts.get("webm_audio_bitrate", "192k")),
-            tts_generate_webm=bool(tts.get("generate_webm", True)),
+            tts_generate_webm=bool(tts.get("generate_webm", False)),
             google_credentials_file=Path(
                 str(google.get("credentials_file", "secrets/providers/google/default/credentials.json"))
             ),
@@ -141,10 +156,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             auto_tune_resources=bool(runtime_cfg.get("auto_tune_resources", True)),
         )
 
-    default_config = (BASE_DIR / "config" / "app.toml").resolve()
-    if path.resolve() == default_config:
-        settings = _apply_runtime_provider(settings)
-
+    settings = _apply_runtime_provider(settings)
     settings = _apply_environment_overrides(settings)
 
     from src.resource_profile import apply_resource_profile
@@ -168,6 +180,7 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
         "WHISPER_BEAM_SIZE": "whisper_beam_size",
         "WHISPER_VAD_FILTER": "whisper_vad_filter",
         "WHISPER_MIN_SILENCE_DURATION_MS": "whisper_min_silence_duration_ms",
+        "WHISPER_SUBTITLE_SPLIT_SILENCE_DURATION_MS": "whisper_subtitle_split_silence_duration_ms",
         "WHISPER_CONDITION_ON_PREVIOUS_TEXT": "whisper_condition_on_previous_text",
         "WHISPER_INITIAL_PROMPT": "whisper_initial_prompt",
         "WHISPER_CPU_THREADS": "whisper_cpu_threads",
@@ -187,6 +200,14 @@ def _apply_environment_overrides(settings: AppSettings) -> AppSettings:
         "TRANSLATION_MAX_BACKOFF_SECONDS": "translation_max_backoff_seconds",
         "TRANSLATION_MAX_PARALLEL_REQUESTS": "translation_max_parallel_requests",
         "TRANSLATION_PROVIDER_MAX_PARALLEL_REQUESTS": "translation_provider_max_parallel_requests",
+        "LOCAL_TRANSLATION_MODEL": "local_translation_model",
+        "LOCAL_TRANSLATION_MODEL_DIR": "local_translation_model_dir",
+        "LOCAL_TRANSLATION_MODEL_ID": "local_translation_model_id",
+        "LOCAL_TRANSLATION_MODEL_REVISION": "local_translation_model_revision",
+        "LOCAL_TRANSLATION_DEVICE": "local_translation_device",
+        "LOCAL_TRANSLATION_COMPUTE_TYPE": "local_translation_compute_type",
+        "LOCAL_TRANSLATION_BEAM_SIZE": "local_translation_beam_size",
+        "LOCAL_TRANSLATION_AUTO_DOWNLOAD": "local_translation_auto_download",
         "MAX_ZIP_DEPTH": "max_zip_depth",
         "MAX_EXTRACTED_FILES": "max_extracted_files",
         "MAX_EXTRACTED_SIZE_GB": "max_extracted_size_gb",
@@ -269,11 +290,7 @@ def _apply_runtime_provider(settings: AppSettings) -> AppSettings:
             values[name] = str(runtime[name])
     if "archive" in runtime and runtime.get("provider") in {"google_drive", "gdrive"}:
         values["archive_folder_id"] = str(runtime.get("archive", ""))
-    if runtime.get("profile") or runtime.get("provider") in {"google_drive", "gdrive"}:
-        profile = str(runtime.get("profile", settings.google_profile or "default"))
-        values["google_profile"] = profile
-        values["google_credentials_file"] = settings.provider_profile_dir / "google" / profile / "credentials.json"
-        values["google_token_file"] = settings.provider_profile_dir / "google" / profile / "token.json"
-        if "archive" in runtime:
-            values["archive_folder_id"] = str(runtime.get("archive", ""))
-    return replace(settings, **values) if values else settings
+    if runtime.get("profile"):
+        profile_dir = Path(str(BASE_DIR / "secrets" / "providers" / str(runtime["profile"])))
+        values["provider_profile_dir"] = profile_dir
+    return replace(settings, **values)

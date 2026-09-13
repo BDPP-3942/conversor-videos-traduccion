@@ -58,7 +58,17 @@ python scripts/manage_runtime_resources.py translation-model status
 python scripts/manage_runtime_resources.py translation-model cleanup
 ```
 
-La limpieza del modelo elimina únicamente `tools/models/translation/opus-mt-es-en-ct2-int8/`.
+La limpieza del modelo actualmente seleccionado elimina únicamente su directorio gestionado. Por defecto es:
+
+```text
+tools/models/translation/madlad400-3b-ct2-int8/
+```
+
+Si se ha seleccionado OPUS-MT, la limpieza afecta a su directorio independiente:
+
+```text
+tools/models/translation/opus-mt-es-en-ct2-int8/
+```
 
 ## Desinstalación global de CUDA
 

@@ -13,7 +13,7 @@ La aplicación admite tres proveedores de almacenamiento: **local**, **Google Dr
 Hay cuatro formas prácticas de arrancar una ejecución normal:
 
 | Método | Windows | macOS/Linux | Uso recomendado |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Python directo | `python main.py ...` | `python3 main.py ...` | Desarrollo, diagnóstico y administración |
 | Wrapper local | `scripts\\run_local.bat` | `./scripts/run_local.sh` | Ejecución manual sencilla |
 | Wrapper desatendido | `scripts\\run_scheduled.bat` / `run_unattended.bat` | `./scripts/run_scheduled.sh` / `run_unattended.sh` | Scheduler y automatización |
@@ -245,7 +245,7 @@ tools/rclone/
 secrets/rclone/rclone.conf
 ```
 
-No hace falta una instalación global de rclone para el modo gestionado. fileciteturn396file0 fileciteturn397file0
+No hace falta una instalación global de rclone para el modo gestionado. El flujo soportado con uv es `uv run python main.py provider bootstrap`; los wrappers `scripts/setup_rclone.sh` y `scripts\setup_rclone.bat` llaman al mismo bootstrap y `--rclone` en `setup_env.*` prepara ese binario gestionado. La aplicación no usa `rclone` desde PATH. fileciteturn396file0 fileciteturn397file0
 
 Después configura el remoto, por ejemplo:
 
@@ -299,7 +299,7 @@ Para la salida secundaria:
 
 ```toml
 [ffmpeg]
-generate_webm = true
+generate_webm = false
 ```
 
 También puede forzarse por ejecución con `--generate-webm` o `--no-webm`. fileciteturn410file0
@@ -779,7 +779,7 @@ python main.py duplicates delete --target "/ruta/storage/output" --dry-run
 ## 25. Qué comando utilizar según el problema
 
 | Situación | Acción |
-|---|---|
+| --- | --- |
 | Instalación nueva, sin resultados | `run` |
 | Instalación nueva y ejecución automática | `run --scheduled` |
 | Quiero comprobar entorno/proveedor/FFmpeg | `doctor` |
@@ -854,8 +854,8 @@ python main.py run --scheduled
 python main.py run --scheduled
 ```
 
-6. Revisa `storage/logs/` y el resultado JSON de la ejecución.
-7. Solo usa `reprocess-subtitles` si el problema afecta a un resultado ya existente.
+1. Revisa `storage/logs/` y el resultado JSON de la ejecución.
+2. Solo usa `reprocess-subtitles` si el problema afecta a un resultado ya existente.
 
 La ventaja de este procedimiento es que los resultados anteriores quedan disponibles para resume, identidad y deduplicación. `resume_enabled` está activado en la configuración base. fileciteturn410file0
 

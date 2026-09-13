@@ -72,3 +72,17 @@ The CUDA driver and global Toolkit are never replaced by this operation.
 ## External rclone
 
 `rclone` is an external executable, not a Python dependency. `requirements-rclone.txt` is therefore not migrated into uv and remains documentation for that external tool only.
+
+The repository uses a managed-rclone contract: the application downloads a pinned rclone release into `tools/rclone/`, verifies the release archive SHA-256 from the official `SHA256SUMS`, and invokes the binary with the project-local configuration under `secrets/rclone/rclone.conf`. A global `rclone` installation is neither required nor used by the managed path.
+
+The supported setup path is:
+
+```bash
+uv run python main.py provider bootstrap
+uv run python main.py provider setup-rclone --help
+uv run python main.py provider verify rclone --profile <profile> --location input
+```
+
+`./scripts/setup_rclone.sh` and `scripts\setup_rclone.bat` are wrappers around the same `uv run` bootstrap. `scripts/setup_env.sh --rclone` and `scripts/setup_env.bat --rclone` bootstrap the managed binary; they do not probe or require a system-wide `rclone` executable. CI tests the contract without downloading rclone by exercising the manager and script invariants with fakes.
+
+Runtime behavior is deterministic: storage providers use `settings.rclone_binary_file` and `settings.rclone_config_file`, never PATH lookup. Credentials and `rclone.conf` remain outside version control.
