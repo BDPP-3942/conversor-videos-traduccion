@@ -48,24 +48,22 @@ python -m pip install --upgrade pip
 python -m pip install -e .
 ```
 
-Optional extras are declared in `pyproject.toml`:
+Optional extras are declared in `pyproject.toml`. The repository currently defines `google`, `tts` and `rclone` extras; development, audit and packaging dependencies are uv dependency groups:
 
 ```bash
-python -m pip install -e ".[dev]"
 python -m pip install -e ".[google]"
 python -m pip install -e ".[tts]"
-python -m pip install -e ".[package]"
+uv sync --group dev
+uv sync --group audit
 ```
-
-They can be combined, for example `.[tts,google,dev,package]`.
 
 ## Release compatibility
 
-The current product release is `1.8.0`, based on the published `1.7.4` state plus the final PR #45 changes. The release keeps `faster-whisper>=1.2.1,<1.3` and `ctranslate2>=4.8.2,<4.9`, and adds the stabilized Whisper recovery policy plus the dual local-model runtime (MADLAD-400 3B default, OPUS-MT lightweight alternative).
+The current published product release is `1.7.4`. The branch associated with PR #45 prepares the `1.8.0` candidate on top of that published state. The candidate keeps `faster-whisper>=1.2.1,<1.3` and `ctranslate2>=4.8.2,<4.9`, and adds the stabilized Whisper recovery policy plus the dual local-model runtime (MADLAD-400 3B default, OPUS-MT lightweight alternative).
 
 ## NVIDIA/CUDA and Whisper
 
-NVIDIA acceleration is optional. The `1.8.0` release does not change the GPU runtime architecture introduced and consolidated through `1.7.0`; the GPU path still requires CUDA 12, cuBLAS for CUDA 12 and cuDNN 9 for CUDA 12.
+NVIDIA acceleration is optional. The `1.8.0` candidate does not change the GPU runtime architecture introduced and consolidated through `1.7.0`; the GPU path still requires CUDA 12, cuBLAS for CUDA 12 and cuDNN 9 for CUDA 12.
 
 `WHISPER_DEVICE=auto` does not treat the presence of `nvidia-smi` as sufficient. At Whisper initialization the project checks the NVIDIA driver, searches for an installed CUDA Toolkit, checks the required NVIDIA runtime libraries and asks CTranslate2 whether a CUDA device and supported compute types are actually available.
 
@@ -134,7 +132,7 @@ python scripts/manage_local_translation.py status
 python scripts/manage_local_translation.py download
 ```
 
-In `1.8.0`, local-model preparation validates the selected pinned model before activation. MADLAD requires `model.bin`, `sentencepiece.model`, `config.json` and `shared_vocabulary.json`; OPUS-MT retains its `model.bin`, `source.spm`, `target.spm` and JSON metadata contract. The MADLAD installation is bounded by the project installation budget and model integrity is checked before offline use. The historical `1.7.2` eager-`dict.get` download bug remains documented in `CHANGELOG.md`.
+In the `1.8.0` candidate, local-model preparation validates the selected pinned model before activation. MADLAD requires `model.bin`, `sentencepiece.model`, `config.json` and `shared_vocabulary.json`; OPUS-MT retains its `model.bin`, `source.spm`, `target.spm` and JSON metadata contract. The MADLAD installation is bounded by the project installation budget and model integrity is checked before offline use.
 
 The model is stored below `tools/models/translation/`. See [LOCAL_TRANSLATION.md](LOCAL_TRANSLATION.md).
 
@@ -195,10 +193,10 @@ python main.py run --dry-run
 For development checks:
 
 ```bash
-pytest
-ruff check .
-ruff format --check .
-python -m compileall .
+uv run pytest -q
+uv run ruff check .
+uv run ruff format --check .
+uv run python -m compileall .
 ```
 
 ## First run
@@ -253,14 +251,14 @@ Do not delete manifests or outputs during an upgrade unless a documented migrati
 The repository currently provides packaging scripts for Windows and Linux:
 
 ```bash
-python -m pip install -e ".[package]"
+uv sync --group dev --extra tts
 ./scripts/build_linux.sh
 ```
 
 Windows:
 
 ```bat
-python -m pip install -e ".[package]"
+uv sync --group dev --extra tts
 scripts\build_windows.bat
 ```
 
