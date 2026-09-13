@@ -67,14 +67,14 @@ python main.py run --scheduled
 
 ## Traducción local offline
 
-La release `1.8.0` consolida el proveedor local opcional español→inglés basado en CTranslate2 + SentencePiece. MADLAD-400 3B CT2 INT8 es el modelo predeterminado orientado a calidad y OPUS-MT CT2 INT8 se conserva como alternativa ligera. Ningún modelo local se descarga automáticamente por defecto: debe prepararse explícitamente.
+La candidata `1.8.0` consolida el proveedor local opcional español→inglés basado en CTranslate2 + SentencePiece. MADLAD-400 3B CT2 INT8 es el modelo predeterminado orientado a calidad y OPUS-MT CT2 INT8 se conserva como alternativa ligera. Ningún modelo local se descarga automáticamente por defecto: debe prepararse explícitamente.
 
 ```bash
 python scripts/manage_local_translation.py status
 python scripts/manage_local_translation.py download
 ```
 
-Desde `1.7.2` el gestor de descarga procesa correctamente los ficheros principales y metadatos del modelo local, y desde `1.8.0` mantiene validaciones específicas para MADLAD y OPUS-MT, incluyendo tamaño, SHA-256, estructura de metadatos y tokenización. MADLAD usa `sentencepiece.model` y el prefijo de destino `<2en>`; OPUS-MT conserva `source.spm` y `target.spm`.
+Desde `1.7.2` el gestor de descarga procesa correctamente los ficheros principales y metadatos del modelo local, y en `1.8.0` mantiene validaciones específicas para MADLAD y OPUS-MT, incluyendo tamaño, SHA-256, estructura de metadatos y tokenización. MADLAD usa `sentencepiece.model` y el prefijo de destino `<2en>`; OPUS-MT conserva `source.spm` y `target.spm`.
 
 Después de preparar el modelo, puede seleccionarse con:
 
@@ -216,14 +216,12 @@ Consulta `docs/STORAGE.md` y `docs/SCHEDULING.md`.
 ## Calidad
 
 ```bash
-pytest
-ruff check .
-ruff check . --select S
-ruff format --check .
-python -m compileall .
-python -m pip check
-python -m build
-pip-audit
+uv run pytest -q
+uv run ruff check .
+uv run ruff check . --select S
+uv run ruff format --check .
+uv run python -m compileall .
+uv build
 ```
 
 La CI además comprueba packaging, entry points, seguridad y dependencias en Linux, Windows y macOS para Python 3.11, 3.12 y 3.13. Consulta `docs/CI_CD.md`.
@@ -264,7 +262,7 @@ Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` 
 
 ## Versionado
 
-La release publicada más reciente es `1.7.4` (`v1.7.4`). La release actual de producto es `1.8.0`, cuya publicación queda asociada a la integración final de PR #45 sobre la base de `main` que ya incorpora PR #42 y las correcciones publicadas hasta `1.7.4`.
+La release publicada más reciente es `1.7.4` (`v1.7.4`). La candidata actual es `1.8.0`, asociada a PR #45 y pendiente de merge/publicación. PR #42 ya forma parte de `main` y del baseline publicado `1.7.4`.
 
 `1.8.0` consolida la recuperación STT de Whisper, separa el silencio VAD de la división de subtítulos, incorpora MADLAD-400 3B como modelo local predeterminado manteniendo OPUS-MT como alternativa, refuerza la validación de ambos modelos, conserva la migración reproducible a `uv` introducida en la línea anterior y actualiza los defaults de TTS/WebM.
 
