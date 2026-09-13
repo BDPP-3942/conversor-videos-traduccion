@@ -37,15 +37,15 @@ Creates a locked environment containing the TTS extra and audit group and execut
 
 ## uv policy
 
-`pyproject.toml` is the single declarative source for Python dependencies. `uv.lock` is committed and must pass `uv lock --check` on every CI/release candidate. CI uses `uv sync --locked` so the runner cannot silently resolve a different dependency graph.
+`pyproject.toml` is the single declarative source for Python dependencies. `uv.lock` is committed and must pass `uv lock --check` on every CI/release validation. CI uses `uv sync --locked` so the runner cannot silently resolve a different dependency graph.
 
 The project does not require uv for the final wheel consumer. The clean-wheel compatibility gate uses pip explicitly. Portable CUDA runtime installation also retains its deliberate pip fallback for executables that do not ship with uv.
 
-## Release Gate
+## Release 1.8.0
 
-`release-gate.yml` validates the exact candidate SHA, the static project version, the application version in `config/app.toml`, the release heading in `CHANGELOG.md`, `docs/RELEASES.md`, packaged resources, clean wheel installation and source compilation.
+`1.8.0` is the current published release. The release validation covers the exact source SHA, static project/application versions, release metadata, packaged resources, clean wheel installation, source compilation, tests and dependency audits. The historical release-control documents may retain a `1.8.0` candidate record for traceability; that record is not evidence that the product is unpublished.
 
-For the `1.8.0` candidate, all versioning documents must identify `1.8.0` as the next release and `v1.7.4` as the immutable previous published release. The final tag `v1.8.0` must be created only on the exact `main` SHA resulting from the validated merge; it must not be created or moved from the PR branch.
+The `v1.8.0` tag is immutable once created and must identify the validated release SHA. Subsequent development should use the next version rather than rewriting the published release metadata.
 
 ## Local parity
 
