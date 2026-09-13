@@ -38,15 +38,13 @@ local://storage/input → pipeline → local://storage/output
 
 See [INSTALLATION.md](INSTALLATION.md), [CONFIGURATION.md](CONFIGURATION.md) and [CLI.md](CLI.md) for operational details.
 
-## Current published release vs candidate
+## Current published release
 
-The latest published release before the current candidate is `1.7.4` (`v1.7.4`). The current release candidate is `1.8.0`, associated with PR #45 and built on `main`, where PR #42 is already integrated and the `1.7.4` release baseline is preserved.
+The current product release is `1.8.0` (`v1.8.0`). It incorporates the scope delivered by PR #45 on top of the `1.7.4` baseline, including the refined Whisper selective recovery, independent VAD/subtitle silence thresholds, pinned MADLAD-400 3B local translation with OPUS-MT retained as the lightweight alternative, strengthened model integrity/provider tests, and the reproducible `uv` foundation introduced by PR #42.
 
-`1.8.0` refines Whisper selective recovery, separates VAD and subtitle silence thresholds, upgrades the default local translation model to pinned MADLAD-400 3B while retaining OPUS-MT, strengthens model integrity/provider tests, and keeps the reproducible `uv` foundation introduced by PR #42.
+The previous releases `1.0.0` through `1.7.4` remain immutable history. `docs/RELEASES.md` and `docs/VERSIONING.md` retain the historical release ledger and the temporary `1.8.0` candidate record required for release traceability; they are not the source of the current runtime version.
 
-The previous releases `1.0.0` through `1.7.4` remain immutable history. `docs/RELEASES.md` is the canonical human-readable ledger for that history and the `1.8.0` candidate.
-
-See [RELEASES.md](RELEASES.md) for the release history and [../RELEASE_CANDIDATE.md](../RELEASE_CANDIDATE.md) for the exact release-gate scope.
+See [RELEASES.md](RELEASES.md) for historical release tracking and [../RELEASE_CANDIDATE.md](../RELEASE_CANDIDATE.md) for the retained publication checklist/history record.
 
 ## Verified release evidence
 
@@ -65,6 +63,6 @@ See [RELEASES.md](RELEASES.md) for the release history and [../RELEASE_CANDIDATE
 | Reprocessing/manifests, Unicode naming/filesystem consolidation and translation runtime improvements | `1.7.0` | published GitHub release |
 | `faster-whisper` selective recovery `clip_timestamps` compatibility fix | `1.7.1` | `CHANGELOG.md` / `RELEASES.md` |
 | Local translation model download and provider runtime fix | `1.7.2` | `tests/test_local_translation.py` / `RELEASES.md` |
-| Refined Whisper recovery, dual pinned local models, uv-based reproducibility and updated TTS/WebM defaults | `1.8.0` | `RELEASE_CANDIDATE.md` / `RELEASES.md` |
+| Refined Whisper recovery, dual pinned local models, uv-based reproducibility and updated TTS/WebM defaults | `1.8.0` | release implementation and current product documentation |
 
-The table records functionality by introduction release. `1.8.0` is the current candidate until its final SHA passes CI and Release Gate and the immutable tag is created on the resulting `main` SHA.
+The table records functionality by introduction release. Release-control documents may retain `1.8.0` as a candidate marker for historical traceability even though the product documentation treats `1.8.0` as the current published release.
