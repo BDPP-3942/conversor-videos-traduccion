@@ -12,11 +12,11 @@ Revision: 12eff26f7d93623e2b2d3b5345e5863e14599dae
 Task: Spanish → English
 Quantization: INT8
 Model weights: ~2.95 GB
-Installation budget: < 3 GB
+Installation budget: <= 3 GB
 License: Apache-2.0
 ```
 
-La revisión está fijada. `model.bin` y `sentencepiece.model` se validan por tamaño y SHA-256; `config.json` y `shared_vocabulary.json` se validan como JSON. También se comprueba el tamaño total instalado para evitar superar 3 GB.
+La revisión está fijada. `model.bin` y `sentencepiece.model` se validan por tamaño y SHA-256; `config.json` y `shared_vocabulary.json` se validan como JSON. También se comprueba el tamaño total instalado para no superar 3 GB.
 
 ### OPUS-MT — opción ligera conservada
 
@@ -65,7 +65,7 @@ python scripts/manage_local_translation.py download
 python scripts/benchmark_local_translation.py --sentences 1
 ```
 
-El gestor valida el repositorio y la revisión fijados antes de descargar. La descarga utiliza `huggingface_hub.hf_hub_download`; los repositorios públicos normalmente no necesitan autenticación. Si el entorno de Hugging Face exige autenticación, puede proporcionarse `LOCAL_TRANSLATION_HF_TOKEN` o `HF_TOKEN`; el token solo se utiliza durante la descarga y no se almacena con el modelo.
+El gestor valida el repositorio y la revisión fijados antes de descargar. Los repositorios públicos normalmente no necesitan autenticación. Si el entorno de Hugging Face exige autenticación, puede proporcionarse `LOCAL_TRANSLATION_HF_TOKEN` o `HF_TOKEN`; el token solo se utiliza durante la descarga y no se almacena con el modelo.
 
 La descarga se realiza sobre un directorio temporal gestionado y solo sustituye el modelo final después de superar las validaciones de integridad.
 
@@ -74,6 +74,8 @@ Para eliminar el modelo actualmente seleccionado:
 ```bash
 python scripts/manage_runtime_resources.py translation-model cleanup
 ```
+
+La limpieza solo afecta al directorio gestionado del modelo seleccionado. MADLAD y OPUS-MT mantienen directorios independientes.
 
 ## Configuración completa
 
@@ -109,7 +111,7 @@ MADLAD utiliza su `sentencepiece.model` compartido y el prefijo de destino `<2en
 python scripts/benchmark_local_translation.py --sentences 100
 ```
 
-El benchmark inicializa CTranslate2 + SentencePiece y comprueba que cada entrada produzca una salida textual no vacía. Para una instalación real, se recomienda ejecutar `status` y un benchmark de una frase antes de procesar vídeos completos.
+El benchmark inicializa CTranslate2 + SentencePiece y comprueba que cada entrada produzca una salida textual no vacía. Para una instalación real, se recomienda ejecutar `status` y un benchmark de una frase antes de procesar vídeos completos. Este benchmark real no forma parte del CI normal porque MADLAD ocupa aproximadamente 2.95 GB y su rendimiento depende del hardware.
 
 ## Privacidad/offline
 
