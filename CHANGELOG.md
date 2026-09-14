@@ -1,12 +1,65 @@
 # Changelog
 
+## [1.9.0] — Desktop Application & Native Packaging
+
+**Tipo:** MINOR — release candidata.
+
+**Estado:** CANDIDATA — pendiente de CI final, Release Gate, merge a `main` y publicación de `v1.9.0`.
+
+**Baseline:** `v1.8.2` publicada.
+
+### Added
+
+- Nueva aplicación GUI multiplataforma mediante `video-translation-desktop`.
+- Fachada `VideoTranslationApplication` y adaptador `ControllableMediaPipeline` sobre el `MediaPipeline` existente.
+- Eventos de etapa, progreso y cancelación cooperativa en límites seguros, sin duplicar la lógica audiovisual existente.
+- GUI para procesamiento, recuperación de subtítulos, gestión de duplicados y diagnósticos.
+- Configuración desde GUI de almacenamiento local/Google Drive/rclone, idiomas, proveedor y fallbacks de traducción, concurrencia, parámetros Whisper, WebM, TTS, resume y normalización de nombres.
+- Recuperación de resultados existentes en modos `full`, `stt_only` y `translate_only`, incluyendo recuperación individual y de todos los resultados elegibles.
+- Herramientas de deduplicación para scan, análisis, dry-run y eliminación con confirmación.
+- Diagnósticos para doctor y prefetch de Whisper.
+
+### Packaging
+
+- Windows: ejecutable GUI PyInstaller `.exe` y MSI mediante WiX 6.0.2.
+- Windows: ZIP portable con el ejecutable GUI para distribución sin instalador.
+- macOS: aplicación GUI `.app` generada por PyInstaller y distribuida en ZIP.
+- Linux: la misma GUI PyInstaller se encapsula como AppDir con `AppRun`, metadata `.desktop` e icono SVG y se publica como AppImage x86_64.
+- Validación de packaging en runners nativos Linux, Windows y macOS.
+
+### Release automation
+
+- Los tags `vX.Y.Z` activan automáticamente la construcción de los artefactos de escritorio.
+- Cada plataforma se construye en su runner nativo, evitando builds cruzados no soportados.
+- El workflow valida los artefactos antes de publicarlos.
+- AppImage, MSI, ZIP portable de Windows y ZIP de macOS se adjuntan automáticamente a la GitHub Release.
+- GitHub continúa generando automáticamente los ZIP/TAR del código fuente asociados al tag.
+- Se elimina el proceso manual de build, empaquetado y subida de binarios en cada release.
+
+### Compatibility
+
+- Los entry points CLI existentes permanecen soportados.
+- La ejecución unattended/headless y programada mediante los wrappers existentes permanece soportada.
+- Regeneración, subtitle-QA y TTS continúan disponibles fuera de la GUI.
+- La aplicación de escritorio es una nueva interfaz sobre los casos de uso existentes; no sustituye el pipeline ni crea un segundo motor de procesamiento.
+- La cancelación de la GUI es cooperativa y respeta límites seguros; no fuerza la terminación de FFmpeg o Whisper en mitad de una operación.
+- No se introduce soporte móvil en esta release.
+
+### CI / Validation
+
+- Matriz de tests Linux/Windows/macOS con Python 3.11, 3.12 y 3.13.
+- `uv lock --check`, `uv sync --locked`, `uv pip check`, Ruff lint/security/format y `compileall`.
+- Tests de la fachada de aplicación y del pipeline controlable.
+- Tests de packaging y smoke validation de artefactos nativos.
+- Release Gate antes de publicar `v1.9.0`.
+
 ## [1.8.3] — Release candidate
+
+**Tipo:** PATCH — release candidata.
 
 **Estado:** CANDIDATA — corrección multiplataforma del mecanismo de resolución de `uv`, pendiente de CI/Release Gate y publicación del tag `v1.8.3`.
 
 **Baseline publicado:** `v1.8.2`. Esta release añade exclusivamente la corrección de resolución de `uv` en los consumidores del bootstrap gestionado por el proyecto.
-
-**Nota de alcance:** la aplicación de escritorio y su infraestructura de empaquetado implementadas en la rama de trabajo son funcionalidad nueva y no forman parte de la release PATCH `1.8.3`. Si se conserva esta capacidad en `main`, deberá publicarse en la siguiente release MINOR (actualmente `1.9.0`) con la actualización completa de metadatos y `uv.lock` exigida por `docs/VERSIONING.md`.
 
 ### Fixed
 
@@ -60,7 +113,6 @@
 
 - Release PATCH compatible sobre `1.8.1`.
 - No cambia el pipeline audiovisual ni los contratos públicos de CLI, almacenamiento o formatos.
-- La corrección se limita al recurso MADLAD, su validación, diagnóstico y documentación asociada.
 
 ## [1.8.1] — Local uv Bootstrap & Optional Local Translation Setup
 
@@ -68,200 +120,58 @@
 
 **Estado:** PUBLICADA — tag `v1.8.1`.
 
-**Commit/tag de referencia:** `a4a5b9143d6fe6d61b9780220394189ef88c25ec` / `v1.8.1`.
-
-### Bootstrap automático de uv
-
-- Los scripts de creación del entorno ya no requieren que `uv` esté instalado previamente en el sistema.
-- Se reutiliza primero una copia gestionada por el proyecto en `tools/uv/`.
-- Si no existe, se utiliza `uv` disponible en `PATH`.
-- Si tampoco existe, el instalador oficial de uv crea automáticamente una copia local bajo `tools/uv/`.
-- El bootstrap local no modifica los perfiles de shell del usuario.
-- Se mantiene el comportamiento equivalente en macOS/Linux y Windows.
-- El binario local de uv no se versiona en Git.
-
-### Instalación opcional del modelo local
-
-- Añadida la opción `--local-translation` a los scripts de setup para preparar durante el mismo proceso el modelo local de traducción fijado por el proyecto.
-- La descarga continúa siendo opt-in porque MADLAD-400 3B ocupa aproximadamente 2.95 GB.
-- Se conserva la vía independiente `uv run python scripts/manage_local_translation.py download` para diferir la descarga.
-- Se mantienen los comandos de `status` y benchmark del modelo local.
-
-### Versionado y documentación
-
-- Proyecto y configuración actualizados a `1.8.1`.
-- `uv.lock` sincronizado con la nueva versión.
-- Actualizadas las instrucciones de instalación, migración y uso de uv y el README.
-- Añadidas regresiones para los contratos de los scripts de instalación.
-
-### Compatibility
-
-No se modifican el pipeline de procesamiento audiovisual, los contratos de almacenamiento, los formatos de entrada/salida, los modelos locales y sus revisiones fijadas, la cadena de proveedores de traducción, el runtime CUDA/NVIDIA ni la interfaz existente de `manage_local_translation.py`.
-
-### Validation
-
-- CI multiplataforma sobre Linux, Windows y macOS con Python 3.11, 3.12 y 3.13.
-- pytest, Ruff lint/format, comprobaciones de seguridad y `compileall`.
-- `uv lock --check` y `uv pip check`.
-- Auditorías de dependencias, packaging, construcción de distributions e instalación limpia del wheel.
-- Release Gate validado antes de publicar `v1.8.1`.
+- Bootstrap automático de uv multiplataforma, sin requerir una instalación global previa.
+- Preparación opcional del modelo local de traducción fijado por el proyecto.
+- `uv.lock` y metadatos de proyecto sincronizados con `1.8.1`.
+- Regresiones para scripts de instalación y validación CI multiplataforma.
 
 ## [1.8.0] — Whisper Recovery & Local Translation
 
 **Tipo:** MINOR — release publicada.
 
-**Estado:** PUBLICADA — tag `v1.8.0`.
-
-### Scope
-
-- Refinada la recuperación selectiva de segmentos sospechosos de Whisper, con reintento sin prompt inicial ni contexto de texto previo.
-- Separados el silencio VAD (`2000 ms`) y la división de subtítulos (`1000 ms`).
-- Conservado el contrato numérico de `clip_timestamps` durante la recuperación.
-- Incorporado MADLAD-400 3B CT2 INT8 como modelo local predeterminado, manteniendo OPUS-MT como alternativa ligera.
-- Añadida validación específica de integridad, tokenización, revisiones fijadas y presupuesto de instalación del modelo MADLAD.
-- Reforzadas las regresiones de modelos locales, selección explícita de OPUS-MT y aislamiento de los tests de configuración frente a overrides del entorno.
-- Actualizado el contexto de Whisper para vocabulario de Tai Chi.
-- Cambiada la voz TTS predeterminada a `am_michael` y desactivada la generación WebM por defecto.
-- Conservada la base de desarrollo, CI, build y auditoría con `uv` introducida por PR #42.
-
-### Validation
-
-La release `1.8.0` fue validada mediante CI multiplataforma, Release Gate, packaging y validación del lockfile sobre el SHA final publicado.
+- Recuperación selectiva de segmentos Whisper y separación de silencios VAD/división de subtítulos.
+- MADLAD-400 3B CT2 INT8 como modelo local predeterminado, con OPUS-MT como alternativa.
+- Validación de integridad y revisiones fijadas de modelos.
+- Contexto Whisper para vocabulario de Tai Chi.
+- Voz TTS predeterminada `am_michael` y WebM desactivado por defecto.
+- Base de desarrollo, CI, build y auditoría con `uv`.
 
 ## [1.7.4] — Local translation shared vocabulary validation
 
 **Tipo:** PATCH — release publicada.
 
-### Fixed
-
-- Corregida la validación de `shared_vocabulary.json` del modelo CTranslate2 local.
-- `shared_vocabulary.json` puede tener una raíz JSON de tipo array, que es la estructura real del artefacto fijado `Prukario/opus-mt-es-en-ct2-int8@ad91ad1697ea1761111ff4c179400796d085b347`.
-- Se mantiene la validación estricta de raíz objeto y claves obligatorias para `config.json` y `tokenizer_config.json`.
-- La descarga desde cero del modelo ya puede completar la validación y activar el directorio gestionado del modelo local.
-
-### Tests
-
-- Añadida regresión específica para aceptar un `shared_vocabulary.json` con raíz array.
-- Añadida regresión para rechazar `shared_vocabulary.json` con JSON inválido.
-- Actualizados los fixtures de descarga y carga del proveedor para representar la estructura real del vocabulario compartido.
-- CI multiplataforma validada sobre Linux, Windows y macOS con Python 3.11, 3.12 y 3.13.
-
-### Compatibility
-
-- No cambian el modelo ni la revisión fijados.
-- No cambian los hashes ni tamaños esperados de `model.bin`, `source.spm` y `target.spm`.
-- No cambia la configuración pública del proveedor de traducción local.
-- Se conserva íntegramente la corrección de metadatos empaquetados introducida en `1.7.3`.
+- Corregida la validación de `shared_vocabulary.json` para aceptar la estructura real del artefacto fijado.
+- Regresiones específicas para vocabulario JSON y descarga/activación del modelo.
 
 ## [1.7.3] — Local translation model metadata bootstrap
 
 **Tipo:** PATCH — release publicada.
 
-### Fixed
-
-- Añadidos al paquete los metadatos `config.json` y `tokenizer_config.json` correspondientes exactamente a la revisión fijada `Prukario/opus-mt-es-en-ct2-int8@ad91ad1697ea1761111ff4c179400796d085b347`.
-- La preparación del modelo ya no depende de una descarga independiente desde Hugging Face para esos dos JSON pequeños.
-- El gestor instala los metadatos empaquetados en el directorio final del modelo antes de validar y activar el runtime.
-- `shared_vocabulary.json` continúa descargándose y validándose como artefacto del modelo, ya que forma parte del contenido generado por CTranslate2 y no se duplica innecesariamente dentro del paquete Python.
-
-### Tests
-
-- Añadida una regresión que verifica que los metadatos JSON empaquetados están disponibles.
-- Ajustada la regresión de descarga para comprobar explícitamente que los ficheros descargados son `model.bin`, `source.spm`, `target.spm` y `shared_vocabulary.json`, mientras que los dos metadatos pequeños proceden del paquete.
-- Se mantiene la prueba de inicialización del proveedor y traducción mediante CTranslate2 + SentencePiece.
-
-### Packaging
-
-- Añadido el subpaquete `config.local_translation_model` al artefacto Python para que los JSON necesarios estén presentes también en instalaciones empaquetadas.
-
-### Compatibility
-
-- No cambian el modelo/revisión fijados, la configuración pública ni el contrato de dependencias.
-- Se conserva la corrección de descarga de `1.7.2` y la corrección `clip_timestamps` de `1.7.1`.
+- Incorporados al paquete los metadatos JSON necesarios para la revisión fijada del modelo local.
+- Regresiones de packaging y descarga de artefactos.
 
 ## [1.7.2] — Local translation model download fix
 
 **Tipo:** PATCH — release publicada.
 
-### Fixed
-
-- Corregido el cálculo del límite de descarga de los ficheros del modelo local.
-- Evitada la evaluación eager del fallback de `dict.get` que provocaba `KeyError: 'model.bin'` aunque `model.bin` estuviera correctamente definido en `MODEL_FILES`.
-- La preparación vuelve a poder recorrer los tres ficheros principales (`model.bin`, `source.spm`, `target.spm`) y los metadatos JSON antes de validar y activar el modelo.
-
-### Tests
-
-- Añadida regresión que ejercita la descarga gestionada de todos los ficheros del modelo.
-- Añadida regresión que prepara el modelo y comprueba la inicialización del proveedor y una llamada de traducción a través de CTranslate2 + SentencePiece.
-- Se mantiene el benchmark real `scripts/benchmark_local_translation.py` como validación funcional del modelo fijado en el hardware objetivo.
-
-### Documentation
-
-- Actualizadas las instrucciones de preparación del modelo local y la explicación del fallo corregido.
-- Actualizada la documentación de release y versionado para `1.7.2`.
-
-### Compatibility
-
-- No cambian el modelo/revisión fijados, la configuración pública, el pipeline audiovisual ni el contrato de dependencias.
-- Se conserva la corrección `clip_timestamps` de `1.7.1`.
+- Corregido el límite de descarga de los artefactos del modelo local.
+- Corregida la evaluación eager que producía `KeyError: 'model.bin'`.
 
 ## [1.7.1] — STT selective recovery compatibility
 
 **Tipo:** PATCH — release publicada.
 
-### Fixed
-
-- Corregido el contrato de `clip_timestamps` usado por la recuperación selectiva de `faster-whisper`: los intervalos se envían como valores temporales numéricos `[start, end]` en lugar de diccionarios.
-- Añadidas pruebas de regresión que verifican el argumento recibido por `model.transcribe(...)`, la transcripción normal y la integración del resultado recuperado.
-
-### Compatibility
-
-- La revisión toma `v1.7.0` como baseline funcional inmediato y conserva sus capacidades de reprocessing/manifests, naming Unicode/filesystem y runtime de traducción local.
-- Compatibilidad verificada con `faster-whisper>=1.2.1,<1.3`.
+- Corregido el contrato de `clip_timestamps` de `faster-whisper` para recuperación selectiva.
+- Añadidas pruebas de regresión e integración.
 
 ## [1.7.0] — Reprocessing, Unicode Naming & Translation Runtime
 
 **Tipo:** MINOR — release publicada.
 
-### Added / Improved
-
-- Consolidado el procesamiento de reintentos y reprocesado de vídeos mediante `reprocess-subtitles`, incluyendo `stt_only`, `translate_only`, `full` y `reprocess_all`.
-- Mejorada la persistencia y recuperación del estado de procesamiento mediante manifests, incluyendo escritura atómica y detección explícita de manifests corruptos o ilegibles.
-- Reforzado el comportamiento multiplataforma del almacenamiento local para evitar condiciones de carrera relacionadas con la antigüedad de archivos y timestamps del filesystem.
-- Consolidada la generación determinista de nombres de salida para vídeos, cursos y lecciones.
-- Normalización Unicode estable mediante descomposición canónica NFD, eliminación de marcas diacríticas y recomposición NFC.
-- Los nombres generados mantienen letras y números Unicode válidos, evitando transliteraciones arbitrarias y garantizando un comportamiento estable entre representaciones NFC/NFD.
-- Reforzada la compatibilidad con las restricciones reales de los sistemas de archivos de Windows, Linux y macOS.
-- Consolidada la protección frente a colisiones de nombres por mayúsculas/minúsculas y normalización Unicode.
-- Mejorada la gestión de nombres y rutas que superan los límites del filesystem, incluyendo componentes Unicode cuyo tamaño debe calcularse en bytes UTF-8.
-
-### Translation
-
-- Consolidado el proveedor opcional de traducción local basado en CTranslate2 + SentencePiece.
-- Mejorada la gestión del modelo local y su validación antes de ser utilizado.
-- Añadida gestión configurable de la autenticación necesaria para descargar modelos privados o restringidos de Hugging Face.
-- Los modelos públicos pueden prepararse sin necesidad de proporcionar credenciales.
-- Mantenida la validación de integridad de los artefactos del modelo mediante tamaño y SHA-256.
-- Consolidada la selección de dispositivo y `compute_type` para traducción local, manteniendo fallback conservador a CPU cuando GPU/CUDA no puede utilizarse correctamente.
-
-### Filesystem & ZIP
-
-- Consolidado el endurecimiento de extracción ZIP introducido en `v1.5.1`.
-- Mantenida la protección frente a traversal mediante `/` y `\\`, rutas absolutas POSIX/Windows, rutas UNC, nombres reservados de Windows, entradas ZIP duplicadas, colisiones por case-folding, colisiones por normalización Unicode y entradas simbólicas.
-- Preservada la estructura de directorios de los ZIP anidados y reforzada la normalización NFC de nombres de miembros y contenedores.
-
-### Tests & Validation
-
-- Ampliadas las regresiones de naming para nombres Unicode compuestos y descompuestos.
-- Añadidas comprobaciones para eliminar diacríticos mediante normalización canónica sin transliteraciones selectivas.
-- Ampliadas las pruebas de reprocessing, manifests, backups, restauración ante errores y validación de subtítulos.
-- Mantenida la matriz multiplataforma de Linux, Windows y macOS con Python 3.11, 3.12 y 3.13.
-- Validación mediante Ruff, Ruff Security, Ruff format, `compileall`, `pip check`, packaging, wheel e instalación limpia.
-- Mantenidas las auditorías de dependencias y las validaciones del Release Gate.
-
-### Compatibility
-
-Esta es una release minor compatible con la arquitectura existente. No introduce una arquitectura alternativa de procesamiento.
+- Reprocessing de subtítulos y vídeos, manifests atómicos y recuperación de estado.
+- Naming determinista y normalización Unicode multiplataforma.
+- Endurecimiento de nombres, rutas, colisiones y límites de filesystem.
+- Consolidación del proveedor opcional CTranslate2 + SentencePiece y selección conservadora de runtime.
 
 ## [1.6.0] — Local Translation & GPU Runtime Hardening
 
@@ -273,26 +183,19 @@ Esta es una release minor compatible con la arquitectura existente. No introduce
 
 **Tipo:** PATCH — release publicada.
 
-- La extracción ZIP rechaza rutas absolutas POSIX/Windows, rutas UNC y traversal mediante separadores `/` o `\\`.
-- Se rechazan componentes de ruta reservados por Windows.
-- Se detectan colisiones de rutas antes de escribir cuando difieren únicamente por case o normalización Unicode.
-- Las entradas ZIP duplicadas ya no pueden sobrescribir silenciosamente un archivo previamente extraído.
+- Endurecimiento de extracción ZIP frente a traversal, rutas absolutas, UNC, nombres reservados y colisiones case/Unicode.
 
 ## [1.5.0] — Multiplatform Whisper, Context & Packaging
 
 **Tipo:** MINOR — release publicada.
 
-- Dispatcher común para `run_local.sh` y `run_local.bat`.
-- Soporte coherente de `run` y `regenerate` mediante el `MediaPipeline` común.
-- Política de naming y contexto externo para Whisper.
-- CI multiplataforma y endurecimiento de wrappers.
+- Dispatcher común para wrappers locales, política de naming/contexto Whisper, CI multiplataforma.
 
 ## [1.4.2] — Regeneration CLI contract and help alignment
 
 **Tipo:** MINOR — release publicada.
 
-- Contrato CLI de regeneración alineado con `MediaPipeline`.
-- Help público completado y regresiones de CLI añadidas.
+- Contrato CLI de regeneración y help público alineados con `MediaPipeline`.
 
 ## [1.4.1] — Corrective Script Integration
 
@@ -304,8 +207,7 @@ Esta es una release minor compatible con la arquitectura existente. No introduce
 
 **Tipo:** MINOR — release publicada.
 
-- Regeneración limpia desde la fuente mediante el `MediaPipeline` común.
-- Backup/restauración y endurecimiento de release, gobernanza y packaging.
+- Regeneración limpia desde fuente, backup/restauración y endurecimiento de release y packaging.
 
 ## [1.3.0] — Safe Resource-Aware Video Concurrency
 
