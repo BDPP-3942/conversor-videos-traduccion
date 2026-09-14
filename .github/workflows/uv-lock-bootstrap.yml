@@ -1,11 +1,22 @@
-name: Bootstrap uv lockfile
+name: Sync uv lockfile
 
 on:
   push:
-    branches: [chore/uv-migration-preview]
+    branches-ignore:
+      - main
+      - release/**
+    paths:
+      - pyproject.toml
+      - uv.lock
+      - .github/workflows/uv-lock-bootstrap.yml
+  workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: uv-lock-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lock:
@@ -27,10 +38,10 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git ls-files --error-unmatch uv.lock >/dev/null 2>&1 && git diff --quiet -- uv.lock; then
+          if git diff --quiet -- uv.lock; then
             echo "uv.lock is already up to date"
             exit 0
           fi
           git add uv.lock
-          git commit -m "build: add uv lockfile"
+          git commit -m "build: sync uv lockfile"
           git push
