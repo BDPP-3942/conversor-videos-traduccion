@@ -26,3 +26,4 @@ jobs:
           git diff --cached --quiet && exit 0
           git commit -m "chore(release): synchronize uv lockfile for 1.8.1"
           echo "GENERATED_COMMIT=$(git rev-parse HEAD)"
+          git show --format=fuller --no-patch HEAD
