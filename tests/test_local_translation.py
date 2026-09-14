@@ -46,9 +46,7 @@ def _opus_test_files(monkeypatch):
 def _write_madlad_model(path: Path, shared_vocabulary: str = "{}") -> None:
     path.joinpath("model.bin").write_bytes(b"model")
     path.joinpath("spiece.model").write_bytes(b"spiece")
-    path.joinpath("config.json").write_text(
-        '{"decoder_start_token": "</s>", "eos_token": "</s>"}', encoding="utf-8"
-    )
+    path.joinpath("config.json").write_text('{"decoder_start_token": "</s>", "eos_token": "</s>"}', encoding="utf-8")
     path.joinpath("shared_vocabulary.json").write_text(shared_vocabulary, encoding="utf-8")
 
 
@@ -91,13 +89,9 @@ def test_opus_model_definition_is_preserved(monkeypatch, tmp_path: Path) -> None
     tmp_path.joinpath("model.bin").write_bytes(b"model")
     tmp_path.joinpath("source.spm").write_bytes(b"source")
     tmp_path.joinpath("target.spm").write_bytes(b"target")
-    tmp_path.joinpath("config.json").write_text(
-        '{"decoder_start_token":"</s>","eos_token":"</s>"}', encoding="utf-8"
-    )
+    tmp_path.joinpath("config.json").write_text('{"decoder_start_token":"</s>","eos_token":"</s>"}', encoding="utf-8")
     tmp_path.joinpath("shared_vocabulary.json").write_text('["</s>"]', encoding="utf-8")
-    tmp_path.joinpath("tokenizer_config.json").write_text(
-        '{"source_lang":"spa","target_lang":"eng"}', encoding="utf-8"
-    )
+    tmp_path.joinpath("tokenizer_config.json").write_text('{"source_lang":"spa","target_lang":"eng"}', encoding="utf-8")
     status = manager.status()
     assert status.available
     assert status.model_name == local_translation.OPUS_MODEL_NAME
@@ -210,9 +204,7 @@ def test_local_translation_uses_madlad_target_prefix(monkeypatch, tmp_path: Path
         lambda: SimpleNamespace(gpu=SimpleNamespace(usable_for_whisper=False, device_index=0)),
     )
     settings = SimpleNamespace(
-        local_translation_device="cpu",
-        local_translation_compute_type="int8",
-        local_translation_beam_size=2,
+        local_translation_device="cpu", local_translation_compute_type="int8", local_translation_beam_size=2
     )
     provider = LocalTranslationProvider(settings, manager)
     assert provider.translate("Hola mundo") == "hello world"
