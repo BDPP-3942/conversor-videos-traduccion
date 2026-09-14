@@ -83,6 +83,10 @@ jobs:
         run: |
           if (-not (Test-Path 'dist\VideoTranslationPipeline\VideoTranslationPipeline.exe')) { throw 'Missing Windows executable' }
           if (-not (Test-Path "dist\VideoTranslationPipeline-${{ steps.version.outputs.version }}-windows-x64.msi")) { throw 'Missing Windows MSI' }
+      - name: Archive Windows portable executable
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path 'dist\VideoTranslationPipeline\*' -DestinationPath "dist\VideoTranslationPipeline-${{ steps.version.outputs.version }}-windows-x64-portable.zip" -Force
       - name: Archive macOS app
         if: runner.os == 'macOS'
         shell: bash
@@ -95,6 +99,7 @@ jobs:
             dist/VideoTranslationPipeline-*.AppImage
             dist/VideoTranslationPipeline-*.msi
             dist/VideoTranslationPipeline-*.app.zip
+            dist/VideoTranslationPipeline-*-portable.zip
           if-no-files-found: error
 
   publish:
