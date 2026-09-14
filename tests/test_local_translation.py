@@ -10,7 +10,7 @@ from src.local_translation import LocalTranslationModelManager, LocalTranslation
 def _madlad_test_files(monkeypatch):
     files = {
         "model.bin": (hashlib.sha256(b"model").hexdigest(), 5),
-        "sentencepiece.model": (hashlib.sha256(b"sentencepiece").hexdigest(), 13),
+        "spiece.model": (hashlib.sha256(b"spiece").hexdigest(), 7),
     }
     metadata = {
         "config.json": (1024, ("decoder_start_token", "eos_token")),
@@ -43,9 +43,19 @@ def _opus_test_files(monkeypatch):
 
 def _write_madlad_model(path: Path, shared_vocabulary: str = "{}") -> None:
     path.joinpath("model.bin").write_bytes(b"model")
-    path.joinpath("sentencepiece.model").write_bytes(b"sentencepiece")
+    path.joinpath("spiece.model").write_bytes(b"spiece")
     path.joinpath("config.json").write_text('{"decoder_start_token": "</s>", "eos_token": "</s>"}', encoding="utf-8")
     path.joinpath("shared_vocabulary.json").write_text(shared_vocabulary, encoding="utf-8")
+
+
+def test_madlad_definition_points_to_existing_huggingface_revision() -> None:
+    assert local_translation.MODEL_REPOSITORY == "cstr/madlad400-3b-ct2-int8"
+    assert local_translation.MODEL_REVISION == "fd0b55729c074372eb84b52b9309a00dc65c40c4"
+    assert tuple(local_translation.MODEL_FILES) == ("model.bin", "spiece.model")
+    assert local_translation.MODEL_FILES["spiece.model"] == (
+        "ef11ac9a22c7503492f56d48dce53be20e339b63605983e9f27d2cd0e0f3922c",
+        4_427_844,
+    )
 
 
 def test_model_status_reports_missing_resource(tmp_path: Path) -> None:
@@ -136,6 +146,23 @@ def test_model_download_uses_pinned_huggingface_resource(monkeypatch, tmp_path: 
     assert destination.read_bytes() == b"abc"
 
 
+def test_huggingface_404_does_not_misdiagnose_missing_file_as_authentication(monkeypatch, tmp_path: Path) -> None:
+    class FakeNotFoundError(Exception):
+        response = SimpleNamespace(status_code=404)
+
+    def fake_download(**_kwargs):
+        raise FakeNotFoundError("404 Not Found")
+
+    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(hf_hub_download=fake_download))
+    with pytest.raises(RuntimeError, match="pinned Hugging Face revision does not contain") as exc_info:
+        local_translation._download_file(
+            f"https://huggingface.co/{local_translation.MODEL_REPOSITORY}/resolve/{local_translation.MODEL_REVISION}/spiece.model?download=true",
+            tmp_path / "spiece.model",
+            10,
+        )
+    assert "HF_TOKEN" not in str(exc_info.value)
+
+
 def test_local_translation_uses_madlad_target_prefix(monkeypatch, tmp_path: Path) -> None:
     _madlad_test_files(monkeypatch)
     _write_madlad_model(tmp_path)
@@ -143,7 +170,7 @@ def test_local_translation_uses_madlad_target_prefix(monkeypatch, tmp_path: Path
 
     class FakeSentencePiece:
         def __init__(self, model_file):
-            assert Path(model_file).name == "sentencepiece.model"
+            assert Path(model_file).name == "spiece.model"
 
         def encode(self, text, out_type=str):
             assert text.startswith("<2en> ")
