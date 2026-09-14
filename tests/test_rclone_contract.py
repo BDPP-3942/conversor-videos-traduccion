@@ -17,12 +17,12 @@ def test_rclone_setup_scripts_use_uv_managed_bootstrap() -> None:
 def test_setup_scripts_bootstrap_uv_locally_when_system_uv_is_absent() -> None:
     sh = Path("scripts/setup_env.sh").read_text(encoding="utf-8")
     bat = Path("scripts/setup_env.bat").read_text(encoding="utf-8")
-    assert "LOCAL_UV_DIR=\"$PROJECT_DIR/tools/uv\"" in sh
-    assert "LOCAL_UV_BIN=\"$LOCAL_UV_DIR/uv\"" in sh
+    assert 'LOCAL_UV_DIR="$PROJECT_DIR/tools/uv"' in sh
+    assert 'LOCAL_UV_BIN="$LOCAL_UV_DIR/uv"' in sh
     assert "UV_UNMANAGED_INSTALL" in sh
     assert "command -v uv" in sh
-    assert "set \"LOCAL_UV_DIR=%CD%\\tools\\uv\"" in bat
-    assert "set \"LOCAL_UV_BIN=%LOCAL_UV_DIR%\\uv.exe\"" in bat
+    assert 'set "LOCAL_UV_DIR=%CD%\\tools\\uv"' in bat
+    assert 'set "LOCAL_UV_BIN=%LOCAL_UV_DIR%\\uv.exe"' in bat
     assert "UV_UNMANAGED_INSTALL" in bat
     assert "where uv.exe" in bat
 
