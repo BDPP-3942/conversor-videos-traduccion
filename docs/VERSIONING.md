@@ -26,20 +26,20 @@ La línea de releases de producto actualmente publicada es `1.x`.
 
 Los tags publicados son historia inmutable y no deben modificarse, moverse ni reutilizarse.
 
-## Release candidata: 1.8.1
+## Release candidata: 1.8.2
 
-La candidata actual es `1.8.1`, una **PATCH** compatible sobre la release publicada `1.8.0`.
+La candidata actual es `1.8.2`, una **PATCH** correctiva sobre la release publicada `1.8.0`. La preparación `1.8.1` queda supersedida y no se considera una release publicada.
 
-El incremento PATCH está justificado por mejoras de instalación, bootstrap y documentación sin cambios incompatibles de CLI, configuración, formatos o arquitectura de procesamiento:
+El incremento PATCH está justificado por la corrección del recurso MADLAD y por ajustes compatibles de validación, tests, CI y documentación:
 
-- bootstrap automático de una copia de uv bajo `tools/uv/` cuando no existe uv en `PATH`;
-- reutilización de una copia ya instalada en `tools/uv/` y preferencia por uv del sistema cuando está disponible;
-- soporte equivalente del bootstrap local en macOS/Linux y Windows;
-- nueva opción `--local-translation` para preparar durante el setup el modelo local fijado;
-- conservación del comando independiente `uv run python scripts/manage_local_translation.py download` para instalaciones diferidas;
-- documentación de la nueva secuencia de instalación y de la separación entre entorno Python y pesos de modelos.
+- pinning de `cstr/madlad400-3b-ct2-int8` a la revisión `fd0b55729c074372eb84b52b9309a00dc65c40c4`;
+- uso del tokenizer real `spiece.model` del artefacto fijado;
+- validación reproducible mediante tamaño y SHA-256 del tokenizer y del modelo;
+- diagnóstico diferenciado entre artefactos/revisiones inexistentes (404) y autenticación/autorización (401/403);
+- corrección de fixtures de tests para que sus tamaños esperados coincidan con los bytes realmente escritos;
+- alineación de metadatos de versión, documentación de release y controles de calidad con `1.8.2`.
 
-No se cambia el modelo local predeterminado, las revisiones fijadas, la cadena de proveedores, el runtime GPU ni el contrato de los datos procesados.
+No se cambia el contrato público de procesamiento, almacenamiento o CLI.
 
 ## Semantic Versioning
 
@@ -69,7 +69,7 @@ tag vX.Y.Z
 GitHub Release
 ```
 
-`v1.8.0` ya existe y no debe recrearse ni moverse. `v1.8.1` solo debe publicarse sobre el SHA exacto de `main` resultante del merge de la candidata, después de que CI y Release Gate sean verdes.
+`v1.8.0` ya existe y no debe recrearse ni moverse. `v1.8.2` solo debe publicarse sobre el SHA exacto de `main` resultante del merge de la candidata, después de que CI y Release Gate sean verdes.
 
 ## Política de dependencias
 
