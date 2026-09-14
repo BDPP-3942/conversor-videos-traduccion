@@ -2,198 +2,156 @@ from __future__ import annotations
 
 import sys
 import threading
+import tkinter as tk
 from pathlib import Path
-
-from PySide6.QtCore import QObject, QThread, Signal, Slot
-from PySide6.QtWidgets import (
-    QApplication,
-    QCheckBox,
-    QComboBox,
-    QFileDialog,
-    QFormLayout,
-    QGroupBox,
-    QHBoxLayout,
-    QLabel,
-    QLineEdit,
-    QMainWindow,
-    QMessageBox,
-    QPlainTextEdit,
-    QProgressBar,
-    QPushButton,
-    QSpinBox,
-    QVBoxLayout,
-    QWidget,
-)
+from tkinter import filedialog, messagebox, ttk
 
 from src.application import ApplicationError, VideoTranslationApplication
 
 
-class Worker(QObject):
-    progress = Signal(dict)
-    finished = Signal(dict)
-    failed = Signal(str)
-
-    def __init__(self, options: dict[str, object]) -> None:
-        super().__init__()
+class Worker:
+    def __init__(self, options: dict[str, object], report) -> None:
         self.options = options
-        self.cancel_event = threading.Event()
+        self.report = report
+        self.thread: threading.Thread | None = None
 
-    @Slot()
-    def run(self) -> None:
-        try:
-            result = VideoTranslationApplication().run(
-                progress=self.progress.emit,
-                cancel_event=self.cancel_event,
-                **self.options,
-            )
-            self.finished.emit(result)
-        except ApplicationError as exc:
-            self.failed.emit(str(exc))
-        except Exception as exc:
-            self.failed.emit(f"Unexpected error: {type(exc).__name__}: {exc}")
-
-    def cancel(self) -> None:
-        self.cancel_event.set()
-
-
-class MainWindow(QMainWindow):
-    def __init__(self) -> None:
-        super().__init__()
-        self.setWindowTitle("Video Translation Pipeline")
-        self.resize(980, 720)
-        self.thread: QThread | None = None
-        self.worker: Worker | None = None
-        self._build_ui()
-
-    def _build_ui(self) -> None:
-        root = QWidget()
-        layout = QVBoxLayout(root)
-
-        paths = QGroupBox("Input and output")
-        form = QFormLayout(paths)
-        self.source = QLineEdit(str(Path("storage/input").resolve()))
-        self.target = QLineEdit(str(Path("storage/output").resolve()))
-        form.addRow("Input folder", self._path_row(self.source))
-        form.addRow("Output folder", self._path_row(self.target))
-        layout.addWidget(paths)
-
-        processing = QGroupBox("Processing")
-        form = QFormLayout(processing)
-        self.provider = QComboBox(); self.provider.addItems(["local", "google_drive", "rclone"])
-        self.translation = QComboBox(); self.translation.addItems(["mistral", "local", "deepl", "mymemory"])
-        self.source_lang = QLineEdit("es"); self.target_lang = QLineEdit("en")
-        self.parallel = QSpinBox(); self.parallel.setRange(0, 64); self.parallel.setSpecialValueText("AUTO")
-        self.webm = QCheckBox("Generate secondary WebM")
-        self.tts = QCheckBox("Enable synchronized TTS")
-        form.addRow("Storage provider", self.provider)
-        form.addRow("Translation provider", self.translation)
-        form.addRow("Source language", self.source_lang)
-        form.addRow("Target language", self.target_lang)
-        form.addRow("Parallel videos", self.parallel)
-        form.addRow("Outputs", self.webm)
-        form.addRow("Voice synthesis", self.tts)
-        layout.addWidget(processing)
-
-        actions = QHBoxLayout()
-        self.start = QPushButton("Start processing")
-        self.start.setDefault(True)
-        self.start.clicked.connect(self._start)
-        self.cancel = QPushButton("Cancel")
-        self.cancel.setEnabled(False)
-        self.cancel.clicked.connect(self._cancel)
-        actions.addWidget(self.start); actions.addWidget(self.cancel); actions.addStretch()
-        layout.addLayout(actions)
-
-        self.stage = QLabel("Ready")
-        self.progress = QProgressBar(); self.progress.setRange(0, 100)
-        layout.addWidget(self.stage); layout.addWidget(self.progress)
-        self.log = QPlainTextEdit(); self.log.setReadOnly(True)
-        layout.addWidget(self.log, 1)
-        self.setCentralWidget(root)
-
-    @staticmethod
-    def _path_row(field: QLineEdit) -> QWidget:
-        row = QWidget(); layout = QHBoxLayout(row); layout.setContentsMargins(0, 0, 0, 0)
-        browse = QPushButton("Browse…")
-        browse.clicked.connect(lambda: MainWindow._browse(field))
-        layout.addWidget(field, 1); layout.addWidget(browse)
-        return row
-
-    @staticmethod
-    def _browse(field: QLineEdit) -> None:
-        path = QFileDialog.getExistingDirectory(None, "Select folder", field.text())
-        if path:
-            field.setText(path)
-
-    def _start(self) -> None:
-        options = {
-            "source": self.source.text(),
-            "target": self.target.text(),
-            "provider": self.provider.currentText(),
-            "source_lang": self.source_lang.text().strip(),
-            "target_lang": self.target_lang.text().strip(),
-            "translation_provider": self.translation.currentText(),
-            "max_parallel_videos": self.parallel.value(),
-            "generate_webm": self.webm.isChecked(),
-            "tts_enabled": self.tts.isChecked(),
-        }
-        self._set_running(True)
-        self.log.appendPlainText("Starting processing…")
-        self.thread = QThread(self)
-        self.worker = Worker(options)
-        self.worker.moveToThread(self.thread)
-        self.thread.started.connect(self.worker.run)
-        self.worker.progress.connect(self._on_progress)
-        self.worker.finished.connect(self._on_finished)
-        self.worker.failed.connect(self._on_failed)
-        self.worker.finished.connect(self.thread.quit)
-        self.worker.failed.connect(self.thread.quit)
-        self.thread.finished.connect(self._thread_finished)
+    def start(self) -> None:
+        self.thread = threading.Thread(target=self._run, name="pipeline-worker", daemon=True)
         self.thread.start()
 
-    def _cancel(self) -> None:
-        if self.worker:
-            self.worker.cancel()
-            self.stage.setText("Cancelling…")
-            self.log.appendPlainText("Cancellation requested; current operation will finish cooperatively.")
-            self.cancel.setEnabled(False)
+    def _run(self) -> None:
+        try:
+            result = VideoTranslationApplication().run(progress=self.report, **self.options)
+            self.report({"stage": "finished", "message": str(result), "result": result})
+        except ApplicationError as exc:
+            self.report({"stage": "error", "message": str(exc)})
+        except Exception as exc:
+            self.report({"stage": "error", "message": f"Unexpected error: {type(exc).__name__}: {exc}"})
 
-    @Slot(dict)
-    def _on_progress(self, event: dict) -> None:
-        self.stage.setText(str(event.get("message", event.get("stage", "Processing"))))
-        percent = event.get("percent")
-        if isinstance(percent, int):
-            self.progress.setValue(max(0, min(100, percent)))
-        self.log.appendPlainText(f"[{event.get('stage', 'processing')}] {event.get('message', '')}")
 
-    @Slot(dict)
-    def _on_finished(self, result: dict) -> None:
-        self.progress.setValue(100 if result.get("status") != "cancelled" else self.progress.value())
-        self.stage.setText(f"Finished: {result.get('status', 'unknown')}")
-        self.log.appendPlainText(str(result))
+class DesktopApp:
+    def __init__(self, root: tk.Tk) -> None:
+        self.root = root
+        self.root.title("Video Translation Pipeline")
+        self.root.geometry("980x720")
+        self.root.minsize(760, 560)
+        self.worker: Worker | None = None
+        self._build()
 
-    @Slot(str)
-    def _on_failed(self, message: str) -> None:
-        self.stage.setText("Error")
-        self.log.appendPlainText(message)
-        QMessageBox.critical(self, "Processing error", message)
+    def _build(self) -> None:
+        root = ttk.Frame(self.root, padding=16)
+        root.pack(fill="both", expand=True)
 
-    def _thread_finished(self) -> None:
-        self._set_running(False)
-        self.worker = None
-        self.thread = None
+        paths = ttk.LabelFrame(root, text="Input and output", padding=12)
+        paths.pack(fill="x", pady=(0, 12))
+        self.source = tk.StringVar(value=str(Path("storage/input").resolve()))
+        self.target = tk.StringVar(value=str(Path("storage/output").resolve()))
+        self._path_row(paths, 0, "Input folder", self.source)
+        self._path_row(paths, 1, "Output folder", self.target)
 
-    def _set_running(self, running: bool) -> None:
-        self.start.setEnabled(not running)
-        self.cancel.setEnabled(running)
+        processing = ttk.LabelFrame(root, text="Processing", padding=12)
+        processing.pack(fill="x", pady=(0, 12))
+        self.provider = tk.StringVar(value="local")
+        self.translation = tk.StringVar(value="mistral")
+        self.source_lang = tk.StringVar(value="es")
+        self.target_lang = tk.StringVar(value="en")
+        self.parallel = tk.IntVar(value=0)
+        self.webm = tk.BooleanVar(value=False)
+        self.tts = tk.BooleanVar(value=False)
+        self._combo_row(processing, 0, "Storage provider", self.provider, ["local", "google_drive", "rclone"])
+        self._combo_row(processing, 1, "Translation provider", self.translation, ["mistral", "local", "deepl", "mymemory"])
+        self._entry_row(processing, 2, "Source language", self.source_lang)
+        self._entry_row(processing, 3, "Target language", self.target_lang)
+        ttk.Label(processing, text="Parallel videos (0 = AUTO)").grid(row=4, column=0, sticky="w", padx=(0, 8), pady=4)
+        ttk.Spinbox(processing, from_=0, to=64, textvariable=self.parallel, width=8).grid(row=4, column=1, sticky="w", pady=4)
+        ttk.Checkbutton(processing, text="Generate secondary WebM", variable=self.webm).grid(row=5, column=1, sticky="w", pady=4)
+        ttk.Checkbutton(processing, text="Enable synchronized TTS", variable=self.tts).grid(row=6, column=1, sticky="w", pady=4)
+        processing.columnconfigure(1, weight=1)
+
+        actions = ttk.Frame(root)
+        actions.pack(fill="x", pady=(0, 8))
+        self.start = ttk.Button(actions, text="Start processing", command=self.start_processing)
+        self.start.pack(side="left")
+        self.status = tk.StringVar(value="Ready")
+        ttk.Label(actions, textvariable=self.status).pack(side="left", padx=16)
+
+        self.progress = ttk.Progressbar(root, mode="indeterminate")
+        self.progress.pack(fill="x", pady=(0, 8))
+        self.log = tk.Text(root, height=14, wrap="word", state="disabled")
+        self.log.pack(fill="both", expand=True)
+
+    def _path_row(self, parent, row: int, label: str, variable: tk.StringVar) -> None:
+        ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
+        ttk.Entry(parent, textvariable=variable).grid(row=row, column=1, sticky="ew", pady=4)
+        ttk.Button(parent, text="Browse…", command=lambda: self._browse(variable)).grid(row=row, column=2, padx=(8, 0))
+        parent.columnconfigure(1, weight=1)
+
+    @staticmethod
+    def _entry_row(parent, row: int, label: str, variable: tk.StringVar) -> None:
+        ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
+        ttk.Entry(parent, textvariable=variable).grid(row=row, column=1, sticky="ew", pady=4)
+
+    @staticmethod
+    def _combo_row(parent, row: int, label: str, variable: tk.StringVar, values: list[str]) -> None:
+        ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
+        ttk.Combobox(parent, textvariable=variable, values=values, state="readonly", width=20).grid(row=row, column=1, sticky="w", pady=4)
+
+    @staticmethod
+    def _browse(variable: tk.StringVar) -> None:
+        selected = filedialog.askdirectory(initialdir=variable.get())
+        if selected:
+            variable.set(selected)
+
+    def start_processing(self) -> None:
+        if self.worker and self.worker.thread and self.worker.thread.is_alive():
+            return
+        options = {
+            "source": self.source.get(),
+            "target": self.target.get(),
+            "provider": self.provider.get(),
+            "source_lang": self.source_lang.get().strip(),
+            "target_lang": self.target_lang.get().strip(),
+            "translation_provider": self.translation.get(),
+            "max_parallel_videos": self.parallel.get(),
+            "generate_webm": self.webm.get(),
+            "tts_enabled": self.tts.get(),
+        }
+        self.start.configure(state="disabled")
+        self.status.set("Processing…")
+        self.progress.start(12)
+        self._append("Starting processing in a background worker.\n")
+        self.worker = Worker(options, self._report)
+        self.worker.start()
+
+    def _report(self, event: dict[str, object]) -> None:
+        self.root.after(0, lambda: self._apply_event(event))
+
+    def _apply_event(self, event: dict[str, object]) -> None:
+        stage = str(event.get("stage", "processing"))
+        message = str(event.get("message", ""))
+        if stage == "finished":
+            self.progress.stop(); self.start.configure(state="normal"); self.status.set("Completed")
+            self._append(message + "\n")
+        elif stage == "error":
+            self.progress.stop(); self.start.configure(state="normal"); self.status.set("Error")
+            self._append(message + "\n")
+            messagebox.showerror("Processing error", message, parent=self.root)
+        else:
+            self.status.set(message or stage.title())
+            self._append(f"[{stage}] {message}\n")
+
+    def _append(self, text: str) -> None:
+        self.log.configure(state="normal")
+        self.log.insert("end", text)
+        self.log.see("end")
+        self.log.configure(state="disabled")
 
 
 def main() -> int:
-    app = QApplication(sys.argv)
-    app.setApplicationName("Video Translation Pipeline")
-    window = MainWindow()
-    window.show()
-    return app.exec()
+    root = tk.Tk()
+    DesktopApp(root)
+    root.mainloop()
+    return 0
 
 
 if __name__ == "__main__":
