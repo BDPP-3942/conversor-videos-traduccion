@@ -39,10 +39,10 @@ jobs:
         env:
           PYTHONWARNINGS: default
         run: uv sync --locked --group dev
-      - name: Install WiX v4
+      - name: Install WiX v6
         if: runner.os == 'Windows'
         shell: pwsh
-        run: dotnet tool install --global wix
+        run: dotnet tool install --global wix --version 6.0.2
       - name: Install appimagetool
         if: runner.os == 'Linux'
         shell: bash
