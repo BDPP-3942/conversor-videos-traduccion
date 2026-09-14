@@ -21,21 +21,21 @@ def test_posix_wrappers_use_shared_uv_resolver(script: str, command: str) -> Non
     assert 'source "$PROJECT_DIR/scripts/lib/resolve_uv.sh"' in content
     assert 'UV_BIN="$(resolve_uv "$PROJECT_DIR")"' in content
     assert command in content
-    assert 'command -v uv >/dev/null 2>&1 || {' not in content
+    assert "command -v uv >/dev/null 2>&1 || {" not in content
 
 
 def test_posix_resolver_prefers_project_managed_uv() -> None:
     resolver = (ROOT / "scripts/lib/resolve_uv.sh").read_text(encoding="utf-8")
     assert 'local_uv="$project_dir/tools/uv/uv"' in resolver
     assert 'if [[ -x "$local_uv" ]]; then' in resolver
-    assert 'command -v uv' in resolver
-    assert resolver.index('if [[ -x "$local_uv" ]]; then') < resolver.index('command -v uv')
+    assert "command -v uv" in resolver
+    assert resolver.index('if [[ -x "$local_uv" ]]; then') < resolver.index("command -v uv")
 
 
 def test_windows_resolver_contract_is_available_to_cmd_wrappers() -> None:
     resolver = (ROOT / "scripts/lib/resolve_uv.bat").read_text(encoding="utf-8")
-    assert 'tools\\uv\\uv.exe' in resolver
-    assert 'where uv.exe' in resolver
+    assert "tools\\uv\\uv.exe" in resolver
+    assert "where uv.exe" in resolver
 
 
 def test_windows_wrappers_use_shared_uv_resolver() -> None:
@@ -48,22 +48,22 @@ def test_windows_wrappers_use_shared_uv_resolver() -> None:
         content = (ROOT / script).read_text(encoding="utf-8")
         assert 'call "%~dp0lib\\resolve_uv.bat"' in content
         assert '"%UV_BIN%"' in content
-        assert 'where uv.exe' not in content
+        assert "where uv.exe" not in content
 
 
 def test_windows_unattended_uses_resolver_before_python_fallback() -> None:
     content = (ROOT / "scripts/run_unattended.bat").read_text(encoding="utf-8")
     assert content.count('call "%~dp0lib\\resolve_uv.bat"') == 2
     assert '"%UV_BIN%" run python main.py' in content
-    assert 'where uv.exe' not in content
+    assert "where uv.exe" not in content
 
 
 def test_windows_resolver_prefers_project_managed_uv_before_path() -> None:
     resolver = (ROOT / "scripts/lib/resolve_uv.bat").read_text(encoding="utf-8")
     local_check = 'if exist "%~dp0..\\..\\tools\\uv\\uv.exe"'
     assert local_check in resolver
-    assert 'where uv.exe' in resolver
-    assert resolver.index(local_check) < resolver.index('where uv.exe')
+    assert "where uv.exe" in resolver
+    assert resolver.index(local_check) < resolver.index("where uv.exe")
 
 
 def test_run_unattended_preserves_packaged_executable_priority() -> None:
