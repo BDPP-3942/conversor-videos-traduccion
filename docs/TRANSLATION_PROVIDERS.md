@@ -21,18 +21,20 @@ DEEPL_API_KEY=...
 MYMEMORY_EMAIL=...
 ```
 
-El proveedor local se configura mediante `LOCAL_TRANSLATION_*`. Solo admite actualmente español→inglés. En `1.8.0`, MADLAD-400 3B es el modelo predeterminado orientado a calidad y OPUS-MT se conserva como alternativa ligera; cada modelo tiene su propia configuración, revisión, directorio, tokenización y validación. La preparación es explícita y está documentada en `LOCAL_TRANSLATION.md`.
+El proveedor local se configura mediante `LOCAL_TRANSLATION_*`. Solo admite actualmente español→inglés. En `1.8.1`, MADLAD-400 3B es el modelo predeterminado orientado a calidad y OPUS-MT se conserva como alternativa ligera; cada modelo tiene su propia configuración, revisión, directorio, tokenización y validación. La preparación es explícita y está documentada en `LOCAL_TRANSLATION.md`.
 
 ```env
 LOCAL_TRANSLATION_MODEL=madlad400-3b-ct2-int8
 LOCAL_TRANSLATION_MODEL_DIR=tools/models/translation/madlad400-3b-ct2-int8
 LOCAL_TRANSLATION_MODEL_ID=cstr/madlad400-3b-ct2-int8
-LOCAL_TRANSLATION_MODEL_REVISION=12eff26f7d93623e2b2d3b5345e5863e14599dae
+LOCAL_TRANSLATION_MODEL_REVISION=fd0b55729c074372eb84b52b9309a00dc65c40c4
 LOCAL_TRANSLATION_DEVICE=auto
 LOCAL_TRANSLATION_COMPUTE_TYPE=auto
 LOCAL_TRANSLATION_BEAM_SIZE=2
 LOCAL_TRANSLATION_AUTO_DOWNLOAD=false
 ```
+
+La revisión MADLAD está fijada a un commit que contiene `model.bin`, `spiece.model`, `config.json` y `shared_vocabulary.json`. No debe sustituirse `spiece.model` por `sentencepiece.model`: la revisión anterior usada por `1.8.1` no contenía ningún tokenizer descargable con ese nombre y provocaba un `404`.
 
 `MYMEMORY_EMAIL` es opcional. Si se proporciona, el cliente envía el parámetro `de` de MyMemory y el control local utiliza la cuota registrada conservadora; si no se proporciona, utiliza la cuota anónima conservadora.
 
@@ -118,9 +120,3 @@ storage/state/translation_quotas.json
 Esto evita que una segunda ejecución del proceso ignore el consumo realizado por una ejecución anterior. Las reservas se hacen antes de enviar una request y se mantienen de forma conservadora si esa request termina fallando.
 
 La traducción local no consume esta cuota porque no realiza requests HTTP.
-
-## Privacidad
-
-El proyecto no envía timestamps ni estructura VTT al proveedor como datos de control. En proveedores remotos se envía únicamente el texto de los segmentos necesario para traducirlo y la respuesta se vuelve a asociar a los segmentos originales. La traducción local procesa el texto en el propio equipo una vez preparado el modelo. Los timestamps `start`/`end` se conservan localmente.
-
-La política de privacidad concreta de cada proveedor remoto debe comprobarse antes de utilizarlo con contenido sensible; este documento describe el comportamiento técnico del cliente y no sustituye los términos del proveedor.
