@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Callable
 
 from config.loader import load_settings
-from config.settings import AppSettings, BASE_DIR
+from config.settings import BASE_DIR, AppSettings
 from src.pipeline import MediaPipeline
 from src.storage.factory import create_storage_provider
 
