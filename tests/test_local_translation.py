@@ -3,6 +3,8 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from src import local_translation
 from src.local_translation import LocalTranslationModelManager, LocalTranslationProvider
 
