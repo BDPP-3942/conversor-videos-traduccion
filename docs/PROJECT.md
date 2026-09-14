@@ -8,7 +8,23 @@ It is designed for unattended operation and supports local storage, Google Drive
 
 ## Scope
 
-Implemented capabilities include video/ZIP ingestion, FFmpeg processing, STT with `faster-whisper`, VTT validation, configurable translation providers, local/Google Drive/rclone storage, manifests/resume/idempotency, duplicate-output management, optional TTS, resource-aware concurrency, CLI entry points, unattended execution, multiplatform scheduler helpers, portable packaging, tests, linting, security checks and dependency audits.
+Implemented capabilities include:
+
+- video/ZIP ingestion;
+- FFmpeg-based media processing;
+- STT with `faster-whisper`;
+- silence-aware cue segmentation and VTT validation;
+- configurable translation providers with fallback and retry controls;
+- local, Google Drive and rclone storage adapters;
+- manifests, resume/idempotent processing and artifact validation;
+- conservative duplicate-output management;
+- optional synchronized Kokoro TTS;
+- resource-aware video concurrency based on detected CPU, RAM and optional GPU capacity;
+- CLI entry points and unattended execution;
+- Windows/Linux/macOS scheduler helpers; portable packaging scripts are currently provided for Windows and Linux;
+- automated tests, linting, security checks, packaging and dependency audits.
+
+The application is not an interactive video editor and automated translation/TTS output still requires human quality review when accuracy matters.
 
 ## Runtime contract
 
@@ -20,23 +36,48 @@ The default configuration uses local storage:
 local://storage/input → pipeline → local://storage/output
 ```
 
-## Current release candidate
+See [INSTALLATION.md](INSTALLATION.md), [CONFIGURATION.md](CONFIGURATION.md) and [CLI.md](CLI.md) for operational details.
 
-The current candidate is `1.8.3`. It is a PATCH release that fixes the mismatch between the project-managed uv bootstrap and wrappers that previously required a global `uv` on `PATH`.
+## Current published release
 
-The documented setup may install `uv` under `tools/uv/` without changing shell profiles. All affected source-checkout wrappers now resolve that managed executable first, then fall back to `PATH`.
+The current product release is `1.8.2` (`v1.8.2`). It follows the published `1.8.1` release and contains the MADLAD resource, tokenizer, fixture and Hugging Face diagnostics correction.
 
-Affected entry points are `run_local.*`, `run_unattended.*`, `setup_rclone.*`, `setup_google.*`, `build_linux.sh` and `build_windows.bat`. The packaged executable remains the first choice for unattended execution, and the direct `.venv` Python fallback is retained when uv cannot be resolved.
+The current unreleased candidate is `1.8.3`. It corrects the project-managed `uv` resolution contract used by runtime/setup/build wrappers and does not replace or supersede the published `1.8.1` or `1.8.2` history.
 
-Regression coverage is provided by `tests/test_uv_resolution_contract.py` for POSIX and Windows wrapper contracts.
+Published releases `1.0.0` through `1.8.2` remain immutable. `docs/RELEASES.md`, `docs/VERSIONING.md` and `CHANGELOG.md` retain the complete release ledger; only `1.8.3` is an active candidate.
 
-See [INSTALLATION.md](INSTALLATION.md), [UV_MIGRATION.md](UV_MIGRATION.md), [RELEASES.md](RELEASES.md) and [../RELEASE_CANDIDATE.md](../RELEASE_CANDIDATE.md).
+See [RELEASES.md](RELEASES.md) for historical release tracking and [../RELEASE_CANDIDATE.md](../RELEASE_CANDIDATE.md) for the current publication checklist.
+
+## Verified release evidence
+
+| Capability | First verified product release | Evidence |
+| --- | ---: | --- |
+| Core audiovisual pipeline, STT, VTT, translation, storage, resume/idempotency, conservative deduplication, TTS, scheduling and packaging | `1.0.0` | `CHANGELOG.md` / release history |
+| VTT recovery/repair and integrated synchronized TTS | `1.1.0` | `CHANGELOG.md` / release history |
+| Naming improvements and TTS asset bootstrap | `1.2.0` | release history |
+| TTS installation fix | `1.2.1` | release history |
+| Timestamp cleanup in naming | `1.2.2` | release history |
+| Resource-aware video concurrency | `1.3.0` | release history |
+| Clean regeneration | `1.4.0` | release history |
+| Multiplatform Whisper/context and packaging | `1.5.0` | release history |
+| ZIP/filesystem hardening | `1.5.1` | release history |
+| Local translation, GPU/runtime hardening and configurable STT recovery | `1.6.0` | release history |
+| Reprocessing/manifests, Unicode naming/filesystem consolidation and translation runtime improvements | `1.7.0` | published GitHub release |
+| `faster-whisper` selective recovery `clip_timestamps` compatibility fix | `1.7.1` | `CHANGELOG.md` / `RELEASES.md` |
+| Local translation model download and provider runtime fix | `1.7.2` | `CHANGELOG.md` / `RELEASES.md` |
+| Local translation metadata bootstrap | `1.7.3` | `CHANGELOG.md` / `RELEASES.md` |
+| Shared vocabulary validation and reproducible uv migration | `1.7.4` | `CHANGELOG.md` / `RELEASES.md` |
+| Refined Whisper recovery, dual pinned local models and updated TTS/WebM defaults | `1.8.0` | published GitHub release |
+| Project-managed uv bootstrap and optional local translation preparation | `1.8.1` | published GitHub release |
+| MADLAD resource, tokenizer and Hugging Face diagnostics correction | `1.8.2` | published GitHub release |
+| Project-managed uv wrapper resolution across POSIX/Windows | `1.8.3` | current release candidate |
 
 ## Release history
 
-- `v1.8.0` — current previously published product release and immutable baseline.
-- `1.8.2` — unreleased candidate state superseded by `1.8.3`.
-- `1.8.3` — current candidate for the project-managed uv wrapper regression.
+- `v1.8.2` — official published release; immutable.
+- `v1.8.1` — official published release; immutable.
+- `v1.8.0` — official published release; immutable.
+- `1.8.3` — current and only active release candidate.
 - Earlier releases from `1.0.0` through `1.7.4` remain historical and immutable.
 
-The runtime version is sourced from `pyproject.toml` and `config/app.toml`, not from this document.
+Release-control documents must never rewrite a published release into a candidate state. New release work is appended as the next candidate.
