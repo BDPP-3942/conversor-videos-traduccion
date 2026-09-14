@@ -6,8 +6,6 @@ from pathlib import Path
 from typing import Any
 
 from src.pipeline import MediaPipeline
-
-
 PipelineEventCallback = Callable[[dict[str, object]], None]
 
 
