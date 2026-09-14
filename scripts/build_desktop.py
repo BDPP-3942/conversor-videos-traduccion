@@ -22,7 +22,7 @@ def _build_pyinstaller() -> int:
 def _build_msi(version: str) -> int:
     wix = shutil.which("wix")
     if wix is None:
-        print("WiX v4 is required to build the Windows MSI (wix command not found).", file=sys.stderr)
+        print("WiX v6 is required to build the Windows MSI (wix command not found).", file=sys.stderr)
         return 2
     source_dir = DIST / APP_NAME
     output = DIST / f"{APP_NAME}-{version}-windows-x64.msi"
@@ -30,8 +30,10 @@ def _build_msi(version: str) -> int:
         wix,
         "build",
         str(ROOT / "installer" / "VideoTranslationPipeline.wxs"),
-        f"-dVersion={version}",
-        f"-dSourceDir={source_dir}",
+        "-d",
+        f"Version={version}",
+        "-d",
+        f"SourceDir={source_dir}",
         "-o",
         str(output),
     ]
