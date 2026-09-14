@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(dirname "$0")/.."
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$PROJECT_DIR"
+source "$PROJECT_DIR/scripts/lib/resolve_uv.sh"
+UV_BIN="$(resolve_uv "$PROJECT_DIR")" || { echo "[ERROR] uv no está instalado. Ejecuta scripts/setup_env.sh." >&2; exit 1; }
 NO_WEBM=false
 if [[ "${1:-}" == "--no-webm" ]]; then NO_WEBM=true; fi
-command -v uv >/dev/null 2>&1 || { echo "[ERROR] uv no está instalado."; exit 1; }
 [[ -d ".venv" ]] || { echo "[ERROR] Ejecuta scripts/setup_env.sh"; exit 1; }
-uv sync --group dev --extra tts
-uv run python -m PyInstaller \
+"$UV_BIN" sync --group dev --extra tts
+"$UV_BIN" run python -m PyInstaller \
     --noconfirm --clean --onedir --name VideoTranslationPipeline \
     --collect-all faster_whisper \
     --collect-all ctranslate2 \
