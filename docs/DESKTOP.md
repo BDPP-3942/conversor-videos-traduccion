@@ -59,31 +59,31 @@ The application facade is deliberately independent of Tk so another UI or servic
 
 ## Distribution
 
-Build on the target operating system with the same Python/runtime environment used by CI:
+The desktop capability is the next MINOR release scope (`1.9.0` at the time of this branch); it must not be published as the existing `1.8.3` PATCH candidate. Build on the target operating system with the same Python/runtime environment used by CI:
 
 ```bash
 uv sync --group dev
-uv run python scripts/build_desktop.py --clean --version 1.8.3 --format native
+uv run python scripts/build_desktop.py --clean --version 1.9.0 --format native
 ```
 
 The resulting native formats are:
 
 | Platform | Primary artifact | Installer/distribution |
 |---|---|---|
-| Windows x64 | `VideoTranslationPipeline.exe` | `.msi` generated with WiX v4 |
+| Windows x64 | `VideoTranslationPipeline.exe` | `.msi` generated with WiX v6 |
 | macOS | `VideoTranslationPipeline.app` | `.app` bundle; signing/notarization is a release-stage operation |
 | Linux x86_64 | PyInstaller executable bundle | `.AppImage`; a `.tar.gz` portable bundle can also be distributed |
 
 Windows MSI:
 
 ```text
-uv run python scripts/build_desktop.py --clean --version 1.8.3 --format windows-msi
+uv run python scripts/build_desktop.py --clean --version 1.9.0 --format windows-msi
 ```
 
 Linux AppImage:
 
 ```text
-uv run python scripts/build_desktop.py --clean --version 1.8.3 --format linux-appimage
+uv run python scripts/build_desktop.py --clean --version 1.9.0 --format linux-appimage
 ```
 
 The repository CI validates the native packaging workflow on Windows, macOS and Linux. Release publication must additionally validate the installed artifact on each target OS. macOS signing/notarization and Windows publisher signing require release credentials and are not performed by ordinary pull-request CI.
