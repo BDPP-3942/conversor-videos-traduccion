@@ -59,7 +59,7 @@ jobs:
 
           - Los tags `vX.Y.Z` activan el workflow de release.
           - Los runners nativos construyen los artefactos de cada sistema.
-          - AppImage, MSI y ZIP de macOS se adjuntan automáticamente a la GitHub Release junto con los archivos fuente generados por GitHub.
+          - AppImage, MSI, ZIP portable de Windows y ZIP de macOS se adjuntan automáticamente a la GitHub Release junto con los archivos fuente generados por GitHub.
           - Se elimina la necesidad de build y upload manual en cada release.
 
           ### Compatibility
