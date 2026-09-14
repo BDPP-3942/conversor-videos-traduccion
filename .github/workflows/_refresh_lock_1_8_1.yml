@@ -6,7 +6,7 @@ on:
       - feat/release-1.8.1-local-uv-bootstrap
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   refresh-lock:
@@ -18,9 +18,14 @@ jobs:
         with:
           version: latest-known
       - run: uv lock
-      - name: Upload generated lockfile
-        uses: actions/upload-artifact@v4
-        with:
-          name: uv-lock-1.8.1
-          path: uv.lock
-          if-no-files-found: error
+      - name: Push generated lockfile to temporary branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add uv.lock
+          if git diff --cached --quiet; then
+            echo "uv.lock is already current"
+            exit 0
+          fi
+          git commit -m "chore(release): synchronize uv lockfile for 1.8.1"
+          git push origin HEAD:tmp/lock-1.8.1
