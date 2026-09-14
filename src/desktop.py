@@ -27,11 +27,21 @@ class Worker:
     def _run(self) -> None:
         try:
             result = self.task(self.report, self.cancel_event)
-            self.report({"stage": "finished", "message": json.dumps(result, ensure_ascii=False, indent=2)})
+            self.report(
+                {
+                    "stage": "finished",
+                    "message": json.dumps(result, ensure_ascii=False, indent=2),
+                }
+            )
         except ApplicationError as exc:
             self.report({"stage": "error", "message": str(exc)})
         except Exception as exc:
-            self.report({"stage": "error", "message": f"Unexpected error: {type(exc).__name__}: {exc}"})
+            self.report(
+                {
+                    "stage": "error",
+                    "message": f"Unexpected error: {type(exc).__name__}: {exc}",
+                }
+            )
 
 
 class DesktopApp:
@@ -72,7 +82,12 @@ class DesktopApp:
         ttk.Label(status_bar, textvariable=self.status).pack(side="left")
         self.progress = ttk.Progressbar(status_bar, mode="determinate", maximum=100)
         self.progress.pack(side="left", fill="x", expand=True, padx=12)
-        self.cancel = ttk.Button(status_bar, text="Cancel", command=self.cancel_processing, state="disabled")
+        self.cancel = ttk.Button(
+            status_bar,
+            text="Cancel",
+            command=self.cancel_processing,
+            state="disabled",
+        )
         self.cancel.pack(side="right")
 
         log_frame = ttk.LabelFrame(container, text="Execution log", padding=8)
@@ -91,7 +106,10 @@ class DesktopApp:
         self._path_row(paths, 2, "Local output", self.target)
         ttk.Label(
             paths,
-            text="Cloud providers use their saved provider/source/target profile; local paths apply to local storage.",
+            text=(
+                "Cloud providers use their saved provider/source/target profile; "
+                "local paths apply to local storage."
+            ),
             wraplength=760,
         ).grid(row=3, column=1, sticky="w", pady=(4, 0))
 
@@ -103,7 +121,13 @@ class DesktopApp:
         self.fallback = tk.StringVar(value="deepl,mymemory")
         self._entry_row(general, 0, "Source language", self.source_lang)
         self._entry_row(general, 1, "Target language", self.target_lang)
-        self._combo_row(general, 2, "Translation provider", self.translation, ["mistral", "local", "deepl", "mymemory"])
+        self._combo_row(
+            general,
+            2,
+            "Translation provider",
+            self.translation,
+            ["mistral", "local", "deepl", "mymemory"],
+        )
         self._entry_row(general, 3, "Fallback providers", self.fallback)
 
         execution = ttk.LabelFrame(parent, text="Execution", padding=10)
@@ -112,6 +136,7 @@ class DesktopApp:
         self.batch_size = tk.IntVar(value=25)
         self.webm = tk.BooleanVar(value=False)
         self.tts = tk.BooleanVar(value=False)
+        self.tts_required = tk.BooleanVar(value=False)
         self.resume = tk.BooleanVar(value=True)
         self.normalize_names = tk.BooleanVar(value=True)
         self.auto_dedupe = tk.BooleanVar(value=False)
@@ -119,9 +144,10 @@ class DesktopApp:
         self._spin_row(execution, 1, "Translation batch size", self.batch_size, 1, 500)
         self._check_row(execution, 2, "Generate secondary WebM", self.webm)
         self._check_row(execution, 3, "Enable synchronized TTS", self.tts)
-        self._check_row(execution, 4, "Resume existing compatible results", self.resume)
-        self._check_row(execution, 5, "Normalize legacy output names", self.normalize_names)
-        self._check_row(execution, 6, "Automatic local output deduplication", self.auto_dedupe)
+        self._check_row(execution, 4, "TTS is required for a successful result", self.tts_required)
+        self._check_row(execution, 5, "Resume existing compatible results", self.resume)
+        self._check_row(execution, 6, "Normalize legacy output names", self.normalize_names)
+        self._check_row(execution, 7, "Automatic local output deduplication", self.auto_dedupe)
 
         advanced = ttk.LabelFrame(parent, text="Advanced media / TTS", padding=10)
         advanced.pack(fill="x", pady=(0, 10))
@@ -136,7 +162,21 @@ class DesktopApp:
         self._entry_row(advanced, 2, "Whisper compute type", self.whisper_compute)
         self._spin_row(advanced, 3, "Whisper beam size", self.whisper_beam, 1, 32)
         self._entry_row(advanced, 4, "Kokoro TTS voice", self.tts_voice)
-        self._spin_row(advanced, 5, "TTS speed (x100)", tk.IntVar(value=100), 50, 135)
+        ttk.Spinbox(
+            advanced,
+            from_=50,
+            to=135,
+            increment=5,
+            textvariable=self.tts_speed,
+            width=12,
+        ).grid(row=5, column=1, sticky="w", pady=4)
+        ttk.Label(advanced, text="TTS speed (0.50–1.35x)").grid(
+            row=5,
+            column=0,
+            sticky="w",
+            padx=(0, 8),
+            pady=4,
+        )
         advanced.columnconfigure(1, weight=1)
 
         buttons = ttk.Frame(parent)
@@ -145,7 +185,7 @@ class DesktopApp:
         self.start.pack(side="left")
         ttk.Label(
             buttons,
-            text="All processing remains delegated to the existing application and MediaPipeline layers.",
+            text="Processing remains delegated to the existing application and MediaPipeline layers.",
         ).pack(side="left", padx=12)
 
     def _build_recovery(self, parent: ttk.Frame) -> None:
@@ -156,15 +196,31 @@ class DesktopApp:
         self._path_row(parent, 0, "Output directory", self.recovery_target)
         self._entry_row(parent, 1, "Output folder (optional)", self.recovery_folder)
         self._entry_row(parent, 2, "Video name (optional)", self.recovery_video)
-        self._combo_row(parent, 3, "Recovery mode", self.recovery_mode, ["full", "stt_only", "translate_only"])
+        self._combo_row(
+            parent,
+            3,
+            "Recovery mode",
+            self.recovery_mode,
+            ["full", "stt_only", "translate_only"],
+        )
         ttk.Label(
             parent,
-            text="Recovery reuses the existing video and repairs subtitle artefacts without regenerating audiovisual media.",
+            text=(
+                "Recovery reuses the existing video and repairs subtitle artefacts "
+                "without regenerating audiovisual media."
+            ),
             wraplength=760,
         ).grid(row=4, column=0, columnspan=3, sticky="w", pady=10)
-        ttk.Button(parent, text="Run subtitle recovery", command=self.start_recovery).grid(row=5, column=0, sticky="w")
+        ttk.Button(parent, text="Run subtitle recovery", command=self.start_recovery).grid(
+            row=5,
+            column=0,
+            sticky="w",
+        )
         ttk.Button(parent, text="Recover all eligible outputs", command=self.start_recovery_all).grid(
-            row=5, column=1, sticky="w", padx=8
+            row=5,
+            column=1,
+            sticky="w",
+            padx=8,
         )
         parent.columnconfigure(1, weight=1)
 
@@ -173,17 +229,29 @@ class DesktopApp:
         self._path_row(parent, 0, "Local output directory", self.duplicate_target)
         ttk.Label(
             parent,
-            text="Deduplication is intentionally conservative. Scan and analyze do not delete anything; deletion supports dry-run.",
+            text=(
+                "Deduplication is intentionally conservative. Scan and analyze do not delete anything; "
+                "deletion supports dry-run."
+            ),
             wraplength=760,
         ).grid(row=1, column=0, columnspan=3, sticky="w", pady=10)
         buttons = ttk.Frame(parent)
         buttons.grid(row=2, column=0, columnspan=3, sticky="w")
         ttk.Button(buttons, text="Scan", command=lambda: self.start_duplicate("scan")).pack(side="left")
-        ttk.Button(buttons, text="Analyze", command=lambda: self.start_duplicate("analyze")).pack(side="left", padx=8)
-        ttk.Button(buttons, text="Delete dry-run", command=lambda: self.start_duplicate("delete", True)).pack(side="left")
-        ttk.Button(buttons, text="Delete duplicates", command=lambda: self.start_duplicate("delete", False)).pack(
-            side="left", padx=8
+        ttk.Button(buttons, text="Analyze", command=lambda: self.start_duplicate("analyze")).pack(
+            side="left",
+            padx=8,
         )
+        ttk.Button(
+            buttons,
+            text="Delete dry-run",
+            command=lambda: self.start_duplicate("delete", True),
+        ).pack(side="left")
+        ttk.Button(
+            buttons,
+            text="Delete duplicates",
+            command=lambda: self.start_duplicate("delete", False),
+        ).pack(side="left", padx=8)
         parent.columnconfigure(1, weight=1)
 
     def _build_diagnostics(self, parent: ttk.Frame) -> None:
@@ -195,7 +263,10 @@ class DesktopApp:
         buttons = ttk.Frame(parent)
         buttons.pack(anchor="w")
         ttk.Button(buttons, text="Run doctor", command=self.start_doctor).pack(side="left")
-        ttk.Button(buttons, text="Prefetch Whisper model", command=self.start_prefetch).pack(side="left", padx=8)
+        ttk.Button(buttons, text="Prefetch Whisper model", command=self.start_prefetch).pack(
+            side="left",
+            padx=8,
+        )
 
     def _build_scheduling(self, parent: ttk.Frame) -> None:
         text = (
@@ -213,7 +284,9 @@ class DesktopApp:
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
         ttk.Entry(parent, textvariable=variable).grid(row=row, column=1, sticky="ew", pady=4)
         ttk.Button(parent, text="Browse…", command=lambda: self._browse(variable)).grid(
-            row=row, column=2, padx=(8, 0)
+            row=row,
+            column=2,
+            padx=(8, 0),
         )
         parent.columnconfigure(1, weight=1)
 
@@ -225,16 +298,24 @@ class DesktopApp:
     @staticmethod
     def _combo_row(parent, row: int, label: str, variable: tk.Variable, values: list[str]) -> None:
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
-        ttk.Combobox(parent, textvariable=variable, values=values, state="readonly", width=24).grid(
-            row=row, column=1, sticky="w", pady=4
-        )
+        ttk.Combobox(
+            parent,
+            textvariable=variable,
+            values=values,
+            state="readonly",
+            width=24,
+        ).grid(row=row, column=1, sticky="w", pady=4)
 
     @staticmethod
     def _spin_row(parent, row: int, label: str, variable: tk.Variable, minimum: int, maximum: int) -> None:
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
-        ttk.Spinbox(parent, from_=minimum, to=maximum, textvariable=variable, width=12).grid(
-            row=row, column=1, sticky="w", pady=4
-        )
+        ttk.Spinbox(
+            parent,
+            from_=minimum,
+            to=maximum,
+            textvariable=variable,
+            width=12,
+        ).grid(row=row, column=1, sticky="w", pady=4)
 
     @staticmethod
     def _check_row(parent, row: int, label: str, variable: tk.BooleanVar) -> None:
@@ -274,6 +355,7 @@ class DesktopApp:
             "translation_batch_size": self.batch_size.get(),
             "generate_webm": self.webm.get(),
             "tts_enabled": self.tts.get(),
+            "tts_required": self.tts_required.get(),
             "resume_enabled": self.resume.get(),
             "normalize_legacy_names": self.normalize_names.get(),
             "automatic_output_deduplication": self.auto_dedupe.get(),
@@ -282,19 +364,29 @@ class DesktopApp:
             "whisper_compute_type": self.whisper_compute.get().strip(),
             "whisper_beam_size": self.whisper_beam.get(),
             "tts_voice": self.tts_voice.get().strip(),
-            "tts_speed": 1.0,
+            "tts_speed": self.tts_speed.get(),
         }
         if provider == "local":
             options["source"] = self.source.get()
             options["target"] = self.target.get()
         self._append("Starting processing in a background worker.\n")
-        self._launch(lambda report, cancel: VideoTranslationApplication().run(progress=report, cancel_event=cancel, **options))
+        self._launch(
+            lambda report, cancel: VideoTranslationApplication().run(
+                progress=report,
+                cancel_event=cancel,
+                **options,
+            )
+        )
 
     def start_recovery(self) -> None:
         folder = self.recovery_folder.get().strip()
         video = self.recovery_video.get().strip()
         if not folder and not video:
-            messagebox.showerror("Recovery target required", "Specify an output folder or a video name.", parent=self.root)
+            messagebox.showerror(
+                "Recovery target required",
+                "Specify an output folder or a video name.",
+                parent=self.root,
+            )
             return
         target = self.recovery_target.get()
         self._append("Starting subtitle recovery.\n")
@@ -312,19 +404,25 @@ class DesktopApp:
         self._append("Starting subtitle recovery for all eligible outputs.\n")
         self._launch(
             lambda _report, _cancel: VideoTranslationApplication().reprocess_all(
-                target=self.recovery_target.get(), mode=self.recovery_mode.get(), provider="local"
+                target=self.recovery_target.get(),
+                mode=self.recovery_mode.get(),
+                provider="local",
             )
         )
 
     def start_duplicate(self, action: str, dry_run: bool = False) -> None:
         if action == "delete" and not dry_run and not messagebox.askyesno(
-            "Confirm deletion", "Delete the duplicates in the persisted deletion plan?", parent=self.root
+            "Confirm deletion",
+            "Delete the duplicates in the persisted deletion plan?",
+            parent=self.root,
         ):
             return
         self._append(f"Starting duplicate {action}.\n")
         self._launch(
             lambda _report, _cancel: VideoTranslationApplication.deduplicate(
-                self.duplicate_target.get(), action, dry_run=dry_run
+                self.duplicate_target.get(),
+                action,
+                dry_run=dry_run,
             )
         )
 
