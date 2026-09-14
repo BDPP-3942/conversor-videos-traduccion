@@ -85,7 +85,7 @@ Los candidatos se puntúan con la misma política de calidad. Solo se emite un c
 
 Los proveedores de traducción se abstraen mediante la configuración del pipeline. El proyecto contempla proveedor principal, fallback, reintentos, backoff, límites de concurrencia y lotes.
 
-El proveedor local funciona offline una vez preparado el modelo. La candidata `1.8.0` conserva dos modelos locales fijados: MADLAD-400 3B CT2 INT8 como opción predeterminada orientada a calidad y OPUS-MT CT2 INT8 como alternativa ligera. MADLAD utiliza un `sentencepiece.model` compartido y el prefijo de destino `<2en>`; OPUS-MT conserva `source.spm` y `target.spm`.
+El proveedor local funciona offline una vez preparado el modelo. La release publicada `1.8.0` conserva dos modelos locales fijados: MADLAD-400 3B CT2 INT8 como opción predeterminada orientada a calidad y OPUS-MT CT2 INT8 como alternativa ligera. MADLAD utiliza el artefacto `spiece.model` y el prefijo de destino `<2en>`; OPUS-MT conserva `source.spm` y `target.spm`.
 
 Una traducción parcial no debe marcarse como completa. Los fallos temporales de un proveedor deben poder reintentarse sin rehacer el STT cuando el VTT original sigue siendo válido.
 
@@ -230,3 +230,9 @@ Para incorporar una nueva funcionalidad:
 7. ejecutar CI;
 8. clasificar el cambio según Semantic Versioning;
 9. registrar la release en `docs/RELEASES.md`.
+
+## 20. Estado de releases
+
+`1.8.0`, `1.8.1` y `1.8.2` son releases oficiales publicadas. `1.8.3` es la única candidata activa y añade la corrección de resolución de uv en wrappers POSIX/Windows.
+
+La documentación de cada release publicada es histórica e inmutable. Una nueva candidata se añade sin eliminar ni reinterpretar las releases anteriores.
