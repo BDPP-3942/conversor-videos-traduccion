@@ -2,7 +2,13 @@
 
 ## Previous release state
 
-`v1.8.0` is the last published release and remains immutable. The `1.8.2` candidate state is superseded by this `1.8.3` corrective candidate.
+`v1.8.2` is the previous published release and immutable baseline. `v1.8.1` and `v1.8.2` are official published releases; neither is a candidate or superseded preparation state. The only current unreleased version is `1.8.3`.
+
+Published release history:
+
+- `v1.8.2` → MADLAD model download and Hugging Face revision fix.
+- `v1.8.1` → Local uv bootstrap and optional local translation setup.
+- `v1.8.0` → Whisper recovery and local translation.
 
 ## Release classification
 
@@ -47,7 +53,15 @@ Unattended execution continues to prefer packaged executables and retains the di
 
 The existing CI matrix remains Linux/Windows/macOS with Python 3.11, 3.12 and 3.13.
 
-## Documentation
+## Documentation and historical integrity
+
+Release documentation is cumulative. The `1.8.3` changes add a new candidate section and MUST NOT remove or downgrade historical content for `1.8.1` or `1.8.2`.
+
+The release-control documents must consistently distinguish:
+
+- published releases: `1.8.0`, `1.8.1`, `1.8.2`;
+- current candidate: `1.8.3`;
+- no other version as an active candidate.
 
 Release behavior is documented in `CHANGELOG.md`, `RELEASE_CANDIDATE.md`, `docs/UV_MIGRATION.md`, `docs/VERSIONING.md`, `docs/RELEASES.md`, `docs/PROJECT.md` and `docs/CI_CD.md`.
 
@@ -55,7 +69,11 @@ Release behavior is documented in `CHANGELOG.md`, `RELEASE_CANDIDATE.md`, `docs/
 
 - `pyproject.toml` → `1.8.3`.
 - `config/app.toml` → `1.8.3`.
-- release-control documents → `1.8.3`.
+- `CHANGELOG.md` → published history through `1.8.2` plus candidate `1.8.3`.
+- `docs/RELEASES.md` → published history through `1.8.2` plus candidate `1.8.3`.
+- `docs/VERSIONING.md` → published history through `1.8.2` plus candidate `1.8.3`.
+- `RELEASE_CANDIDATE.md` → `1.8.3`.
+- this file → `1.8.3`.
 
 ## Release gate
 
