@@ -126,7 +126,12 @@ class VideoTranslationApplication:
         cancel_event: threading.Event | None = None,
         **overrides: object,
     ) -> dict[str, object]:
-        settings = self._settings(source=source, target=target, provider=provider, overrides=overrides)
+        settings = self._settings(
+            source=source,
+            target=target,
+            provider=provider,
+            overrides=overrides,
+        )
         storage = create_storage_provider(settings.provider, settings)
         try:
             pipeline = ControllableMediaPipeline(
@@ -136,7 +141,13 @@ class VideoTranslationApplication:
                 cancel_event=cancel_event,
             )
             result = pipeline.run(settings.source, settings.target)
-            self._emit(progress, "completed", 100, result.get("zips_processed", 0), "Processing completed")
+            self._emit(
+                progress,
+                "completed",
+                100,
+                result.get("zips_processed", 0),
+                "Processing completed",
+            )
             return result
         except PipelineCancelled as exc:
             self._emit(progress, "cancelled", 0, 0, str(exc))
@@ -171,23 +182,37 @@ class VideoTranslationApplication:
         finally:
             storage.close()
 
-    def reprocess_all(self, *, target: str, mode: str = "full", provider: str | None = None) -> dict[str, Any]:
+    def reprocess_all(
+        self,
+        *,
+        target: str,
+        mode: str = "full",
+        provider: str | None = None,
+    ) -> dict[str, Any]:
         settings = self._settings(target=target, provider=provider)
         storage = create_storage_provider(settings.provider, settings)
         try:
-            return SubtitleReprocessor(settings, storage).reprocess_all(settings.target, mode=mode)
+            return SubtitleReprocessor(settings, storage).reprocess_all(
+                settings.target,
+                mode=mode,
+            )
         finally:
             storage.close()
 
     @staticmethod
     def deduplicate(target: str, action: str, *, dry_run: bool = False) -> dict[str, Any]:
-        deduplicator = OutputDeduplicator(resolve_project_path(target.removeprefix("local://")))
+        deduplicator = OutputDeduplicator(
+            resolve_project_path(target.removeprefix("local://"))
+        )
         if action == "scan":
             return deduplicator.scan_and_persist()
         if action == "analyze":
             return deduplicator.analyze_and_persist()
         if action == "delete":
-            return {"results": deduplicator.delete(dry_run=dry_run), "dry_run": dry_run}
+            return {
+                "results": deduplicator.delete(dry_run=dry_run),
+                "dry_run": dry_run,
+            }
         raise ApplicationError(f"Unsupported duplicate action: {action}")
 
     @staticmethod
@@ -204,4 +229,11 @@ class VideoTranslationApplication:
         message: str,
     ) -> None:
         if callback:
-            callback({"stage": stage, "percent": percent, "completed": completed, "message": message})
+            callback(
+                {
+                    "stage": stage,
+                    "percent": percent,
+                    "completed": completed,
+                    "message": message,
+                }
+            )
