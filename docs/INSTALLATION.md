@@ -26,7 +26,7 @@ chmod +x scripts/setup_env.sh
 ./scripts/setup_env.sh
 ```
 
-The setup script first uses a project-managed `tools/uv/uv` executable when one already exists. Otherwise it uses `uv` from `PATH`; if neither is available, it downloads the official uv installer and creates the project-managed copy under `tools/uv/`. The local binary is ignored by Git and the installer is invoked in unmanaged mode, so the setup does not modify the user's shell profile. uv's official installer supports `UV_UNMANAGED_INSTALL` specifically for this kind of installation. citeturn0search0
+The setup script first uses a project-managed `tools/uv/uv` executable when one already exists. Otherwise it uses `uv` from `PATH`; if neither is available, it downloads the official uv installer and creates the project-managed copy under `tools/uv/`. The local binary is ignored by Git and the installer is invoked in unmanaged mode, so the setup does not modify the user's shell profile.
 
 The setup script accepts these optional flags:
 
@@ -55,7 +55,7 @@ uv run python scripts/manage_local_translation.py status
 uv run python scripts/benchmark_local_translation.py --sentences 1
 ```
 
-The project-managed `uv` binary is not committed to the repository. It is downloaded for the host platform when required, while the Python environment remains the normal project `.venv` managed by uv. uv documents `.venv` as the project environment and recommends invoking commands through `uv run`. citeturn0search2
+The project-managed `uv` binary is not committed to the repository. It is downloaded for the host platform when required, while the Python environment remains the normal project `.venv` managed by uv.
 
 ### Windows
 
