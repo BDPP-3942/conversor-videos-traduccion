@@ -59,7 +59,7 @@ La fachada es independiente de Tk para permitir reutilizar los casos de uso desd
 La versión `1.9.0` distribuye una aplicación GUI nativa en los tres sistemas objetivo:
 
 | Plataforma | Construcción | Artefacto de release |
-|---|---|---|
+| --- | --- | --- |
 | Windows x64 | PyInstaller + WiX 6.0.2 | `.exe` + `.msi` |
 | macOS | PyInstaller `BUNDLE` | `.app` dentro de un `.zip` |
 | Linux x86_64 | PyInstaller + AppDir + appimagetool | `.AppImage` |

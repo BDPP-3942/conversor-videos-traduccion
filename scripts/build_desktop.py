@@ -53,12 +53,13 @@ def _build_appimage(version: str) -> int:
     shutil.copytree(DIST / APP_NAME, usr_bin / APP_NAME)
     shutil.copy2(ROOT / "installer" / "VideoTranslationPipeline.svg", app_dir / "VideoTranslationPipeline.svg")
     (app_dir / "AppRun").write_text(
-        "#!/bin/sh\nexec \"$(dirname \"$0\")/usr/bin/VideoTranslationPipeline/VideoTranslationPipeline\" \"$@\"\n",
+        '#!/bin/sh\nexec "$(dirname "$0")/usr/bin/VideoTranslationPipeline/VideoTranslationPipeline" "$@"\n',
         encoding="utf-8",
     )
     (app_dir / "AppRun").chmod(0o755)
     (app_dir / "VideoTranslationPipeline.desktop").write_text(
-        "[Desktop Entry]\nType=Application\nName=Video Translation Pipeline\nExec=VideoTranslationPipeline\nIcon=VideoTranslationPipeline\nTerminal=false\nCategories=AudioVideo;\n",
+        "[Desktop Entry]\nType=Application\nName=Video Translation Pipeline\nExec=VideoTranslationPipeline"
+        "\nIcon=VideoTranslationPipeline\nTerminal=false\nCategories=AudioVideo;\n",
         encoding="utf-8",
     )
     (app_dir / "VideoTranslationPipeline.desktop").chmod(0o644)
