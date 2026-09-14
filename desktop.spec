@@ -31,19 +31,22 @@ exe = EXE(
     upx=True,
     console=False,
 )
-coll = COLLECT(
-    exe,
-    analysis.binaries,
-    analysis.datas,
-    strip=False,
-    upx=True,
-    name="VideoTranslationPipeline",
-)
 
 if sys.platform == "darwin":
     app = BUNDLE(
-        coll,
+        exe,
+        analysis.binaries,
+        analysis.datas,
         name="VideoTranslationPipeline.app",
         icon=None,
         bundle_identifier="com.bdpp3942.videotranslationpipeline",
+    )
+else:
+    coll = COLLECT(
+        exe,
+        analysis.binaries,
+        analysis.datas,
+        strip=False,
+        upx=True,
+        name="VideoTranslationPipeline",
     )
