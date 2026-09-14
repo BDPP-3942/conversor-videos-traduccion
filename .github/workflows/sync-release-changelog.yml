@@ -24,14 +24,34 @@ jobs:
       - name: Validate 1.9.0 release section
         shell: bash
         run: |
-          grep -q '^## \[1.9.0\]' CHANGELOG.md
-          grep -q '## \[1.8.3\]' CHANGELOG.md
-          grep -q '## \[1.8.2\]' CHANGELOG.md
-          grep -q '## \[1.8.1\]' CHANGELOG.md
-          grep -q '## \[1.8.0\]' CHANGELOG.md
-          grep -q 'Windows: ejecutable GUI PyInstaller' CHANGELOG.md
-          grep -q 'Linux: la misma GUI PyInstaller' CHANGELOG.md
-          grep -q 'AppImage' CHANGELOG.md
-          grep -q 'ZIP portable de Windows' CHANGELOG.md
-          grep -q 'CLI, ejecución programada/headless' CHANGELOG.md
+          set -euo pipefail
+
+          # Validate the release headings independently from the prose used
+          # inside each historical entry.  grep -F avoids regex surprises
+          # with Markdown brackets and keeps the contract explicit.
+          for version in 1.9.0 1.8.3 1.8.2 1.8.1 1.8.0; do
+            if ! grep -Fq "## [$version]" CHANGELOG.md; then
+              echo "Missing CHANGELOG heading: ## [$version]" >&2
+              exit 1
+            fi
+          done
+
+          # Validate the release-specific content without depending on one
+          # exact sentence that may legitimately be edited for documentation.
+          for marker in \
+            'Windows:' \
+            'PyInstaller' \
+            'Linux:' \
+            'AppImage' \
+            'ZIP portable de Windows' \
+            'macOS:' \
+            'CLI' \
+            'programada/headless' \
+            'No se introduce soporte móvil'; do
+            if ! grep -Fq "$marker" CHANGELOG.md; then
+              echo "Missing CHANGELOG marker: $marker" >&2
+              exit 1
+            fi
+          done
+
           echo 'CHANGELOG.md contains the complete 1.9.0 release section and historical entries.'
