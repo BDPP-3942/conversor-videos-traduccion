@@ -3,12 +3,12 @@ setlocal
 cd /d "%~dp0.."
 set "NO_WEBM=0"
 if /I "%~1"=="--no-webm" set "NO_WEBM=1"
-where uv.exe >nul 2>&1
-if errorlevel 1 (echo [ERROR] uv no esta instalado. & exit /b 1)
+call "%~dp0lib\resolve_uv.bat"
+if errorlevel 1 (echo [ERROR] uv no esta instalado. Ejecuta scripts\setup_env.bat & exit /b 1)
 if not exist ".venv\Scripts\python.exe" (echo [ERROR] Ejecuta scripts\setup_env.bat & exit /b 1)
-uv sync --group dev --extra tts
+"%UV_BIN%" sync --group dev --extra tts
 if errorlevel 1 exit /b 1
-uv run python -m PyInstaller --noconfirm --clean --onedir --name VideoTranslationPipeline --collect-all faster_whisper --collect-all ctranslate2 --collect-all kokoro_onnx --collect-all onnxruntime main.py
+"%UV_BIN%" run python -m PyInstaller --noconfirm --clean --onedir --name VideoTranslationPipeline --collect-all faster_whisper --collect-all ctranslate2 --collect-all kokoro_onnx --collect-all onnxruntime main.py
 if errorlevel 1 exit /b 1
 if not exist "dist\VideoTranslationPipeline\config" mkdir "dist\VideoTranslationPipeline\config"
 if not exist "dist\VideoTranslationPipeline\secrets" mkdir "dist\VideoTranslationPipeline\secrets"

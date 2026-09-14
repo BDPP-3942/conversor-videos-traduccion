@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
-command -v uv >/dev/null 2>&1 || { echo "[ERROR] uv no está instalado."; exit 1; }
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$PROJECT_DIR"
+source "$PROJECT_DIR/scripts/lib/resolve_uv.sh"
+UV_BIN="$(resolve_uv "$PROJECT_DIR")" || { echo "[ERROR] uv no está instalado. Ejecuta scripts/setup_env.sh primero." >&2; exit 1; }
 [[ -d ".venv" ]] || { echo "[ERROR] Ejecuta primero scripts/setup_env.sh"; exit 1; }
-uv sync --extra google
-exec uv run python main.py auth google
+"$UV_BIN" sync --extra google
+exec "$UV_BIN" run python main.py auth google

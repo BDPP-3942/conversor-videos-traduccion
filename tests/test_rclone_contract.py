@@ -6,8 +6,8 @@ def test_rclone_setup_scripts_use_uv_managed_bootstrap() -> None:
     bat = Path("scripts/setup_rclone.bat").read_text(encoding="utf-8")
     env_sh = Path("scripts/setup_env.sh").read_text(encoding="utf-8")
     env_bat = Path("scripts/setup_env.bat").read_text(encoding="utf-8")
-    assert "uv run python main.py provider bootstrap" in sh
-    assert "uv run python main.py provider bootstrap" in bat
+    assert '"$UV_BIN" run python main.py provider bootstrap' in sh
+    assert '"%UV_BIN%" run python main.py provider bootstrap' in bat
     assert "run python main.py provider bootstrap" in env_sh
     assert "run python main.py provider bootstrap" in env_bat
     assert "command -v rclone" not in env_sh

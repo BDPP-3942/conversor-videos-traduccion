@@ -8,23 +8,7 @@ It is designed for unattended operation and supports local storage, Google Drive
 
 ## Scope
 
-Implemented capabilities include:
-
-- video/ZIP ingestion;
-- FFmpeg-based media processing;
-- STT with `faster-whisper`;
-- silence-aware cue segmentation and VTT validation;
-- configurable translation providers with fallback and retry controls;
-- local, Google Drive and rclone storage adapters;
-- manifests, resume/idempotent processing and artifact validation;
-- conservative duplicate-output management;
-- optional synchronized Kokoro TTS;
-- resource-aware video concurrency based on detected CPU, RAM and optional GPU capacity;
-- CLI entry points and unattended execution;
-- Windows/Linux/macOS scheduler helpers; portable packaging scripts are currently provided for Windows and Linux;
-- automated tests, linting, security checks, packaging and dependency audits.
-
-The application is not an interactive video editor and automated translation/TTS output still requires human quality review when accuracy matters.
+Implemented capabilities include video/ZIP ingestion, FFmpeg processing, STT with `faster-whisper`, VTT validation, configurable translation providers, local/Google Drive/rclone storage, manifests/resume/idempotency, duplicate-output management, optional TTS, resource-aware concurrency, CLI entry points, unattended execution, multiplatform scheduler helpers, portable packaging, tests, linting, security checks and dependency audits.
 
 ## Runtime contract
 
@@ -36,33 +20,23 @@ The default configuration uses local storage:
 local://storage/input → pipeline → local://storage/output
 ```
 
-See [INSTALLATION.md](INSTALLATION.md), [CONFIGURATION.md](CONFIGURATION.md) and [CLI.md](CLI.md) for operational details.
+## Current release candidate
 
-## Current published release
+The current candidate is `1.8.3`. It is a PATCH release that fixes the mismatch between the project-managed uv bootstrap and wrappers that previously required a global `uv` on `PATH`.
 
-The current product release is `1.8.0` (`v1.8.0`). It incorporates the scope delivered by PR #45 on top of the `1.7.4` baseline, including the refined Whisper selective recovery, independent VAD/subtitle silence thresholds, pinned MADLAD-400 3B local translation with OPUS-MT retained as the lightweight alternative, strengthened model integrity/provider tests, and the reproducible `uv` foundation introduced by PR #42.
+The documented setup may install `uv` under `tools/uv/` without changing shell profiles. All affected source-checkout wrappers now resolve that managed executable first, then fall back to `PATH`.
 
-The previous releases `1.0.0` through `1.7.4` remain immutable history. `docs/RELEASES.md` and `docs/VERSIONING.md` retain the historical release ledger and the temporary `1.8.0` candidate record required for release traceability; they are not the source of the current runtime version.
+Affected entry points are `run_local.*`, `run_unattended.*`, `setup_rclone.*`, `setup_google.*`, `build_linux.sh` and `build_windows.bat`. The packaged executable remains the first choice for unattended execution, and the direct `.venv` Python fallback is retained when uv cannot be resolved.
 
-See [RELEASES.md](RELEASES.md) for historical release tracking and [../RELEASE_CANDIDATE.md](../RELEASE_CANDIDATE.md) for the retained publication checklist/history record.
+Regression coverage is provided by `tests/test_uv_resolution_contract.py` for POSIX and Windows wrapper contracts.
 
-## Verified release evidence
+See [INSTALLATION.md](INSTALLATION.md), [UV_MIGRATION.md](UV_MIGRATION.md), [RELEASES.md](RELEASES.md) and [../RELEASE_CANDIDATE.md](../RELEASE_CANDIDATE.md).
 
-| Capability | First verified product release | Evidence |
-| --- | ---: | --- |
-| Core audiovisual pipeline, STT, VTT, translation, storage, resume/idempotency, conservative deduplication, TTS, scheduling and packaging | `1.0.0` | `CHANGELOG.md` / release history |
-| VTT recovery/repair and integrated synchronized TTS | `1.1.0` | `CHANGELOG.md` / release history |
-| Naming improvements and TTS asset bootstrap | `1.2.0` | release history |
-| TTS installation fix | `1.2.1` | release history |
-| Timestamp cleanup in naming | `1.2.2` | release history |
-| Resource-aware video concurrency | `1.3.0` | release history |
-| Clean regeneration | `1.4.0` | release history |
-| Multiplatform Whisper/context and packaging | `1.5.0` | release history |
-| ZIP/filesystem hardening | `1.5.1` | release history |
-| Local translation, GPU/runtime hardening and configurable STT recovery | `1.6.0` | release history |
-| Reprocessing/manifests, Unicode naming/filesystem consolidation and translation runtime improvements | `1.7.0` | published GitHub release |
-| `faster-whisper` selective recovery `clip_timestamps` compatibility fix | `1.7.1` | `CHANGELOG.md` / `RELEASES.md` |
-| Local translation model download and provider runtime fix | `1.7.2` | `tests/test_local_translation.py` / `RELEASES.md` |
-| Refined Whisper recovery, dual pinned local models, uv-based reproducibility and updated TTS/WebM defaults | `1.8.0` | release implementation and current product documentation |
+## Release history
 
-The table records functionality by introduction release. Release-control documents may retain `1.8.0` as a candidate marker for historical traceability even though the product documentation treats `1.8.0` as the current published release.
+- `v1.8.0` — current previously published product release and immutable baseline.
+- `1.8.2` — unreleased candidate state superseded by `1.8.3`.
+- `1.8.3` — current candidate for the project-managed uv wrapper regression.
+- Earlier releases from `1.0.0` through `1.7.4` remain historical and immutable.
+
+The runtime version is sourced from `pyproject.toml` and `config/app.toml`, not from this document.

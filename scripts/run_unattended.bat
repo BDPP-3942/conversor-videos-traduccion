@@ -8,8 +8,8 @@ if exist "dist\VideoTranslationPipeline\VideoTranslationPipeline.exe" (
 ) else if exist "VideoTranslationPipeline.exe" (
   "VideoTranslationPipeline.exe" run --scheduled %*
 ) else if exist ".venv\Scripts\python.exe" (
-  where uv.exe >nul 2>&1
-  if not errorlevel 1 (uv run python main.py run --scheduled %*) else (".venv\Scripts\python.exe" main.py run --scheduled %*)
+  call "%~dp0lib\resolve_uv.bat"
+  if not errorlevel 1 ("%UV_BIN%" run python main.py run --scheduled %*) else (".venv\Scripts\python.exe" main.py run --scheduled %*)
 ) else (
   echo [ERROR] Ejecutable, uv o entorno Python no encontrado.
   exit /b 1
@@ -22,8 +22,8 @@ if exist "dist\VideoTranslationPipeline\VideoTranslationPipeline.exe" (
 ) else if exist "VideoTranslationPipeline.exe" (
   "VideoTranslationPipeline.exe" reprocess-subtitles --scheduled %2 %3 %4 %5 %6 %7 %8 %9
 ) else if exist ".venv\Scripts\python.exe" (
-  where uv.exe >nul 2>&1
-  if not errorlevel 1 (uv run python main.py reprocess-subtitles --scheduled %2 %3 %4 %5 %6 %7 %8 %9) else (".venv\Scripts\python.exe" main.py reprocess-subtitles --scheduled %2 %3 %4 %5 %6 %7 %8 %9)
+  call "%~dp0lib\resolve_uv.bat"
+  if not errorlevel 1 ("%UV_BIN%" run python main.py reprocess-subtitles --scheduled %2 %3 %4 %5 %6 %7 %8 %9) else (".venv\Scripts\python.exe" main.py reprocess-subtitles --scheduled %2 %3 %4 %5 %6 %7 %8 %9)
 ) else (
   echo [ERROR] Ejecutable, uv o entorno Python no encontrado.
   exit /b 1
