@@ -1,6 +1,6 @@
 # Local translation runtime
 
-El proveedor local usa CTranslate2 + SentencePiece y está pensado como fallback offline cuando un proveedor remoto como Mistral está limitado o no disponible. La release publicada **1.8.0** conserva dos modelos locales fijados: MADLAD-400 3B como opción de mayor calidad y OPUS-MT como opción ligera de compatibilidad cuando el espacio o el rendimiento de CPU sean prioritarios.
+El proveedor local usa CTranslate2 + SentencePiece y está pensado como fallback offline cuando un proveedor remoto como Mistral está limitado o no disponible. La release publicada **1.8.1** conserva dos modelos locales fijados: MADLAD-400 3B como opción de mayor calidad y OPUS-MT como opción ligera de compatibilidad cuando el espacio o el rendimiento de CPU sean prioritarios.
 
 ## Modelos fijados
 
@@ -8,7 +8,7 @@ El proveedor local usa CTranslate2 + SentencePiece y está pensado como fallback
 
 ```text
 Model: cstr/madlad400-3b-ct2-int8
-Revision: 12eff26f7d93623e2b2d3b5345e5863e14599dae
+Revision: fd0b55729c074372eb84b52b9309a00dc65c40c4
 Task: Spanish → English
 Quantization: INT8
 Model weights: ~2.95 GB
@@ -16,7 +16,9 @@ Installation budget: <= 3 GB
 License: Apache-2.0
 ```
 
-La revisión está fijada. `model.bin` y `sentencepiece.model` se validan por tamaño y SHA-256; `config.json` y `shared_vocabulary.json` se validan como JSON. También se comprueba el tamaño total instalado para no superar 3 GB.
+La revisión está fijada a un commit que contiene el conjunto de archivos requerido por el runtime CTranslate2 + SentencePiece: `model.bin`, `spiece.model`, `config.json` y `shared_vocabulary.json`. `model.bin` y `spiece.model` se validan por tamaño y SHA-256; `config.json` y `shared_vocabulary.json` se validan como JSON. También se comprueba el tamaño total instalado para no superar 3 GB.
+
+El nombre `spiece.model` es deliberado: la revisión anterior `12eff26f7d93623e2b2d3b5345e5863e14599dae` solo contenía los pesos y metadatos mínimos y no contenía ningún tokenizer SentencePiece descargable. Por ello, pedir `sentencepiece.model` en esa revisión producía un `404 Not Found`; un token de Hugging Face no puede hacer aparecer un archivo inexistente en un commit.
 
 ### OPUS-MT — opción ligera conservada
 
@@ -48,7 +50,7 @@ Para volver a MADLAD:
 LOCAL_TRANSLATION_MODEL=madlad400-3b-ct2-int8
 LOCAL_TRANSLATION_MODEL_DIR=tools/models/translation/madlad400-3b-ct2-int8
 LOCAL_TRANSLATION_MODEL_ID=cstr/madlad400-3b-ct2-int8
-LOCAL_TRANSLATION_MODEL_REVISION=12eff26f7d93623e2b2d3b5345e5863e14599dae
+LOCAL_TRANSLATION_MODEL_REVISION=fd0b55729c074372eb84b52b9309a00dc65c40c4
 ```
 
 La configuración por entorno sigue siendo deliberada: el modelo local no se descarga ni se activa automáticamente por defecto.
@@ -65,7 +67,7 @@ python scripts/manage_local_translation.py download
 python scripts/benchmark_local_translation.py --sentences 1
 ```
 
-El gestor valida el repositorio y la revisión fijados antes de descargar. Los repositorios públicos normalmente no necesitan autenticación. Si el entorno de Hugging Face exige autenticación, puede proporcionarse `LOCAL_TRANSLATION_HF_TOKEN` o `HF_TOKEN`; el token solo se utiliza durante la descarga y no se almacena con el modelo.
+El gestor valida el repositorio y la revisión fijados antes de descargar. Los repositorios públicos normalmente no necesitan autenticación. Si el entorno de Hugging Face exige autenticación, puede proporcionarse `LOCAL_TRANSLATION_HF_TOKEN` o `HF_TOKEN`; el token solo se utiliza durante la descarga y no se almacena con el modelo. Un error `401/403` puede indicar un problema de autenticación; un `404` de un archivo en una revisión válida se trata como un problema de recurso/revisión, no como una ausencia de token.
 
 La descarga se realiza sobre un directorio temporal gestionado y solo sustituye el modelo final después de superar las validaciones de integridad.
 
@@ -85,7 +87,7 @@ TRANSLATION_FALLBACK_PROVIDERS=deepl,mymemory
 LOCAL_TRANSLATION_MODEL=madlad400-3b-ct2-int8
 LOCAL_TRANSLATION_MODEL_DIR=tools/models/translation/madlad400-3b-ct2-int8
 LOCAL_TRANSLATION_MODEL_ID=cstr/madlad400-3b-ct2-int8
-LOCAL_TRANSLATION_MODEL_REVISION=12eff26f7d93623e2b2d3b5345e5863e14599dae
+LOCAL_TRANSLATION_MODEL_REVISION=fd0b55729c074372eb84b52b9309a00dc65c40c4
 LOCAL_TRANSLATION_DEVICE=auto
 LOCAL_TRANSLATION_COMPUTE_TYPE=auto
 LOCAL_TRANSLATION_BEAM_SIZE=2
@@ -103,7 +105,7 @@ En macOS, la ruta esperada es CPU `int8`. MADLAD está orientado a calidad pero 
 
 ## Batching y tokenización
 
-MADLAD utiliza su `sentencepiece.model` compartido y el prefijo de destino `<2en>`. OPUS-MT conserva sus tokenizadores `source.spm` y `target.spm`. Ambos mantienen el orden de los lotes; timestamps e IDs VTT se gestionan fuera del modelo.
+MADLAD utiliza su `spiece.model` compartido y el prefijo de destino `<2en>`. OPUS-MT conserva sus tokenizadores `source.spm` y `target.spm`. Ambos mantienen el orden de los lotes; timestamps e IDs VTT se gestionan fuera del modelo.
 
 ## Benchmark y prueba funcional
 

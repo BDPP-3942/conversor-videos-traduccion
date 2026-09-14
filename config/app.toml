@@ -1,5 +1,5 @@
 [app]
-version = "1.8.1"
+version = "1.8.2"
 provider = "local"
 source = "local://storage/input"
 target = "local://storage/output"
@@ -62,7 +62,7 @@ translation_provider_max_parallel_requests = 0
 local_translation_model = "madlad400-3b-ct2-int8"
 local_translation_model_dir = "tools/models/translation/madlad400-3b-ct2-int8"
 local_translation_model_id = "cstr/madlad400-3b-ct2-int8"
-local_translation_model_revision = "12eff26f7d93623e2b2d3b5345e5863e14599dae"
+local_translation_model_revision = "fd0b55729c074372eb84b52b9309a00dc65c40c4"
 local_translation_device = "auto"
 local_translation_compute_type = "auto"
 local_translation_beam_size = 2

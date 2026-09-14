@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # preferred quality-oriented model; OPUS-MT remains a small compatibility and
 # low-disk fallback model instead of being replaced or discarded.
 MODEL_REPOSITORY = "cstr/madlad400-3b-ct2-int8"
-MODEL_REVISION = "12eff26f7d93623e2b2d3b5345e5863e14599dae"
+MODEL_REVISION = "fd0b55729c074372eb84b52b9309a00dc65c40c4"
 MODEL_LICENSE = "Apache-2.0"
 MODEL_SIZE_BYTES = 2_950_208_290
 MODEL_MAX_DOWNLOAD_BYTES = 3_000_000_000
@@ -31,7 +31,7 @@ MODEL_FILES = {
         "890ed3b7e4654dcf1b9e7f2ce6ce641447462e782881e81aac443568eb1ca702",
         2_950_208_290,
     ),
-    "sentencepiece.model": (
+    "spiece.model": (
         "ef11ac9a22c7503492f56d48dce53be20e339b63605983e9f27d2cd0e0f3922c",
         4_427_844,
     ),
@@ -381,7 +381,7 @@ class LocalTranslationProvider:
             self._source = spm.SentencePieceProcessor(model_file=str(self.model_path / "source.spm"))
             self._target = spm.SentencePieceProcessor(model_file=str(self.model_path / "target.spm"))
         else:
-            self._tokenizer = spm.SentencePieceProcessor(model_file=str(self.model_path / "sentencepiece.model"))
+            self._tokenizer = spm.SentencePieceProcessor(model_file=str(self.model_path / "spiece.model"))
 
     def _confirm_download(self, status: LocalModelStatus) -> bool:
         return bool(
@@ -560,11 +560,21 @@ def _download_file(url: str, destination: Path, max_bytes: int, auth_token: str 
                 )
             )
         except Exception as exc:
-            hint = (
-                " Configure LOCAL_TRANSLATION_HF_TOKEN (or HF_TOKEN) if the Hub/Xet endpoint requires authentication."
-                if auth_token is None
-                else " Verify that the configured Hugging Face token has read access to the pinned repository."
-            )
+            status_code = getattr(getattr(exc, "response", None), "status_code", None)
+            if status_code == 404:
+                hint = (
+                    " The pinned Hugging Face revision does not contain the requested file; "
+                    "verify the model revision and filename."
+                )
+            elif status_code in {401, 403}:
+                hint = " Configure LOCAL_TRANSLATION_HF_TOKEN (or HF_TOKEN) with read access to the pinned repository."
+            elif auth_token is None:
+                hint = (
+                    " Configure LOCAL_TRANSLATION_HF_TOKEN (or HF_TOKEN) if the Hub/Xet endpoint "
+                    "requires authentication."
+                )
+            else:
+                hint = " Verify that the configured Hugging Face token has read access to the pinned repository."
             raise RuntimeError(f"Hugging Face model download failed: {exc}.{hint}") from exc
         size = cached.stat().st_size
         if size > max_bytes:
