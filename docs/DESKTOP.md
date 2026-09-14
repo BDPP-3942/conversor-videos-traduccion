@@ -1,6 +1,6 @@
 # Desktop application
 
-`main` remains the functional source of truth. The desktop application is a presentation layer over the existing application/use-case facade and `MediaPipeline`; it does not duplicate STT, translation, TTS, media or storage implementations.
+La aplicación de escritorio de `1.9.0` es una capa de presentación sobre la fachada de aplicación y el `MediaPipeline` existente. No duplica STT, traducción, TTS, media ni almacenamiento.
 
 ## Install and run
 
@@ -9,29 +9,26 @@ uv sync --group dev
 uv run video-translation-desktop
 ```
 
-The GUI exposes the principal processing and maintenance workflows:
+La GUI expone:
 
-- local input/output folder selection and saved cloud-provider selection;
-- source/target languages and primary/fallback translation providers;
-- automatic or bounded video parallelism and translation batching;
-- Whisper model/device/compute/beam settings;
-- WebM generation and synchronized Kokoro TTS options;
-- resume and legacy-name normalization controls;
-- optional automatic local output deduplication;
-- subtitle recovery for one output or all eligible outputs (`full`, STT-only, translation-only);
-- duplicate scan, analysis, dry-run deletion and confirmed deletion;
-- runtime doctor and Whisper prefetch;
-- background execution so the GUI remains responsive;
-- stage events, percentage progress, current file, completion and safe cancellation requests;
-- retained technical execution log and user-facing errors.
+- almacenamiento local, Google Drive y rclone;
+- idiomas, proveedor principal y fallbacks de traducción;
+- paralelismo de vídeos y batching de traducción;
+- modelo/device/compute/beam de Whisper;
+- WebM y TTS Kokoro;
+- resume y normalización de nombres heredados;
+- recuperación `full`, `stt_only` y `translate_only`;
+- scan, análisis, dry-run y eliminación confirmada de duplicados;
+- diagnósticos y preparación de Whisper;
+- ejecución en background, eventos de etapa, porcentaje, fichero actual, log y cancelación segura.
 
-Provider authentication/profile creation remains available through the existing CLI because it can require browser OAuth or interactive rclone configuration. The GUI does not remove or bypass those contracts.
+La autenticación de proveedores continúa utilizando los flujos CLI/setup existentes cuando requiere OAuth o configuración interactiva de rclone.
 
 ## Pipeline control
 
-`ControllableMediaPipeline` wraps the existing pipeline without replacing its processing logic. It exposes explicit lifecycle events such as preparation, download, extraction, conversion, transcription, translation, finalization, ZIP completion, error and cancellation. Cancellation is cooperative: the application requests cancellation and the pipeline stops at a safe stage boundary instead of force-killing FFmpeg/Whisper work or risking partial artifacts.
+`ControllableMediaPipeline` adapta el pipeline existente para exponer eventos de preparación, descarga, extracción, conversión, transcripción, traducción, finalización, ZIP, error y cancelación.
 
-The underlying heavy operations remain synchronous within their existing workers, so a cancellation request is not guaranteed to interrupt an already-running FFmpeg or Whisper invocation immediately. This is intentional and documented rather than presenting unsafe process termination as a feature.
+La cancelación es cooperativa: se detiene en límites seguros y no mata a la fuerza una ejecución activa de FFmpeg/Whisper, evitando estados parciales o corruptos.
 
 ## Architecture
 
@@ -55,50 +52,90 @@ Existing MediaPipeline + adapters
         +-- resume / naming / deduplication
 ```
 
-The application facade is deliberately independent of Tk so another UI or service can reuse the same use cases.
+La fachada es independiente de Tk para permitir reutilizar los casos de uso desde otra interfaz.
 
-## Distribution
+## Native distribution
 
-The desktop capability is the next MINOR release scope (`1.9.0` at the time of this branch); it must not be published as the existing `1.8.3` PATCH candidate. Build on the target operating system with the same Python/runtime environment used by CI:
+La versión `1.9.0` distribuye una aplicación GUI nativa en los tres sistemas objetivo:
+
+| Plataforma | Construcción | Artefacto de release |
+|---|---|---|
+| Windows x64 | PyInstaller + WiX 6.0.2 | `.exe` + `.msi` |
+| macOS | PyInstaller `BUNDLE` | `.app` dentro de un `.zip` |
+| Linux x86_64 | PyInstaller + AppDir + appimagetool | `.AppImage` |
+
+### Linux: método utilizado
+
+Linux usa el mismo ejecutable GUI que Windows/macOS en cuanto a tecnología de aplicación: **PyInstaller empaqueta `src.desktop` y sus dependencias en un bundle ejecutable**. Después `scripts/build_desktop.py` crea un AppDir con:
+
+- el bundle PyInstaller bajo `usr/bin/VideoTranslationPipeline`;
+- `AppRun` como launcher;
+- `VideoTranslationPipeline.desktop` para integración con el escritorio;
+- `VideoTranslationPipeline.svg` como icono.
+
+Finalmente `appimagetool` convierte ese AppDir en `VideoTranslationPipeline-<version>-linux-x86_64.AppImage`. AppImage es la capa de distribución portable; no es un segundo framework GUI.
+
+Build local:
 
 ```bash
-uv sync --group dev
-uv run python scripts/build_desktop.py --clean --version 1.9.0 --format native
-```
-
-The resulting native formats are:
-
-| Platform | Primary artifact | Installer/distribution |
-|---|---|---|
-| Windows x64 | `VideoTranslationPipeline.exe` | `.msi` generated with WiX v6 |
-| macOS | `VideoTranslationPipeline.app` | `.app` bundle; signing/notarization is a release-stage operation |
-| Linux x86_64 | PyInstaller executable bundle | `.AppImage`; a `.tar.gz` portable bundle can also be distributed |
-
-Windows MSI:
-
-```text
-uv run python scripts/build_desktop.py --clean --version 1.9.0 --format windows-msi
-```
-
-Linux AppImage:
-
-```text
 uv run python scripts/build_desktop.py --clean --version 1.9.0 --format linux-appimage
 ```
 
-The repository CI validates the native packaging workflow on Windows, macOS and Linux. Release publication must additionally validate the installed artifact on each target OS. macOS signing/notarization and Windows publisher signing require release credentials and are not performed by ordinary pull-request CI.
+### Windows
 
-Models, credentials and mutable runtime state remain external resources; they are not embedded into the desktop executable.
+```bash
+uv run python scripts/build_desktop.py --clean --version 1.9.0 --format windows-msi
+```
+
+El `.exe` lo genera PyInstaller y el `.msi` lo genera WiX 6.0.2 a partir del bundle.
+
+### macOS
+
+```bash
+uv run python scripts/build_desktop.py --clean --version 1.9.0 --format native
+```
+
+PyInstaller genera `VideoTranslationPipeline.app`. La firma y notarización son operaciones de publicación que requieren credenciales de release y no se realizan en cada PR.
+
+## Automated GitHub Release artifacts
+
+No es necesario compilar ni subir manualmente los binarios en cada release.
+
+`.github/workflows/release.yml` se activa automáticamente cuando se publica un tag `vX.Y.Z` y:
+
+1. comprueba el `uv.lock` del tag;
+2. crea el entorno bloqueado;
+3. construye en runners nativos Ubuntu, Windows y macOS;
+4. valida el AppImage, MSI, EXE y `.app`;
+5. comprime el `.app` de macOS;
+6. descarga los tres artefactos en un job de publicación;
+7. crea la GitHub Release si no existe o actualiza sus assets si ya existe.
+
+Los nombres de release son deterministas:
+
+```text
+VideoTranslationPipeline-1.9.0-linux-x86_64.AppImage
+VideoTranslationPipeline-1.9.0-windows-x64.msi
+VideoTranslationPipeline-1.9.0-macos.app.zip
+```
+
+GitHub genera además automáticamente los ZIP/TAR del **código fuente** asociados al tag. Por tanto, una release de escritorio queda compuesta por los archivos fuente de GitHub más los tres artefactos nativos producidos por CI, sin intervención manual.
+
+La firma/notarización de macOS y la firma de editor de Windows pueden añadirse posteriormente al mismo job mediante secretos de release sin cambiar el modelo de automatización.
 
 ## CLI and scheduled execution
 
-The desktop application is additive. The existing CLI remains supported:
+La GUI es aditiva. Se mantienen:
 
 ```bash
 uv run video-translation-pipeline run
 uv run video-translation-pipeline run --scheduled
 ```
 
-The scheduled/headless paths remain independent of a graphical session. Existing scheduling integrations continue to be supported, including macOS `launchd`, cron-style Linux/macOS execution, and Windows Task Scheduler through the existing unattended wrappers. See `docs/CLI.md` and `docs/SCHEDULING.md` for the operational contracts.
+También se conservan regeneración, subtitle-QA, TTS, wrappers unattended y scheduling mediante launchd, cron y Task Scheduler.
 
-The desktop entry point is an additional executable interface; it does not replace the existing CLI entry points, unattended wrappers or scheduled tasks.
+Los modelos, credenciales y estado mutable siguen siendo recursos externos y no se embeben en el ejecutable.
+
+## Release scope
+
+Desktop es `1.9.0` y no soporte móvil. El móvil permanece fuera del alcance del producto hasta una decisión futura explícita.
