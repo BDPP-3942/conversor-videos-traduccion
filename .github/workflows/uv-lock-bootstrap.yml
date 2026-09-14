@@ -1,49 +1,65 @@
 name: Sync uv lockfile
 
 on:
-  push:
-    branches-ignore:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    branches:
       - main
-      - release/**
     paths:
       - pyproject.toml
       - uv.lock
       - .github/workflows/uv-lock-bootstrap.yml
-  workflow_dispatch:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
-  group: uv-lock-${{ github.ref }}
+  group: uv-lock-pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   lock:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout pull request branch
+        uses: actions/checkout@v5
         with:
-          ref: ${{ github.ref_name }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: latest-known
           enable-cache: true
+
       - run: uv python install 3.13
       - run: uv lock
-      - name: Commit generated lockfile
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- uv.lock; then
-            echo "uv.lock is already up to date"
-            exit 0
-          fi
-          git add uv.lock
-          git commit -m "build: sync uv lockfile"
-          git push
 
-# Validate automatic lockfile synchronization after ruleset exemption.
+      - name: Create or update dependent lockfile PR
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: automation/uv-lock-${{ github.event.pull_request.number }}
+          base: ${{ github.event.pull_request.head.ref }}
+          add-paths: uv.lock
+          commit-message: "build: sync uv lockfile"
+          title: "build: sync uv lockfile for #${{ github.event.pull_request.number }}"
+          body: |
+            ## Automated uv.lock synchronization
+
+            This dependent pull request updates `uv.lock` to match the dependency metadata
+            in the parent pull request.
+
+            - Parent PR: #${{ github.event.pull_request.number }}
+            - Source commit: `${{ github.event.pull_request.head.sha }}`
+            - Generated with `uv lock`
+
+            Merge this PR into the parent PR branch before merging the parent PR into `main`.
+          delete-branch: false
+          draft: false
