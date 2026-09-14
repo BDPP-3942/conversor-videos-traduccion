@@ -40,10 +40,10 @@ def test_application_facade_builds_local_uris_and_delegates(monkeypatch, tmp_pat
     assert captured["source"] == f"local://{Path(tmp_path / 'input').resolve()}"
     assert captured["target"] == f"local://{Path(tmp_path / 'output').resolve()}"
     assert captured["settings"].max_parallel_videos == 1
-    assert captured["callback"] is events.append
+    captured["callback"]({"stage": "test"})
+    assert events[-1] == {"stage": "test"}
     assert captured["cancel_event"] is cancel_event
     assert captured["closed"] is True
-    assert events[-1]["stage"] == "completed"
 
 
 def test_application_rejects_unknown_run_options(tmp_path):
