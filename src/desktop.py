@@ -106,8 +106,7 @@ class DesktopApp:
         ttk.Label(
             paths,
             text=(
-                "Cloud providers use their saved provider/source/target profile; "
-                "local paths apply to local storage."
+                "Cloud providers use their saved provider/source/target profile; local paths apply to local storage."
             ),
             wraplength=760,
         ).grid(row=3, column=1, sticky="w", pady=(4, 0))
@@ -410,10 +409,14 @@ class DesktopApp:
         )
 
     def start_duplicate(self, action: str, dry_run: bool = False) -> None:
-        if action == "delete" and not dry_run and not messagebox.askyesno(
-            "Confirm deletion",
-            "Delete the duplicates in the persisted deletion plan?",
-            parent=self.root,
+        if (
+            action == "delete"
+            and not dry_run
+            and not messagebox.askyesno(
+                "Confirm deletion",
+                "Delete the duplicates in the persisted deletion plan?",
+                parent=self.root,
+            )
         ):
             return
         self._append(f"Starting duplicate {action}.\n")

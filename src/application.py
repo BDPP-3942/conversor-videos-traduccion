@@ -201,9 +201,7 @@ class VideoTranslationApplication:
 
     @staticmethod
     def deduplicate(target: str, action: str, *, dry_run: bool = False) -> dict[str, Any]:
-        deduplicator = OutputDeduplicator(
-            resolve_project_path(target.removeprefix("local://"))
-        )
+        deduplicator = OutputDeduplicator(resolve_project_path(target.removeprefix("local://")))
         if action == "scan":
             return deduplicator.scan_and_persist()
         if action == "analyze":
