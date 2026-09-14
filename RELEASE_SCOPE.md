@@ -1,98 +1,81 @@
-# Release Scope — 1.8.3
-
-## Previous release state
-
-`v1.8.2` is the previous published release and immutable baseline. `v1.8.1` and `v1.8.2` are official published releases; neither is a candidate or superseded preparation state. The only current unreleased version in the existing release track is `1.8.3`.
-
-Published release history:
-
-- `v1.8.2` → MADLAD model download and Hugging Face revision fix.
-- `v1.8.1` → Local uv bootstrap and optional local translation setup.
-- `v1.8.0` → Whisper recovery and local translation.
+# Release Scope — 1.9.0
 
 ## Release classification
 
-`1.8.3` is a **PATCH** release. Its original release scope fixes a regression in the project-managed uv execution contract without changing the audiovisual processing architecture or public data contracts.
+`1.9.0` is the next **MINOR** release. It adds a backward-compatible desktop application and native distribution layer while preserving the existing CLI, scheduled execution and unattended wrappers.
 
-The desktop application work in this branch is a new product capability and therefore **must not be published as part of the `1.8.3` PATCH release**. If this desktop implementation is accepted into `main`, the project version must be advanced to the next appropriate MINOR version before release publication (currently `1.9.0`), with `pyproject.toml`, `config/app.toml`, `uv.lock`, `CHANGELOG.md`, `docs/RELEASES.md`, `docs/VERSIONING.md`, `RELEASE_CANDIDATE.md`, `RELEASE_SCOPE.md` and related release metadata updated consistently.
+The previous published baseline is `v1.8.2`. The historical `1.8.x` documentation remains immutable; the earlier `1.8.3` uv-resolution work is retained as historical candidate context and is not reclassified as the desktop release.
 
-## Project-managed uv correction
+## Desktop application
 
-The setup wrappers already support a managed executable under `tools/uv/` when no global uv is installed. The regression was that several consumer scripts still required `uv`/`uv.exe` to be discoverable through `PATH`.
+The release adds a native GUI entry point, `video-translation-desktop`, implemented as a presentation layer over the existing pipeline rather than a second processing engine.
 
-The correction introduces:
+The GUI provides:
 
-- `scripts/lib/resolve_uv.sh` for POSIX.
-- `scripts/lib/resolve_uv.bat` for Windows.
+- processing from local storage, Google Drive and rclone-backed sources;
+- source/target language and translation-provider selection;
+- fallback providers, translation batch size and parallel-video controls;
+- Whisper model/device/compute/beam configuration;
+- WebM and TTS controls, including required-TTS behavior and voice/speed;
+- resume and legacy-name normalization controls;
+- subtitle recovery with `full`, `stt_only` and `translate_only` modes;
+- duplicate scanning, analysis, dry-run and confirmed deletion;
+- diagnostics for the environment and Whisper assets;
+- live stage/progress events, background execution and cooperative cancellation;
+- explicit retention of CLI and scheduled/headless execution.
 
-Both resolvers apply the same policy:
+Provider authentication/profile creation remains available through the established CLI/setup flows where OAuth or rclone configuration requires interactive credentials.
 
-1. project-managed uv;
-2. uv from `PATH`;
-3. setup-only bootstrap when neither is available.
+## Pipeline control architecture
 
-Affected consumers:
+`src/controllable_pipeline.py` adapts the existing `MediaPipeline` with stage events and cooperative cancellation. It does not duplicate audiovisual processing logic.
 
-- `run_local.*`;
-- `run_unattended.*`;
-- `setup_rclone.*`;
-- `setup_google.*`;
-- `build_linux.sh`;
-- `build_windows.bat`.
+Cancellation is deliberately safe-boundary based: an active FFmpeg/Whisper native process is allowed to finish its current operation before the pipeline stops. This avoids corrupting intermediate artifacts while still giving the GUI a deterministic cancellation contract.
 
-Unattended execution continues to prefer packaged executables and retains the direct Python fallback.
+## Native packaging
 
-## Desktop work tracked separately from the 1.8.3 release
+The release produces platform-native desktop artifacts through PyInstaller and platform-specific packaging:
 
-This branch adds a desktop presentation layer and native packaging infrastructure without altering the CLI contract. The desktop artifacts are:
+- **Windows:** PyInstaller GUI executable plus WiX 6 MSI installer.
+- **macOS:** PyInstaller `.app` bundle, distributed as a release `.zip` for easy download.
+- **Linux:** PyInstaller executable wrapped in an AppDir (`AppRun`, `.desktop` metadata and SVG icon) and packaged as an x86_64 AppImage with `appimagetool`.
 
-- Windows: PyInstaller `.exe` plus WiX `.msi` installer;
-- macOS: `.app` bundle;
-- Linux: AppImage, with portable directory/tar distribution also possible.
+Linux therefore uses the same GUI executable strategy as Windows/macOS; the distribution format is different because Linux does not have one universal native installer format. AppImage is used to provide a self-contained, portable GUI application.
 
-The GUI remains additive: `video-translation-pipeline` and the existing regeneration, subtitle-QA and TTS entry points remain available. Existing unattended wrappers and scheduled execution are not removed.
+## Release automation
 
-## Tests and CI
+A tag `vX.Y.Z` automatically starts `.github/workflows/release.yml`. The workflow:
 
-`tests/test_uv_resolution_contract.py` covers:
+1. checks out the exact tag;
+2. validates `uv.lock` and installs the locked development environment;
+3. builds Linux, Windows and macOS desktop artifacts on their native GitHub-hosted runners;
+4. validates the expected executable/package on each platform;
+5. archives the macOS `.app` as a `.zip`;
+6. uploads all artifacts to the workflow;
+7. creates the GitHub Release if necessary and attaches the binaries automatically.
 
-- project-managed uv precedence over PATH;
-- POSIX wrapper integration with the shared resolver;
-- Windows wrapper integration with the shared resolver;
-- build/setup command invocation through the resolved executable;
-- unattended packaged-executable priority and fallback behavior;
-- prevention of regressions that make a global uv lookup mandatory.
+GitHub continues to provide the source-code archives for the tag. The native desktop artifacts are attached alongside those source archives, so releases no longer require manual local builds or manual binary uploads.
 
-Desktop-specific CI additionally validates the native packaging workflow on Linux, Windows and macOS and the expected platform artifact names.
+The release workflow can also be dispatched for an existing tag to rebuild and replace its desktop assets.
 
-The existing CI matrix remains Linux/Windows/macOS with Python 3.11, 3.12 and 3.13.
+## Version and lockfile consistency
 
-## Documentation and historical integrity
+For `1.9.0`, the version must be synchronized in:
 
-Release documentation is cumulative. The `1.8.3` changes add a new candidate section and MUST NOT remove or downgrade historical content for `1.8.1` or `1.8.2`.
+- `pyproject.toml`;
+- `config/app.toml`;
+- `uv.lock`;
+- `CHANGELOG.md`;
+- `docs/RELEASES.md`;
+- `docs/VERSIONING.md`;
+- `RELEASE_CANDIDATE.md`;
+- this file;
+- related desktop/release documentation.
 
-The release-control documents must consistently distinguish:
+The project includes a temporary branch lock-refresh workflow while this release is being prepared so that changes to `pyproject.toml` cannot leave `uv.lock` stale. Normal development must still treat `uv.lock` as committed release metadata and require `uv lock --check`.
 
-- published releases: `1.8.0`, `1.8.1`, `1.8.2`;
-- current patch candidate: `1.8.3` for the uv-resolution correction;
-- desktop capability: unreleased work that requires the next MINOR version if retained in the product release.
+## CI and release gate
 
-Release behavior is documented in `CHANGELOG.md`, `RELEASE_CANDIDATE.md`, `docs/UV_MIGRATION.md`, `docs/VERSIONING.md`, `docs/RELEASES.md`, `docs/PROJECT.md`, `docs/CI_CD.md` and `docs/DESKTOP.md`.
+The existing Linux/Windows/macOS Python 3.11–3.13 matrix remains required. Desktop packaging adds native validation on all three operating systems. The final release SHA must pass tests, lint/format, compile checks, lockfile validation, packaging and Release Gate before its tag is considered publishable.
 
-## Version consistency
-
-For the current `1.8.3` candidate:
-
-- `pyproject.toml` → `1.8.3`.
-- `config/app.toml` → `1.8.3`.
-- `CHANGELOG.md` → published history through `1.8.2` plus candidate `1.8.3`.
-- `docs/RELEASES.md` → published history through `1.8.2` plus candidate `1.8.3`.
-- `docs/VERSIONING.md` → published history through `1.8.2` plus candidate `1.8.3`.
-- `RELEASE_CANDIDATE.md` → `1.8.3`.
-- this file → `1.8.3`.
-
-Before the desktop capability is released, the version-control set above must be migrated atomically to `1.9.0` (or a later approved MINOR version) and the lockfile regenerated by `uv lock`.
-
-## Release gate
-
-Before publication, validate the exact final merge SHA with the complete test matrix, lint/security/format, compileall, lockfile checks, packaging, audits and explicit wrapper execution with project-managed uv present and global uv absent from PATH. A desktop-enabled release additionally requires successful native artifact validation on Windows, macOS and Linux and installed-artifact smoke tests.
+Mobile is explicitly outside the `1.9.0` scope.
