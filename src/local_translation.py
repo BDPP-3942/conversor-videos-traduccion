@@ -567,10 +567,7 @@ def _download_file(url: str, destination: Path, max_bytes: int, auth_token: str 
                     "verify the model revision and filename."
                 )
             elif status_code in {401, 403}:
-                hint = (
-                    " Configure LOCAL_TRANSLATION_HF_TOKEN (or HF_TOKEN) with read access "
-                    "to the pinned repository."
-                )
+                hint = " Configure LOCAL_TRANSLATION_HF_TOKEN (or HF_TOKEN) with read access to the pinned repository."
             elif auth_token is None:
                 hint = (
                     " Configure LOCAL_TRANSLATION_HF_TOKEN (or HF_TOKEN) if the Hub/Xet endpoint "
