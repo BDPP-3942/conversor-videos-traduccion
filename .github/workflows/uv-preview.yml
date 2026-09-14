@@ -60,6 +60,17 @@ jobs:
         continue-on-error: true
         run: uv run ruff format --check .
 
+      - name: Capture Ruff format diagnostics
+        run: |
+          uv run ruff format --check . > /tmp/ruff-format.log 2>&1 || true
+          cat /tmp/ruff-format.log
+      - name: Upload Ruff format diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: uv-preview-ruff-format-diagnostics
+          path: /tmp/ruff-format.log
+          if-no-files-found: error
+
       - name: Build distributions through uv
         run: uv build
 
