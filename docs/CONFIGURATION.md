@@ -35,7 +35,7 @@ TRANSLATION_FALLBACK_PROVIDERS=local,deepl,mymemory
 LOCAL_TRANSLATION_MODEL=madlad400-3b-ct2-int8
 LOCAL_TRANSLATION_MODEL_DIR=tools/models/translation/madlad400-3b-ct2-int8
 LOCAL_TRANSLATION_MODEL_ID=cstr/madlad400-3b-ct2-int8
-LOCAL_TRANSLATION_MODEL_REVISION=12eff26f7d93623e2b2d3b5345e5863e14599dae
+LOCAL_TRANSLATION_MODEL_REVISION=fd0b55729c074372eb84b52b9309a00dc65c40c4
 LOCAL_TRANSLATION_DEVICE=auto
 LOCAL_TRANSLATION_COMPUTE_TYPE=auto
 LOCAL_TRANSLATION_BEAM_SIZE=2
@@ -53,7 +53,7 @@ LOCAL_TRANSLATION_MODEL_ID=Prukario/opus-mt-es-en-ct2-int8
 LOCAL_TRANSLATION_MODEL_REVISION=ad91ad1697ea1761111ff4c179400796d085b347
 ```
 
-`LOCAL_TRANSLATION_HF_TOKEN` is optional. Public model downloads work without authentication; configure it only when the Hugging Face environment requires authentication. `HF_TOKEN` is also accepted as a standard fallback. The token is used only for the HTTPS download and is not stored with the model.
+`LOCAL_TRANSLATION_HF_TOKEN` is optional. Public model downloads work without authentication; configure it only when the Hugging Face environment requires authentication. `HF_TOKEN` is also accepted as a standard fallback. A `404 Not Found` for a requested file is diagnosed as a missing resource at the pinned revision rather than as an authentication failure. The token is used only for the HTTPS download and is not stored with the model.
 
 See `.env.example` for the complete currently supported environment-variable surface. Do not commit `.env` or provider credentials.
 
