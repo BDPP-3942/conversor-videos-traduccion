@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+      Name="Video Translation Pipeline"
+      Manufacturer="BDPP-3942"
+      Version="$(var.Version)"
+      UpgradeCode="238C5442-0D95-48C3-B2AF-801CE5B1C7CB">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Video Translation Pipeline is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+    <Feature Id="MainFeature" Title="Video Translation Pipeline" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+    </Feature>
+  </Package>
+
+  <Fragment>
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="INSTALLFOLDER" Name="VideoTranslationPipeline" />
+    </StandardDirectory>
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(var.SourceDir)\**" />
+    </ComponentGroup>
+  </Fragment>
+</Wix>
