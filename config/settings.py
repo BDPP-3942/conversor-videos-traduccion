@@ -106,13 +106,213 @@ class AppSettings:
     tts_audio_bitrate: str = "192k"
     tts_webm_audio_bitrate: str = "192k"
     tts_generate_webm: bool = False
-    google_credentials_file: Path = BASE_DIR / "secrets" / "providers" / "google" / "default" / "credentials.json"
-    google_token_file: Path = BASE_DIR / "secrets" / "providers" / "google" / "default" / "token.json"
-    rclone_config_file: Path = BASE_DIR / "secrets" / "rclone" / "rclone.conf"
+    google_credentials_file: Path = SECRETS_DIR / "providers" / "google" / "default" / "credentials.json"
+    google_token_file: Path = SECRETS_DIR / "providers" / "google" / "default" / "token.json"
+    google_profile: str = "default"
+    rclone_config_file: Path = SECRETS_DIR / "rclone" / "rclone.conf"
     rclone_binary_file: Path = BASE_DIR / "tools" / "rclone" / "rclone"
     rclone_remote: str = "remote_drive"
-    provider_profile_dir: Path = BASE_DIR / "secrets" / "providers"
-    run_lock_file: Path = BASE_DIR / "storage" / "state" / "run.lock"
+    provider_profile_dir: Path = SECRETS_DIR / "providers"
+    run_lock_file: Path = STORAGE_DIR / "state" / "run.lock"
     auto_bootstrap_rclone: bool = True
     auto_update_rclone: bool = False
     auto_tune_resources: bool = True
+    resource_profile: str = "auto"
+    detected_logical_cpus: int = 0
+    detected_memory_gb: float = 0.0
+    detected_memory_available_gb: float = 0.0
+    detected_gpu_vendor: str = "none"
+    detected_gpu_model: str | None = None
+    detected_gpu_index: int = -1
+    detected_gpu_vram_gb: float = 0.0
+    detected_gpu_usable: bool = False
+    detected_disk_free_gb: float = 0.0
+
+    @property
+    def max_extracted_size_bytes(self) -> int:
+        return int(self.max_extracted_size_gb * 1024**3)
+
+    @property
+    def effective_translation_retries(self) -> int:
+        configured = self.translation_max_retries_per_provider or self.translation_retries
+        return max(1, int(configured))
+
+    @classmethod
+    def from_environment(cls) -> AppSettings:
+        fallback_default = ",".join(cls.translation_fallback_providers)
+        fallback_raw = os.getenv("TRANSLATION_FALLBACK_PROVIDERS", fallback_default)
+        fallback = tuple(item.strip() for item in fallback_raw.split(",") if item.strip())
+        temperatures = (
+            tuple(
+                float(item.strip())
+                for item in os.getenv("WHISPER_RECOVERY_TEMPERATURES", "0.2").split(",")
+                if item.strip()
+            )
+            or cls.whisper_recovery_temperatures
+        )
+        condition_env = os.getenv("WHISPER_CONDITION_ON_PREVIOUS_TEXT", "true")
+        return cls(
+            provider=os.getenv("STORAGE_PROVIDER", cls.provider),
+            source=os.getenv("SOURCE_URI", cls.source),
+            target=os.getenv("TARGET_URI", cls.target),
+            source_lang=os.getenv("SOURCE_LANG", cls.source_lang),
+            target_lang=os.getenv("TARGET_LANG", cls.target_lang),
+            log_level=os.getenv("LOG_LEVEL", cls.log_level).upper(),
+            whisper_model=os.getenv("WHISPER_MODEL", cls.whisper_model),
+            whisper_device=os.getenv("WHISPER_DEVICE", cls.whisper_device),
+            whisper_compute_type=os.getenv("WHISPER_COMPUTE_TYPE", cls.whisper_compute_type),
+            whisper_beam_size=int(os.getenv("WHISPER_BEAM_SIZE", cls.whisper_beam_size)),
+            whisper_vad_filter=os.getenv("WHISPER_VAD_FILTER", "true").lower() == "true",
+            whisper_min_silence_duration_ms=int(
+                os.getenv("WHISPER_MIN_SILENCE_DURATION_MS", cls.whisper_min_silence_duration_ms)
+            ),
+            whisper_subtitle_split_silence_duration_ms=int(
+                os.getenv("WHISPER_SUBTITLE_SPLIT_SILENCE_DURATION_MS", cls.whisper_subtitle_split_silence_duration_ms)
+            ),
+            whisper_condition_on_previous_text=condition_env.lower() == "true",
+            whisper_initial_prompt=os.getenv("WHISPER_INITIAL_PROMPT", cls.whisper_initial_prompt),
+            whisper_cpu_threads=int(os.getenv("WHISPER_CPU_THREADS", cls.whisper_cpu_threads)),
+            whisper_repetition_threshold=float(
+                os.getenv("WHISPER_REPETITION_THRESHOLD", cls.whisper_repetition_threshold)
+            ),
+            whisper_compression_ratio_threshold=float(
+                os.getenv("WHISPER_COMPRESSION_RATIO_THRESHOLD", cls.whisper_compression_ratio_threshold)
+            ),
+            whisper_log_prob_threshold=float(os.getenv("WHISPER_LOG_PROB_THRESHOLD", cls.whisper_log_prob_threshold)),
+            whisper_no_speech_threshold=float(
+                os.getenv("WHISPER_NO_SPEECH_THRESHOLD", cls.whisper_no_speech_threshold)
+            ),
+            whisper_min_repetition_words=int(
+                os.getenv("WHISPER_MIN_REPETITION_WORDS", cls.whisper_min_repetition_words)
+            ),
+            whisper_recovery_retries=int(os.getenv("WHISPER_RECOVERY_RETRIES", cls.whisper_recovery_retries)),
+            whisper_recovery_temperatures=temperatures,
+            translation_provider=os.getenv("TRANSLATION_PROVIDER", cls.translation_provider),
+            translation_fallback_providers=fallback,
+            translation_retries=int(os.getenv("TRANSLATION_RETRIES", cls.translation_retries)),
+            translation_max_retries_per_provider=int(
+                os.getenv("TRANSLATION_MAX_RETRIES_PER_PROVIDER", cls.translation_max_retries_per_provider)
+            ),
+            translation_batch_size=int(os.getenv("TRANSLATION_BATCH_SIZE", cls.translation_batch_size)),
+            translation_retry_delay_seconds=float(
+                os.getenv("TRANSLATION_RETRY_DELAY_SECONDS", cls.translation_retry_delay_seconds)
+            ),
+            translation_min_request_interval_seconds=float(
+                os.getenv("TRANSLATION_MIN_REQUEST_INTERVAL_SECONDS", cls.translation_min_request_interval_seconds)
+            ),
+            translation_max_backoff_seconds=float(
+                os.getenv("TRANSLATION_MAX_BACKOFF_SECONDS", cls.translation_max_backoff_seconds)
+            ),
+            translation_max_parallel_requests=int(
+                os.getenv("TRANSLATION_MAX_PARALLEL_REQUESTS", cls.translation_max_parallel_requests)
+            ),
+            translation_provider_max_parallel_requests=int(
+                os.getenv("TRANSLATION_PROVIDER_MAX_PARALLEL_REQUESTS", cls.translation_provider_max_parallel_requests)
+            ),
+            local_translation_model=os.getenv("LOCAL_TRANSLATION_MODEL", cls.local_translation_model),
+            local_translation_model_dir=Path(
+                os.getenv("LOCAL_TRANSLATION_MODEL_DIR", str(cls.local_translation_model_dir))
+            ),
+            local_translation_model_id=os.getenv("LOCAL_TRANSLATION_MODEL_ID", cls.local_translation_model_id),
+            local_translation_model_revision=os.getenv(
+                "LOCAL_TRANSLATION_MODEL_REVISION", cls.local_translation_model_revision
+            ),
+            local_translation_device=os.getenv("LOCAL_TRANSLATION_DEVICE", cls.local_translation_device),
+            local_translation_compute_type=os.getenv(
+                "LOCAL_TRANSLATION_COMPUTE_TYPE", cls.local_translation_compute_type
+            ),
+            local_translation_beam_size=int(os.getenv("LOCAL_TRANSLATION_BEAM_SIZE", cls.local_translation_beam_size)),
+            local_translation_auto_download=os.getenv("LOCAL_TRANSLATION_AUTO_DOWNLOAD", "false").lower() == "true",
+            max_zip_depth=int(os.getenv("MAX_ZIP_DEPTH", cls.max_zip_depth)),
+            max_extracted_files=int(os.getenv("MAX_EXTRACTED_FILES", cls.max_extracted_files)),
+            max_extracted_size_gb=float(os.getenv("MAX_EXTRACTED_SIZE_GB", cls.max_extracted_size_gb)),
+            ffmpeg_bin=os.getenv("FFMPEG_BIN", cls.ffmpeg_bin),
+            ffmpeg_preset=os.getenv("FFMPEG_PRESET", cls.ffmpeg_preset),
+            ffmpeg_crf=int(os.getenv("FFMPEG_CRF", cls.ffmpeg_crf)),
+            ffmpeg_audio_bitrate=os.getenv("FFMPEG_AUDIO_BITRATE", cls.ffmpeg_audio_bitrate),
+            generate_webm=os.getenv("GENERATE_WEBM", "true").lower() == "true",
+            secondary_video_extension=os.getenv("SECONDARY_VIDEO_EXTENSION", cls.secondary_video_extension),
+            secondary_video_codec=os.getenv("SECONDARY_VIDEO_CODEC", cls.secondary_video_codec),
+            secondary_video_crf=int(os.getenv("SECONDARY_VIDEO_CRF", cls.secondary_video_crf)),
+            secondary_video_max_width=int(os.getenv("SECONDARY_VIDEO_MAX_WIDTH", cls.secondary_video_max_width)),
+            secondary_video_fps=int(os.getenv("SECONDARY_VIDEO_FPS", cls.secondary_video_fps)),
+            secondary_video_audio_codec=os.getenv("SECONDARY_VIDEO_AUDIO_CODEC", cls.secondary_video_audio_codec),
+            secondary_video_audio_bitrate=os.getenv("SECONDARY_VIDEO_AUDIO_BITRATE", cls.secondary_video_audio_bitrate),
+            secondary_video_cpu_used=int(os.getenv("SECONDARY_VIDEO_CPU_USED", cls.secondary_video_cpu_used)),
+            ffmpeg_timeout_seconds=int(os.getenv("FFMPEG_TIMEOUT_SECONDS", cls.ffmpeg_timeout_seconds)),
+            local_retain_sources=os.getenv("LOCAL_RETAIN_SOURCES", "false").lower() == "true",
+            local_input_min_age_seconds=int(os.getenv("LOCAL_INPUT_MIN_AGE_SECONDS", cls.local_input_min_age_seconds)),
+            source_folder_id=os.getenv("GDRIVE_SOURCE_FOLDER_ID", ""),
+            target_folder_id=os.getenv("GDRIVE_TARGET_FOLDER_ID", ""),
+            archive_folder_id=os.getenv("GDRIVE_ARCHIVE_FOLDER_ID", ""),
+            original_transcript_subdir=os.getenv("ORIGINAL_TRANSCRIPT_SUBDIR", cls.original_transcript_subdir),
+            resume_enabled=os.getenv("RESUME_ENABLED", "true").lower() == "true",
+            normalize_legacy_names=os.getenv("NORMALIZE_LEGACY_NAMES", "true").lower() == "true",
+            rename_processed_duplicates=os.getenv("RENAME_PROCESSED_DUPLICATES", "true").lower() == "true",
+            automatic_output_deduplication=os.getenv("AUTOMATIC_OUTPUT_DEDUPLICATION", "false").lower() == "true",
+            max_parallel_videos=int(os.getenv("MAX_PARALLEL_VIDEOS", cls.max_parallel_videos)),
+            duplicate_name_similarity_threshold=float(
+                os.getenv("DUPLICATE_NAME_SIMILARITY_THRESHOLD", cls.duplicate_name_similarity_threshold)
+            ),
+            duplicate_duration_tolerance_seconds=float(
+                os.getenv("DUPLICATE_DURATION_TOLERANCE_SECONDS", cls.duplicate_duration_tolerance_seconds)
+            ),
+            duplicate_visual_similarity_threshold=float(
+                os.getenv("DUPLICATE_VISUAL_SIMILARITY_THRESHOLD", cls.duplicate_visual_similarity_threshold)
+            ),
+            ffmpeg_avoid_reencode=os.getenv("FFMPEG_AVOID_REENCODE", "true").lower() == "true",
+            tts_enabled=os.getenv("TTS_ENABLED", "false").lower() == "true",
+            tts_required=os.getenv("TTS_REQUIRED", "false").lower() == "true",
+            tts_provider=os.getenv("TTS_PROVIDER", cls.tts_provider),
+            tts_voice=os.getenv("TTS_VOICE", cls.tts_voice),
+            tts_model_path=Path(os.getenv("TTS_MODEL_PATH", str(cls.tts_model_path))),
+            tts_voices_path=Path(os.getenv("TTS_VOICES_PATH", str(cls.tts_voices_path))),
+            tts_speed=float(os.getenv("TTS_SPEED", cls.tts_speed)),
+            tts_max_speed=float(os.getenv("TTS_MAX_SPEED", cls.tts_max_speed)),
+            tts_duration_tolerance=float(os.getenv("TTS_DURATION_TOLERANCE", cls.tts_duration_tolerance)),
+            tts_sample_rate=int(os.getenv("TTS_SAMPLE_RATE", cls.tts_sample_rate)),
+            tts_audio_bitrate=os.getenv("TTS_AUDIO_BITRATE", cls.tts_audio_bitrate),
+            tts_webm_audio_bitrate=os.getenv("TTS_WEBM_AUDIO_BITRATE", cls.tts_webm_audio_bitrate),
+            tts_generate_webm=os.getenv("TTS_GENERATE_WEBM", "false").lower() == "true",
+            google_credentials_file=Path(os.getenv("GOOGLE_CREDENTIALS_FILE", str(cls.google_credentials_file))),
+            google_token_file=Path(os.getenv("GOOGLE_TOKEN_FILE", str(cls.google_token_file))),
+            google_profile=os.getenv("GOOGLE_PROFILE", cls.google_profile),
+            rclone_config_file=Path(os.getenv("RCLONE_CONFIG_FILE", str(cls.rclone_config_file))),
+            rclone_binary_file=Path(os.getenv("RCLONE_BINARY_FILE", str(cls.rclone_binary_file))),
+            rclone_remote=os.getenv("RCLONE_REMOTE", cls.rclone_remote),
+            provider_profile_dir=Path(os.getenv("PROVIDER_PROFILE_DIR", str(cls.provider_profile_dir))),
+            run_lock_file=Path(os.getenv("RUN_LOCK_FILE", str(cls.run_lock_file))),
+            auto_bootstrap_rclone=os.getenv("AUTO_BOOTSTRAP_RCLONE", "true").lower() == "true",
+            auto_update_rclone=os.getenv("AUTO_UPDATE_RCLONE", "false").lower() == "true",
+            auto_tune_resources=os.getenv("AUTO_TUNE_RESOURCES", "true").lower() == "true",
+            resource_profile=os.getenv("RESOURCE_PROFILE", cls.resource_profile),
+            detected_logical_cpus=int(os.getenv("DETECTED_LOGICAL_CPUS", cls.detected_logical_cpus)),
+            detected_memory_gb=float(os.getenv("DETECTED_MEMORY_GB", cls.detected_memory_gb)),
+        )
+
+
+def resolve_project_path(value: str | Path) -> Path:
+    path = Path(value).expanduser()
+    if path.is_absolute():
+        return path.resolve()
+    return (BASE_DIR / path).resolve()
+
+
+def local_storage_paths() -> dict[str, Path]:
+    return {
+        "input": STORAGE_DIR / "input",
+        "output": STORAGE_DIR / "output",
+        "work": STORAGE_DIR / "work",
+        "failures": STORAGE_DIR / "failures",
+        "archive": STORAGE_DIR / "archive",
+        "archive_sources": STORAGE_DIR / "archive" / "sources",
+        "logs": STORAGE_DIR / "logs",
+        "state": STORAGE_DIR / "state",
+        "manifests": STORAGE_DIR / "output/_manifests",
+    }
+
+
+def ensure_directories() -> None:
+    for path in local_storage_paths().values():
+        path.mkdir(parents=True, exist_ok=True)
+    (SECRETS_DIR / "google").mkdir(parents=True, exist_ok=True)
