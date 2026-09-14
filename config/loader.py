@@ -91,7 +91,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             ),
             local_translation_model_id=str(processing.get("local_translation_model_id", "cstr/madlad400-3b-ct2-int8")),
             local_translation_model_revision=str(
-                processing.get("local_translation_model_revision", "12eff26f7d93623e2b2d3b5345e5863e14599dae")
+                processing.get("local_translation_model_revision", "fd0b55729c074372eb84b52b9309a00dc65c40c4")
             ),
             local_translation_device=str(processing.get("local_translation_device", "auto")),
             local_translation_compute_type=str(processing.get("local_translation_compute_type", "auto")),
