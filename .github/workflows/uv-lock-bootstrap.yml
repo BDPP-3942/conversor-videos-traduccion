@@ -46,4 +46,4 @@ jobs:
           git commit -m "build: sync uv lockfile"
           git push
 
-# Validate automatic lockfile synchronization on the release-candidate branch.
+# Validate automatic lockfile synchronization after ruleset exemption.
