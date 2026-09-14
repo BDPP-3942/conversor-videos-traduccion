@@ -1,11 +1,11 @@
 # Desktop application
 
-`main` remains the functional source of truth. The desktop application adds a PySide6 presentation layer over an application/use-case facade and the existing `MediaPipeline`; it does not duplicate STT, translation, TTS, media or storage logic.
+`main` remains the functional source of truth. The desktop application adds a standard-library Tk/ttk presentation layer over an application/use-case facade and the existing `MediaPipeline`; it does not duplicate STT, translation, TTS, media or storage logic.
 
 ## Install and run
 
 ```bash
-uv sync --extra desktop --group dev
+uv sync --group dev
 uv run video-translation-desktop
 ```
 
@@ -26,7 +26,7 @@ Cloud provider setup, subtitle-only recovery, duplicate management and provider 
 ## Architecture
 
 ```text
-PySide6 Desktop UI
+Tk/ttk Desktop UI
         |
         v
 VideoTranslationApplication
@@ -41,14 +41,14 @@ MediaPipeline + existing adapters
         +-- storage
 ```
 
-The application facade is deliberately independent of Qt so it can be reused by another UI or a future API service.
+The application facade is deliberately independent of Tk so it can be reused by another UI or a future API service.
 
 ## Packaging
 
 Build on the target operating system:
 
 ```bash
-uv sync --extra desktop --group dev
+uv sync --group dev
 uv run python scripts/build_desktop.py --clean
 ```
 
