@@ -2,7 +2,7 @@ name: Bootstrap uv lockfile
 
 on:
   push:
-    branches: [chore/uv-migration-preview, fix/madlad-hf-revision-1-8-2]
+    branches: [chore/uv-migration-preview]
 
 permissions:
   contents: write
@@ -32,5 +32,5 @@ jobs:
             exit 0
           fi
           git add uv.lock
-          git commit -m "build: refresh uv lockfile for 1.8.2"
+          git commit -m "build: add uv lockfile"
           git push
