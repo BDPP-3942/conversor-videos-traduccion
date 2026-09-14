@@ -2,23 +2,11 @@
 
 La línea de releases de producto actualmente publicada es `1.x`.
 
-## Release candidata actual: 1.8.3
+## Releases publicadas
 
-`1.8.3` es una **PATCH** correctiva sobre la línea `1.8.x`. Corrige una regresión introducida al hacer que `setup_env.*` pudiera instalar `uv` de forma gestionada por el proyecto: varios wrappers seguían exigiendo una instalación global en `PATH`, por lo que un entorno correctamente preparado podía fallar al ejecutar `run_local`, `setup_rclone`, `setup_google`, build o determinados modos unattended.
-
-La corrección establece un contrato único:
-
-1. `tools/uv/uv` en macOS/Linux, o `tools\\uv\\uv.exe` en Windows, cuando existe.
-2. `uv`/`uv.exe` de `PATH` como fallback.
-3. Solo `setup_env.*` instala una copia gestionada cuando ninguna existe.
-
-Los wrappers comparten este contrato mediante `scripts/lib/resolve_uv.sh` y `scripts/lib/resolve_uv.bat` y ejecutan siempre el binario resuelto.
-
-La regresión queda cubierta por `tests/test_uv_resolution_contract.py`, incluyendo los wrappers POSIX y Windows, los scripts de build y los modos unattended.
-
-## Releases publicadas / históricas
-
-- `v1.8.0` → release MINOR publicada el 13 de septiembre de 2026.
+- `v1.8.2` → release PATCH publicada el 14 de septiembre de 2026; corrige el recurso MADLAD, tokenizer, fixtures y diagnóstico de descarga.
+- `v1.8.1` → release PATCH publicada el 14 de septiembre de 2026; incorpora bootstrap gestionado de uv y preparación opt-in del modelo local.
+- `v1.8.0` → release MINOR publicada el 13 de septiembre de 2026; consolida recuperación Whisper, modelos locales fijados y la base reproducible con uv.
 - `v1.7.4` → release PATCH de validación del modelo local y migración reproducible a uv.
 - `v1.7.3` → release PATCH de bootstrap de metadatos JSON del modelo local.
 - `v1.7.2` → release PATCH de corrección del gestor de descarga del modelo local.
@@ -40,6 +28,28 @@ La regresión queda cubierta por `tests/test_uv_resolution_contract.py`, incluye
 
 Los tags publicados son historia inmutable y no deben modificarse, moverse ni reutilizarse.
 
+## Release candidata actual: 1.8.3
+
+`1.8.3` es una **PATCH** correctiva sobre la línea `1.8.x` y la única release actualmente no publicada.
+
+Corrige una regresión introducida al hacer que `setup_env.*` pudiera instalar `uv` de forma gestionada por el proyecto: varios wrappers seguían exigiendo una instalación global en `PATH`, por lo que un entorno correctamente preparado podía fallar al ejecutar `run_local`, `setup_rclone`, `setup_google`, build o determinados modos unattended.
+
+La corrección establece un contrato único:
+
+1. `tools/uv/uv` en macOS/Linux, o `tools\\uv\\uv.exe` en Windows, cuando existe.
+2. `uv`/`uv.exe` de `PATH` como fallback.
+3. Solo `setup_env.*` instala una copia gestionada cuando ninguna existe.
+
+Los wrappers comparten este contrato mediante `scripts/lib/resolve_uv.sh` y `scripts/lib/resolve_uv.bat` y ejecutan siempre el binario resuelto.
+
+La regresión queda cubierta por `tests/test_uv_resolution_contract.py`.
+
+## Integridad histórica
+
+Las releases `1.8.0`, `1.8.1` y `1.8.2` son publicaciones oficiales. No deben describirse como candidatas, superseded candidates ni preparaciones inacabadas. Sus tags son inmutables.
+
+La documentación de `1.8.3` debe añadirse como nueva candidata sin borrar ni sustituir el historial anterior.
+
 ## Trazabilidad de release
 
 Cada release debe relacionar inequívocamente:
@@ -58,7 +68,7 @@ tag vX.Y.Z
 GitHub Release
 ```
 
-`v1.8.0` permanece inmutable. `v1.8.3` solo debe publicarse sobre el SHA exacto de `main` resultante del merge de esta candidata después de CI y Release Gate verdes.
+`v1.8.0`, `v1.8.1` y `v1.8.2` ya existen y permanecen inmutables. `v1.8.3` solo debe publicarse sobre el SHA exacto de `main` resultante de la validación final, después de CI y Release Gate verdes.
 
 ## Semantic Versioning
 
