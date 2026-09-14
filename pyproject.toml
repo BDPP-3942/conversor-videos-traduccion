@@ -21,7 +21,6 @@ dependencies = [
 google = ["google-auth-oauthlib>=1,<2"]
 tts = ["kokoro-onnx>=0.6.1,<0.7"]
 rclone = []
-desktop = ["PySide6>=6.8,<7"]
 
 [dependency-groups]
 dev = [
