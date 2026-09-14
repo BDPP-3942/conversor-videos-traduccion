@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -33,8 +32,7 @@ def test_posix_resolver_prefers_project_managed_uv() -> None:
     assert resolver.index('if [[ -x "$local_uv" ]]; then') < resolver.index('command -v uv')
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Windows syntax is validated statically on POSIX CI")
-def test_windows_resolver_can_be_called_from_cmd_wrappers() -> None:
+def test_windows_resolver_contract_is_available_to_cmd_wrappers() -> None:
     resolver = (ROOT / "scripts/lib/resolve_uv.bat").read_text(encoding="utf-8")
     assert 'tools\\uv\\uv.exe' in resolver
     assert 'where uv.exe' in resolver
