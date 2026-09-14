@@ -1,59 +1,47 @@
-# Release Scope — 1.8.0
+# Release Scope — 1.8.1
 
 ## Previous release
 
-`v1.7.4` is the previous published release and immutable baseline. PR #42 (the uv migration) is already integrated in that baseline; `1.8.0` records the subsequent PR #45 release scope on top of it. Its GitHub Release is authoritative for the published 1.7.4 product state.
-
-Published tags are immutable and MUST NOT be moved, deleted, or reused.
+`v1.8.0` is the previous published release and immutable baseline. Published tags are immutable and MUST NOT be moved, deleted, or reused.
 
 ## Release classification
 
-`1.8.0` is a **MINOR** release because it introduces compatible product functionality beyond the maintenance corrections published in `1.7.4`:
+`1.8.1` is a **PATCH** release because the scope improves setup, resource preparation and documentation without changing the processing architecture or public data contracts.
 
-- separate Whisper VAD silence duration from subtitle split silence duration;
-- context-free and prompt-free suspicious-segment recovery;
-- a new pinned MADLAD-400 3B local translation fallback while preserving the existing OPUS-MT fallback;
-- SentencePiece target-language handling for MADLAD;
-- independent configuration and integrity validation for both local models;
-- a hard local-model installation budget and integrity validation;
-- reproducible `uv` dependency management across development, CI, build and audit workflows.
+## Changes since v1.8.0
 
-The public CLI/configuration architecture remains backward compatible; no MAJOR increment is warranted.
+### Project-managed uv bootstrap
 
-## Changes since v1.7.4
+- `scripts/setup_env.sh` now prefers an existing project-managed `tools/uv/uv`, then a system `uv` from `PATH`, and finally bootstraps uv locally when neither exists.
+- The local bootstrap uses the official uv installer in unmanaged mode so shell profiles are not modified.
+- `scripts/setup_env.bat` provides the equivalent Windows behavior with `tools\uv\uv.exe`.
+- The project-managed uv executable is ignored by Git and is never committed as a host-specific binary.
+- Python, the project `.venv`, dependency synchronization and all subsequent setup commands use the resolved uv executable.
 
-### Whisper / STT
+### Local translation setup
 
-- VAD silence remains independently configurable at `2000 ms`.
-- Subtitle split silence defaults to `1000 ms` and is configured separately.
-- Suspicious-segment recovery retries without the initial prompt and without previous-text conditioning to prevent prompt-amplified hallucinations.
-- `clip_timestamps` remains numeric `[start, end]`.
+- Both setup scripts accept `--local-translation`.
+- When enabled, the setup completes the normal environment preparation and then executes the existing validated local-model download flow.
+- The option is deliberately opt-in because the default MADLAD-400 3B model is approximately 2.95 GB.
+- Deferred installation remains fully supported with:
 
-### Local translation
+```bash
+uv run python scripts/manage_local_translation.py download
+```
 
-- The default local fallback is upgraded to `cstr/madlad400-3b-ct2-int8`.
-- The existing `Prukario/opus-mt-es-en-ct2-int8` model remains available as the lightweight compatibility option.
-- MADLAD and OPUS-MT have independent model directories, repository/revision pins, artifact validation and tokenizer handling.
-- The MADLAD revision is pinned and its installation is bounded by a 3,000,000,000-byte budget.
-- Required artifacts are validated before activation.
-- MADLAD uses the shared SentencePiece tokenizer and `<2en>` target prefix for Spanish-to-English translation.
-- OPUS-MT retains `source.spm` and `target.spm` and its packaged JSON metadata path.
-- CPU fallback remains available when CUDA is unavailable.
-- Automatic model download remains disabled by default.
+- Model selection, repository/revision pins, integrity validation and storage layout remain unchanged.
 
-### uv / reproducibility
+### Documentation
 
-- `pyproject.toml` is the single Python dependency declaration source.
-- `uv.lock` is the reproducible dependency resolution and is validated with `uv lock --check`.
-- Development, test, packaging and audit environments use locked uv environments.
-- The published wheel remains validated through clean `pip` installation.
-- `pip-audit` runs from the locked audit group after removing the editable project package, so the audit covers PyPI-resolvable dependencies rather than the local source tree.
+- Installation documentation now explains the uv bootstrap decision tree and the optional model download.
+- Release/versioning documents identify `1.8.1` as the current patch candidate.
+- No historical release tag is modified or reused.
 
 ## Dependency scope
 
 Runtime dependency declarations remain in `pyproject.toml`; the resolved graph is represented by `uv.lock`.
 
-Runtime dependencies:
+Runtime dependencies remain:
 
 - `faster-whisper>=1.2.1,<1.3`
 - `ctranslate2>=4.8.2,<4.9`
@@ -67,17 +55,17 @@ Optional features remain declared as PEP 621 extras and uv dependency groups.
 
 ## Version scope
 
-- `pyproject.toml` declares `1.8.0`.
-- `config/app.toml` identifies the application as `1.8.0`.
-- `CHANGELOG.md` retains the complete published history during the candidate phase; the `1.8.0` entry is added at publication without removing or rewriting any historical release annotations.
-- `docs/RELEASES.md`, `docs/VERSIONING.md`, `RELEASE_CANDIDATE.md` and this file identify `1.8.0` as the next release candidate.
-- The `v1.8.0` tag must point to the exact validated `main` SHA after PR #45 is merged on top of the `main` baseline that already contains PR #42.
+- `pyproject.toml` declares `1.8.1`.
+- `config/app.toml` identifies the application as `1.8.1`.
+- `CHANGELOG.md` keeps the immutable published history and receives the `1.8.1` entry as part of this candidate because the previous `1.8.0` release is already published.
+- `docs/RELEASES.md`, `docs/VERSIONING.md`, `RELEASE_CANDIDATE.md` and this file identify `1.8.1` as the next release candidate.
+- The `v1.8.1` tag must point to the exact validated `main` SHA after this PR is merged.
 
 ## Validation state
 
-The exact final candidate SHA must pass CI and Release Gate before merge approval and before publication of `v1.8.0`.
+The exact final candidate SHA must pass CI and Release Gate before merge approval and before publication of `v1.8.1`.
 
-The real MADLAD model benchmark remains a hardware-dependent validation step and is not replaced by deterministic CI fixtures. OPUS-MT remains independently benchmarkable for low-disk deployments.
+The real MADLAD model benchmark remains a hardware-dependent validation step and is not replaced by deterministic CI fixtures.
 
 ## Tests and hardening
 
@@ -86,19 +74,18 @@ The real MADLAD model benchmark remains a hardware-dependent validation step and
 - `uv lock --check`, locked environment synchronization and `uv pip check`.
 - Packaging, clean-wheel installation and console entry points.
 - Base/Google and TTS dependency audits through the locked audit group.
-- Whisper recovery and subtitle-splitting regressions.
-- Local MADLAD and OPUS-MT provider, selection and integrity-validation regressions.
-- Existing Unicode/filesystem, ZIP security, reprocessing and manifest regressions, including the cross-platform E2E subprocess/storage fixes.
+- Regression coverage for setup-script syntax and documented setup behavior where applicable.
+- Existing Unicode/filesystem, ZIP security, reprocessing, manifest, Whisper recovery and local translation regressions.
 
 ## Release sequence
 
-`v1.7.4` is already published and must remain unchanged. The next product release is `v1.8.0`; there is no reason to create a synthetic `v1.7.5` for the combined PR #42 + PR #45 scope.
+`v1.8.0` is already published and must remain unchanged. The next product release is `v1.8.1`; no intermediate `1.8.0.x` release is required.
 
 ## Excluded
 
 - No replacement media pipeline.
 - No alternative storage implementation.
-- No arbitrary model/revision download support.
+- No change to model/revision pins.
 - No automatic global CUDA Toolkit or NVIDIA driver installation/removal.
-- No unrelated product feature or broad refactor.
+- No automatic local translation download unless `--local-translation` is explicitly supplied.
 - No release tag creation from a PR branch.
