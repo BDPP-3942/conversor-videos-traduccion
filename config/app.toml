@@ -1,5 +1,5 @@
 [app]
-version = "1.8.3"
+version = "1.9.0"
 provider = "local"
 source = "local://storage/input"
 target = "local://storage/output"
