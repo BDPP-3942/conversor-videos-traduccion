@@ -37,6 +37,7 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 | Bootstrap de uv gestionado por el proyecto y preparación opcional de traducción local | `1.8.1` |
 | Corrección del recurso MADLAD, tokenizer, fixtures y diagnóstico de descarga | `1.8.2` |
 | Resolución consistente de uv gestionado por el proyecto en wrappers POSIX/Windows | `1.8.3` (candidata) |
+| Aplicación de escritorio multiplataforma y empaquetado nativo | `1.9.0` (siguiente MINOR, no publicada) |
 
 ## Releases publicadas
 
@@ -194,6 +195,8 @@ Añade y corrige la documentación inicial de instalación.
 - Mantener la prioridad de ejecutables empaquetados y el fallback Python de unattended.
 - Añadir regresiones específicas de resolución y contratos de wrappers.
 
+La aplicación de escritorio no pertenece a esta candidata PATCH. Si se conserva en `main`, se publicará como parte de la siguiente release MINOR, actualmente `1.9.0`, junto con el empaquetado Windows `.exe`/`.msi`, macOS `.app` y Linux AppImage.
+
 ### Integridad histórica
 
 `v1.8.0`, `v1.8.1` y `v1.8.2` son releases publicadas. No se consideran candidatas, no se sustituyen por `1.8.3` y sus entradas históricas no deben eliminarse ni degradarse. `1.8.3` es la única candidata activa.
@@ -201,6 +204,8 @@ Añade y corrige la documentación inicial de instalación.
 ### Validación
 
 La candidata debe completar CI y Release Gate sobre su SHA exacto, incluyendo Linux, Windows y macOS con Python 3.11–3.13, tests, lint/format, audits, packaging, instalación limpia, `pip check`, entry points y validación del lockfile.
+
+La release posterior que publique la aplicación de escritorio deberá añadir además validación de los artefactos instalables nativos y pruebas de humo sobre cada sistema operativo objetivo.
 
 ### Política de tags
 
