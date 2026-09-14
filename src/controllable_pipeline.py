@@ -16,7 +16,7 @@ class PipelineCancelled(RuntimeError):
 
 
 class ControllableMediaPipeline(MediaPipeline):
-    """MediaPipeline adapter that exposes safe stage events and cooperative cancellation."""
+    """MediaPipeline adapter exposing stage progress and cooperative cancellation."""
 
     def __init__(
         self,
@@ -59,7 +59,7 @@ class ControllableMediaPipeline(MediaPipeline):
     ) -> dict[str, Any]:
         self._completed_media = 0
         self._total_media_hint = 0
-        self._emit("preparing", "Preparing processing run")
+        self._emit("preparing", "Preparing processing run", percent=0)
         self._check_cancelled()
         try:
             result = super().run(
@@ -95,11 +95,11 @@ class ControllableMediaPipeline(MediaPipeline):
     ) -> dict[str, Any]:
         self._check_cancelled()
         name = source_path.name
-        self._emit("converting", f"Converting {name}", file=name)
+        self._emit("converting", f"Converting {name}", file=name, percent=10)
         self._check_cancelled()
-        self._emit("transcribing", f"Transcribing {name}", file=name)
+        self._emit("transcribing", f"Transcribing {name}", file=name, percent=35)
         self._check_cancelled()
-        self._emit("translating", f"Translating {name}", file=name)
+        self._emit("translating", f"Translating {name}", file=name, percent=65)
         self._check_cancelled()
         result = super()._process_media(
             source_path,
@@ -112,19 +112,19 @@ class ControllableMediaPipeline(MediaPipeline):
         )
         self._check_cancelled()
         self._completed_media += 1
-        self._emit(
-            "uploading",
-            f"Finalizing {name}",
-            file=name,
-            percent=0,
-        )
+        self._emit("uploading", f"Finalizing {name}", file=name, percent=90)
         return result
+
+    def _record_failure(self, zip_file, source_path, relative_source, exc, failed):
+        if isinstance(exc, PipelineCancelled):
+            raise exc
+        return super()._record_failure(zip_file, source_path, relative_source, exc, failed)
 
     def _process_zip(self, zip_file, target: str, *, force_reprocess: bool = False) -> dict[str, Any]:
         self._check_cancelled()
-        self._emit("downloading", f"Downloading {zip_file.name}", file=zip_file.name)
+        self._emit("downloading", f"Downloading {zip_file.name}", file=zip_file.name, percent=2)
         self._check_cancelled()
-        self._emit("extracting", f"Extracting {zip_file.name}", file=zip_file.name)
+        self._emit("extracting", f"Extracting {zip_file.name}", file=zip_file.name, percent=5)
         result = super()._process_zip(zip_file, target, force_reprocess=force_reprocess)
         self._check_cancelled()
         self._emit(
@@ -132,5 +132,6 @@ class ControllableMediaPipeline(MediaPipeline):
             f"Completed {zip_file.name}",
             file=zip_file.name,
             zip_status=result.get("status"),
+            percent=100,
         )
         return result
