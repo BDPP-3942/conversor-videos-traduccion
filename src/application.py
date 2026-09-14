@@ -34,7 +34,6 @@ class VideoTranslationApplication:
         target: str | None = None,
         provider: str | None = None,
         progress: ProgressCallback | None = None,
-        cancel_event: object | None = None,
         **overrides: object,
     ) -> dict[str, object]:
         settings = self.load_settings()
@@ -59,18 +58,10 @@ class VideoTranslationApplication:
         try:
             self._emit(progress, "preparing", 0, 0, "Preparing pipeline")
             pipeline = MediaPipeline(settings, storage)
-            result = pipeline.run(
-                settings.source,
-                settings.target,
-                progress_callback=progress,
-                cancel_event=cancel_event,
-            )
+            result = pipeline.run(settings.source, settings.target)
             self._emit(progress, "completed", 100, result.get("zips_processed", 0), "Processing completed")
             return result
         except Exception as exc:
-            if self._cancelled(cancel_event):
-                self._emit(progress, "cancelled", 0, 0, "Processing cancelled")
-                return {"status": "cancelled", "message": "Processing cancelled by user"}
             logger.exception("Desktop application run failed")
             self._emit(progress, "error", 0, 0, str(exc))
             raise ApplicationError(str(exc)) from exc
@@ -81,10 +72,6 @@ class VideoTranslationApplication:
     def _as_local_uri(value: str) -> str:
         path = Path(value).expanduser().resolve()
         return f"local://{path}"
-
-    @staticmethod
-    def _cancelled(event: object | None) -> bool:
-        return bool(event is not None and getattr(event, "is_set", lambda: False)())
 
     @staticmethod
     def _emit(callback: ProgressCallback | None, stage: str, percent: int, completed: int, message: str) -> None:
