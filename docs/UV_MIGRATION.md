@@ -4,7 +4,21 @@ This repository uses `pyproject.toml` as the single Python dependency declaratio
 
 ## Local development
 
-Install uv, then prepare the project with:
+The preferred first-time setup is through the repository setup wrapper:
+
+```bash
+./scripts/setup_env.sh
+```
+
+or on Windows:
+
+```bat
+scripts\setup_env.bat
+```
+
+The wrappers resolve uv in this order: an existing project-managed copy under `tools/uv/`, a system `uv`/`uv.exe` from `PATH`, and finally the official uv installer into `tools/uv/` when neither is available. The managed copy is ignored by Git and the installer runs without modifying shell profiles.
+
+After bootstrap, the setup creates the project environment and synchronizes the locked development dependencies:
 
 ```bash
 uv python install 3.13
@@ -29,6 +43,26 @@ uv sync --extra tts
 ```
 
 The setup wrappers `scripts/setup_env.sh` and `scripts/setup_env.bat` use this same model.
+
+## Local translation during setup
+
+The setup wrappers can also prepare the configured pinned local translation model:
+
+```bash
+./scripts/setup_env.sh --local-translation
+```
+
+The Windows equivalent is:
+
+```bat
+scripts\setup_env.bat --local-translation
+```
+
+This is intentionally opt-in because the default MADLAD-400 3B model is approximately 2.95 GB. If model preparation is deferred, the supported standalone command remains:
+
+```bash
+uv run python scripts/manage_local_translation.py download
+```
 
 ## Lockfile policy
 
