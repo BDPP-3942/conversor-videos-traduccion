@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
-from typing import Callable
 
 from config.loader import load_settings
 from config.settings import BASE_DIR, AppSettings
@@ -44,11 +44,25 @@ class VideoTranslationApplication:
         if target:
             settings = replace(settings, target=self._as_local_uri(target))
         allowed = {
-            "source_lang", "target_lang", "translation_provider", "translation_fallback_providers",
-            "whisper_model", "whisper_device", "whisper_compute_type", "whisper_beam_size",
-            "whisper_vad_filter", "whisper_initial_prompt", "whisper_recovery_retries",
-            "translation_batch_size", "max_parallel_videos", "generate_webm", "tts_enabled",
-            "tts_required", "tts_voice", "resume_enabled", "normalize_legacy_names",
+            "source_lang",
+            "target_lang",
+            "translation_provider",
+            "translation_fallback_providers",
+            "whisper_model",
+            "whisper_device",
+            "whisper_compute_type",
+            "whisper_beam_size",
+            "whisper_vad_filter",
+            "whisper_initial_prompt",
+            "whisper_recovery_retries",
+            "translation_batch_size",
+            "max_parallel_videos",
+            "generate_webm",
+            "tts_enabled",
+            "tts_required",
+            "tts_voice",
+            "resume_enabled",
+            "normalize_legacy_names",
         }
         invalid = sorted(set(overrides) - allowed)
         if invalid:
