@@ -45,3 +45,5 @@ jobs:
           git add uv.lock
           git commit -m "build: sync uv lockfile"
           git push
+
+# Validate automatic lockfile synchronization on the release-candidate branch.
