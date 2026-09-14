@@ -95,7 +95,7 @@ uv run python scripts/manage_local_translation.py status
 uv run python scripts/manage_local_translation.py download
 ```
 
-Desde `1.7.2` el gestor de descarga procesa correctamente los ficheros principales y metadatos del modelo local, y en `1.8.0` mantiene validaciones específicas para MADLAD y OPUS-MT, incluyendo tamaño, SHA-256, estructura de metadatos y tokenización. MADLAD usa `sentencepiece.model` y el prefijo de destino `<2en>`; OPUS-MT conserva `source.spm` y `target.spm`.
+Desde `1.7.2` el gestor de descarga procesa correctamente los ficheros principales y metadatos del modelo local, y en `1.8.0` mantiene validaciones específicas para MADLAD y OPUS-MT, incluyendo tamaño, SHA-256, estructura de metadatos y tokenización. MADLAD utiliza el artefacto `spiece.model` y el prefijo de destino `<2en>`; OPUS-MT conserva `source.spm` y `target.spm`.
 
 Después de preparar el modelo, puede seleccionarse con:
 
@@ -110,7 +110,7 @@ Una vez preparado, la ejecución local no necesita conexión a Hugging Face. El 
 
 ## Wrappers locales
 
-Los wrappers comparten un único dispatcher para conservar exactamente los argumentos recibidos en Windows y POSIX:
+Los wrappers comparten un único dispatcher para conservar exactamente los argumentos recibidos en Windows y POSIX. Los consumidores de uv utilizan el resolvedor compartido y priorizan la copia gestionada en `tools/uv/` frente a `PATH`.
 
 ### Linux / macOS
 
@@ -283,11 +283,15 @@ Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` 
 
 ## Versionado
 
-La release publicada más reciente es `1.8.0` (`v1.8.0`) y la candidata actual es `1.8.1` (`v1.8.1`). `1.8.1` es una release PATCH que mejora el bootstrap del entorno y la preparación opcional del modelo local sin cambiar los contratos del pipeline.
+La release publicada más reciente es `1.8.2` (`v1.8.2`) y la candidata actual es `1.8.3`. `1.8.1` y `1.8.2` son releases oficiales publicadas, no candidatas ni preparaciones superseded.
 
-`1.8.0` consolida la recuperación STT de Whisper, separa el silencio VAD del criterio de división de subtítulos con valores consolidados de **2000 ms para VAD y 1000 ms para subtitle split**, incorpora MADLAD-400 3B como modelo local predeterminado manteniendo OPUS-MT como alternativa, refuerza la validación de ambos modelos y conserva la migración reproducible a `uv`.
+`1.8.2` corrige la revisión fijada de MADLAD-400 3B, el tokenizer `spiece.model`, las validaciones de integridad y el diagnóstico de descargas de Hugging Face.
 
-El historial completo de releases se mantiene en `docs/RELEASES.md` y `docs/VERSIONING.md`.
+`1.8.1` introdujo el bootstrap gestionado de uv y la preparación opt-in del modelo local.
+
+`1.8.3` corrige la resolución de uv en wrappers y scripts consumidores, priorizando `tools/uv/` sobre `PATH`.
+
+El historial completo de releases se mantiene en `docs/RELEASES.md`, `docs/VERSIONING.md` y `CHANGELOG.md`.
 
 ## Seguridad y licencias
 
