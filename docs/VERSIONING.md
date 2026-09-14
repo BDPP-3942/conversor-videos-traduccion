@@ -4,6 +4,7 @@ La línea de releases de producto actualmente publicada es `1.x`.
 
 ## Releases publicadas
 
+- `v1.8.0` → release MINOR publicada el 13 de septiembre de 2026; consolida recuperación Whisper, modelos locales fijados y la base reproducible con uv.
 - `v1.7.4` → release PATCH publicada el 8 de septiembre de 2026; corrige la validación de `shared_vocabulary.json` del modelo de traducción local.
 - `v1.7.3` → release PATCH de bootstrap de metadatos JSON del modelo local.
 - `v1.7.2` → release PATCH de corrección del gestor de descarga del modelo local.
@@ -25,21 +26,20 @@ La línea de releases de producto actualmente publicada es `1.x`.
 
 Los tags publicados son historia inmutable y no deben modificarse, moverse ni reutilizarse.
 
-## Release candidata: 1.8.0
+## Release candidata: 1.8.1
 
-La candidata actual es `1.8.0`, una **MINOR** compatible sobre la release publicada `1.7.4`. Su publicación queda condicionada al merge de PR #45 y a CI/Release Gate verdes sobre el SHA final de `main`.
+La candidata actual es `1.8.1`, una **PATCH** compatible sobre la release publicada `1.8.0`.
 
-El incremento MINOR está justificado por funcionalidad nueva compatible:
+El incremento PATCH está justificado por mejoras de instalación, bootstrap y documentación sin cambios incompatibles de CLI, configuración, formatos o arquitectura de procesamiento:
 
-- separación entre silencio VAD y separación de subtítulos de Whisper;
-- recuperación STT sospechosa sin prompt ni contexto previo;
-- conservación de `clip_timestamps` numérico durante la recuperación selectiva;
-- incorporación de MADLAD-400 3B CT2 INT8 como modelo local predeterminado sin eliminar OPUS-MT;
-- soporte explícito de dos modelos locales con configuraciones, revisiones y tokenizadores independientes;
-- límite de instalación e integridad de los modelos locales;
-- gestión reproducible de dependencias de desarrollo/CI/build mediante `uv`.
+- bootstrap automático de una copia de uv bajo `tools/uv/` cuando no existe uv en `PATH`;
+- reutilización de una copia ya instalada en `tools/uv/` y preferencia por uv del sistema cuando está disponible;
+- soporte equivalente del bootstrap local en macOS/Linux y Windows;
+- nueva opción `--local-translation` para preparar durante el setup el modelo local fijado;
+- conservación del comando independiente `uv run python scripts/manage_local_translation.py download` para instalaciones diferidas;
+- documentación de la nueva secuencia de instalación y de la separación entre entorno Python y pesos de modelos.
 
-No se requiere `1.7.5` para este conjunto: `1.7.4` ya está publicada y el alcance combinado de PR #42 + PR #45 contiene cambios funcionales que corresponden a MINOR.
+No se cambia el modelo local predeterminado, las revisiones fijadas, la cadena de proveedores, el runtime GPU ni el contrato de los datos procesados.
 
 ## Semantic Versioning
 
@@ -69,7 +69,7 @@ tag vX.Y.Z
 GitHub Release
 ```
 
-`v1.7.4` ya existe y no debe recrearse ni moverse. PR #42 forma parte del `main` y del baseline publicado `1.7.4`; `v1.8.0` será el tag de la release resultante de integrar PR #45 sobre ese baseline, únicamente después de que el SHA final de `main` pase CI y Release Gate.
+`v1.8.0` ya existe y no debe recrearse ni moverse. `v1.8.1` solo debe publicarse sobre el SHA exacto de `main` resultante del merge de la candidata, después de que CI y Release Gate sean verdes.
 
 ## Política de dependencias
 

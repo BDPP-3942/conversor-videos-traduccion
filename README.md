@@ -53,25 +53,46 @@ No es un editor audiovisual interactivo ni sustituye la revisión humana de trad
 
 Consulta `docs/INSTALLATION.md` para instalar dependencias y preparar el entorno.
 
+En macOS/Linux, el setup no requiere que uv esté previamente instalado en el sistema: si no encuentra una copia local en `tools/uv/` ni una instalación de uv en `PATH`, descarga una copia gestionada por el proyecto. En Windows se aplica la misma política con `tools\uv\uv.exe`.
+
 ```bash
-python main.py doctor
-python main.py run --dry-run
-python main.py run
+chmod +x scripts/setup_env.sh
+./scripts/setup_env.sh
+```
+
+Para preparar además el modelo local de traducción durante el mismo proceso:
+
+```bash
+./scripts/setup_env.sh --local-translation
+```
+
+La opción de modelo es explícita porque el MADLAD-400 3B predeterminado ocupa aproximadamente 2.95 GB. Si se omite, puede instalarse posteriormente sin repetir el setup:
+
+```bash
+uv run python scripts/manage_local_translation.py download
+```
+
+Una vez preparado el entorno:
+
+```bash
+uv run python main.py doctor
+uv run python main.py run --dry-run
+uv run python main.py run
 ```
 
 Para operación desatendida:
 
 ```bash
-python main.py run --scheduled
+uv run python main.py run --scheduled
 ```
 
 ## Traducción local offline
 
-La release publicada `1.8.0` consolida el proveedor local opcional español→inglés basado en CTranslate2 + SentencePiece. MADLAD-400 3B CT2 INT8 es el modelo predeterminado orientado a calidad y OPUS-MT CT2 INT8 se conserva como alternativa ligera. Ningún modelo local se descarga automáticamente por defecto: debe prepararse explícitamente.
+La release publicada `1.8.0` consolida el proveedor local opcional español→inglés basado en CTranslate2 + SentencePiece. MADLAD-400 3B CT2 INT8 es el modelo predeterminado orientado a calidad y OPUS-MT CT2 INT8 se conserva como alternativa ligera. Ningún modelo local se descarga automáticamente por defecto: debe prepararse explícitamente o mediante `--local-translation` durante el setup.
 
 ```bash
-python scripts/manage_local_translation.py status
-python scripts/manage_local_translation.py download
+uv run python scripts/manage_local_translation.py status
+uv run python scripts/manage_local_translation.py download
 ```
 
 Desde `1.7.2` el gestor de descarga procesa correctamente los ficheros principales y metadatos del modelo local, y en `1.8.0` mantiene validaciones específicas para MADLAD y OPUS-MT, incluyendo tamaño, SHA-256, estructura de metadatos y tokenización. MADLAD usa `sentencepiece.model` y el prefijo de destino `<2en>`; OPUS-MT conserva `source.spm` y `target.spm`.
@@ -165,9 +186,9 @@ La política se valida mediante casos funcionales representativos de las estruct
 Los resultados ya procesados no necesitan volver a pasar por la conversión audiovisual. Si existe el vídeo normal, la recuperación puede reconstruir los subtítulos sin regenerarlo.
 
 ```bash
-python main.py reprocess-subtitles --all --stt-only
-python main.py reprocess-subtitles --all --translate-only
-python main.py reprocess-subtitles --all
+uv run python main.py reprocess-subtitles --all --stt-only
+uv run python main.py reprocess-subtitles --all --translate-only
+uv run python main.py reprocess-subtitles --all
 ```
 
 Consulta `docs/SUBTITLES.md` y `docs/RESUME.md`.
@@ -262,11 +283,11 @@ Los documentos históricos `PROJECT_GUIDE.md`, `VTT_REPAIR.md`, `UNATTENDED.md` 
 
 ## Versionado
 
-La release publicada más reciente es `1.8.0` (`v1.8.0`). Los documentos de control histórico conservan la constancia de `1.8.0` como candidata respecto al momento de validación/publicación, pero la documentación operativa trata `1.8.0` como release publicada y vigente.
+La release publicada más reciente es `1.8.0` (`v1.8.0`) y la candidata actual es `1.8.1` (`v1.8.1`). `1.8.1` es una release PATCH que mejora el bootstrap del entorno y la preparación opcional del modelo local sin cambiar los contratos del pipeline.
 
 `1.8.0` consolida la recuperación STT de Whisper, separa el silencio VAD del criterio de división de subtítulos con valores consolidados de **2000 ms para VAD y 1000 ms para subtitle split**, incorpora MADLAD-400 3B como modelo local predeterminado manteniendo OPUS-MT como alternativa, refuerza la validación de ambos modelos y conserva la migración reproducible a `uv`.
 
-El historial completo de releases se mantiene en `docs/RELEASES.md` y `docs/VERSIONING.md`, donde la marca de candidata se conserva deliberadamente como registro histórico/control de publicación.
+El historial completo de releases se mantiene en `docs/RELEASES.md` y `docs/VERSIONING.md`.
 
 ## Seguridad y licencias
 

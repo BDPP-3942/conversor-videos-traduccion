@@ -23,10 +23,12 @@ storage/**/*
 !storage/**/.gitkeep
 tools/rclone/*
 !tools/rclone/.gitkeep
+tools/uv/*
 tools/ffmpeg/bin/*
 !tools/ffmpeg/bin/.gitkeep
 tools/tts/*
 !tools/tts/.gitkeep
+tools/models/translation/*
 build/
 dist/
 *.egg-info/
