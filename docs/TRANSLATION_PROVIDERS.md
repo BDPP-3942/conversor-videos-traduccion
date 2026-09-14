@@ -120,3 +120,9 @@ storage/state/translation_quotas.json
 Esto evita que una segunda ejecución del proceso ignore el consumo realizado por una ejecución anterior. Las reservas se hacen antes de enviar una request y se mantienen de forma conservadora si esa request termina fallando.
 
 La traducción local no consume esta cuota porque no realiza requests HTTP.
+
+## Privacidad
+
+El proyecto no envía timestamps ni estructura VTT al proveedor como datos de control. En proveedores remotos se envía únicamente el texto de los segmentos necesario para traducirlo y la respuesta se vuelve a asociar a los segmentos originales. La traducción local procesa el texto en el propio equipo una vez preparado el modelo. Los timestamps `start`/`end` se conservan localmente.
+
+La política de privacidad concreta de cada proveedor remoto debe comprobarse antes de utilizarlo con contenido sensible; este documento describe el comportamiento técnico del cliente y no sustituye los términos del proveedor.
