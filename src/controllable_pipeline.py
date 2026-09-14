@@ -11,8 +11,8 @@ from src.pipeline import MediaPipeline
 PipelineEventCallback = Callable[[dict[str, object]], None]
 
 
-class PipelineCancelled(RuntimeError):
-    """Raised when a pipeline run is cancelled at a safe stage boundary."""
+class PipelineCancelled(BaseException):
+    """Control-flow signal for cooperative cancellation at safe stage boundaries."""
 
 
 class ControllableMediaPipeline(MediaPipeline):
