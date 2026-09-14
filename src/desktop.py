@@ -61,10 +61,18 @@ class DesktopApp:
         self._combo_row(processing, 1, "Translation provider", self.translation, ["mistral", "local", "deepl", "mymemory"])
         self._entry_row(processing, 2, "Source language", self.source_lang)
         self._entry_row(processing, 3, "Target language", self.target_lang)
-        ttk.Label(processing, text="Parallel videos (0 = AUTO)").grid(row=4, column=0, sticky="w", padx=(0, 8), pady=4)
-        ttk.Spinbox(processing, from_=0, to=64, textvariable=self.parallel, width=8).grid(row=4, column=1, sticky="w", pady=4)
-        ttk.Checkbutton(processing, text="Generate secondary WebM", variable=self.webm).grid(row=5, column=1, sticky="w", pady=4)
-        ttk.Checkbutton(processing, text="Enable synchronized TTS", variable=self.tts).grid(row=6, column=1, sticky="w", pady=4)
+        ttk.Label(processing, text="Parallel videos (0 = AUTO)").grid(
+            row=4, column=0, sticky="w", padx=(0, 8), pady=4
+        )
+        ttk.Spinbox(processing, from_=0, to=64, textvariable=self.parallel, width=8).grid(
+            row=4, column=1, sticky="w", pady=4
+        )
+        ttk.Checkbutton(processing, text="Generate secondary WebM", variable=self.webm).grid(
+            row=5, column=1, sticky="w", pady=4
+        )
+        ttk.Checkbutton(processing, text="Enable synchronized TTS", variable=self.tts).grid(
+            row=6, column=1, sticky="w", pady=4
+        )
         processing.columnconfigure(1, weight=1)
 
         actions = ttk.Frame(root)
@@ -82,7 +90,9 @@ class DesktopApp:
     def _path_row(self, parent, row: int, label: str, variable: tk.StringVar) -> None:
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
         ttk.Entry(parent, textvariable=variable).grid(row=row, column=1, sticky="ew", pady=4)
-        ttk.Button(parent, text="Browse…", command=lambda: self._browse(variable)).grid(row=row, column=2, padx=(8, 0))
+        ttk.Button(parent, text="Browse…", command=lambda: self._browse(variable)).grid(
+            row=row, column=2, padx=(8, 0)
+        )
         parent.columnconfigure(1, weight=1)
 
     @staticmethod
@@ -93,7 +103,9 @@ class DesktopApp:
     @staticmethod
     def _combo_row(parent, row: int, label: str, variable: tk.StringVar, values: list[str]) -> None:
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
-        ttk.Combobox(parent, textvariable=variable, values=values, state="readonly", width=20).grid(row=row, column=1, sticky="w", pady=4)
+        ttk.Combobox(
+            parent, textvariable=variable, values=values, state="readonly", width=20
+        ).grid(row=row, column=1, sticky="w", pady=4)
 
     @staticmethod
     def _browse(variable: tk.StringVar) -> None:
@@ -129,10 +141,14 @@ class DesktopApp:
         stage = str(event.get("stage", "processing"))
         message = str(event.get("message", ""))
         if stage == "finished":
-            self.progress.stop(); self.start.configure(state="normal"); self.status.set("Completed")
+            self.progress.stop()
+            self.start.configure(state="normal")
+            self.status.set("Completed")
             self._append(message + "\n")
         elif stage == "error":
-            self.progress.stop(); self.start.configure(state="normal"); self.status.set("Error")
+            self.progress.stop()
+            self.start.configure(state="normal")
+            self.status.set("Error")
             self._append(message + "\n")
             messagebox.showerror("Processing error", message, parent=self.root)
         else:
