@@ -15,6 +15,49 @@ class PipelineCancelled(BaseException):
     """Control-flow signal for cooperative cancellation at safe stage boundaries."""
 
 
+class _StageConverter:
+    def __init__(self, owner: ControllableMediaPipeline, wrapped: Any) -> None:
+        self.owner = owner
+        self.wrapped = wrapped
+
+    def convert(self, *args: Any, **kwargs: Any) -> Any:
+        source = args[0] if args else kwargs.get("source_path")
+        name = getattr(source, "name", str(source))
+        self.owner._check_cancelled()
+        self.owner._emit("converting", f"Converting {name}", file=name, percent=10)
+        result = self.wrapped.convert(*args, **kwargs)
+        self.owner._check_cancelled()
+        return result
+
+
+class _StageSTT:
+    def __init__(self, owner: ControllableMediaPipeline, wrapped: Any) -> None:
+        self.owner = owner
+        self.wrapped = wrapped
+
+    def transcribe(self, *args: Any, **kwargs: Any) -> Any:
+        source = args[0] if args else kwargs.get("audio_path")
+        name = getattr(source, "name", str(source))
+        self.owner._check_cancelled()
+        self.owner._emit("transcribing", f"Transcribing {name}", file=name, percent=35)
+        result = self.wrapped.transcribe(*args, **kwargs)
+        self.owner._check_cancelled()
+        return result
+
+
+class _StageTranslator:
+    def __init__(self, owner: ControllableMediaPipeline, wrapped: Any) -> None:
+        self.owner = owner
+        self.wrapped = wrapped
+
+    def translate_segments(self, *args: Any, **kwargs: Any) -> Any:
+        self.owner._check_cancelled()
+        self.owner._emit("translating", "Translating subtitle segments", percent=65)
+        result = self.wrapped.translate_segments(*args, **kwargs)
+        self.owner._check_cancelled()
+        return result
+
+
 class ControllableMediaPipeline(MediaPipeline):
     """MediaPipeline adapter exposing stage progress and cooperative cancellation."""
 
@@ -31,6 +74,7 @@ class ControllableMediaPipeline(MediaPipeline):
         self.cancel_event = cancel_event or threading.Event()
         self._completed_media = 0
         self._total_media_hint = 0
+        self.media_converter = _StageConverter(self, self.media_converter)
 
     def _emit(self, stage: str, message: str, **details: object) -> None:
         if self.event_callback is None:
@@ -48,6 +92,16 @@ class ControllableMediaPipeline(MediaPipeline):
         if self.cancel_event.is_set():
             self._emit("cancelled", "Cancellation requested; stopping at a safe stage boundary")
             raise PipelineCancelled("Processing cancelled by the user")
+
+    def _worker_components(self):
+        stt_engine, translator = super()._worker_components()
+        if not isinstance(stt_engine, _StageSTT):
+            stt_engine = _StageSTT(self, stt_engine)
+            self._thread_local.stt_engine = stt_engine
+        if not isinstance(translator, _StageTranslator):
+            translator = _StageTranslator(self, translator)
+            self._thread_local.translator = translator
+        return stt_engine, translator
 
     def run(
         self,
@@ -94,13 +148,6 @@ class ControllableMediaPipeline(MediaPipeline):
         metadata_item,
     ) -> dict[str, Any]:
         self._check_cancelled()
-        name = source_path.name
-        self._emit("converting", f"Converting {name}", file=name, percent=10)
-        self._check_cancelled()
-        self._emit("transcribing", f"Transcribing {name}", file=name, percent=35)
-        self._check_cancelled()
-        self._emit("translating", f"Translating {name}", file=name, percent=65)
-        self._check_cancelled()
         result = super()._process_media(
             source_path,
             extract_root,
@@ -112,7 +159,7 @@ class ControllableMediaPipeline(MediaPipeline):
         )
         self._check_cancelled()
         self._completed_media += 1
-        self._emit("uploading", f"Finalizing {name}", file=name, percent=90)
+        self._emit("finalizing", f"Finalizing {source_path.name}", file=source_path.name, percent=90)
         return result
 
     def _record_failure(self, zip_file, source_path, relative_source, exc, failed):
@@ -124,7 +171,6 @@ class ControllableMediaPipeline(MediaPipeline):
         self._check_cancelled()
         self._emit("downloading", f"Downloading {zip_file.name}", file=zip_file.name, percent=2)
         self._check_cancelled()
-        self._emit("extracting", f"Extracting {zip_file.name}", file=zip_file.name, percent=5)
         result = super()._process_zip(zip_file, target, force_reprocess=force_reprocess)
         self._check_cancelled()
         self._emit(
