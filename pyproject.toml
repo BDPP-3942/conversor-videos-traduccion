@@ -29,7 +29,7 @@ dev = [
     "ruff>=0.9,<0.17",
     "pyinstaller>=6,<7",
 ]
-audit = ["pip-audit>=2,<3"]
+audit = ["pip-audit>=2,<3]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -52,6 +52,7 @@ known-first-party = ["config", "src"]
 "tests/test_e2e_release.py" = ["S603"]
 "tests/test_run_local_scripts.py" = ["S603"]
 "tests/test_uv_resolution_contract.py" = ["S101"]
+"scripts/build_desktop.py" = ["S603"]
 "src/naming_policy.py" = ["E501"]
 "src/whisper_prompt.py" = ["E501"]
 "config/loader.py" = ["E501"]
