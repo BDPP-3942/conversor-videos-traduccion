@@ -1,27 +1,28 @@
-# Release Candidate — 1.8.1
+# Release Candidate — 1.8.2
 
 ## Release
 
-- **Version:** 1.8.1
+- **Version:** 1.8.2
 - **Previous published release:** `v1.8.0` — published on 13 September 2026.
-- **Target tag:** `v1.8.1` — pending final CI, Release Gate and merge validation.
+- **Target tag:** `v1.8.2` — pending final CI, Release Gate and merge validation.
 - **Candidate SHA:** must be the exact final `main` SHA after this PR is merged and validated.
 
-`v1.8.0` is already a published GitHub Release. It is historical state, not a candidate, and its tag must not be recreated or moved.
+`v1.8.0` is a published GitHub Release and remains immutable. `1.8.1` is not published; this candidate supersedes the unfinished 1.8.1 preparation because the MADLAD correction is required for a releasable state.
 
 ## Release classification
 
-`1.8.1` is a PATCH release. The scope is backward-compatible setup, resource preparation and documentation maintenance.
+`1.8.2` is a PATCH release. It corrects the pinned MADLAD Hugging Face resource, local-model validation/tests, setup/release documentation and CI formatting/consistency without changing the processing architecture or public data contracts.
 
 ## Scope
 
-- Bootstrap a project-managed `tools/uv/uv` or `tools\uv\uv.exe` when no system uv is available.
-- Prefer an existing project-managed uv copy, then a system uv from `PATH`, before bootstrapping a new local copy.
-- Use the official uv unmanaged installer without modifying user shell profiles.
-- Route Python installation, virtual-environment creation, dependency synchronization and setup commands through the resolved uv executable.
-- Add `--local-translation` to both setup scripts so the pinned local translation model can be prepared in the same setup process when explicitly requested.
-- Preserve `uv run python scripts/manage_local_translation.py download` for deferred model installation.
-- Keep the default local model, revisions, integrity checks and storage contract unchanged.
+- Pin MADLAD-400 3B CT2 INT8 to the verified revision `fd0b55729c074372eb84b52b9309a00dc65c40c4`.
+- Use the repository's actual tokenizer artifact `spiece.model` instead of the nonexistent `sentencepiece.model`.
+- Preserve the independent OPUS-MT definition and revision.
+- Keep SHA-256 and expected-size validation for the managed local model.
+- Make Hugging Face download diagnostics distinguish a missing file/revision (`404`) from authentication/authorization failures (`401`/`403`).
+- Correct MADLAD unit-test fixtures so their expected byte sizes match the fixture payloads.
+- Align project/application/release metadata on `1.8.2` and prepare the release documentation.
+- Keep `uv run python scripts/manage_local_translation.py download` as the explicit deferred model-installation command.
 
 ## Validation
 
@@ -41,14 +42,14 @@ Required before publication:
 
 The candidate version must agree in:
 
-- `pyproject.toml` → `1.8.1`.
-- `config/app.toml` → `1.8.1`.
-- `docs/RELEASES.md` → published `1.8.0` plus candidate `1.8.1`.
-- `docs/VERSIONING.md` → published `1.8.0` plus candidate `1.8.1`.
-- `RELEASE_SCOPE.md` → `1.8.1`.
-- This file → `1.8.1`.
-- `uv.lock` → project package metadata synchronized to `1.8.1`.
+- `pyproject.toml` → `1.8.2`.
+- `config/app.toml` → `1.8.2`.
+- `docs/RELEASES.md` → published `1.8.0` plus candidate `1.8.2`.
+- `docs/VERSIONING.md` → published `1.8.0` plus candidate `1.8.2`.
+- `RELEASE_SCOPE.md` → `1.8.2`.
+- This file → `1.8.2`.
+- `uv.lock` → project package metadata synchronized to `1.8.2`.
 
 ## Decision
 
-**Do not merge or create `v1.8.1` until the final candidate SHA is green in CI and Release Gate.** After merge, validate `main` again and create the immutable `v1.8.1` tag/release on that exact SHA.
+**Do not merge or create `v1.8.2` until the final candidate SHA is green in CI and Release Gate.** After merge, validate `main` again and create the immutable `v1.8.2` tag/release on that exact SHA.
