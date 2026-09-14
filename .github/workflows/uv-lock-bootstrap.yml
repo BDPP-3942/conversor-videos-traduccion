@@ -63,3 +63,5 @@ jobs:
             Merge this PR into the parent PR branch before merging the parent PR into `main`.
           delete-branch: false
           draft: false
+
+# Validate dependent lockfile PR creation after the automation branch exclusion was added.
