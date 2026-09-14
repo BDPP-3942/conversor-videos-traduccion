@@ -1,86 +1,62 @@
-# Release Scope — 1.8.2
+# Release Scope — 1.8.3
 
-## Previous release
+## Previous release state
 
-`v1.8.0` is the previous published release and immutable baseline. Published tags are immutable and MUST NOT be moved, deleted, or reused.
-
-`1.8.1` was an unfinished candidate and is not a published release; its release-preparation documents are superseded by this corrective `1.8.2` candidate.
+`v1.8.0` is the last published release and remains immutable. The `1.8.2` candidate state is superseded by this `1.8.3` corrective candidate.
 
 ## Release classification
 
-`1.8.2` is a **PATCH** release because the scope corrects the local-model resource pin, validation/tests, CI formatting/consistency and release documentation without changing the processing architecture or public data contracts.
+`1.8.3` is a **PATCH** release. The scope fixes a regression in the project-managed uv execution contract without changing the audiovisual processing architecture or public data contracts.
 
-## Changes since v1.8.0
+## Project-managed uv correction
 
-### MADLAD Hugging Face resource correction
+The setup wrappers already support a managed executable under `tools/uv/` when no global uv is installed. The regression was that several consumer scripts still required `uv`/`uv.exe` to be discoverable through `PATH`.
 
-- MADLAD-400 3B CT2 INT8 is pinned to `cstr/madlad400-3b-ct2-int8@fd0b55729c074372eb84b52b9309a00dc65c40c4`.
-- The tokenizer artifact is `spiece.model`; the old `sentencepiece.model` lookup is invalid for the pinned repository state.
-- The verified `spiece.model` SHA-256 is `ef11ac9a22c7503492f56d48dce53be20e339b63605983e9f27d2cd0e0f3922c` and its expected size is `4,427,844` bytes.
-- OPUS-MT remains an independent lightweight model with its existing repository and revision.
-- Download diagnostics distinguish a missing artifact/revision (404) from authentication/authorization failures (401/403).
+The correction introduces:
 
-### Tests and CI
+- `scripts/lib/resolve_uv.sh` for POSIX.
+- `scripts/lib/resolve_uv.bat` for Windows.
 
-- MADLAD unit-test fixtures now use byte counts matching their fixture payloads.
-- The local-translation regression suite covers the pinned revision, tokenizer filename, integrity validation, target-language prefix and 404 diagnostics.
-- `uv` quality checks must run the tests before lint/format/build gates and must not hide failures with `continue-on-error`.
+Both resolvers apply the same policy:
 
-### Release metadata and documentation
+1. project-managed uv;
+2. uv from `PATH`;
+3. setup-only bootstrap when neither is available.
 
-- `pyproject.toml` and `config/app.toml` identify version `1.8.2`.
-- Release candidate, scope, changelog, versioning and release-history documentation identify `1.8.2` as the next release.
-- No historical release tag is modified or reused.
+Affected consumers:
 
-## Dependency scope
+- `run_local.*`;
+- `run_unattended.*`;
+- `setup_rclone.*`;
+- `setup_google.*`;
+- `build_linux.sh`;
+- `build_windows.bat`.
 
-Runtime dependency declarations remain in `pyproject.toml`; the resolved graph is represented by `uv.lock`.
+Unattended execution continues to prefer packaged executables and retains the direct Python fallback.
 
-Runtime dependencies remain:
+## Tests and CI
 
-- `faster-whisper>=1.2.1,<1.3`
-- `ctranslate2>=4.8.2,<4.9`
-- `sentencepiece>=0.2,<0.3`
-- `huggingface-hub>=0.32,<1.31`
-- `webvtt-py>=0.4,<1`
-- `imageio-ffmpeg>=0.6,<1`
-- `python-dotenv>=1,<2`
+`tests/test_uv_resolution_contract.py` covers:
 
-Optional features remain declared as PEP 621 extras and uv dependency groups.
+- project-managed uv precedence over PATH;
+- POSIX wrapper integration with the shared resolver;
+- Windows wrapper integration with the shared resolver;
+- build/setup command invocation through the resolved executable;
+- unattended packaged-executable priority and fallback behavior;
+- prevention of regressions that make a global uv lookup mandatory.
 
-## Version scope
+The existing CI matrix remains Linux/Windows/macOS with Python 3.11, 3.12 and 3.13.
 
-- `pyproject.toml` declares `1.8.2`.
-- `config/app.toml` identifies the application as `1.8.2`.
-- `CHANGELOG.md` receives the `1.8.2` candidate entry; the published `1.8.0` history remains unchanged.
-- `docs/RELEASES.md`, `docs/VERSIONING.md`, `RELEASE_CANDIDATE.md` and this file identify `1.8.2` as the next release candidate.
-- The `v1.8.2` tag must point to the exact validated `main` SHA after this PR is merged.
+## Documentation
 
-## Validation state
+Release behavior is documented in `CHANGELOG.md`, `RELEASE_CANDIDATE.md`, `docs/UV_MIGRATION.md`, `docs/VERSIONING.md`, `docs/RELEASES.md`, `docs/PROJECT.md` and `docs/CI_CD.md`.
 
-The exact final candidate SHA must pass CI and Release Gate before merge approval and before publication of `v1.8.2`.
+## Version consistency
 
-The real MADLAD model benchmark remains a hardware-dependent validation step and is not replaced by deterministic CI fixtures.
+- `pyproject.toml` → `1.8.3`.
+- `config/app.toml` → `1.8.3`.
+- release-control documents → `1.8.3`.
 
-## Tests and hardening
+## Release gate
 
-- Full pytest suite on Linux, Windows and macOS with Python 3.11, 3.12 and 3.13.
-- Ruff lint, Ruff security, format and `compileall`.
-- `uv lock --check`, locked environment synchronization and `uv pip check`.
-- Packaging, clean-wheel installation and console entry points.
-- Base/Google and TTS dependency audits through the locked audit group.
-- Regression coverage for setup-script syntax and documented setup behavior where applicable.
-- Existing Unicode/filesystem, ZIP security, reprocessing, manifest, Whisper recovery and local translation regressions.
-
-## Release sequence
-
-`v1.8.0` is already published and must remain unchanged. `1.8.1` is not published. The next product release is `v1.8.2`.
-
-## Excluded
-
-- No replacement media pipeline.
-- No alternative storage implementation.
-- No change to the public processing/storage contracts.
-- No automatic global CUDA Toolkit or NVIDIA driver installation/removal.
-- No automatic local translation download unless `--local-translation` is explicitly supplied.
-- No release tag creation from a PR branch.
+Before publication, validate the exact final merge SHA with the complete test matrix, lint/security/format, compileall, lockfile checks, packaging, audits and explicit wrapper execution with project-managed uv present and global uv absent from PATH.
