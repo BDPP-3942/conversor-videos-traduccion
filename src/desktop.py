@@ -162,14 +162,6 @@ class DesktopApp:
         self._entry_row(advanced, 2, "Whisper compute type", self.whisper_compute)
         self._spin_row(advanced, 3, "Whisper beam size", self.whisper_beam, 1, 32)
         self._entry_row(advanced, 4, "Kokoro TTS voice", self.tts_voice)
-        ttk.Spinbox(
-            advanced,
-            from_=50,
-            to=135,
-            increment=5,
-            textvariable=self.tts_speed,
-            width=12,
-        ).grid(row=5, column=1, sticky="w", pady=4)
         ttk.Label(advanced, text="TTS speed (0.50–1.35x)").grid(
             row=5,
             column=0,
@@ -177,6 +169,14 @@ class DesktopApp:
             padx=(0, 8),
             pady=4,
         )
+        ttk.Spinbox(
+            advanced,
+            from_=0.5,
+            to=1.35,
+            increment=0.05,
+            textvariable=self.tts_speed,
+            width=12,
+        ).grid(row=5, column=1, sticky="w", pady=4)
         advanced.columnconfigure(1, weight=1)
 
         buttons = ttk.Frame(parent)
