@@ -1,4 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
+import sys
+
 from PyInstaller.utils.hooks import collect_submodules
 
 hiddenimports = collect_submodules("src") + collect_submodules("config")
@@ -37,3 +39,11 @@ coll = COLLECT(
     upx=True,
     name="VideoTranslationPipeline",
 )
+
+if sys.platform == "darwin":
+    app = BUNDLE(
+        coll,
+        name="VideoTranslationPipeline.app",
+        icon=None,
+        bundle_identifier="com.bdpp3942.videotranslationpipeline",
+    )
