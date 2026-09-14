@@ -32,6 +32,16 @@ The shared resolver is consumed by:
 
 `run_unattended.*` continues to prefer packaged executables before source-checkout execution and retains the direct `.venv` Python fallback when uv cannot be resolved.
 
+## Rclone dependency boundary
+
+Rclone remains an **external executable, not a Python dependency**. Its managed binary lives under `tools/rclone/` and its authenticated configuration lives under `secrets/rclone/rclone.conf`. The supported bootstrap command is:
+
+```bash
+uv run python main.py provider bootstrap
+```
+
+The empty `rclone = []` optional dependency in `pyproject.toml` is intentional and prevents a Python package from being mistaken for the external rclone executable.
+
 ## Regression contract
 
 `tests/test_uv_resolution_contract.py` verifies:
