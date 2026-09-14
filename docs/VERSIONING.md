@@ -44,6 +44,14 @@ Los wrappers comparten este contrato mediante `scripts/lib/resolve_uv.sh` y `scr
 
 La regresión queda cubierta por `tests/test_uv_resolution_contract.py`.
 
+## Límite de versión para la aplicación de escritorio
+
+La aplicación de escritorio implementada en la rama de trabajo es una **funcionalidad nueva compatible hacia atrás** y, conforme a Semantic Versioning, no debe publicarse dentro de la candidata PATCH `1.8.3`.
+
+Si la implementación de escritorio se incorpora a `main`, el siguiente release que la publique debe ser como mínimo `1.9.0` (salvo que se apruebe otro MINOR superior). En ese momento deben actualizarse de forma atómica `pyproject.toml`, `config/app.toml`, `uv.lock`, `CHANGELOG.md`, `docs/RELEASES.md`, `RELEASE_CANDIDATE.md`, `RELEASE_SCOPE.md` y la documentación relacionada.
+
+Los binarios de escritorio tampoco convierten la release en una release móvil: el alcance móvil permanece fuera del producto hasta una decisión futura explícita.
+
 ## Integridad histórica
 
 Las releases `1.8.0`, `1.8.1` y `1.8.2` son publicaciones oficiales. No deben describirse como candidatas, superseded candidates ni preparaciones inacabadas. Sus tags son inmutables.
