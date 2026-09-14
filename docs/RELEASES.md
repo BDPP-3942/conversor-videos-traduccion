@@ -33,9 +33,18 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 | Corrección de descarga del modelo local y validación del flujo proveedor-modelo | `1.7.2` |
 | Bootstrap de metadatos JSON del modelo local | `1.7.3` |
 | Validación de `shared_vocabulary.json` y migración reproducible de desarrollo/CI/build a `uv` | `1.7.4` |
-| Recuperación STT refinada y soporte de dos modelos locales fijados, incluyendo MADLAD-400 3B y OPUS-MT | `1.8.0` (candidata) |
+| Recuperación STT refinada y soporte de dos modelos locales fijados, incluyendo MADLAD-400 3B y OPUS-MT | `1.8.0` |
+| Bootstrap local de uv y preparación opcional del modelo de traducción durante el setup | `1.8.1` (candidata) |
 
 ## Releases publicadas
+
+### 1.8.0 — Whisper Recovery & Local Translation
+
+**Tipo:** `MINOR`.
+
+**Tag publicado:** `v1.8.0`.
+
+Consolida la recuperación selectiva de Whisper, separa el silencio VAD del split de subtítulos, incorpora MADLAD-400 3B CT2 INT8 como modelo local predeterminado manteniendo OPUS-MT como alternativa ligera, y refuerza la validación de ambos modelos.
 
 ### 1.7.4 — uv and Local Translation Validation
 
@@ -156,36 +165,34 @@ Consolida el reprocesado y la persistencia de manifests, refuerza el almacenamie
 
 **Commit de referencia:** `f0f02540426f24912ff8e6a45f92a008ef83861e`.
 
-## Candidata 1.8.0
+## Candidata 1.8.1
 
 ### Posición en la línea de releases
 
-**Tipo:** `MINOR`.
+**Tipo:** `PATCH`.
 
-**Previous published release:** `1.7.4`.
+**Previous published release:** `1.8.0`.
 
-**Target tag:** `v1.8.0`, pendiente de validación final, merge de PR #45 y publicación sobre el SHA exacto resultante de `main`.
+**Target tag:** `v1.8.1`, pendiente de validación final, merge de la PR y publicación sobre el SHA exacto resultante de `main`.
 
 ### Alcance
 
-- Separación de la duración de silencio VAD de la división de subtítulos (`2000 ms` frente a `1000 ms`).
-- Recuperación de segmentos STT sospechosos sin prompt inicial ni contexto de texto previo.
-- Conservación de `clip_timestamps` numérico durante la recuperación selectiva.
-- Conservación de **dos modelos locales**: MADLAD-400 3B CT2 INT8 como opción predeterminada y OPUS-MT CT2 INT8 como alternativa ligera compatible.
-- Validación de integridad, revisiones fijadas, tokenización específica de cada modelo y configuración explícita del modelo seleccionado.
-- Voz TTS predeterminada `am_michael` y generación WebM desactivada por defecto, con activación explícita mediante las opciones de CLI correspondientes.
-- Regresiones de tests para MADLAD, selección explícita de OPUS-MT y aislamiento de configuración frente a overrides del entorno.
-- Base reproducible de desarrollo/CI/build/auditoría con `uv` ya integrada mediante PR #42 en el baseline `1.7.4`.
+- Bootstrap automático de una copia de uv bajo `tools/uv/` cuando no existe uv en `PATH`.
+- Preferencia por una copia local ya instalada y reutilización del uv del sistema cuando está disponible.
+- Bootstrap equivalente en macOS/Linux y Windows sin modificar perfiles de shell.
+- Opción explícita `--local-translation` para preparar el modelo local durante el setup.
+- Conservación de la vía independiente `uv run python scripts/manage_local_translation.py download` para diferir la descarga.
+- Actualización de la documentación de instalación, versionado y release.
 
 ### Validación
 
 La candidata final debe completar CI y Release Gate sobre su SHA exacto, incluyendo Linux, Windows y macOS con Python 3.11–3.13, tests, lint/format, audits, packaging, instalación limpia, `pip check`, entry points y validación del lockfile.
 
-La descarga del modelo MADLAD (~2.95 GB) no forma parte del CI normal; su benchmark real debe ejecutarse explícitamente en el hardware objetivo. OPUS-MT conserva una vía de preparación independiente para entornos con poco espacio.
+La descarga del modelo MADLAD (~2.95 GB) no forma parte del CI normal y solo se ejecuta durante el setup cuando el usuario proporciona `--local-translation`.
 
 ### Política de tags
 
-`v1.8.0` solo debe crearse sobre el SHA exacto validado por Release Gate y resultante del merge a `main`. No se debe crear ni mover el tag desde la rama de la PR.
+`v1.8.1` solo debe crearse sobre el SHA exacto validado por Release Gate y resultante del merge a `main`. No se debe crear ni mover el tag desde la rama de la PR.
 
 ## Historial anterior
 
