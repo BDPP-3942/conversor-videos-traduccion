@@ -149,17 +149,17 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 
 Primera release estable de esta línea de producto.
 
-## Release candidate actual: 1.9.0
+## Release candidate actual: 1.10.0
 
-**Tipo:** `MINOR` · **Tag objetivo:** `v1.9.0` · **Estado:** no publicada.
+**Tipo:** `MINOR` · **Tag objetivo:** `v1.10.0` · **Estado:** no publicada.
 
 ### Resumen funcional
 
-`1.9.0` incorpora una aplicación GUI de escritorio y la infraestructura de distribución nativa, sin sustituir el pipeline existente ni eliminar la CLI o la ejecución programada.
+`1.10.0` incorpora una aplicación GUI de escritorio y la infraestructura de distribución nativa, sin sustituir el pipeline existente ni eliminar la CLI o la ejecución programada. También consolida la reparación conservadora de nombres Unicode en ZIP y la separación entre carpetas de trabajo y estado privado.
 
 ### Cambios de producto
 
-- Nuevo entry point `video-translation-desktop`.
+- Nuevo punto de entrada `video-translation-desktop`.
 - Fachada `VideoTranslationApplication` para separar interfaz y lógica de aplicación.
 - Adaptador `ControllableMediaPipeline` sobre `MediaPipeline`, con eventos de etapa, progreso y cancelación cooperativa.
 - GUI para procesamiento, recuperación de subtítulos, duplicados, diagnóstico y consulta de CLI/programación.
@@ -180,11 +180,10 @@ Primera release estable de esta línea de producto.
 ### Cambios de distribución
 
 - Windows: ejecutable PyInstaller y MSI mediante WiX 6.
-- En Windows x64, el instalador x64 utiliza el `Program Files` nativo y no `Program Files (x86)`.
-- El proyecto no declara que un ejecutable x64 pueda funcionar en Windows x86. Si se publica una variante x86, debe construirse y validarse realmente con un entorno Python x86 y dependencias compatibles.
-- El instalador crea un acceso directo en el menú Inicio.
+- Windows x64: el instalador se dirige al `Program Files` nativo; una build x86 requiere un ejecutable y dependencias realmente x86.
 - macOS: `.app` + ZIP de distribución.
 - Linux: ejecutable PyInstaller + AppDir + AppRun + `.desktop` + SVG + AppImage x86_64.
+- Las builds de escritorio reciben explícitamente `1.10.0` en el workflow de packaging y validan los nombres de artefacto de esa versión.
 
 ### Cambios de CI/CD y release
 
@@ -195,13 +194,15 @@ Primera release estable de esta línea de producto.
 - Adjuntar automático de `.AppImage`, MSI y ZIP de macOS a la GitHub Release.
 - Los ZIP/TAR del código fuente continúan siendo generados automáticamente por GitHub para el tag.
 - El proceso normal de publicación no requiere build local ni subida manual de binarios.
+- `pyproject.toml`, `config/app.toml`, `uv.lock` y los documentos de release deben permanecer sincronizados con `1.10.0`.
 
 ### Documentación y CLI
 
-- La referencia de CLI se amplía con casos de uso para procesamiento normal, `dry-run`, programación, regeneración, recuperación de subtítulos, duplicados, proveedores, diagnóstico, wrappers y traducción local.
-- Los documentos modificados incluyen enlaces Markdown relativos a los documentos relacionados en lugar de mencionar archivos sin navegación.
-- La documentación de escritorio registra explícitamente la separación entre instalación, datos multimedia y estado privado.
-- La release candidate se documenta como `1.9.0`; la publicación de `v1.9.0` queda condicionada a CI, Release Gate y merge a `main`.
+- La documentación operativa nueva o modificada se redacta en español y conserva los comentarios técnicos en español en lugar de eliminarlos.
+- Los comandos de ejemplo explican su finalidad, efectos y restricciones.
+- Las referencias a otros documentos del repositorio son enlaces Markdown relativos.
+- La referencia CLI cubre procesamiento, `dry-run`, programación, regeneración, recuperación, duplicados, proveedores, diagnóstico, wrappers y traducción local.
+- Las descripciones `description=` y `help=` de los parsers CLI deben estar en español y [`docs/CLI.md`](CLI.md) debe reflejar la ayuda real.
 
 ### Compatibilidad
 
@@ -210,7 +211,7 @@ Primera release estable de esta línea de producto.
 - No se introduce soporte móvil.
 - No se embeben credenciales ni modelos privados en los binarios.
 
-### Validación obligatoria antes de publicar `v1.9.0`
+### Validación obligatoria antes de publicar `v1.10.0`
 
 Deben pasar sobre el SHA final de la rama:
 
@@ -225,26 +226,8 @@ uv run pytest -q --ignore=tests/test_packaging.py
 uv build
 ```
 
-Además, CI debe construir y validar los artefactos nativos de escritorio. No se debe publicar `v1.9.0` mientras exista un fallo de calidad, empaquetado o Release Gate.
-
-## Funcionalidades con evidencia de introducción
-
-| Funcionalidad | Primera versión verificada |
-| --- | ---: |
-| Pipeline audiovisual, STT, VTT, traducción, almacenamiento, resume/idempotencia, deduplicación, TTS, ejecución programada y packaging | `1.0.0` |
-| Recuperación/reparación VTT e integración TTS | `1.1.0` |
-| Naming descriptivo y bootstrap de Kokoro | `1.2.0` |
-| Concurrencia adaptada a CPU/RAM/GPU | `1.3.0` |
-| Regeneración limpia desde fuente | `1.4.0` |
-| Endurecimiento ZIP/filesystem | `1.5.1` |
-| Traducción local y runtime GPU | `1.6.0` |
-| Reprocessing, manifests y naming Unicode | `1.7.0` |
-| MADLAD-400 3B y recuperación Whisper refinada | `1.8.0` |
-| Bootstrap gestionado de uv | `1.8.1` |
-| Corrección de MADLAD y tokenizer | `1.8.2` |
-| Resolución compartida de uv | `1.8.3` candidata histórica |
-| Aplicación GUI, empaquetado nativo, reparación ZIP Unicode y arquitectura de almacenamiento de escritorio | `1.9.0` candidata |
+Además, CI debe construir y validar los artefactos nativos de escritorio. Las pruebas funcionales y de rendimiento deben ejecutarse antes de publicar `v1.10.0`. No se debe publicar mientras exista un fallo de calidad, empaquetado o Release Gate.
 
 ## Integridad histórica
 
-Las versiones publicadas no se reescriben. La documentación de `1.9.0` describe exclusivamente el nuevo alcance de escritorio, la reparación Unicode, el almacenamiento de trabajo y la automatización de release. El soporte móvil permanece fuera del producto.
+Las versiones publicadas no se reescriben. La documentación de `1.10.0` describe exclusivamente el nuevo alcance de escritorio, la reparación Unicode, el almacenamiento de trabajo, la documentación en español y la automatización de release. El soporte móvil permanece fuera del producto.
