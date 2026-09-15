@@ -28,11 +28,11 @@ La línea de releases de producto es `1.x` y utiliza Semantic Versioning.
 
 Los tags publicados son historia inmutable.
 
-## Release candidate: 1.9.0
+## Release candidate: 1.10.0
 
-`1.9.0` es una **MINOR** porque introduce una capacidad nueva y compatible: una aplicación GUI de escritorio y su distribución nativa.
+`1.10.0` es una **MINOR** porque introduce una capacidad nueva y compatible: una aplicación GUI de escritorio y su distribución nativa, además de las mejoras de almacenamiento y reparación Unicode incorporadas en esta línea de trabajo.
 
-### Cambios registrados en 1.9.0
+### Cambios registrados en 1.10.0
 
 1. **Aplicación de escritorio:** nuevo entry point `video-translation-desktop` y GUI Tk/ttk multiplataforma.
 2. **Arquitectura:** `VideoTranslationApplication` centraliza la fachada de aplicación y `ControllableMediaPipeline` adapta el pipeline existente para eventos de etapa y cancelación cooperativa.
@@ -41,13 +41,17 @@ Los tags publicados son historia inmutable.
 5. **Deduplicación:** scan, análisis, dry-run y eliminación confirmada.
 6. **Diagnóstico:** comprobaciones del entorno y preparación de Whisper.
 7. **UX:** ejecución en segundo plano, barra de progreso, log, estado, errores y cancelación segura en límites de etapa.
-8. **Windows:** PyInstaller `.exe` y MSI WiX 6.0.2.
+8. **Windows:** PyInstaller `.exe` y MSI WiX 6.
 9. **macOS:** bundle `.app`, archivado automático como `.zip`.
-10. **Linux:** PyInstaller executable + AppDir + `AppRun` + `.desktop` + SVG + AppImage x86_64.
-11. **CI/CD:** validación nativa en Linux/Windows/macOS y workflow de release activado por tags.
-12. **Release assets:** los binarios se generan automáticamente y se adjuntan a GitHub Release; los ZIP fuente siguen siendo los archivos automáticos del tag.
-13. **CLI:** los entry points existentes y la ejecución programada/headless permanecen soportados.
-14. **Alcance:** móvil permanece fuera de esta release.
+10. **Linux:** ejecutable PyInstaller + AppDir + `AppRun` + `.desktop` + SVG + AppImage x86_64.
+11. **ZIP/Unicode:** reparación conservadora de nombres UTF-8 interpretados como CP437 cuando falta el indicador UTF-8, preservando nombres CP437 legítimos.
+12. **Almacenamiento:** separación entre carpetas de trabajo del usuario y estado privado de la aplicación, con `Documentos/Video Translation Pipeline/input` y `output` como valores predeterminados.
+13. **CI/CD:** validación nativa en Linux/Windows/macOS y workflow de release activado por tags.
+14. **Release assets:** los binarios se generan automáticamente y se adjuntan a GitHub Release; los ZIP fuente siguen siendo los archivos automáticos del tag.
+15. **CLI:** los entry points existentes y la ejecución programada/headless permanecen soportados.
+16. **Ayuda CLI:** las descripciones `description=` y `help=` de los parsers se mantienen en español y `docs/CLI.md` documenta los casos de uso públicos.
+17. **Documentación:** las referencias a otros documentos del repositorio se realizan mediante enlaces Markdown relativos y se conservan los comentarios técnicos en español.
+18. **Alcance:** móvil permanece fuera de esta release.
 
 ## Política de dependencias
 
@@ -73,7 +77,16 @@ pyproject.toml / config/app.toml
  GitHub Release + desktop artifacts
 ```
 
-La release automática de escritorio se ejecuta desde `.github/workflows/release.yml` cuando se crea un tag `vX.Y.Z`. El workflow construye los artefactos en runners nativos y los adjunta al GitHub Release. No se deben subir manualmente binarios generados desde un equipo de desarrollo.
+La release automática de escritorio se ejecuta desde [`.github/workflows/release.yml`](../.github/workflows/release.yml) cuando se crea un tag `vX.Y.Z`. El workflow construye los artefactos en runners nativos y los adjunta al GitHub Release. No se deben subir manualmente binarios generados desde un equipo de desarrollo.
+
+## Reglas documentales y de CLI
+
+- La documentación operativa nueva o modificada se redacta en español.
+- Los comentarios y docstrings introducidos o modificados en código para una release se redactan en español cuando son texto humano; nombres técnicos y directivas del lenguaje se conservan literalmente.
+- Todas las descripciones `description=` y `help=` de `argparse` deben estar en español.
+- `docs/CLI.md` debe incluir los casos de uso públicos y reflejar la salida real de `--help`.
+- Las referencias a otros documentos deben ser enlaces Markdown relativos.
+- Estas reglas se aplican directamente a los ficheros canónicos y no dependen de un índice auxiliar que deba mantenerse aparte.
 
 ## Semantic Versioning
 
