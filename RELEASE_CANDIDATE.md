@@ -1,61 +1,74 @@
-# Release Candidate — 1.9.0
+# Release Candidate — 1.10.0
 
 ## Release
 
-- **Version:** `1.9.0`
-- **Classification:** MINOR
-- **Previous published baseline:** `v1.8.2`
-- **Target tag:** `v1.9.0`
-- **Status:** unreleased; pending final CI, Release Gate and merge to `main`.
+- **Versión:** `1.10.0`
+- **Clasificación:** MINOR
+- **Baseline publicada anterior:** `v1.8.2`
+- **Tag objetivo:** `v1.10.0`
+- **Estado:** no publicada; pendiente de CI final, Release Gate y merge a `main`.
 
-## Scope
+## Alcance
 
-`1.9.0` introduces the desktop GUI and native distribution layer described in `docs/DESKTOP.md` and `RELEASE_SCOPE.md`.
+`1.10.0` introduce la aplicación de escritorio y la capa de distribución nativa descritas en [`docs/DESKTOP.md`](docs/DESKTOP.md) y [`RELEASE_SCOPE.md`](RELEASE_SCOPE.md).
 
-### Product changes
+### Cambios de producto
 
-- New `video-translation-desktop` entry point.
-- GUI tabs for processing, subtitle recovery, duplicate management, diagnostics and CLI/scheduling guidance.
-- Reuse of the existing `MediaPipeline` through `VideoTranslationApplication` and `ControllableMediaPipeline`.
-- Stage-based progress events and cooperative safe-boundary cancellation.
-- Configuration of storage providers, languages, translation providers/fallbacks, concurrency, Whisper, WebM, TTS, resume and naming behavior from the GUI.
-- Recovery modes `full`, `stt_only` and `translate_only`.
-- Duplicate scan/analyze/delete workflows with dry-run and confirmation.
+- Nuevo punto de entrada `video-translation-desktop`.
+- Pestañas GUI para procesamiento, recuperación de subtítulos, gestión de duplicados, diagnóstico y orientación sobre CLI/programación.
+- Reutilización del `MediaPipeline` existente mediante `VideoTranslationApplication` y `ControllableMediaPipeline`.
+- Eventos de progreso por etapa y cancelación cooperativa en límites seguros.
+- Configuración desde la GUI de proveedores de almacenamiento, idiomas, proveedores/fallbacks de traducción, concurrencia, Whisper, WebM, TTS, reanudación y comportamiento de nombres.
+- Modos de recuperación `full`, `stt_only` y `translate_only`.
+- Flujos de análisis/eliminación de duplicados con simulación y confirmación.
+- Reparación conservadora de nombres Unicode mal decodificados al extraer ZIP.
+- Selección de archivo de contexto para el prompt inicial de Whisper.
 
-### Packaging changes
+### Cambios de empaquetado
 
-- PyInstaller desktop bundle.
-- Windows `.exe` and WiX 6 `.msi`.
-- macOS `.app`.
-- Linux x86_64 AppImage built from a PyInstaller executable plus AppDir metadata.
-- Native packaging validation on Linux, Windows and macOS.
+- Bundle de escritorio mediante PyInstaller.
+- Ejecutable Windows `.exe` y MSI mediante WiX 6.
+- Aplicación macOS `.app`.
+- AppImage Linux x86_64 generado desde el ejecutable PyInstaller más AppDir.
+- Validación nativa del empaquetado en Linux, Windows y macOS.
+- El build de escritorio recibe explícitamente la versión de release y no mantiene una versión 1.9.0 fija.
 
-### Release engineering
+### Ingeniería de release
 
-- Tag-driven GitHub Release workflow automatically builds native artifacts on native runners and attaches them to the GitHub Release.
-- Source-code archives remain GitHub's automatic tag archives.
-- No manual build/upload step is required for normal releases.
-- `uv.lock` is required to match the `1.9.0` project metadata.
+- El workflow de GitHub Release activado por tags construye los artefactos nativos en runners nativos y los adjunta a la release.
+- Los archivos fuente continúan siendo los archivos generados automáticamente por GitHub a partir del tag.
+- El proceso normal de release no requiere build ni subida manual.
+- `pyproject.toml`, `config/app.toml`, `uv.lock` y los metadatos documentales deben quedar sincronizados en `1.10.0`.
 
-## Compatibility
+## Compatibilidad
 
-- Existing CLI entry points remain supported.
-- Scheduled/headless execution remains supported.
-- Existing regeneration, subtitle-QA and TTS commands remain supported.
-- No mobile application is included.
-- Desktop is an additive presentation/distribution layer and does not replace the existing processing pipeline.
+- Los puntos de entrada CLI existentes siguen soportados.
+- Se mantiene la ejecución programada/desatendida.
+- Siguen disponibles regeneración, subtitle-QA y TTS.
+- No se incluye aplicación móvil.
+- La capa de escritorio es aditiva y no sustituye el pipeline existente.
 
-## Validation required before publication
+## Documentación y CLI
 
-- Linux, Windows and macOS.
-- Python 3.11, 3.12 and 3.13.
-- Full pytest suite.
-- Ruff lint, import sorting and formatting.
-- `uv lock --check` and `uv sync --locked`.
-- `uv pip check` and packaging validation.
-- Native desktop builds and artifact smoke validation on all target operating systems.
-- Release Gate on the exact final `main` SHA.
+- La documentación operativa nueva o modificada debe redactarse en español.
+- Las explicaciones y comentarios de código introducidos o modificados para esta release deben estar en español; nombres técnicos, flags, claves de configuración y APIs conservan su forma literal.
+- Todas las descripciones `description=` y `help=` de los parsers CLI deben estar en español.
+- `docs/CLI.md` debe describir todos los casos de uso públicos y permanecer sincronizado con `--help`.
+- Las referencias a otros documentos del repositorio deben ser enlaces Markdown relativos y navegables.
+- Las reglas anteriores forman parte de los propios documentos canónicos; no se mantiene un índice auxiliar como especificación de cambios.
 
-## Publication rule
+## Validación requerida antes de publicar
 
-Create `v1.9.0` only from the exact final SHA that has passed the complete release validation on `main`. Once the tag is pushed, `.github/workflows/release.yml` builds and attaches the desktop artifacts automatically.
+- Linux, Windows y macOS.
+- Python 3.11, 3.12 y 3.13.
+- Suite completa de pytest.
+- Ruff lint, ordenación de imports y formato.
+- `uv lock --check` y `uv sync --locked`.
+- `uv pip check` y validación de empaquetado.
+- Builds nativos de escritorio y smoke tests de artefactos en los sistemas objetivo.
+- Pruebas funcionales y de rendimiento del pipeline y de la aplicación de escritorio.
+- Release Gate sobre el SHA final exacto.
+
+## Regla de publicación
+
+Crear `v1.10.0` únicamente desde el SHA final exacto que haya superado toda la validación en `main`. Una vez creado el tag, [`.github/workflows/release.yml`](.github/workflows/release.yml) construirá y adjuntará automáticamente los artefactos de escritorio.
