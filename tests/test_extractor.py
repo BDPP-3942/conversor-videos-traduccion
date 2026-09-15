@@ -24,6 +24,17 @@ def make_cp437_zip(path: Path, name: str, data: bytes = b"data") -> None:
     path.write_bytes(raw.replace(encoded_placeholder, encoded_name))
 
 
+def make_unflagged_utf8_zip(path: Path, name: str, data: bytes = b"data") -> None:
+    """Create a ZIP with UTF-8 filename bytes but without the UTF-8 flag."""
+    placeholder = "x.wmv"
+    assert len(name.encode("utf-8")) == len(placeholder.encode("utf-8"))
+    with ZipFile(path, "w") as archive:
+        archive.writestr(placeholder, data)
+    raw = path.read_bytes()
+    raw = raw.replace(placeholder.encode("ascii"), name.encode("utf-8"))
+    path.write_bytes(raw)
+
+
 def extractor(**overrides):
     values = dict(max_depth=3, max_files=10_000, max_total_size=10_000_000)
     values.update(overrides)
@@ -129,3 +140,14 @@ def test_zip_uses_cp437_for_legacy_non_utf8_member_names(tmp_path: Path) -> None
     make_cp437_zip(archive_path, "niño.wmv")
     result = extractor().extract_zip(archive_path, tmp_path / "out")
     assert result.media[0].name == "niño.wmv"
+
+
+def test_unflagged_utf8_filename_is_repaired(tmp_path: Path) -> None:
+    archive_path = tmp_path / "macos.zip"
+    # The real failure case is UTF-8 bytes for a decomposed accented name
+    # stored without the ZIP UTF-8 flag. Python decodes those bytes as CP437,
+    # yielding the observed ``compresio╠ün.wmv`` mojibake.
+    name = "compresio\u0301n.wmv"
+    make_unflagged_utf8_zip(archive_path, name)
+    result = extractor().extract_zip(archive_path, tmp_path / "out")
+    assert result.media[0].name == "compresión.wmv"
