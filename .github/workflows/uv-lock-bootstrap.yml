@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: uv-lock-pr-${{ github.event.pull_request.number }}
@@ -26,10 +27,10 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout pull request branch
+      - name: Checkout del estado de la PR
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
@@ -37,18 +38,71 @@ jobs:
           version: latest-known
           enable-cache: true
 
-      - run: uv python install 3.13
-      - run: uv lock
+      - name: Instalar Python 3.13 para uv
+        run: uv python install 3.13
 
-      - name: Commit synchronized lockfile
+      - name: Regenerar uv.lock
+        run: uv lock
+
+      - name: Crear PR auxiliar para sincronizar uv.lock
+        if: ${{ !cancelled() }}
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
+          REPOSITORY: ${{ github.repository }}
         run: |
+          set -euo pipefail
+
           if git diff --quiet -- uv.lock; then
-            echo "uv.lock is already synchronized"
+            echo "uv.lock ya está sincronizado. No se necesita una PR auxiliar."
             exit 0
           fi
+
+          automation_branch="automation/uv-lock-pr-${PR_NUMBER}"
+          existing_pr="$(gh pr list \
+            --repo "$REPOSITORY" \
+            --base "$TARGET_BRANCH" \
+            --head "$automation_branch" \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')"
+
+          if [[ -n "$existing_pr" ]]; then
+            echo "Ya existe la PR auxiliar #${existing_pr}. No se crea otra."
+            exit 0
+          fi
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$automation_branch"
           git add uv.lock
-          git commit -m "build: sync uv lockfile"
-          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
+          git commit -m "build: sincronizar uv.lock"
+          git push --set-upstream origin "$automation_branch"
+
+          pr_url="$(gh pr create \
+            --repo "$REPOSITORY" \
+            --base "$TARGET_BRANCH" \
+            --head "$automation_branch" \
+            --title "build: sincronizar uv.lock" \
+            --body "Esta PR auxiliar ha sido generada automáticamente ejecutando \\`uv lock\\` sobre la misma revisión de la PR #${PR_NUMBER}. Su único objetivo es actualizar \\`uv.lock\\` sin escribir directamente sobre la rama protegida." \
+            --label "dependencies" 2>/dev/null || true)"
+
+          if [[ -z "$pr_url" ]]; then
+            pr_url="$(gh pr list \
+              --repo "$REPOSITORY" \
+              --base "$TARGET_BRANCH" \
+              --head "$automation_branch" \
+              --state open \
+              --json url \
+              --jq '.[0].url // empty')"
+          fi
+
+          if [[ -z "$pr_url" ]]; then
+            echo "No se pudo localizar la PR auxiliar recién creada." >&2
+            exit 1
+          fi
+
+          echo "PR auxiliar creada: $pr_url"
+          gh pr merge "$pr_url" --repo "$REPOSITORY" --squash --delete-branch --auto
