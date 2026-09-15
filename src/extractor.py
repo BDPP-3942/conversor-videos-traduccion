@@ -6,6 +6,10 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from zipfile import ZipFile
 
 MEDIA_EXTENSIONS = {".mp4", ".mp3", ".wmv", ".mov", ".mkv", ".avi"}
+# Characters commonly produced when UTF-8 bytes are decoded as CP437/Windows
+# code pages. They are used only as a signal; a repair is accepted only when
+# the original member name can be losslessly round-tripped back through UTF-8.
+MOJIBAKE_MARKERS = frozenset("ÃÂÐÑâ├┤┬╠╣╬▒░")
 
 
 @dataclass
@@ -146,13 +150,13 @@ class ZipExtractor:
     def _normalized_member_name(member) -> str:
         """Return a canonical Unicode path before touching the filesystem.
 
-        Some macOS-created archives contain UTF-8 filename bytes while omitting
-        the ZIP UTF-8 flag. Python's zipfile therefore decodes those bytes as
-        CP437, producing mojibake such as ``compresio╠ün.wmv``. When the legacy
-        decoding can be losslessly reversed to UTF-8 and the recovered text
-        contains combining marks, repair it before NFC canonicalization.
-        Legitimate CP437 names (for example ``niño.wmv``) remain unchanged
-        because their CP437 bytes are not valid UTF-8.
+        ZIP names without the UTF-8 flag are decoded as CP437 by Python. Some
+        archives produced by macOS contain UTF-8 bytes despite omitting that
+        flag, which creates mojibake such as ``compresio╠ün`` or ``├▒`` for
+        ``ñ``. We attempt a lossless CP437 -> UTF-8 recovery only when the
+        decoded name contains a known mojibake marker (or the recovered text
+        contains combining marks). A legitimate CP437 name such as ``niño``
+        cannot pass the UTF-8 decode step and is therefore left untouched.
         """
         name = member.filename if hasattr(member, "filename") else str(member)
         if hasattr(member, "flag_bits") and not (member.flag_bits & 0x800):
@@ -160,10 +164,11 @@ class ZipExtractor:
                 recovered = name.encode("cp437").decode("utf-8")
             except (UnicodeEncodeError, UnicodeDecodeError):
                 recovered = None
-            if recovered is not None and any(
-                unicodedata.combining(char) for char in recovered
-            ):
-                name = recovered
+            if recovered is not None and recovered != name:
+                suspicious = any(char in MOJIBAKE_MARKERS for char in name)
+                combining = any(unicodedata.combining(char) for char in recovered)
+                if suspicious or combining:
+                    name = recovered
         normalized = unicodedata.normalize("NFC", name.replace("\\", "/"))
         return "/".join(unicodedata.normalize("NFC", part) for part in normalized.split("/"))
 
