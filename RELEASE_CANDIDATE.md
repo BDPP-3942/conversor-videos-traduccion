@@ -4,40 +4,29 @@
 
 - **Versión:** `1.10.0`
 - **Clasificación:** MINOR
-- **Baseline publicada anterior:** `v1.8.2`
+- **Baseline publicada anterior:** `v1.9.0`
 - **Tag objetivo:** `v1.10.0`
 - **Estado:** no publicada; pendiente de CI final, Release Gate y merge a `main`.
 
 ## Alcance
 
-`1.10.0` introduce la aplicación de escritorio y la capa de distribución nativa descritas en [`docs/DESKTOP.md`](docs/DESKTOP.md) y [`RELEASE_SCOPE.md`](RELEASE_SCOPE.md).
+`1.10.0` contiene únicamente cambios posteriores a la baseline `v1.9.0`. La aplicación de escritorio, el empaquetado nativo y la automatización inicial de publicación pertenecen a `v1.9.0` y no se vuelven a registrar como novedades de esta release.
 
 ### Cambios de producto
 
-- Nuevo punto de entrada `video-translation-desktop`.
-- Pestañas GUI para procesamiento, recuperación de subtítulos, gestión de duplicados, diagnóstico y orientación sobre CLI/programación.
-- Reutilización del `MediaPipeline` existente mediante `VideoTranslationApplication` y `ControllableMediaPipeline`.
-- Eventos de progreso por etapa y cancelación cooperativa en límites seguros.
-- Configuración desde la GUI de proveedores de almacenamiento, idiomas, proveedores/fallbacks de traducción, concurrencia, Whisper, WebM, TTS, reanudación y comportamiento de nombres.
-- Modos de recuperación `full`, `stt_only` y `translate_only`.
-- Flujos de análisis/eliminación de duplicados con simulación y confirmación.
-- Reparación conservadora de nombres Unicode mal decodificados al extraer ZIP.
-- Selección de archivo de contexto para el prompt inicial de Whisper.
-
-### Cambios de empaquetado
-
-- Bundle de escritorio mediante PyInstaller.
-- Ejecutable Windows `.exe` y MSI mediante WiX 6.
-- Aplicación macOS `.app`.
-- AppImage Linux x86_64 generado desde el ejecutable PyInstaller más AppDir.
-- Validación nativa del empaquetado en Linux, Windows y macOS.
-- El build de escritorio recibe explícitamente la versión de release y no mantiene una versión 1.9.0 fija.
+- Reparación conservadora de nombres Unicode mal decodificados al extraer ZIP, sin alterar nombres CP437 legítimos.
+- Normalización canónica de nombres antes de acceder al filesystem y detección de colisiones por normalización y mayúsculas/minúsculas.
+- Separación de las carpetas de trabajo visibles (`input`/`output`) respecto del estado privado de la aplicación.
+- Persistencia del estado privado fuera de la carpeta de instalación para facilitar instalaciones nativas y actualizaciones.
+- Ampliación de la GUI existente con configuración adicional de Whisper, FFmpeg, traducción local, TTS y archivo de contexto.
+- Endurecimiento del instalador Windows para distinguir realmente las arquitecturas x64 y x86.
+- Alineación de las opciones públicas de CLI con los parsers reales y sus textos de ayuda.
 
 ### Ingeniería de release
 
-- El workflow de GitHub Release activado por tags construye los artefactos nativos en runners nativos y los adjunta a la release.
-- Los archivos fuente continúan siendo los archivos generados automáticamente por GitHub a partir del tag.
-- El proceso normal de release no requiere build ni subida manual.
+- Sincronización reproducible de `uv.lock` mediante una PR auxiliar cuando el cambio de dependencias lo requiere.
+- La PR auxiliar se fusiona y se valida automáticamente antes de eliminar su rama.
+- La CI del estado resultante se ejecuta explícitamente cuando el cambio de lockfile procede de la automatización.
 - `pyproject.toml`, `config/app.toml`, `uv.lock` y los metadatos documentales deben quedar sincronizados en `1.10.0`.
 
 ## Compatibilidad
@@ -46,16 +35,17 @@
 - Se mantiene la ejecución programada/desatendida.
 - Siguen disponibles regeneración, subtitle-QA y TTS.
 - No se incluye aplicación móvil.
-- La capa de escritorio es aditiva y no sustituye el pipeline existente.
+- La capa de escritorio de `v1.9.0` sigue siendo la interfaz gráfica de esta línea; `1.10.0` la amplía, no la sustituye.
 
 ## Documentación y CLI
 
-- La documentación operativa nueva o modificada debe redactarse en español.
-- Las explicaciones y comentarios de código introducidos o modificados para esta release deben estar en español; nombres técnicos, flags, claves de configuración y APIs conservan su forma literal.
+- La documentación operativa nueva o modificada se redacta en español.
+- La terminología de programación, librerías, dependencias, APIs, comandos, flags y formatos se conserva cuando es el término técnico establecido.
+- Los comentarios y docstrings que contienen texto humano se redactan en español sin eliminar explicaciones técnicas existentes.
 - Todas las descripciones `description=` y `help=` de los parsers CLI deben estar en español.
 - `docs/CLI.md` debe describir todos los casos de uso públicos y permanecer sincronizado con `--help`.
 - Las referencias a otros documentos del repositorio deben ser enlaces Markdown relativos y navegables.
-- Las reglas anteriores forman parte de los propios documentos canónicos; no se mantiene un índice auxiliar como especificación de cambios.
+- Las traducciones o reorganizaciones documentales no deben borrar comentarios históricos ni contexto técnico previamente documentado.
 
 ## Validación requerida antes de publicar
 
