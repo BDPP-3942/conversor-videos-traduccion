@@ -30,7 +30,9 @@ def make_unflagged_utf8_zip(path: Path, name: str, data: bytes = b"data") -> Non
     with ZipFile(path, "w") as archive:
         archive.writestr(placeholder, data)
     raw = path.read_bytes()
-    path.write_bytes(raw.replace(placeholder.encode("ascii"), name.encode("utf-8")))
+    path.write_bytes(
+        raw.replace(placeholder.encode("ascii"), name.encode("utf-8"))
+    )
 
 
 def make_unflagged_utf8_ntilde_zip(path: Path, data: bytes = b"data") -> None:
@@ -40,7 +42,9 @@ def make_unflagged_utf8_ntilde_zip(path: Path, data: bytes = b"data") -> None:
     with ZipFile(path, "w") as archive:
         archive.writestr(placeholder, data)
     raw = path.read_bytes()
-    path.write_bytes(raw.replace(placeholder.encode("ascii"), name.encode("utf-8")))
+    path.write_bytes(
+        raw.replace(placeholder.encode("ascii"), name.encode("utf-8"))
+    )
 
 
 def extractor(**overrides):
@@ -105,7 +109,10 @@ def test_nested_zip_preserves_source_tree(tmp_path: Path) -> None:
         archive.write(inner, arcname="inner.zip")
     result = extractor().extract_zip(outer, tmp_path / "out")
     assert len(result.media) == 1
-    assert result.media[0].relative_to(tmp_path / "out").parts[-3:-1] == ("outer", "inner")
+    assert result.media[0].relative_to(tmp_path / "out").parts[-3:-1] == (
+        "outer",
+        "inner",
+    )
 
 
 def test_zip_member_unicode_is_canonicalized_to_nfc(tmp_path: Path) -> None:
@@ -160,7 +167,9 @@ def test_unflagged_utf8_filename_is_repaired(tmp_path: Path) -> None:
     assert normalize_component(result.media[0].stem) == "compresion"
 
 
-def test_unflagged_utf8_n_tilde_is_repaired_without_cp437_false_positive(tmp_path: Path) -> None:
+def test_unflagged_utf8_n_tilde_is_repaired_without_cp437_false_positive(
+    tmp_path: Path,
+) -> None:
     archive_path = tmp_path / "macos-ntilde.zip"
     make_unflagged_utf8_ntilde_zip(archive_path)
     result = extractor().extract_zip(archive_path, tmp_path / "out")
