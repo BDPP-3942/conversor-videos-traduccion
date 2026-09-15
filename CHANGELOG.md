@@ -16,7 +16,8 @@
 - GUI para procesamiento, recuperación de subtítulos, gestión de duplicados y diagnósticos.
 - Configuración desde GUI de almacenamiento local/Google Drive/rclone, idiomas, proveedor y fallbacks de traducción, concurrencia, parámetros Whisper, WebM, TTS, resume y normalización de nombres.
 - Selección de archivo de contexto para el prompt inicial de Whisper.
-- Recuperación de resultados existentes en modos `full`, `stt_only` y `translate_only`, incluyendo recuperación individual y global.
+- Recuperación de resultados existentes en modos `full`, `stt_only` y `translate_only`, incluyendo recuperación individual y de todos los resultados elegibles.
+- Herramientas de deduplicación para scan, análisis, dry-run y eliminación con confirmación.
 - Reparación conservadora de nombres UTF-8 mal decodificados como CP437 al extraer ZIP, preservando nombres CP437 legítimos.
 - Separación de las carpetas de trabajo del usuario respecto del estado privado de la aplicación.
 
@@ -60,7 +61,7 @@
 
 - Matriz de tests Linux/Windows/macOS con Python 3.11, 3.12 y 3.13.
 - `uv lock --check`, `uv sync --locked`, `uv pip check`, Ruff lint/seguridad/formato y `compileall`.
-- Tests de la fachada de aplicación, pipeline controlable y reparación de nombres ZIP.
+- Tests de la fachada de aplicación y del pipeline controlable.
 - Tests de packaging y smoke validation de artefactos nativos.
 - Pruebas funcionales y de rendimiento de la aplicación de escritorio y del pipeline antes de publicar.
 - Release Gate antes de publicar `v1.10.0`.
@@ -99,3 +100,164 @@
 - No cambia el pipeline audiovisual ni los contratos públicos de CLI, almacenamiento o formatos.
 
 ## [1.8.2] — MADLAD model download and Hugging Face revision fix
+
+**Tipo:** PATCH — release publicada.
+
+**Estado:** PUBLICADA — tag `v1.8.2`.
+
+**Commit/tag de referencia:** `0165f7fdd000c0f29c8a022fa26a452afc55111c` / `v1.8.2`.
+
+### Fixed
+
+- Corregida la revisión fijada de MADLAD-400 3B CT2 INT8 a `fd0b55729c074372eb84b52b9309a00dc65c40c4`.
+- Corregido el nombre del tokenizer: el artefacto real es `spiece.model`, no `sentencepiece.model`.
+- Conservada la validación de tamaño y SHA-256 de los artefactos gestionados.
+- Mejorado el diagnóstico de descargas de Hugging Face para distinguir un `404` de archivo/revisión inexistente de los errores de autenticación/autorización `401/403`.
+- Corregidos los fixtures de tests de MADLAD para que los tamaños declarados coincidan con los bytes escritos.
+- Alineados los metadatos de aplicación, packaging y documentación con la release `1.8.2`.
+
+### Tests / CI
+
+- Añadidas/regresadas pruebas para la revisión fijada, `spiece.model`, integridad, prefijo de destino MADLAD y diagnóstico de `404`.
+- Mantenida cobertura independiente para OPUS-MT y su revisión fijada.
+- Release Gate validado antes de publicar `v1.8.2`.
+
+### Compatibility
+
+- Release PATCH compatible sobre `1.8.1`.
+- No cambia el pipeline audiovisual ni los contratos públicos de CLI, almacenamiento o formatos.
+
+## [1.8.1] — Local uv Bootstrap & Optional Local Translation Setup
+
+**Tipo:** PATCH — release publicada.
+
+**Estado:** PUBLICADA — tag `v1.8.1`.
+
+- Bootstrap automático de uv multiplataforma, sin requerir una instalación global previa.
+- Preparación opcional del modelo local de traducción fijado por el proyecto.
+- `uv.lock` y metadatos de proyecto sincronizados con `1.8.1`.
+- Regresiones para scripts de instalación y validación CI multiplataforma.
+
+## [1.8.0] — Whisper Recovery & Local Translation
+
+**Tipo:** MINOR — release publicada.
+
+- Recuperación selectiva de segmentos Whisper y separación de silencios VAD/división de subtítulos.
+- MADLAD-400 3B CT2 INT8 como modelo local predeterminado, con OPUS-MT como alternativa.
+- Validación de integridad y revisiones fijadas de modelos.
+- Contexto Whisper para vocabulario de Tai Chi.
+- Voz TTS predeterminada `am_michael` y WebM desactivado por defecto.
+- Base de desarrollo, CI, build y auditoría con `uv`.
+
+## [1.7.4] — Local translation shared vocabulary validation
+
+**Tipo:** PATCH — release publicada.
+
+- Corregida la validación de `shared_vocabulary.json` para aceptar la estructura real del artefacto fijado.
+- Regresiones específicas para vocabulario JSON y descarga/activación del modelo.
+
+## [1.7.3] — Local translation model metadata bootstrap
+
+**Tipo:** PATCH — release publicada.
+
+- Incorporados al paquete los metadatos JSON necesarios para la revisión fijada del modelo local.
+- Regresiones de packaging y descarga de artefactos.
+
+## [1.7.2] — Local translation model download fix
+
+**Tipo:** PATCH — release publicada.
+
+- Corregido el límite de descarga de los artefactos del modelo local.
+- Corregida la evaluación eager que producía `KeyError: 'model.bin'`.
+
+## [1.7.1] — STT selective recovery compatibility
+
+**Tipo:** PATCH — release publicada.
+
+- Corregido el contrato de `clip_timestamps` de `faster-whisper` para recuperación selectiva.
+- Añadidas pruebas de regresión e integración.
+
+## [1.7.0] — Reprocessing, Unicode Naming & Translation Runtime
+
+**Tipo:** MINOR — release publicada.
+
+- Reprocessing de subtítulos y vídeos, manifests atómicos y recuperación de estado.
+- Naming determinista y normalización Unicode multiplataforma.
+- Endurecimiento de nombres, rutas, colisiones y límites de filesystem.
+- Consolidación del proveedor opcional CTranslate2 + SentencePiece y selección conservadora de runtime.
+
+## [1.6.0] — Local Translation & GPU Runtime Hardening
+
+**Tipo:** MINOR — release publicada.
+
+- Traducción local opcional, runtime CUDA gestionado, diagnóstico GPU/CPU y recuperación STT configurable.
+
+## [1.5.1] — ZIP extraction and cross-platform filesystem hardening
+
+**Tipo:** PATCH — release publicada.
+
+- Endurecimiento de extracción ZIP frente a traversal, rutas absolutas, UNC, nombres reservados y colisiones case/Unicode.
+
+## [1.5.0] — Multiplatform Whisper, Context & Packaging
+
+**Tipo:** MINOR — release publicada.
+
+- Dispatcher común para wrappers locales, política de naming/contexto Whisper, CI multiplataforma.
+
+## [1.4.2] — Regeneration CLI contract and help alignment
+
+**Tipo:** MINOR — release publicada.
+
+- Contrato CLI de regeneración y help público alineados con `MediaPipeline`.
+
+## [1.4.1] — Corrective Script Integration
+
+**Tipo:** PATCH — release publicada.
+
+- Wrappers locales integrados con la regeneración existente sin duplicar lógica.
+
+## [1.4.0] — Clean Video Regeneration and Release Hardening
+
+**Tipo:** MINOR — release publicada.
+
+- Regeneración limpia desde fuente, backup/restauración y endurecimiento de release y packaging.
+
+## [1.3.0] — Safe Resource-Aware Video Concurrency
+
+**Tipo:** MINOR — release publicada.
+
+- Concurrencia automática basada en CPU/RAM/GPU con límites conservadores.
+
+## [1.2.2] — Naming Timestamp Cleanup
+
+**Tipo:** PATCH — release publicada.
+
+- Eliminación de timestamps técnicos de nombres de curso/lección y resultados.
+
+## [1.2.1] — TTS Installation Fix
+
+**Tipo:** PATCH — release publicada.
+
+- Corrección de instalación de assets TTS, especialmente en Windows.
+
+## [1.2.0] — Naming and TTS Improvements
+
+**Tipo:** MINOR — release publicada.
+
+- Naming descriptivo determinista y bootstrap de assets Kokoro.
+
+## [1.1.0] — Reparación de VTT e integración TTS en el pipeline
+
+**Tipo:** MINOR — release publicada.
+
+- Recuperación de VTT inválidos, regeneración controlada y TTS sincronizado en el pipeline común.
+
+## [1.0.1] — Documentación de instalación y mantenimiento
+
+**Tipo:** PATCH — release publicada.
+
+- Añadida la guía de instalación y corregida la navegación documental.
+
+## [1.0.0] — Primera release estable
+
+Primera release estable del producto.
