@@ -14,7 +14,7 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 
 ## Releases publicadas
 
-### 1.8.2 — MADLAD model download and Hugging Face revision fix
+### 1.8.2 — Corrección de descarga y revisión de MADLAD
 
 **Tipo:** `PATCH` · **Tag:** `v1.8.2` · **Estado:** publicada.
 
@@ -22,128 +22,122 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 - Corrige el tokenizer real a `spiece.model`.
 - Mantiene validación de tamaño y SHA-256.
 - Diferencia diagnósticos `404` de errores `401/403` de Hugging Face.
-- Corrige fixtures de integridad y alinea metadatos de aplicación, packaging y documentación.
+- Corrige fixtures de integridad y alinea metadatos de aplicación, empaquetado y documentación.
 
-### 1.8.1 — Local uv Bootstrap & Optional Local Translation Setup
+### 1.8.1 — Bootstrap gestionado de uv y traducción local opcional
 
 **Tipo:** `PATCH` · **Tag:** `v1.8.1` · **Estado:** publicada.
 
 - Añade bootstrap gestionado de uv sin instalación global obligatoria.
-- Permite preparar opcionalmente el modelo local de traducción durante setup.
+- Permite preparar opcionalmente el modelo local de traducción durante el setup.
 - Mantiene la descarga diferida mediante `manage_local_translation.py`.
-- Actualiza instalación, migración, README, regresiones y lockfile.
 
-### 1.8.0 — Whisper Recovery & Local Translation
+### 1.8.0 — Recuperación Whisper y traducción local
 
 **Tipo:** `MINOR` · **Tag:** `v1.8.0` · **Estado:** publicada.
 
-- Refina la recuperación selectiva de Whisper y separa VAD de split de subtítulos.
+- Refina la recuperación selectiva de Whisper y separa VAD de la división de subtítulos.
 - Incorpora MADLAD-400 3B CT2 INT8 como modelo local predeterminado y conserva OPUS-MT como alternativa ligera.
 - Refuerza integridad, tokenización, revisiones fijadas y selección de modelos.
-- Actualiza el contexto de Whisper y mantiene la infraestructura reproducible con uv.
 
-### 1.7.4 — uv and Local Translation Validation
+### 1.7.4 — Validación de uv y traducción local
 
 **Tipo:** `PATCH` · **Estado:** publicada.
 
-- Valida `shared_vocabulary.json` con raíz array cuando corresponde al artefacto real.
-- Mantiene validación estricta de los JSON de configuración.
+- Valida `shared_vocabulary.json` según la estructura real del artefacto fijado.
 - Consolida la migración reproducible de desarrollo, CI, build y auditoría a uv.
 
-### 1.7.3 — Local Translation Model Metadata Bootstrap
+### 1.7.3 — Metadatos del modelo local
 
 **Tipo:** `PATCH` · **Estado:** publicada.
 
-- Empaqueta `config.json` y `tokenizer_config.json` de la revisión fijada.
-- Reduce descargas externas de metadatos pequeños y mantiene validación del resto de artefactos.
+- Empaqueta los metadatos JSON necesarios para la revisión fijada del modelo local.
 
-### 1.7.2 — Local Translation Model Download Fix
-
-**Tipo:** `PATCH` · **Estado:** publicada.
-
-- Corrige el cálculo del límite y el recorrido de artefactos del modelo local.
-- Añade regresiones de descarga, preparación e inicialización del proveedor.
-
-### 1.7.1 — STT Selective Recovery Compatibility
+### 1.7.2 — Corrección de descarga del modelo local
 
 **Tipo:** `PATCH` · **Estado:** publicada.
 
-- Corrige el contrato numérico de `clip_timestamps` de `faster-whisper`.
-- Añade regresiones de recuperación STT.
+- Corrige el límite y el recorrido de los artefactos del modelo local.
 
-### 1.7.0 — Reprocessing, Unicode Naming & Translation Runtime
+### 1.7.1 — Compatibilidad de recuperación STT
+
+**Tipo:** `PATCH` · **Estado:** publicada.
+
+- Corrige el contrato de `clip_timestamps` de `faster-whisper`.
+
+### 1.7.0 — Regeneración, nombres Unicode y runtime de traducción
 
 **Tipo:** `MINOR` · **Estado:** publicada.
 
-- Consolida reprocessing y manifests.
-- Refuerza naming determinista, Unicode NFC/NFD, límites de filesystem y colisiones.
+- Consolida regeneración y manifests.
+- Refuerza naming determinista, Unicode, límites de filesystem y colisiones.
 - Consolida traducción local CTranslate2 + SentencePiece y su validación.
 
-### 1.6.0 — Local Translation & GPU Runtime Hardening
+### 1.6.0 — Traducción local y endurecimiento del runtime GPU
 
 **Tipo:** `MINOR` · **Estado:** publicada.
 
 - Introduce traducción local opcional, recuperación STT configurable y runtime GPU gestionado.
 
-### 1.5.1 — ZIP Extraction & Cross-Platform Filesystem Hardening
+### 1.5.1 — Extracción ZIP y endurecimiento multiplataforma
 
 **Tipo:** `PATCH` · **Estado:** publicada.
 
-- Endurece ZIP traversal, rutas absolutas/UNC, symlinks, nombres reservados y colisiones Unicode/case.
+- Endurece traversal ZIP, rutas absolutas/UNC, symlinks, nombres reservados y colisiones Unicode/case.
 
-### 1.5.0 — Multiplatform Whisper, Context & Packaging
+### 1.5.0 — Whisper multiplataforma, contexto y empaquetado
 
 **Tipo:** `MINOR` · **Estado:** publicada.
 
-- Introduce wrappers multiplataforma, contexto externo de Whisper y packaging reproducible.
+- Introduce wrappers multiplataforma, contexto externo de Whisper y empaquetado reproducible.
 
-### 1.4.2 — Regeneration CLI Contract and Help Alignment
+### 1.4.2 — Contrato CLI de regeneración
 
 **Tipo:** `PATCH` · **Estado:** publicada.
 
 - Amplía y documenta el contrato CLI de regeneración.
 
-### 1.4.1 — Corrective Script Integration
+### 1.4.1 — Integración de regeneración en scripts
 
 **Tipo:** `PATCH` · **Estado:** publicada.
 
-- Integra la regeneración en wrappers sin duplicar lógica del pipeline.
+- Integra la regeneración en wrappers sin duplicar la lógica del pipeline.
 
-### 1.4.0 — Clean Video Regeneration and Release Hardening
+### 1.4.0 — Regeneración limpia y endurecimiento de release
 
 **Tipo:** `MINOR` · **Estado:** publicada.
 
 - Introduce regeneración limpia, backup/restauración y endurecimiento de release.
 
-### 1.3.0 — Safe Resource-Aware Video Concurrency
+### 1.3.0 — Concurrencia adaptada a recursos
 
 **Tipo:** `MINOR` · **Estado:** publicada.
 
 - Introduce concurrencia adaptativa basada en CPU/RAM/GPU.
 
-### 1.2.2 — Naming Timestamp Cleanup
+### 1.2.2 — Limpieza de timestamps del naming
 
 **Tipo:** `PATCH` · **Estado:** publicada.
 
 - Elimina timestamps técnicos de nombres y resultados.
 
-### 1.2.1 — TTS Installation Fix
+### 1.2.1 — Corrección de instalación TTS
 
 **Tipo:** `PATCH` · **Estado:** publicada.
 
 - Corrige la instalación multiplataforma de recursos TTS.
 
-### 1.2.0 — Naming and TTS Improvements
+### 1.2.0 — Mejoras de naming y TTS
 
 **Tipo:** `MINOR` · **Estado:** publicada.
 
 - Introduce naming descriptivo y bootstrap de assets Kokoro.
 
-### 1.1.0 — Reparación de VTT e integración TTS
+### 1.1.0 — Reparación VTT e integración TTS
 
 **Tipo:** `MINOR` · **Estado:** publicada.
 
-- Introduce recuperación de VTT, regeneración selectiva y TTS sincronizado.
+- Introduce recuperación VTT, regeneración selectiva y TTS sincronizado.
 
 ### 1.0.1 — Documentación de instalación y mantenimiento
 
@@ -161,76 +155,96 @@ Primera release estable de esta línea de producto.
 
 ### Resumen funcional
 
-`1.9.0` añade la aplicación GUI de escritorio y la infraestructura de distribución nativa sin sustituir el pipeline existente ni eliminar CLI/scheduling.
+`1.9.0` incorpora una aplicación GUI de escritorio y la infraestructura de distribución nativa, sin sustituir el pipeline existente ni eliminar la CLI o la ejecución programada.
 
 ### Cambios de producto
 
 - Nuevo entry point `video-translation-desktop`.
-- Fachada `VideoTranslationApplication` para separar UI y lógica de aplicación.
-- Adaptador `ControllableMediaPipeline` sobre `MediaPipeline`, con eventos de etapa y cancelación cooperativa.
-- GUI con pestañas de Process, Subtitle Recovery, Duplicates, Diagnostics y CLI/Scheduling.
+- Fachada `VideoTranslationApplication` para separar interfaz y lógica de aplicación.
+- Adaptador `ControllableMediaPipeline` sobre `MediaPipeline`, con eventos de etapa, progreso y cancelación cooperativa.
+- GUI para procesamiento, recuperación de subtítulos, duplicados, diagnóstico y consulta de CLI/programación.
 - Configuración GUI de almacenamiento local/Google Drive/rclone, idiomas, proveedores y fallbacks, concurrencia, Whisper, WebM, TTS, resume y naming.
+- Selección de archivo de contexto para el prompt inicial de Whisper.
 - Recuperación `full`, `stt_only` y `translate_only`.
-- Deduplicación mediante scan, análisis, dry-run y eliminación confirmada.
-- Diagnósticos y preparación de Whisper.
-- UX de ejecución en background, progreso, logs, estado, errores y cancelación en límites seguros.
+- Deduplicación mediante análisis, simulación y eliminación confirmada.
+- ZIP: reparación específica de nombres UTF-8 mal decodificados como CP437 cuando falta el indicador UTF-8, sin alterar nombres CP437 legítimos.
+
+### Almacenamiento de escritorio
+
+- `input` y `output` dejan de depender de una carpeta privada de datos de aplicación.
+- Los valores predeterminados de trabajo se sitúan en `Documentos/Video Translation Pipeline/input` y `output`.
+- El estado técnico, logs, cachés y otros datos internos permanecen en el directorio privado de datos del usuario.
+- La GUI permite seleccionar carpetas externas compartidas, de red o sincronizadas cuando el usuario dispone de permisos de escritura.
+- La aplicación no necesita escribir en `Program Files` para procesar vídeos.
 
 ### Cambios de distribución
 
-- Windows: PyInstaller `.exe` + MSI WiX 6.0.2.
+- Windows: ejecutable PyInstaller y MSI mediante WiX 6.
+- En Windows x64, el instalador x64 utiliza el `Program Files` nativo y no `Program Files (x86)`.
+- El proyecto no declara que un ejecutable x64 pueda funcionar en Windows x86. Si se publica una variante x86, debe construirse y validarse realmente con un entorno Python x86 y dependencias compatibles.
+- El instalador crea un acceso directo en el menú Inicio.
 - macOS: `.app` + ZIP de distribución.
 - Linux: ejecutable PyInstaller + AppDir + AppRun + `.desktop` + SVG + AppImage x86_64.
 
-Linux no necesita un método distinto para construir la GUI: PyInstaller genera el mismo tipo de ejecutable de escritorio; AppImage es la capa de distribución portable que lo contiene junto con su metadata de integración con el escritorio.
-
 ### Cambios de CI/CD y release
 
-- Workflow de packaging nativo en Linux, Windows y macOS.
-- Validación de ejecutables/instaladores por plataforma.
+- Workflow de empaquetado nativo en Linux, Windows y macOS.
+- Validación de ejecutables e instaladores por plataforma.
 - Workflow de release activado por `vX.Y.Z`.
 - Build automático en runners nativos.
-- Adjuntar automático de `.AppImage`, `.msi` y ZIP del `.app` a la GitHub Release.
-- Los ZIP/TAR de código fuente continúan siendo generados automáticamente por GitHub para el tag.
-- El proceso normal de publicación ya no requiere build local ni subida manual de binarios.
+- Adjuntar automático de `.AppImage`, MSI y ZIP de macOS a la GitHub Release.
+- Los ZIP/TAR del código fuente continúan siendo generados automáticamente por GitHub para el tag.
+- El proceso normal de publicación no requiere build local ni subida manual de binarios.
+
+### Documentación y CLI
+
+- La referencia de CLI se amplía con casos de uso para procesamiento normal, `dry-run`, programación, regeneración, recuperación de subtítulos, duplicados, proveedores, diagnóstico, wrappers y traducción local.
+- Los documentos modificados incluyen enlaces Markdown relativos a los documentos relacionados en lugar de mencionar archivos sin navegación.
+- La documentación de escritorio registra explícitamente la separación entre instalación, datos multimedia y estado privado.
+- La release candidate se documenta como `1.9.0`; la publicación de `v1.9.0` queda condicionada a CI, Release Gate y merge a `main`.
 
 ### Compatibilidad
 
-- Se conservan `video-translation-pipeline`, regeneración, subtitle-QA y TTS.
-- Se conserva ejecución programada/headless.
+- Se conservan `video-translation-pipeline`, regeneración, QA de subtítulos y TTS.
+- Se conserva la ejecución programada/headless.
 - No se introduce soporte móvil.
 - No se embeben credenciales ni modelos privados en los binarios.
 
-### Versionado y validación
+### Validación obligatoria antes de publicar `v1.9.0`
 
-`1.9.0` es MINOR porque todo lo anterior es funcionalidad nueva compatible hacia atrás. Antes de crear `v1.9.0` deben estar sincronizados `pyproject.toml`, `config/app.toml`, `uv.lock`, `CHANGELOG.md` y la documentación de release, y debe pasar CI + Release Gate sobre el SHA final de `main`.
+Deben pasar sobre el SHA final de la rama:
+
+```bash
+uv lock --check
+uv run ruff check . --select F401,I001
+uv run ruff check .
+uv run ruff check . --select S
+uv run ruff format --check .
+uv run python -m compileall .
+uv run pytest -q --ignore=tests/test_packaging.py
+uv build
+```
+
+Además, CI debe construir y validar los artefactos nativos de escritorio. No se debe publicar `v1.9.0` mientras exista un fallo de calidad, empaquetado o Release Gate.
 
 ## Funcionalidades con evidencia de introducción
 
 | Funcionalidad | Primera versión verificada |
 | --- | ---: |
 | Pipeline audiovisual, STT, VTT, traducción, almacenamiento, resume/idempotencia, deduplicación, TTS, ejecución programada y packaging | `1.0.0` |
-| Recuperación/reparación VTT e integración TTS en el pipeline común | `1.1.0` |
-| Naming descriptivo y bootstrap de assets TTS | `1.2.0` |
-| Corrección multiplataforma de assets TTS | `1.2.1` |
-| Limpieza de timestamps técnicos en naming | `1.2.2` |
+| Recuperación/reparación VTT e integración TTS | `1.1.0` |
+| Naming descriptivo y bootstrap de Kokoro | `1.2.0` |
 | Concurrencia adaptada a CPU/RAM/GPU | `1.3.0` |
-| Regeneración limpia explícita de resultados | `1.4.0` |
-| Integración de regeneración en wrappers locales | `1.4.1` |
-| Contrato CLI ampliado y documentación completa de regeneración | `1.4.2` |
-| Wrappers multiplataforma, naming de referencia y contexto externo de Whisper | `1.5.0` |
-| Endurecimiento ZIP/filesystem multiplataforma | `1.5.1` |
-| Traducción local opcional, recuperación STT configurable y endurecimiento GPU/runtime | `1.6.0` |
-| Reprocessing/manifests, consolidación de naming Unicode/filesystem y mejoras del runtime de traducción local | `1.7.0` |
-| Compatibilidad `clip_timestamps` en recuperación STT | `1.7.1` |
-| Corrección de descarga del modelo local | `1.7.2` |
-| Bootstrap de metadatos JSON del modelo local | `1.7.3` |
-| Validación de `shared_vocabulary.json` y migración reproducible a uv | `1.7.4` |
-| Recuperación STT refinada y modelos locales fijados, MADLAD-400 3B y OPUS-MT | `1.8.0` |
-| Bootstrap gestionado de uv y preparación opcional de traducción local | `1.8.1` |
-| Corrección de recurso MADLAD, tokenizer, fixtures y diagnóstico de descarga | `1.8.2` |
-| Resolución compartida de uv en wrappers POSIX/Windows | `1.8.3` candidata histórica |
-| Aplicación GUI, control de pipeline, empaquetado nativo y publicación automática de artefactos | `1.9.0` candidata |
+| Regeneración limpia desde fuente | `1.4.0` |
+| Endurecimiento ZIP/filesystem | `1.5.1` |
+| Traducción local y runtime GPU | `1.6.0` |
+| Reprocessing, manifests y naming Unicode | `1.7.0` |
+| MADLAD-400 3B y recuperación Whisper refinada | `1.8.0` |
+| Bootstrap gestionado de uv | `1.8.1` |
+| Corrección de MADLAD y tokenizer | `1.8.2` |
+| Resolución compartida de uv | `1.8.3` candidata histórica |
+| Aplicación GUI, empaquetado nativo, reparación ZIP Unicode y arquitectura de almacenamiento de escritorio | `1.9.0` candidata |
 
 ## Integridad histórica
 
-Las versiones publicadas no se reescriben. `1.8.0`, `1.8.1` y `1.8.2` permanecen como historia publicada. La documentación de `1.9.0` describe exclusivamente el nuevo alcance de escritorio y release automation. El alcance móvil permanece fuera del producto.
+Las versiones publicadas no se reescriben. La documentación de `1.9.0` describe exclusivamente el nuevo alcance de escritorio, la reparación Unicode, el almacenamiento de trabajo y la automatización de release. El soporte móvil permanece fuera del producto.
