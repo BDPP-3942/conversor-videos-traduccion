@@ -31,9 +31,7 @@ jobs:
           uv sync --locked --group dev
       - name: Aplicar formato Ruff a todo el código Python
         run: uv run ruff format .
-      - name: Comprobar lint después del formato
-        run: uv run ruff check .
-      - name: Publicar cambios de formato y lockfile en la rama de la PR
+      - name: Publicar automáticamente los cambios de formato y lockfile
         if: github.event_name == 'pull_request'
         shell: bash
         run: |
@@ -46,3 +44,5 @@ jobs:
           git add -- '*.py' uv.lock
           git commit -m 'style: aplicar formato Ruff y sincronizar uv.lock'
           git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
+      - name: Comprobar lint después de publicar el formato
+        run: uv run ruff check .
