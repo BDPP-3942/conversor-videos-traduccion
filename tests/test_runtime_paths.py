@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import src.runtime_paths as runtime_paths
 
 
