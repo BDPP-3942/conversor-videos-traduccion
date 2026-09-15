@@ -33,7 +33,12 @@ class Worker:
     def _run(self) -> None:
         try:
             result = self.task(self.report, self.cancel_event)
-            self.report({"stage": "finished", "message": json.dumps(result, ensure_ascii=False, indent=2)})
+            self.report(
+                {
+                    "stage": "finished",
+                    "message": json.dumps(result, ensure_ascii=False, indent=2),
+                }
+            )
         except ApplicationError as exc:
             self.report({"stage": "error", "message": str(exc)})
         except Exception as exc:
@@ -645,7 +650,7 @@ class DesktopApp:
         self.root.after(0, lambda: self._apply_event(event))
 
     def _apply_event(self, event: dict[str, object]) -> None:
-        stage = str(event.get("stage", "processing"))
+        stage = str(event.get("stage", ""))
         message = str(event.get("message", ""))
         percent = event.get("percent")
         if isinstance(percent, (int, float)):
