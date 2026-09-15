@@ -8,10 +8,15 @@ from src.subtitle_qa import run_subtitle_qa
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Comprueba y, opcionalmente, corrige un archivo de subtítulos WebVTT")
+    parser = argparse.ArgumentParser(
+        description="Comprueba y, opcionalmente, corrige un archivo de subtítulos WebVTT"
+    )
     parser.add_argument("vtt", type=Path, help="Archivo VTT traducido que se va a revisar")
     parser.add_argument(
-        "--source-vtt", type=Path, default=None, help="Archivo VTT original para comparación contextual"
+        "--source-vtt",
+        type=Path,
+        default=None,
+        help="Archivo VTT original para comparación contextual",
     )
     parser.add_argument(
         "--engine",
@@ -19,15 +24,43 @@ def build_parser() -> argparse.ArgumentParser:
         default="languagetool",
         help="Motor de QA que se utilizará: LanguageTool, Ollama o ambos",
     )
-    parser.add_argument("--auto-correct", action="store_true", help="Escribe las correcciones en --output-vtt")
-    parser.add_argument("--output-vtt", type=Path, default=None, help="Ruta del VTT corregido")
-    parser.add_argument("--report", type=Path, default=None, help="Escribe un informe JSON del control de calidad")
-    parser.add_argument("--language", default="en-US", help="Código de idioma que utilizará LanguageTool")
     parser.add_argument(
-        "--languagetool-url", default="http://127.0.0.1:8081/v2/check", help="URL del servicio LanguageTool"
+        "--auto-correct",
+        action="store_true",
+        help="Escribe las correcciones en --output-vtt",
     )
-    parser.add_argument("--ollama-url", default="http://127.0.0.1:11434/api/chat", help="URL de la API de Ollama")
-    parser.add_argument("--ollama-model", default="qwen3:8b", help="Modelo de Ollama utilizado para la revisión")
+    parser.add_argument(
+        "--output-vtt",
+        type=Path,
+        default=None,
+        help="Ruta del VTT corregido",
+    )
+    parser.add_argument(
+        "--report",
+        type=Path,
+        default=None,
+        help="Escribe un informe JSON del control de calidad",
+    )
+    parser.add_argument(
+        "--language",
+        default="en-US",
+        help="Código de idioma que utilizará LanguageTool",
+    )
+    parser.add_argument(
+        "--languagetool-url",
+        default="http://127.0.0.1:8081/v2/check",
+        help="URL del servicio LanguageTool",
+    )
+    parser.add_argument(
+        "--ollama-url",
+        default="http://127.0.0.1:11434/api/chat",
+        help="URL de la API de Ollama",
+    )
+    parser.add_argument(
+        "--ollama-model",
+        default="qwen3:8b",
+        help="Modelo de Ollama utilizado para la revisión",
+    )
     return parser
 
 
