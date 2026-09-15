@@ -1,79 +1,88 @@
 # CI/CD
 
-GitHub Actions runs on pushes to `main` and release branches, and on pull requests targeting `main`.
+GitHub Actions valida los cambios sobre `main` y las pull requests y, para releases etiquetadas, construye automáticamente los artefactos de escritorio.
 
-The workflow checks out the exact submitted PR head SHA. Concurrency cancellation prevents obsolete runs from consuming resources, but an older successful SHA is never evidence for a newer candidate.
+## Quality
 
-## CI jobs
-
-### `quality`
-
-Runs once on `ubuntu-latest` with Python 3.13. It provisions the locked development environment with uv and checks:
+El job de calidad ejecuta:
 
 - `uv lock --check`;
-- locked dependency consistency with `uv pip check`;
-- Ruff imports/unused imports, lint, security and formatting;
-- Python bytecode compilation.
+- `uv sync --locked`;
+- `uv pip check`;
+- Ruff lint, imports y format;
+- `compileall`.
 
-### `tests`
+## Tests
 
-Runs on Linux, Windows and macOS with Python 3.11, 3.12 and 3.13. Each runner executes `uv sync --locked`, `uv pip check`, the complete pytest suite except the wheel-only packaging test, installed entry points and the platform-specific wrapper checks.
+La matriz conserva Linux, Windows y macOS con Python 3.11, 3.12 y 3.13. Esto es obligatorio porque filesystem, procesos, librerías nativas y normalización de rutas no se pueden demostrar en un único sistema.
 
-The platform matrix is intentionally retained because filesystem, process, native-library and path-normalization behavior cannot be proven on one operating system.
+## Packaging
 
-The release E2E suite includes deterministic STT/translation adapters and isolated storage per subprocess. Its ZIP/input fixture and Windows/POSIX path handling are part of the cross-platform release validation rather than optional local-only checks.
+El packaging Python valida `uv build`, recursos, instalación limpia con pip y entry points.
 
-### `packaging`
+El workflow `.github/workflows/desktop.yml` añade packaging nativo para la GUI:
 
-Builds distributions with `uv build`, verifies packaged resources, installs the wheel into a clean virtual environment using `pip`, runs `pip check` and verifies the installed console entry points. The pip installation is deliberate: it proves that the published distribution remains usable without requiring uv.
+- Ubuntu: PyInstaller + AppDir + AppImage.
+- Windows: PyInstaller + WiX 6.0.2, produciendo `.exe` y `.msi`.
+- macOS: PyInstaller `BUNDLE`, produciendo `.app`.
 
-### `dependency-audit`
+Cada plataforma valida la existencia del artefacto esperado y lo publica como workflow artifact.
 
-Creates a locked environment containing the development, Google and audit dependency groups. `pip-audit` is declared in the `audit` group and is executed as `uv run --locked --no-sync --group audit pip-audit --strict` after removing the editable project package.
+## Linux desktop packaging
 
-### `tts-dependency-audit`
+Linux no utiliza un framework GUI distinto. `src.desktop` se empaqueta con PyInstaller como en los otros sistemas. `scripts/build_desktop.py` crea un AppDir con `AppRun`, `.desktop` e icono SVG y `appimagetool` genera el AppImage x86_64.
 
-Creates a locked environment containing the TTS extra and audit group and executes the same uv-managed `pip-audit --strict` command. This keeps the optional TTS dependency graph independently auditable.
+Esto permite una aplicación Linux portable sin exigir una distribución concreta ni un instalador de paquetes del sistema.
+
+## Release automation
+
+`.github/workflows/release.yml` se activa al crear `vX.Y.Z` o manualmente para un tag existente.
+
+El workflow:
+
+1. hace checkout del tag exacto;
+2. ejecuta `uv lock --check` y `uv sync --locked`;
+3. construye Windows, macOS y Linux en runners nativos;
+4. valida los artefactos;
+5. comprime el `.app` de macOS;
+6. publica los tres binarios como assets de workflow;
+7. crea la GitHub Release si no existe o hace upload con `--clobber` si ya existe.
+
+GitHub sigue generando automáticamente los ZIP/TAR de código fuente para el tag. La release final contiene, por tanto, tanto los fuentes automáticos como los binarios nativos sin intervención manual.
+
+Artefactos esperados:
+
+```text
+VideoTranslationPipeline-X.Y.Z-linux-x86_64.AppImage
+VideoTranslationPipeline-X.Y.Z-windows-x64.msi
+VideoTranslationPipeline-X.Y.Z-macos.app.zip
+```
+
+El `.exe` se valida durante el job Windows y permanece dentro del paquete generado por PyInstaller; si se desea distribuirlo además como asset independiente, se puede añadir al patrón de upload sin cambiar la arquitectura.
+
+## Versionado y lockfile
+
+`pyproject.toml` es la fuente declarativa y `uv.lock` la resolución reproducible. Cada release debe sincronizar ambos.
+
+La rama de preparación de `1.9.0` incluye un workflow de sincronización de metadatos que regenera `uv.lock` cuando cambia `pyproject.toml` y actualiza el encabezado de `CHANGELOG.md`. En el release final, el requisito sigue siendo `uv lock --check` sobre el SHA etiquetado.
+
+## Release 1.9.0
+
+`1.9.0` es MINOR porque introduce la aplicación GUI y la distribución nativa. El cambio no elimina CLI, scheduling, unattended execution ni los entry points existentes.
+
+El Release Gate final debe comprobar el SHA exacto de `main`, matriz de tests, Ruff, seguridad, compileall, lockfile, packaging y los artefactos nativos de Linux/Windows/macOS.
 
 ## uv policy
 
-`pyproject.toml` is the single declarative source for Python dependencies. `uv.lock` is committed and must pass `uv lock --check` on every CI/release validation. CI uses `uv sync --locked` so the runner cannot silently resolve a different dependency graph.
+Para scripts de checkout, el contrato sigue siendo:
 
-The project does not require uv for the final wheel consumer. The clean-wheel compatibility gate uses pip explicitly. Portable CUDA runtime installation also retains its deliberate pip fallback for executables that do not ship with uv.
+1. `tools/uv/uv` en POSIX o `tools\\uv\\uv.exe` en Windows;
+2. `uv`/`uv.exe` de `PATH` como fallback;
+3. solo los wrappers de setup hacen bootstrap de una copia gestionada si no existe ninguna.
 
-For source-checkout scripts, the project-managed uv contract is:
-
-1. `tools/uv/uv` on POSIX or `tools\\uv\\uv.exe` on Windows when present;
-2. system `uv`/`uv.exe` from `PATH` as fallback;
-3. only the setup wrappers bootstrap a missing copy into `tools/uv/`.
-
-The shared resolvers are `scripts/lib/resolve_uv.sh` and `scripts/lib/resolve_uv.bat`. Runtime/setup/build wrappers consume the resolved executable instead of making a global PATH lookup mandatory.
-
-## Published releases
-
-### Release 1.8.2
-
-`1.8.2` is a published PATCH release. Its validation covered the exact source SHA, static project/application versions, release metadata, packaged resources, clean wheel installation, source compilation, tests and dependency audits. The `v1.8.2` tag is immutable.
-
-### Release 1.8.1
-
-`1.8.1` is a published PATCH release. Its validation covered the project-managed uv bootstrap, optional local translation preparation, the complete platform/version matrix, packaging and Release Gate. The `v1.8.1` tag is immutable.
-
-### Release 1.8.0
-
-`1.8.0` is a published MINOR release. Subsequent development must use the next version rather than rewriting published release metadata.
-
-## Current candidate: 1.8.3
-
-`1.8.3` is the only current unreleased candidate. The Release Gate must validate the complete Linux/Windows/macOS matrix, Python 3.11/3.12/3.13, pytest, lint/security/format, compileall, lockfile checks, packaging, audits and wrapper behavior before `v1.8.3` is published.
-
-The Windows wrapper test must cover the case where `tools\\uv\\uv.exe` exists even when no global `uv.exe` is available on `PATH`. POSIX regression coverage must verify the equivalent `tools/uv/uv` precedence.
-
-Historical release documentation is cumulative: preparing `1.8.3` must not remove or downgrade the release history for `1.8.1` or `1.8.2`.
+Los wrappers consumen `scripts/lib/resolve_uv.sh` y `scripts/lib/resolve_uv.bat`.
 
 ## Local parity
-
-At minimum, run the same project checks locally through uv:
 
 ```bash
 uv lock --check
@@ -81,31 +90,16 @@ uv sync --locked --extra google --group dev
 uv pip check
 uv run pytest -q
 uv run ruff check .
-uv run ruff check . --select S
 uv run ruff format --check .
 uv run python -m compileall .
 uv build
 ```
 
-For dependency auditing:
+Para validar desktop localmente:
 
 ```bash
-uv sync --locked --extra google --group dev --group audit
-uv run --locked --no-sync --group audit pip-audit --strict
-
-uv sync --locked --extra tts --group audit
-uv run --locked --no-sync --group audit pip-audit --strict
+uv run python scripts/build_desktop.py --clean --version 1.9.0 --format native
+uv run python scripts/build_desktop.py --clean --version 1.9.0 --format linux-appimage
 ```
 
-For local translation specifically, the target environment should additionally run:
-
-```bash
-uv run python scripts/manage_local_translation.py status
-uv run python scripts/manage_local_translation.py download
-uv run python scripts/manage_local_translation.py status
-uv run python scripts/benchmark_local_translation.py --sentences 1
-```
-
-Both supported local models remain available: MADLAD-400 3B is the default quality-oriented model, while OPUS-MT is retained for low-disk/compatibility deployments. The real-model benchmark is hardware-specific; CI uses deterministic doubles for model download/runtime regressions so the production model is not downloaded on every runner.
-
-The CI workflow is authoritative for the exact commands and matrix.
+El segundo comando requiere Linux y `appimagetool`; WiX requiere Windows. La firma/notarización de macOS y firma de editor de Windows son operaciones de publicación y requieren credenciales específicas.

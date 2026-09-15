@@ -26,5 +26,6 @@ def test_wheel_contains_default_config_and_console_entry_points() -> None:
         "video-translation-regenerate = src.regeneration:main",
         "video-subtitle-qa = src.subtitle_qa_cli:main",
         "video-translation-tts = src.tts_cli:main",
+        "video-translation-desktop = src.desktop:main",
     }
     assert expected.issubset(set(metadata.splitlines()))

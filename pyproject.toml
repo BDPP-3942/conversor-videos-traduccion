@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "video-translation-pipeline"
-version = "1.8.3"
+version = "1.9.0"
 description = "Local and pluggable video/audio transcription, translation and synchronized TTS pipeline"
 requires-python = ">=3.11,<3.14"
 dependencies = [
@@ -51,6 +51,7 @@ known-first-party = ["config", "src"]
 "tests/test_e2e_release.py" = ["S603"]
 "tests/test_run_local_scripts.py" = ["S603"]
 "tests/test_uv_resolution_contract.py" = ["S101"]
+"scripts/build_desktop.py" = ["S603"]
 "src/naming_policy.py" = ["E501"]
 "src/whisper_prompt.py" = ["E501"]
 "config/loader.py" = ["E501"]
@@ -92,3 +93,4 @@ video-translation-pipeline = "main:main"
 video-translation-regenerate = "src.regeneration:main"
 video-subtitle-qa = "src.subtitle_qa_cli:main"
 video-translation-tts = "src.tts_cli:main"
+video-translation-desktop = "src.desktop:main"

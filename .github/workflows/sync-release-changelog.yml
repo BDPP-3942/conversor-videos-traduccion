@@ -1,0 +1,57 @@
+name: Sync release changelog
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+    paths:
+      - pyproject.toml
+      - CHANGELOG.md
+      - .github/workflows/sync-release-changelog.yml
+
+permissions:
+  contents: read
+
+jobs:
+  changelog:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 1
+      - name: Validate 1.9.0 release section
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Validate release headings independently from the prose used
+          # inside each historical entry.
+          for version in 1.9.0 1.8.3 1.8.2 1.8.1 1.8.0; do
+            if ! grep -Fq "## [$version]" CHANGELOG.md; then
+              echo "Missing CHANGELOG heading: ## [$version]" >&2
+              exit 1
+            fi
+          done
+
+          # Validate release-specific concepts without coupling the check to
+          # one exact sentence that may legitimately be edited.
+          for marker in \
+            'Windows:' \
+            'PyInstaller' \
+            'Linux:' \
+            'AppImage' \
+            'ZIP portable de Windows' \
+            'macOS:' \
+            'CLI' \
+            'unattended/headless' \
+            'programada' \
+            'No se introduce soporte móvil'; do
+            if ! grep -Fq "$marker" CHANGELOG.md; then
+              echo "Missing CHANGELOG marker: $marker" >&2
+              exit 1
+            fi
+          done
+
+          echo 'CHANGELOG.md contains the complete 1.9.0 release section and historical entries.'
