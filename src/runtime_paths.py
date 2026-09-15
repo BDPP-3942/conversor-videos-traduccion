@@ -9,7 +9,7 @@ WORKING_DIRECTORY_NAME = "Video Translation Pipeline"
 
 
 def user_data_root() -> Path:
-    """Return the OS-managed writable per-user directory for application state."""
+    """Devuelve la carpeta del sistema para el estado privado de la aplicación."""
     if os.name == "nt":
         root = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
     elif sys.platform == "darwin":
@@ -20,21 +20,19 @@ def user_data_root() -> Path:
 
 
 def documents_root() -> Path:
-    """Return the conventional user Documents folder without requiring elevated access."""
+    """Devuelve la carpeta Documentos convencional sin requerir permisos elevados."""
     if os.name == "nt":
-        candidate = Path(os.environ.get("USERPROFILE") or Path.home()) / "Documents"
-    else:
-        candidate = Path.home() / "Documents"
-    return candidate
+        return Path(os.environ.get("USERPROFILE") or Path.home()) / "Documents"
+    return Path.home() / "Documents"
 
 
 def working_root() -> Path:
-    """Return the user-facing default root for source and generated media."""
+    """Devuelve la raíz visible para los vídeos de entrada y resultados."""
     return documents_root() / WORKING_DIRECTORY_NAME
 
 
 def runtime_storage_paths() -> dict[str, Path]:
-    """Return separate user-facing media paths and private application state paths."""
+    """Devuelve por separado las rutas multimedia y el estado privado de la aplicación."""
     media_root = working_root()
     state_root = user_data_root()
     return {
@@ -52,8 +50,18 @@ def runtime_storage_paths() -> dict[str, Path]:
 
 
 def ensure_runtime_storage() -> dict[str, Path]:
-    """Create the writable defaults without touching the installation directory."""
+    """Crea las rutas predeterminadas sin escribir en la carpeta de instalación."""
     paths = runtime_storage_paths()
-    for key in ("input", "output", "work", "failures", "archive", "archive_sources", "logs", "state", "manifests"):
+    for key in (
+        "input",
+        "output",
+        "work",
+        "failures",
+        "archive",
+        "archive_sources",
+        "logs",
+        "state",
+        "manifests",
+    ):
         paths[key].mkdir(parents=True, exist_ok=True)
     return paths
