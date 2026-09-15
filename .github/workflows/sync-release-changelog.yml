@@ -59,11 +59,11 @@ jobs:
           }
 
           for marker in \
-            'Reparación conservadora de nombres Unicode' \
+            'Reparación conservadora de nombres UTF-8' \
             'Normalización Unicode' \
             'Separación de las carpetas de trabajo' \
             'CLI' \
-            'CI/CD' \
+            'automatización de `uv.lock`' \
             'No se introduce soporte móvil'; do
             if ! grep -Fq "$marker" <<< "$release_section"; then
               echo "Falta el marcador propio de 1.10.0: $marker" >&2
