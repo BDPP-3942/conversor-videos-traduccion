@@ -1,0 +1,92 @@
+name: Corrección E501
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  fix:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comprobar estado de la PR
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: latest-known
+      - name: Preparar entorno
+        run: |
+          uv python install 3.13
+          uv sync --group dev
+      - name: Corregir cadenas simples que superan E501
+        run: |
+          uv run python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              Path("src/cuda_runtime.py"): {
+                  '                "The NVIDIA driver is not replaced. A full CUDA Toolkit is optional and is not installed by this operation."': (
+                      '                "The NVIDIA driver is not replaced. A full CUDA Toolkit is optional "\n'
+                      '                "and is not installed by this operation."'
+                  ),
+              },
+              Path("src/local_translation.py"): {
+                  '                    f"Downloaded model exceeds {self.definition.max_total_bytes} byte installation budget: {total_size} bytes"': (
+                      '                    f"Downloaded model exceeds {self.definition.max_total_bytes} byte "\n'
+                      '                    f"installation budget: {total_size} bytes"'
+                  ),
+              },
+          }
+
+          for path, changes in replacements.items():
+              content = path.read_text(encoding="utf-8")
+              for old, new in changes.items():
+                  if old in content:
+                      content = content.replace(old, new)
+              path.write_text(content, encoding="utf-8")
+          PY
+          uv run ruff format src/cuda_runtime.py src/local_translation.py
+          uv run ruff check src/cuda_runtime.py src/local_translation.py --select E501
+      - name: Crear y fusionar PR auxiliar
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- '*.py'; then
+            echo 'No hay correcciones E501 pendientes.'
+            exit 0
+          fi
+          branch="automation/ruff-e501-pr-${PR_NUMBER}-${GITHUB_SHA:0:12}"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c "$branch"
+          git add -- src/cuda_runtime.py src/local_translation.py
+          git commit -m 'style: dividir cadenas largas de Ruff'
+          git push --set-upstream origin "$branch"
+          pr_url="$(gh pr create --repo "$REPOSITORY" --base "$TARGET_BRANCH" --head "$branch" --title 'style: dividir cadenas largas de Ruff' --body "Corrección automática de E501 para la PR principal #${PR_NUMBER}.")"
+          gh pr merge "$pr_url" --repo "$REPOSITORY" --squash
+          for attempt in {1..30}; do
+            state="$(gh pr view "$pr_url" --repo "$REPOSITORY" --json state,mergedAt --jq 'if .state == "MERGED" and .mergedAt != null then "merged" else .state end')"
+            if [[ "$state" == 'merged' ]]; then
+              break
+            fi
+            sleep 5
+          done
+          if [[ "$state" != 'merged' ]]; then
+            echo 'La PR auxiliar E501 no se ha fusionado.' >&2
+            exit 1
+          fi
+          gh api --method DELETE "repos/$REPOSITORY/git/refs/heads/$branch"
