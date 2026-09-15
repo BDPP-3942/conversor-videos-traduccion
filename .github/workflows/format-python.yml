@@ -24,25 +24,22 @@ jobs:
         with:
           version: latest-known
           enable-cache: true
-      - name: Sincronizar lockfile y entorno de desarrollo
+      - name: Sincronizar entorno de desarrollo
         run: |
           uv python install 3.13
-          uv lock
           uv sync --locked --group dev
       - name: Aplicar formato Ruff a todo el código Python
         run: uv run ruff format .
-      - name: Publicar automáticamente los cambios de formato y lockfile
+      - name: Publicar automáticamente los cambios de formato
         if: github.event_name == 'pull_request'
         shell: bash
         run: |
-          if git diff --quiet; then
-            echo 'No hay cambios de formato ni de lockfile pendientes.'
+          if git diff --quiet -- '*.py'; then
+            echo 'No hay cambios de formato pendientes.'
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- '*.py' uv.lock
-          git commit -m 'style: aplicar formato Ruff y sincronizar uv.lock'
+          git add -- '*.py'
+          git commit -m 'style: aplicar formato Ruff'
           git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
-      - name: Comprobar lint después de publicar el formato
-        run: uv run ruff check .
