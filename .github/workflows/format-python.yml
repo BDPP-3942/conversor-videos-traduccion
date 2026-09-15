@@ -38,62 +38,26 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
+          AUTOMATION_BRANCH: automation/ruff-format-58
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
-
           if git diff --quiet -- '*.py'; then
             echo 'No hay cambios de formato pendientes.'
             exit 0
           fi
-
-          automation_branch="automation/ruff-format-pr-${PR_NUMBER}-${GITHUB_SHA:0:12}"
-          existing_pr="$(gh pr list \
-            --repo "$REPOSITORY" \
-            --base "$TARGET_BRANCH" \
-            --head "$automation_branch" \
-            --state open \
-            --json number \
-            --jq '.[0].number // empty')"
-
-          if [[ -n "$existing_pr" ]]; then
-            echo "Ya existe una PR auxiliar de formato: #$existing_pr"
-            exit 0
-          fi
-
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git switch -c "$automation_branch"
+          git fetch origin "$AUTOMATION_BRANCH" "$TARGET_BRANCH"
+          git checkout -B "$AUTOMATION_BRANCH" "origin/$TARGET_BRANCH"
           git add -- '*.py'
           git commit -m 'style: aplicar formato Ruff'
-          git push --set-upstream origin "$automation_branch"
-
-          pr_url="$(gh pr create \
-            --repo "$REPOSITORY" \
-            --base "$TARGET_BRANCH" \
-            --head "$automation_branch" \
-            --title 'style: aplicar formato Ruff' \
-            --body "PR auxiliar generada automáticamente para aplicar el formato Ruff a la PR principal #${PR_NUMBER}. No modifica lógica funcional.")"
-
-          echo "PR auxiliar de formato: $pr_url"
-          gh pr merge "$pr_url" --repo "$REPOSITORY" --squash
-
-          echo 'Esperando confirmación de la fusión de la PR auxiliar.'
-          for attempt in {1..30}; do
-            state="$(gh pr view "$pr_url" --repo "$REPOSITORY" --json state,mergedAt --jq 'if .state == "MERGED" and .mergedAt != null then "merged" else .state end')"
-            if [[ "$state" == 'merged' ]]; then
-              break
-            fi
-            sleep 5
-          done
-
-          if [[ "$state" != 'merged' ]]; then
-            echo 'La PR auxiliar de formato no se ha fusionado.' >&2
-            exit 1
+          git push --force-with-lease origin "$AUTOMATION_BRANCH"
+          pr_url="$(gh pr list --repo "$REPOSITORY" --base "$TARGET_BRANCH" --head "$AUTOMATION_BRANCH" --state open --json url --jq '.[0].url // empty')"
+          if [[ -z "$pr_url" ]]; then
+            pr_url="$(gh pr create --repo "$REPOSITORY" --base "$TARGET_BRANCH" --head "$AUTOMATION_BRANCH" --title 'style: aplicar formato Ruff' --body "PR auxiliar generada automáticamente para aplicar el formato Ruff a la PR principal #${PR_NUMBER}. No modifica lógica funcional.")"
           fi
-
-          gh api --method DELETE "repos/$REPOSITORY/git/refs/heads/$automation_branch"
-          echo 'Rama auxiliar de formato eliminada tras la fusión.'
+          gh pr merge "$pr_url" --repo "$REPOSITORY" --squash
 
       - name: Verificar que el formato aplicado es estable
         run: uv run ruff format --check .
