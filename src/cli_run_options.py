@@ -47,13 +47,20 @@ def _iter_run_actions() -> Iterable[argparse.Action]:
 
 
 def add_regenerate_run_options(parser: argparse.ArgumentParser) -> None:
-    """Reutiliza las acciones argparse de run cuya semántica sigue siendo válida para regeneración."""
+    """Reutiliza las acciones argparse de run válidas para regeneración."""
     actions = list(_iter_run_actions())
     by_option = {
-        option: action for action in actions for option in action.option_strings if option in REGENERATE_RUN_OPTIONS
+        option: action
+        for action in actions
+        for option in action.option_strings
+        if option in REGENERATE_RUN_OPTIONS
     }
 
-    webm_actions = [by_option[option] for option in ("--generate-webm", "--no-webm") if option in by_option]
+    webm_actions = [
+        by_option[option]
+        for option in ("--generate-webm", "--no-webm")
+        if option in by_option
+    ]
     if webm_actions:
         group = parser.add_mutually_exclusive_group()
         for action in webm_actions:
@@ -64,7 +71,9 @@ def add_regenerate_run_options(parser: argparse.ArgumentParser) -> None:
 
     added: set[str] = set()
     for action in actions:
-        selected = [option for option in action.option_strings if option in REGENERATE_RUN_OPTIONS]
+        selected = [
+            option for option in action.option_strings if option in REGENERATE_RUN_OPTIONS
+        ]
         if not selected or any(option in added for option in selected) or action in webm_actions:
             continue
         parser._add_action(copy.deepcopy(action))
@@ -72,7 +81,7 @@ def add_regenerate_run_options(parser: argparse.ArgumentParser) -> None:
 
 
 def apply_shared_run_overrides(settings, args):
-    """Aplica exactamente la implementación de sobrescrituras utilizada por la ruta normal de run."""
+    """Aplica la implementación de sobrescrituras utilizada por la ruta normal."""
     from main import _apply_run_overrides
 
     return _apply_run_overrides(settings, args)
