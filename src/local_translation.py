@@ -16,9 +16,9 @@ from src.hardware import detect_hardware
 
 logger = logging.getLogger(__name__)
 
-# The project keeps both local translation engines available. MADLAD is the
-# preferred quality-oriented model; OPUS-MT remains a small compatibility and
-# low-disk fallback model instead of being replaced or discarded.
+# El proyecto mantiene disponibles ambos motores de traducción local. MADLAD es
+# el modelo preferido orientado a la calidad; OPUS-MT sigue siendo un modelo
+# pequeño de compatibilidad y respaldo para equipos con poco espacio en disco.
 MODEL_REPOSITORY = "cstr/madlad400-3b-ct2-int8"
 MODEL_REVISION = "fd0b55729c074372eb84b52b9309a00dc65c40c4"
 MODEL_LICENSE = "Apache-2.0"
@@ -142,7 +142,7 @@ def _definition(model_name: str) -> LocalModelDefinition:
 
 
 class LocalTranslationModelManager:
-    """Manage one of the project's pinned offline CTranslate2 models."""
+    """Gestiona uno de los modelos CTranslate2 sin conexión fijados por el proyecto."""
 
     def __init__(self, model_dir: Path | None = None, model_name: str | None = None) -> None:
         configured_name = os.getenv("LOCAL_TRANSLATION_MODEL", DEFAULT_MODEL_NAME)
@@ -283,7 +283,8 @@ class LocalTranslationModelManager:
             )
             if total_size > self.definition.max_total_bytes:
                 raise RuntimeError(
-                    f"Downloaded model exceeds {self.definition.max_total_bytes} byte installation budget: {total_size} bytes"
+                    f"Downloaded model exceeds "
+                    f"{self.definition.max_total_bytes} byte installation budget: {total_size} bytes"
                 )
             metadata = {
                 "model": self.definition.name,
@@ -332,7 +333,7 @@ class LocalTranslationModelManager:
 
 
 class LocalTranslationProvider:
-    """Offline Spanish→English translation using either pinned local model."""
+    """Traducción española→inglesa sin conexión mediante un modelo local fijado."""
 
     source_lang = "es"
     target_lang = "en"
