@@ -16,6 +16,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: read
 
 concurrency:
   group: uv-lock-pr-${{ github.event.pull_request.number }}
@@ -27,13 +28,14 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout del estado de la PR
+      - name: Checkout del estado exacto de la PR principal
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: latest-known
           enable-cache: true
@@ -45,11 +47,11 @@ jobs:
         run: uv lock
 
       - name: Crear PR auxiliar para sincronizar uv.lock
-        if: ${{ !cancelled() }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
           REPOSITORY: ${{ github.repository }}
         run: |
@@ -60,7 +62,9 @@ jobs:
             exit 0
           fi
 
-          automation_branch="automation/uv-lock-pr-${PR_NUMBER}"
+          short_sha="${HEAD_SHA:0:12}"
+          automation_branch="automation/uv-lock-pr-${PR_NUMBER}-${short_sha}"
+
           existing_pr="$(gh pr list \
             --repo "$REPOSITORY" \
             --base "$TARGET_BRANCH" \
@@ -70,7 +74,7 @@ jobs:
             --jq '.[0].number // empty')"
 
           if [[ -n "$existing_pr" ]]; then
-            echo "Ya existe la PR auxiliar #${existing_pr}. No se crea otra."
+            echo "Ya existe la PR auxiliar #${existing_pr}."
             exit 0
           fi
 
@@ -86,7 +90,7 @@ jobs:
             --base "$TARGET_BRANCH" \
             --head "$automation_branch" \
             --title "build: sincronizar uv.lock" \
-            --body "Esta PR auxiliar ha sido generada automáticamente ejecutando \\`uv lock\\` sobre la misma revisión de la PR #${PR_NUMBER}. Su único objetivo es actualizar \\`uv.lock\\` sin escribir directamente sobre la rama protegida." \
+            --body "PR auxiliar generada automáticamente para incorporar exclusivamente el resultado de \\`uv lock\\` en la PR principal #${PR_NUMBER}. La rama se eliminará después de fusionar la PR y validar correctamente la ejecución asociada al commit de merge." \
             --label "dependencies" 2>/dev/null || true)"
 
           if [[ -z "$pr_url" ]]; then
@@ -105,4 +109,58 @@ jobs:
           fi
 
           echo "PR auxiliar creada: $pr_url"
-          gh pr merge "$pr_url" --repo "$REPOSITORY" --squash --delete-branch --auto
+          gh pr merge "$pr_url" --repo "$REPOSITORY" --squash --auto
+
+          echo "Esperando a que la PR auxiliar se fusione..."
+          for attempt in {1..60}; do
+            state="$(gh pr view "$pr_url" --repo "$REPOSITORY" --json state,mergedAt,mergeCommit --jq '.state + "|" + (.mergedAt // "") + "|" + (.mergeCommit.oid // "")')"
+            echo "Estado de la PR auxiliar: $state"
+
+            if [[ "$state" == MERGED\|*\|* ]] && [[ "$state" != MERGED\|\|* ]]; then
+              merge_sha="${state##*|}"
+              break
+            fi
+
+            sleep 10
+          done
+
+          if [[ -z "${merge_sha:-}" ]]; then
+            echo "La PR auxiliar no se ha fusionado dentro del tiempo de espera." >&2
+            exit 1
+          fi
+
+          echo "Merge commit de la PR auxiliar: $merge_sha"
+          echo "Esperando la ejecución de CI asociada al merge commit..."
+
+          ci_conclusion=""
+          for attempt in {1..90}; do
+            ci_conclusion="$(gh run list \
+              --repo "$REPOSITORY" \
+              --commit "$merge_sha" \
+              --workflow CI \
+              --limit 1 \
+              --json status,conclusion \
+              --jq 'if length == 0 then "pending" elif .[0].status != "completed" then "running" else (.[0].conclusion // "unknown") end')"
+            echo "CI del merge commit: $ci_conclusion"
+
+            if [[ "$ci_conclusion" == "success" ]]; then
+              break
+            fi
+
+            if [[ "$ci_conclusion" == "failure" || "$ci_conclusion" == "cancelled" || "$ci_conclusion" == "timed_out" || "$ci_conclusion" == "action_required" ]]; then
+              echo "La CI del merge commit ha terminado con resultado no válido: $ci_conclusion" >&2
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          if [[ "$ci_conclusion" != "success" ]]; then
+            echo "La CI del merge commit no ha alcanzado éxito dentro del tiempo de espera." >&2
+            exit 1
+          fi
+
+          echo "CI validada correctamente. Eliminando la rama auxiliar $automation_branch."
+          gh api --method DELETE \
+            "repos/$REPOSITORY/git/refs/heads/$automation_branch"
+          echo "Rama auxiliar eliminada correctamente."
