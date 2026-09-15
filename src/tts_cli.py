@@ -14,13 +14,30 @@ logger = logging.getLogger(__name__)
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Genera medios TTS sincronizados a partir de VTT traducidos")
-    parser.add_argument("--config", type=Path, default=BASE_DIR / "config" / "app.toml", help="Ruta del archivo TOML de configuración")
-    parser.add_argument(
-        "--output-folder", default=None, help="Nombre de una carpeta de resultados existente dentro de storage/output"
+    parser = argparse.ArgumentParser(
+        description="Genera medios TTS sincronizados a partir de VTT traducidos"
     )
-    parser.add_argument("--all", action="store_true", help="Procesa todas las carpetas locales de resultados elegibles")
-    parser.add_argument("--no-webm", action="store_true", help="Omite el WebM de TTS aunque WebM esté configurado")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=BASE_DIR / "config" / "app.toml",
+        help="Ruta del archivo TOML de configuración",
+    )
+    parser.add_argument(
+        "--output-folder",
+        default=None,
+        help="Nombre de una carpeta de resultados existente dentro de storage/output",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Procesa todas las carpetas locales de resultados elegibles",
+    )
+    parser.add_argument(
+        "--no-webm",
+        action="store_true",
+        help="Omite el WebM de TTS aunque WebM esté configurado",
+    )
     return parser
 
 
