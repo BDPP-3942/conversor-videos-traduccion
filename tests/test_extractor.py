@@ -4,6 +4,7 @@ from zipfile import ZipFile
 import pytest
 
 from src.extractor import ZipExtractor
+from src.file_naming import normalize_component
 
 
 def make_zip(path: Path, name: str, data: bytes = b"data") -> None:
@@ -27,6 +28,18 @@ def make_cp437_zip(path: Path, name: str, data: bytes = b"data") -> None:
 def make_unflagged_utf8_zip(path: Path, name: str, data: bytes = b"data") -> None:
     """Create a ZIP with UTF-8 filename bytes but without the UTF-8 flag."""
     placeholder = "xxxxxxxxxxxx.wmv"
+    assert len(name.encode("utf-8")) == len(placeholder.encode("utf-8"))
+    with ZipFile(path, "w") as archive:
+        archive.writestr(placeholder, data)
+    raw = path.read_bytes()
+    raw = raw.replace(placeholder.encode("ascii"), name.encode("utf-8"))
+    path.write_bytes(raw)
+
+
+def make_unflagged_utf8_ntilde_zip(path: Path, data: bytes = b"data") -> None:
+    """Create UTF-8 bytes for ``niño.wmv`` while clearing the ZIP UTF-8 flag."""
+    placeholder = "xxxxxxxx.wmv"
+    name = "niño.wmv"
     assert len(name.encode("utf-8")) == len(placeholder.encode("utf-8"))
     with ZipFile(path, "w") as archive:
         archive.writestr(placeholder, data)
@@ -140,14 +153,21 @@ def test_zip_uses_cp437_for_legacy_non_utf8_member_names(tmp_path: Path) -> None
     make_cp437_zip(archive_path, "niño.wmv")
     result = extractor().extract_zip(archive_path, tmp_path / "out")
     assert result.media[0].name == "niño.wmv"
+    assert normalize_component(result.media[0].stem) == "nino"
 
 
 def test_unflagged_utf8_filename_is_repaired(tmp_path: Path) -> None:
     archive_path = tmp_path / "macos.zip"
-    # The real failure case is UTF-8 bytes for a decomposed accented name
-    # stored without the ZIP UTF-8 flag. Python decodes those bytes as CP437,
-    # yielding the observed ``compresio╠ün.wmv`` mojibake.
     name = "compresio\u0301n.wmv"
     make_unflagged_utf8_zip(archive_path, name)
     result = extractor().extract_zip(archive_path, tmp_path / "out")
     assert result.media[0].name == "compresión.wmv"
+    assert normalize_component(result.media[0].stem) == "compresion"
+
+
+def test_unflagged_utf8_n_tilde_is_repaired_without_cp437_false_positive(tmp_path: Path) -> None:
+    archive_path = tmp_path / "macos-ntilde.zip"
+    make_unflagged_utf8_ntilde_zip(archive_path)
+    result = extractor().extract_zip(archive_path, tmp_path / "out")
+    assert result.media[0].name == "niño.wmv"
+    assert normalize_component(result.media[0].stem) == "nino"
