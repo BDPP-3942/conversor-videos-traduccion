@@ -1,39 +1,39 @@
-# Development guide
+# Guía de desarrollo
 
-## Environment
+## Entorno
 
-The supported Python range is `>=3.11,<3.14`.
+El rango de Python compatible es `>=3.11,<3.14`.
 
-For development:
+Para desarrollo:
 
 ```bash
 python -m pip install -e ".[dev]"
 ```
 
-Add optional extras only when the feature being developed needs them, for example `[google]`, `[tts]` or `[package]`.
+Añade extras opcionales solo cuando la funcionalidad que se esté desarrollando los necesite, por ejemplo `[google]`, `[tts]` o `[package]`.
 
-## Project layout
+## Estructura del proyecto
 
 ```text
-config/       configuration loading and settings
-src/          application modules and adapters
-tests/        automated tests
-scripts/      setup, execution, scheduling and packaging helpers
-docs/         technical documentation
-storage/      runtime input/output/state directories
-tools/        external runtime resources
+config/       carga de configuración y ajustes
+src/          módulos de la aplicación y adaptadores
+tests/        pruebas automatizadas
+scripts/      utilidades de configuración, ejecución, programación y empaquetado
+docs/         documentación técnica
+storage/      directorios de runtime para entrada/salida/estado
+tools/        recursos externos de runtime
 ```
 
-## Change workflow
+## Flujo de cambios
 
-1. Identify the existing pipeline abstraction responsible for the change.
-2. Avoid duplicating provider/storage business logic in wrappers.
-3. Update configuration/CLI only when the implementation actually exposes the change.
-4. Add deterministic tests.
-5. Update the canonical documentation.
-6. Run the local quality checks and inspect CI.
-7. If the change is released, record it in `CHANGELOG.md` and `docs/RELEASES.md` with evidence tied to the release/tag.
+1. Identifica la abstracción existente del pipeline responsable del cambio.
+2. Evita duplicar la lógica de negocio de proveedores/almacenamiento en los wrappers.
+3. Actualiza la configuración/CLI solo cuando la implementación exponga realmente el cambio.
+4. Añade pruebas deterministas.
+5. Actualiza la documentación canónica.
+6. Ejecuta las comprobaciones de calidad locales e inspecciona la CI.
+7. Si el cambio se publica, regístralo en `CHANGELOG.md` y `docs/RELEASES.md` con evidencias vinculadas a la release/tag.
 
-## Documentation rule
+## Regla de documentación
 
-Do not document an option, command, path or feature unless it can be verified against the current code, configuration or tests. Prefer `--help` output and source definitions over historical documentation.
+No documentes una opción, comando, ruta o funcionalidad salvo que pueda verificarse contra el código, la configuración o las pruebas actuales. Prioriza la salida de `--help` y las definiciones del código fuente frente a la documentación histórica.

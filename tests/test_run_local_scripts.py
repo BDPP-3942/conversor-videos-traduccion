@@ -30,7 +30,7 @@ def test_run_local_regeneration_dispatches_to_existing_module():
             check=False,
         )
         assert result.returncode == 0
-        assert "REGENERATE FROM ZERO" in result.stdout + result.stderr
+        assert "Regenera desde cero" in result.stdout + result.stderr
     finally:
         if created:
             python_link.unlink(missing_ok=True)

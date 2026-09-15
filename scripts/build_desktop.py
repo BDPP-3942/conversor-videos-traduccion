@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import platform
 import shutil
 import subprocess
 import sys
@@ -15,21 +16,43 @@ def _run(command: list[str]) -> int:
     return subprocess.run(command, cwd=ROOT, check=False).returncode
 
 
+def _windows_python_architecture() -> str:
+    """Devuelve la arquitectura del intérprete Python que genera el ejecutable."""
+    return "x64" if sys.maxsize > 2**32 else "x86"
+
+
 def _build_pyinstaller() -> int:
     return _run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "desktop.spec"])
 
 
-def _build_msi(version: str) -> int:
+def _build_msi(version: str, windows_arch: str) -> int:
     wix = shutil.which("wix")
     if wix is None:
-        print("WiX v6 is required to build the Windows MSI (wix command not found).", file=sys.stderr)
+        print("Se necesita WiX v6 para construir el MSI de Windows.", file=sys.stderr)
         return 2
+    if platform.system() != "Windows":
+        print(
+            "El MSI de Windows debe construirse en Windows para conservar la arquitectura correcta.",
+            file=sys.stderr,
+        )
+        return 2
+    actual_arch = _windows_python_architecture()
+    if actual_arch != windows_arch:
+        print(
+            f"No se puede construir un MSI {windows_arch} con un intérprete Python {actual_arch}. "
+            "Utiliza Python de la arquitectura correspondiente.",
+            file=sys.stderr,
+        )
+        return 2
+
     source_dir = DIST / APP_NAME
-    output = DIST / f"{APP_NAME}-{version}-windows-x64.msi"
+    output = DIST / f"{APP_NAME}-{version}-windows-{windows_arch}.msi"
     command = [
         wix,
         "build",
         str(ROOT / "installer" / "VideoTranslationPipeline.wxs"),
+        "-arch",
+        windows_arch,
         "-d",
         f"Version={version}",
         "-d",
@@ -43,7 +66,7 @@ def _build_msi(version: str) -> int:
 def _build_appimage(version: str) -> int:
     appimagetool = shutil.which("appimagetool")
     if appimagetool is None:
-        print("appimagetool is required to build the Linux AppImage.", file=sys.stderr)
+        print("Se necesita appimagetool para construir el AppImage de Linux.", file=sys.stderr)
         return 2
     app_dir = DIST / f"{APP_NAME}.AppDir"
     if app_dir.exists():
@@ -68,15 +91,27 @@ def _build_appimage(version: str) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Build native Video Translation Pipeline desktop artifacts")
-    parser.add_argument("--clean", action="store_true", help="Remove previous build and distribution directories")
+    parser = argparse.ArgumentParser(
+        description="Construye los artefactos nativos de escritorio de Video Translation Pipeline"
+    )
+    parser.add_argument("--clean", action="store_true", help="Elimina las carpetas build y dist anteriores")
     parser.add_argument(
         "--format",
         choices=["native", "windows-msi", "linux-appimage"],
         default="native",
-        help="native: target-native PyInstaller bundle; optional installer formats require their platform tool",
+        help="Formato: native, windows-msi o linux-appimage",
     )
-    parser.add_argument("--version", required=True, help="Release version used in installer filenames")
+    parser.add_argument(
+        "--version",
+        required=True,
+        help="Versión de release utilizada en los nombres de artefacto",
+    )
+    parser.add_argument(
+        "--windows-arch",
+        choices=["x64", "x86"],
+        default=None,
+        help="Arquitectura del MSI de Windows; por defecto se utiliza la arquitectura de Python",
+    )
     args = parser.parse_args()
     if args.clean:
         for path in (ROOT / "build", DIST):
@@ -85,10 +120,11 @@ def main() -> int:
     if result != 0:
         return result
     if args.format == "windows-msi":
-        return _build_msi(args.version)
+        windows_arch = args.windows_arch or _windows_python_architecture()
+        return _build_msi(args.version, windows_arch)
     if args.format == "linux-appimage":
         return _build_appimage(args.version)
-    print(f"Native desktop artifact created under {DIST}")
+    print(f"Artefacto de escritorio creado en {DIST}")
     return 0
 
 

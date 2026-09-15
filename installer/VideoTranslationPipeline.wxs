@@ -5,16 +5,20 @@
       Manufacturer="BDPP-3942"
       Version="$(var.Version)"
       UpgradeCode="238C5442-0D95-48C3-B2AF-801CE5B1C7CB">
-    <MajorUpgrade DowngradeErrorMessage="A newer version of Video Translation Pipeline is already installed." />
+    <MajorUpgrade DowngradeErrorMessage="Ya existe una versión más reciente de Video Translation Pipeline." />
     <MediaTemplate EmbedCab="yes" />
     <Feature Id="MainFeature" Title="Video Translation Pipeline" Level="1">
       <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="ApplicationShortcuts" />
     </Feature>
   </Package>
 
   <Fragment>
-    <StandardDirectory Id="ProgramFiles6432Folder">
+    <StandardDirectory Id="ProgramFilesFolder">
       <Directory Id="INSTALLFOLDER" Name="VideoTranslationPipeline" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="Video Translation Pipeline" />
     </StandardDirectory>
   </Fragment>
 
@@ -22,5 +26,18 @@
     <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
       <Files Include="$(var.SourceDir)\**" />
     </ComponentGroup>
+  </Fragment>
+
+  <Fragment>
+    <Component Id="ApplicationShortcuts" Directory="ApplicationProgramsFolder" Guid="*">
+      <Shortcut
+          Id="ApplicationStartMenuShortcut"
+          Name="Video Translation Pipeline"
+          Description="Aplicación de escritorio para Video Translation Pipeline"
+          Target="[INSTALLFOLDER]VideoTranslationPipeline.exe"
+          WorkingDirectory="INSTALLFOLDER" />
+      <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
+      <RegistryValue Root="HKCU" Key="Software\BDPP-3942\VideoTranslationPipeline" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
   </Fragment>
 </Wix>

@@ -6,9 +6,15 @@ from src.local_translation import LocalTranslationModelManager
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Manage the pinned offline local translation model")
+    parser = argparse.ArgumentParser(
+        description="Gestiona el modelo local de traducción sin conexión fijado por el proyecto"
+    )
     parser.add_argument("action", choices=("status", "download", "cleanup"))
-    parser.add_argument("--yes", action="store_true", help="confirm the model download without an interactive prompt")
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="Confirma la descarga del modelo sin solicitar confirmación interactiva",
+    )
     args = parser.parse_args()
 
     manager = LocalTranslationModelManager()
@@ -31,21 +37,21 @@ def main() -> int:
     if status.available:
         print(f"already_available={status.path}")
         return 0
-    print(f"Resource: {status.repository}@{status.revision}")
-    print(f"Version/revision: {status.revision}")
-    print(f"Approximate size: {status.expected_size_bytes / 1024**2:.1f} MiB")
-    print(f"Destination: {status.path}")
-    print("Reason: prepare the local translation provider for offline processing")
-    print(f"License: {status.license}")
+    print(f"resource={status.repository}@{status.revision}")
+    print(f"version_or_revision={status.revision}")
+    print(f"approximate_size_mib={status.expected_size_bytes / 1024**2:.1f}")
+    print(f"destination={status.path}")
+    print("reason=preparar el proveedor de traducción local para el procesamiento sin conexión")
+    print(f"license={status.license}")
     if not args.yes:
-        answer = input("Download this resource now? [y/N] ").strip().lower()
-        if answer not in {"y", "yes"}:
-            print("Download cancelled.")
+        answer = input("¿Descargar ahora este recurso? [s/N] ").strip().lower()
+        if answer not in {"s", "si", "sí", "y", "yes"}:
+            print("Descarga cancelada.")
             return 2
     manager.download()
     final = manager.status()
     if not final.available:
-        print(f"Download completed but validation failed: {final.reason}")
+        print(f"La descarga ha terminado, pero la validación ha fallado: {final.reason}")
         return 1
     print(f"ready={final.path}")
     return 0

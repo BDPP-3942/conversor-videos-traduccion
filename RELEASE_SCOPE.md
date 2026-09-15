@@ -1,81 +1,88 @@
-# Release Scope — 1.9.0
+# Alcance de release — 1.10.0
 
-## Release classification
+## Clasificación
 
-`1.9.0` is the next **MINOR** release. It adds a backward-compatible desktop application and native distribution layer while preserving the existing CLI, scheduled execution and unattended wrappers.
+`1.10.0` es la siguiente release **MINOR**. Añade una aplicación de escritorio compatible hacia atrás y una capa de distribución nativa, preservando la CLI, la ejecución programada y los wrappers desatendidos existentes.
 
-The previous published baseline is `v1.8.2`. The historical `1.8.x` documentation remains immutable; the earlier `1.8.3` uv-resolution work is retained as historical candidate context and is not reclassified as the desktop release.
+La baseline publicada anterior es `v1.8.2`. La documentación histórica de `1.8.x` permanece inmutable; el trabajo histórico de resolución de uv se conserva como contexto y no se reclasifica como parte de esta release.
 
-## Desktop application
+## Aplicación de escritorio
 
-The release adds a native GUI entry point, `video-translation-desktop`, implemented as a presentation layer over the existing pipeline rather than a second processing engine.
+La release añade el punto de entrada `video-translation-desktop`, implementado como capa de presentación sobre el pipeline existente y no como un segundo motor de procesamiento.
 
-The GUI provides:
+La GUI proporciona:
 
-- processing from local storage, Google Drive and rclone-backed sources;
-- source/target language and translation-provider selection;
-- fallback providers, translation batch size and parallel-video controls;
-- Whisper model/device/compute/beam configuration;
-- WebM and TTS controls, including required-TTS behavior and voice/speed;
-- resume and legacy-name normalization controls;
-- subtitle recovery with `full`, `stt_only` and `translate_only` modes;
-- duplicate scanning, analysis, dry-run and confirmed deletion;
-- diagnostics for the environment and Whisper assets;
-- live stage/progress events, background execution and cooperative cancellation;
-- explicit retention of CLI and scheduled/headless execution.
+- procesamiento desde almacenamiento local, Google Drive y rclone;
+- selección de idiomas y proveedor de traducción;
+- proveedores de respaldo, tamaño de lote y concurrencia de vídeos;
+- configuración de modelo, dispositivo, cálculo y beam de Whisper;
+- controles de WebM y TTS, incluido TTS obligatorio y voz/velocidad;
+- controles de reanudación y normalización de nombres heredados;
+- recuperación de subtítulos con modos `full`, `stt_only` y `translate_only`;
+- análisis de duplicados, simulación y eliminación confirmada;
+- diagnóstico del entorno y preparación de recursos de Whisper;
+- eventos de etapa/progreso, ejecución en segundo plano y cancelación cooperativa;
+- conservación explícita de la CLI y de la ejecución programada/desatendida.
 
-Provider authentication/profile creation remains available through the established CLI/setup flows where OAuth or rclone configuration requires interactive credentials.
+La autenticación y creación de perfiles de proveedores continúa disponible mediante los flujos CLI/setup establecidos cuando OAuth o rclone requieren credenciales interactivas.
 
-## Pipeline control architecture
+## Arquitectura de control del pipeline
 
-`src/controllable_pipeline.py` adapts the existing `MediaPipeline` with stage events and cooperative cancellation. It does not duplicate audiovisual processing logic.
+`src/controllable_pipeline.py` adapta el `MediaPipeline` existente con eventos de etapa y cancelación cooperativa. No duplica la lógica audiovisual.
 
-Cancellation is deliberately safe-boundary based: an active FFmpeg/Whisper native process is allowed to finish its current operation before the pipeline stops. This avoids corrupting intermediate artifacts while still giving the GUI a deterministic cancellation contract.
+La cancelación se basa deliberadamente en límites seguros: un proceso nativo de FFmpeg o Whisper activo termina su operación actual antes de detener el pipeline. Así se evitan artefactos intermedios corruptos y se mantiene un contrato determinista para la GUI.
 
-## Native packaging
+## Empaquetado nativo
 
-The release produces platform-native desktop artifacts through PyInstaller and platform-specific packaging:
+La release produce artefactos de escritorio nativos mediante PyInstaller y herramientas específicas de cada plataforma:
 
-- **Windows:** PyInstaller GUI executable plus WiX 6 MSI installer.
-- **macOS:** PyInstaller `.app` bundle, distributed as a release `.zip` for easy download.
-- **Linux:** PyInstaller executable wrapped in an AppDir (`AppRun`, `.desktop` metadata and SVG icon) and packaged as an x86_64 AppImage with `appimagetool`.
+- **Windows:** ejecutable GUI PyInstaller más MSI WiX 6.
+- **macOS:** bundle `.app` de PyInstaller distribuido en ZIP.
+- **Linux:** ejecutable PyInstaller dentro de AppDir (`AppRun`, metadata `.desktop` e icono SVG), empaquetado como AppImage x86_64.
 
-Linux therefore uses the same GUI executable strategy as Windows/macOS; the distribution format is different because Linux does not have one universal native installer format. AppImage is used to provide a self-contained, portable GUI application.
+La build Windows x64 debe instalarse en el `Program Files` nativo y no en `Program Files (x86)`. Un ejecutable x64 no se presenta como compatible con Windows x86; una variante x86 solo es válida si se construye y valida realmente con Python x86 y dependencias compatibles.
 
-## Release automation
+## Automatización de release
 
-A tag `vX.Y.Z` automatically starts `.github/workflows/release.yml`. The workflow:
+Un tag `vX.Y.Z` inicia automáticamente [`.github/workflows/release.yml`](.github/workflows/release.yml). El workflow:
 
-1. checks out the exact tag;
-2. validates `uv.lock` and installs the locked development environment;
-3. builds Linux, Windows and macOS desktop artifacts on their native GitHub-hosted runners;
-4. validates the expected executable/package on each platform;
-5. archives the macOS `.app` as a `.zip`;
-6. uploads all artifacts to the workflow;
-7. creates the GitHub Release if necessary and attaches the binaries automatically.
+1. comprueba el tag exacto;
+2. valida `uv.lock` y prepara el entorno bloqueado;
+3. construye los artefactos Linux, Windows y macOS en runners nativos;
+4. valida el ejecutable y paquete esperado en cada plataforma;
+5. archiva el `.app` de macOS como ZIP;
+6. sube los artefactos al workflow;
+7. crea la GitHub Release si es necesario y adjunta los binarios.
 
-GitHub continues to provide the source-code archives for the tag. The native desktop artifacts are attached alongside those source archives, so releases no longer require manual local builds or manual binary uploads.
+GitHub continúa proporcionando los archivos fuente asociados al tag. Los artefactos nativos se adjuntan junto a ellos, eliminando la necesidad de builds locales y subidas manuales.
 
-The release workflow can also be dispatched for an existing tag to rebuild and replace its desktop assets.
+## Consistencia de versión y lockfile
 
-## Version and lockfile consistency
+Para `1.10.0`, la versión debe estar sincronizada en:
 
-For `1.9.0`, the version must be synchronized in:
+- [`pyproject.toml`](pyproject.toml);
+- [`config/app.toml`](config/app.toml);
+- [`uv.lock`](uv.lock);
+- [`CHANGELOG.md`](CHANGELOG.md);
+- [`docs/RELEASES.md`](docs/RELEASES.md);
+- [`docs/VERSIONING.md`](docs/VERSIONING.md);
+- [`RELEASE_CANDIDATE.md`](RELEASE_CANDIDATE.md);
+- esta especificación y la documentación relacionada de escritorio/release.
 
-- `pyproject.toml`;
-- `config/app.toml`;
-- `uv.lock`;
-- `CHANGELOG.md`;
-- `docs/RELEASES.md`;
-- `docs/VERSIONING.md`;
-- `RELEASE_CANDIDATE.md`;
-- this file;
-- related desktop/release documentation.
+El workflow de sincronización de uv puede actualizar el lockfile automáticamente durante la preparación de la PR. El artefacto final debe seguir siendo commitado y validado mediante `uv lock --check`.
 
-The project includes a temporary branch lock-refresh workflow while this release is being prepared so that changes to `pyproject.toml` cannot leave `uv.lock` stale. Normal development must still treat `uv.lock` as committed release metadata and require `uv lock --check`.
+## Documentación y CLI
 
-## CI and release gate
+La documentación operativa y los comentarios/docstrings introducidos o modificados deben estar en español. Los nombres de APIs, comandos, opciones CLI, claves de configuración, clases, funciones, rutas y artefactos se conservan literalmente cuando forman parte del contrato.
 
-The existing Linux/Windows/macOS Python 3.11–3.13 matrix remains required. Desktop packaging adds native validation on all three operating systems. The final release SHA must pass tests, lint/format, compile checks, lockfile validation, packaging and Release Gate before its tag is considered publishable.
+Las descripciones `description=` y `help=` de todos los parsers CLI deben estar en español. [`docs/CLI.md`](docs/CLI.md) debe recoger todos los casos de uso públicos y mantenerse sincronizado con la salida real de `--help`.
 
-Mobile is explicitly outside the `1.9.0` scope.
+Cuando un documento mencione otro documento del repositorio, debe enlazarlo mediante Markdown relativo. Estas reglas viven en los propios documentos canónicos y no requieren un `INDEX.md` auxiliar.
+
+## CI y Release Gate
+
+La matriz Linux/Windows/macOS con Python 3.11–3.13 sigue siendo obligatoria. El empaquetado de escritorio añade validación nativa en las tres plataformas. El SHA final debe superar tests, lint/formato, compilación, lockfile, empaquetado y Release Gate antes de considerarse publicable.
+
+Las pruebas funcionales y de rendimiento del pipeline y de la aplicación de escritorio son requisitos previos adicionales a la publicación.
+
+La versión móvil queda explícitamente fuera del alcance de `1.10.0`.

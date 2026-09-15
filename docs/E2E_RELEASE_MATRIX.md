@@ -1,34 +1,34 @@
-# Release 1.4.1 — E2E Matrix
+# Release 1.4.1 — Matriz E2E
 
-The release E2E suite uses real subprocess execution, temporary local storage, deterministic test adapters for external STT/translation boundaries, the real `MediaPipeline`, and ffmpeg. Google Drive and rclone are represented by their public `StorageProvider` contract in isolated tests; production credentials are not required.
+La suite E2E de la release utiliza ejecución real de subprocesos, almacenamiento local temporal, adaptadores de prueba deterministas para las fronteras externas de STT/traducción, el `MediaPipeline` real y ffmpeg. Google Drive y rclone se representan mediante su contrato público `StorageProvider` en pruebas aisladas; no se requieren credenciales de producción.
 
-| Caso de uso | Script / Entry point | Resultado esperado | Validación |
+| Caso de uso | Script / punto de entrada | Resultado esperado | Validación |
 | --- | --- | --- | --- |
-| Procesamiento normal | `video-translation-pipeline run` / `scripts/run_local.*` | success | real local pipeline E2E |
-| Dry run | `video-translation-pipeline run --dry-run` | no side effects | real subprocess |
-| AUTO concurrency | `video-translation-pipeline run --dry-run --parallel-videos 0` | safe effective concurrency | real subprocess |
-| Explicit concurrency | `video-translation-pipeline run --dry-run --parallel-videos 1` | exactly 1 | CLI/resource regression |
-| Excessive concurrency | `video-translation-pipeline run --dry-run --parallel-videos 999` | clamped below request | real subprocess |
-| Resume | `video-translation-pipeline run` | reuse valid artifacts | pipeline regression suite |
-| Resume invalid artifact | `video-translation-pipeline run` | reprocess invalid artifact | pipeline regression suite |
-| Regeneration success | `scripts/run_local.sh regenerate` | new valid result, backup removed | real subprocess wrapper E2E |
-| Regeneration failure | `video-translation-regenerate` | previous result restored | real subprocess entry-point E2E |
-| TTS CLI | `video-translation-tts --help` | executable entry point | clean package validation |
-| Scheduled execution | `scripts/run_scheduled.*` / `video-translation-pipeline run --scheduled` | same common pipeline entry point | real subprocess dry-run |
-| Scheduled standalone executable | `video-translation-scheduled` | not supported by current package | NOT APPLICABLE |
-| Local storage | existing pipeline/provider tests | success | provider tests |
-| Storage failure | existing provider tests | correct failure | provider tests |
-| Remote storage contract | public Google/rclone provider contracts | same backup/restore/delete contract | contract tests |
-| Duplicate | normal pipeline | skip/reuse correctly | regression suite |
-| Partial translation | normal pipeline | partial state | regression suite |
-| Cleanup | common pipeline | no unsafe residue | regression suite |
+| Procesamiento normal | `video-translation-pipeline run` / `scripts/run_local.*` | success | E2E del pipeline local real |
+| Dry run | `video-translation-pipeline run --dry-run` | sin efectos secundarios | subproceso real |
+| Concurrencia AUTO | `video-translation-pipeline run --dry-run --parallel-videos 0` | concurrencia efectiva segura | subproceso real |
+| Concurrencia explícita | `video-translation-pipeline run --dry-run --parallel-videos 1` | exactamente 1 | regresión CLI/recursos |
+| Concurrencia excesiva | `video-translation-pipeline run --dry-run --parallel-videos 999` | limitada por debajo de la solicitud | subproceso real |
+| Resume | `video-translation-pipeline run` | reutilizar artefactos válidos | suite de regresión del pipeline |
+| Resume con artefacto no válido | `video-translation-pipeline run` | reprocesar el artefacto no válido | suite de regresión del pipeline |
+| Regeneración correcta | `scripts/run_local.sh regenerate` | nuevo resultado válido, copia de seguridad eliminada | E2E real del wrapper de subproceso |
+| Fallo de regeneración | `video-translation-regenerate` | restaurar el resultado anterior | E2E real del punto de entrada |
+| CLI TTS | `video-translation-tts --help` | punto de entrada ejecutable | validación de paquete limpio |
+| Ejecución programada | `scripts/run_scheduled.*` / `video-translation-pipeline run --scheduled` | mismo punto de entrada del pipeline común | dry-run de subproceso real |
+| Ejecutable independiente programado | `video-translation-scheduled` | no compatible con el paquete actual | NO APLICABLE |
+| Almacenamiento local | pruebas existentes del pipeline/proveedor | success | pruebas del proveedor |
+| Fallo de almacenamiento | pruebas existentes del proveedor | fallo correcto | pruebas del proveedor |
+| Contrato de almacenamiento remoto | contratos públicos de proveedores Google/rclone | mismo contrato de backup/restore/delete | pruebas de contrato |
+| Duplicados | pipeline normal | omitir/reutilizar correctamente | suite de regresión |
+| Traducción parcial | pipeline normal | estado parcial | suite de regresión |
+| Limpieza | pipeline común | sin residuos inseguros | suite de regresión |
 
-## Script integration boundary
+## Frontera de integración de scripts
 
-`run_local.sh` and `run_local.bat` are execution wrappers. The `regenerate` action dispatches directly to `src.regeneration`; regeneration itself owns orchestration and invokes `MediaPipeline`, which uses the public `StorageProvider` contract. The wrappers do not implement media processing, storage, rollback or concurrency logic.
+`run_local.sh` y `run_local.bat` son wrappers de ejecución. La acción `regenerate` se deriva directamente a `src.regeneration`; la regeneración se encarga de la orquestación e invoca `MediaPipeline`, que utiliza el contrato público `StorageProvider`. Los wrappers no implementan procesamiento multimedia, almacenamiento, rollback ni lógica de concurrencia.
 
-## E2E boundary
+## Frontera E2E
 
-The subprocess E2E tests replace only external STT and translation adapters with deterministic test adapters. The `MediaPipeline`, local storage provider, extraction, ffmpeg media conversion, manifest handling, regeneration orchestration, CLI entry points and relevant execution wrappers remain real. This keeps the suite deterministic without model downloads, API keys, GPU hardware or Internet access.
+Las pruebas E2E de subprocesos sustituyen únicamente los adaptadores externos de STT y traducción por adaptadores de prueba deterministas. `MediaPipeline`, el proveedor de almacenamiento local, la extracción, la conversión multimedia con ffmpeg, la gestión de manifests, la orquestación de regeneración, los puntos de entrada CLI y los wrappers de ejecución relevantes siguen siendo reales. Esto mantiene la suite determinista sin descargas de modelos, claves API, hardware GPU ni acceso a Internet.
 
-Windows `.bat` execution cannot be certified by a Linux runner and must be marked NOT VALIDATED unless a Windows execution environment is available.
+La ejecución de archivos `.bat` de Windows no puede certificarse desde un runner Linux y debe marcarse como NO VALIDADA salvo que exista un entorno de ejecución Windows disponible.

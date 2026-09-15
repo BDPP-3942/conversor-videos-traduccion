@@ -1,16 +1,16 @@
-# Storage
+# Almacenamiento
 
-The processing pipeline uses a storage abstraction so processing logic is shared across backends.
+El pipeline de procesamiento utiliza una abstracción de almacenamiento para compartir la lógica de procesamiento entre los distintos backends.
 
-## Supported backends
+## Backends compatibles
 
 - `local`
 - `google_drive` / `gdrive`
 - `rclone`
 
-The provider must use matching URI schemes for source and target. Local defaults are `local://storage/input` and `local://storage/output`.
+El proveedor debe utilizar esquemas URI coincidentes para origen y destino. Los valores locales predeterminados son `local://storage/input` y `local://storage/output`.
 
-## Local layout
+## Estructura local
 
 ```text
 storage/
@@ -24,10 +24,10 @@ storage/
 └── state/
 ```
 
-The application also uses `secrets/` for credentials/profiles and `tools/` for managed/external runtime resources.
+La aplicación también utiliza `secrets/` para credenciales/perfiles y `tools/` para recursos de runtime gestionados/externos.
 
-## Cloud processing
+## Procesamiento en la nube
 
-Cloud-backed runs use the same common pipeline. Inputs are accessed through the selected adapter and outputs are validated before completion/archival actions. Cloud authentication must be prepared before scheduled execution.
+Las ejecuciones respaldadas por la nube utilizan el mismo pipeline común. Las entradas se acceden mediante el adaptador seleccionado y las salidas se validan antes de completar las acciones de finalización/archivado. La autenticación en la nube debe prepararse antes de la ejecución programada.
 
-Do not delete local output merely because an upload was initiated; the transfer must be confirmed.
+No elimines la salida local simplemente porque se haya iniciado una subida; debe confirmarse la transferencia.

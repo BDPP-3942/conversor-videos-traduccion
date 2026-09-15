@@ -6,6 +6,9 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from zipfile import ZipFile
 
 MEDIA_EXTENSIONS = {".mp4", ".mp3", ".wmv", ".mov", ".mkv", ".avi"}
+# Caracteres que suelen aparecer cuando bytes UTF-8 se interpretan como CP437.
+# Solo actúan como señal; la reparación debe poder revertirse sin pérdida.
+MOJIBAKE_MARKERS = frozenset("ÃÂÐÑâ├┤┬╠╣╬▒░")
 
 
 @dataclass
@@ -57,14 +60,18 @@ class ZipExtractor:
         current_dir.mkdir(parents=True, exist_ok=False)
 
         with ZipFile(zip_path, "r") as archive:
-            members = [m for m in archive.infolist() if not self._is_ignored_name(m.filename)]
+            members = [
+                m for m in archive.infolist() if not self._is_ignored_name(m.filename)
+            ]
             self._validate_archive(members, current_dir, result)
             self._extract_members(archive, members, current_dir)
 
         for member in members:
             if member.is_dir():
                 continue
-            extracted_path = (current_dir / self._normalized_member_name(member.filename)).resolve()
+            extracted_path = (
+                current_dir / self._normalized_member_name(member)
+            ).resolve()
             suffix = extracted_path.suffix.lower()
             if suffix in MEDIA_EXTENSIONS:
                 result.media.append(extracted_path)
@@ -84,14 +91,18 @@ class ZipExtractor:
         destination = destination.resolve()
         seen_targets: set[str] = set()
         for member in members:
-            name = self._normalized_member_name(member.filename)
+            name = self._normalized_member_name(member)
             self._validate_member_name(name)
             target = (destination / name).resolve()
             if not target.is_relative_to(destination):
                 raise ValueError(f"Unsafe ZIP path detected: {member.filename}")
             if self._is_symlink(member):
-                raise ValueError(f"Symlink entries are not allowed in ZIPs: {member.filename}")
-            collision_key = unicodedata.normalize("NFC", target.as_posix()).casefold()
+                raise ValueError(
+                    f"Symlink entries are not allowed in ZIPs: {member.filename}"
+                )
+            collision_key = unicodedata.normalize(
+                "NFC", target.as_posix()
+            ).casefold()
             if collision_key in seen_targets:
                 raise ValueError(f"ZIP path collision detected: {member.filename}")
             seen_targets.add(collision_key)
@@ -100,9 +111,13 @@ class ZipExtractor:
             result.extracted_files += 1
             result.extracted_bytes += member.file_size
             if result.extracted_files > self.max_files:
-                raise ValueError(f"Maximum number of extracted files exceeded: {self.max_files}")
+                raise ValueError(
+                    f"Maximum number of extracted files exceeded: {self.max_files}"
+                )
             if result.extracted_bytes > self.max_total_size:
-                raise ValueError(f"Maximum extracted ZIP size exceeded: {self.max_total_size} bytes")
+                raise ValueError(
+                    f"Maximum extracted ZIP size exceeded: {self.max_total_size} bytes"
+                )
 
     @classmethod
     def _validate_member_name(cls, name: str) -> None:
@@ -117,13 +132,15 @@ class ZipExtractor:
             raise ValueError(f"Unsafe ZIP path detected: {name}")
         for part in components:
             if cls._is_windows_reserved_component(part):
-                raise ValueError(f"Reserved Windows ZIP path component is not allowed: {name}")
+                raise ValueError(
+                    f"Reserved Windows ZIP path component is not allowed: {name}"
+                )
 
     @staticmethod
     def _extract_members(archive: ZipFile, members, destination: Path) -> None:
         destination = destination.resolve()
         for member in members:
-            name = ZipExtractor._normalized_member_name(member.filename)
+            name = ZipExtractor._normalized_member_name(member)
             target = (destination / name).resolve()
             if member.is_dir():
                 target.mkdir(parents=True, exist_ok=True)
@@ -140,19 +157,47 @@ class ZipExtractor:
     @staticmethod
     def _is_ignored_name(name: str) -> bool:
         normalized = name.replace("\\", "/")
-        return normalized.startswith("__MACOSX/") or "/__MACOSX/" in normalized or normalized.endswith(".DS_Store")
+        return (
+            normalized.startswith("__MACOSX/")
+            or "/__MACOSX/" in normalized
+            or normalized.endswith(".DS_Store")
+        )
 
     @staticmethod
-    def _normalized_member_name(name: str) -> str:
-        """Return a canonical Unicode path before touching the filesystem."""
+    def _normalized_member_name(member) -> str:
+        """Devuelve una ruta Unicode canónica antes de acceder al sistema de archivos.
+
+        Los nombres ZIP sin indicador UTF-8 se decodifican como CP437. Algunos
+        archivos creados por macOS contienen bytes UTF-8 aunque omiten ese indicador,
+        produciendo mojibake como ``compresio╠ün`` o ``├▒`` para ``ñ``. Se intenta
+        una recuperación CP437 -> UTF-8 sin pérdida solo cuando aparecen marcadores
+        sospechosos o marcas combinantes. Un nombre CP437 legítimo como ``niño``
+        no supera la decodificación UTF-8 y permanece intacto.
+        """
+        name = member.filename if hasattr(member, "filename") else str(member)
+        if hasattr(member, "flag_bits") and not (member.flag_bits & 0x800):
+            try:
+                recovered = name.encode("cp437").decode("utf-8")
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                recovered = None
+            if recovered is not None and recovered != name:
+                suspicious = any(char in MOJIBAKE_MARKERS for char in name)
+                combining = any(unicodedata.combining(char) for char in recovered)
+                if suspicious or combining:
+                    name = recovered
         normalized = unicodedata.normalize("NFC", name.replace("\\", "/"))
-        return "/".join(unicodedata.normalize("NFC", part) for part in normalized.split("/"))
+        return "/".join(
+            unicodedata.normalize("NFC", part) for part in normalized.split("/")
+        )
 
     @staticmethod
     def _is_windows_reserved_component(name: str) -> bool:
         stem = name.rstrip(" .").split(".", 1)[0].upper()
         return stem in {"CON", "PRN", "AUX", "NUL"} or (
-            len(stem) == 4 and stem[:3] in {"COM", "LPT"} and stem[3].isdigit() and stem[3] != "0"
+            len(stem) == 4
+            and stem[:3] in {"COM", "LPT"}
+            and stem[3].isdigit()
+            and stem[3] != "0"
         )
 
     @staticmethod
@@ -161,7 +206,8 @@ class ZipExtractor:
         normalized = unicodedata.normalize("NFC", name)
         invalid = '<>:"/\\|?*'
         sanitized = "".join(
-            "_" if char in invalid or unicodedata.category(char) == "Cc" else char for char in normalized
+            "_" if char in invalid or unicodedata.category(char) == "Cc" else char
+            for char in normalized
         )
         sanitized = sanitized.rstrip(" .")
         if ZipExtractor._is_windows_reserved_component(sanitized):

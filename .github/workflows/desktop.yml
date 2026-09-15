@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  RELEASE_VERSION: "1.10.0"
+
 jobs:
   desktop:
     name: ${{ matrix.os }} desktop artifact
@@ -54,7 +57,7 @@ jobs:
           sudo mv /tmp/appimagetool /usr/local/bin/appimagetool
       - name: Build native desktop artifact
         shell: bash
-        run: uv run python scripts/build_desktop.py --clean --version 1.9.0 --format ${{ matrix.format }}
+        run: uv run python scripts/build_desktop.py --clean --version "$RELEASE_VERSION" --format ${{ matrix.format }}
       - name: Validate macOS app bundle
         if: runner.os == 'macOS'
         shell: bash
@@ -64,11 +67,11 @@ jobs:
         shell: pwsh
         run: |
           if (-not (Test-Path 'dist\VideoTranslationPipeline\VideoTranslationPipeline.exe')) { exit 1 }
-          if (-not (Test-Path 'dist\VideoTranslationPipeline-1.9.0-windows-x64.msi')) { exit 1 }
+          if (-not (Test-Path "dist\VideoTranslationPipeline-$env:RELEASE_VERSION-windows-x64.msi")) { exit 1 }
       - name: Validate Linux AppImage
         if: runner.os == 'Linux'
         shell: bash
-        run: test -f dist/VideoTranslationPipeline-1.9.0-linux-x86_64.AppImage
+        run: test -f "dist/VideoTranslationPipeline-$RELEASE_VERSION-linux-x86_64.AppImage"
       - name: Upload desktop artifact
         uses: actions/upload-artifact@v4
         with:

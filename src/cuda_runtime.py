@@ -226,8 +226,8 @@ def install_managed_cuda_runtime() -> CUDARuntimeStatus:
             CUDNN_SPEC,
         ]
     else:
-        # Packaged executables may intentionally not ship uv. Preserve the runtime
-        # bootstrap contract with pip rather than making CUDA depend on a developer tool.
+        # Los ejecutables empaquetados pueden no incluir uv. Se conserva el
+        # contrato de arranque con pip en lugar de hacer depender CUDA de una herramienta de desarrollo.
         command = [
             sys.executable,
             "-m",
@@ -287,7 +287,8 @@ def ensure_cuda_runtime(*, interactive: bool = True) -> CUDARuntimeStatus:
             print(f"Managed installation: {MANAGED_DIR}")
             print(f"Runtime libraries will be installed into: {MANAGED_PYTHON_DIR}")
             print(
-                "The NVIDIA driver is not replaced. A full CUDA Toolkit is optional and is not installed by this operation."
+                "The NVIDIA driver is not replaced. A full CUDA Toolkit is optional and is not "
+                "installed by this operation."
             )
             answer = input("Install the managed NVIDIA runtime libraries now? [y/N]: ").strip().lower()
             _interactive_decision = answer in {"y", "yes"}
