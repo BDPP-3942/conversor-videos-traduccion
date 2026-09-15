@@ -64,7 +64,7 @@ class ZipExtractor:
         for member in members:
             if member.is_dir():
                 continue
-            extracted_path = (current_dir / self._normalized_member_name(member.filename)).resolve()
+            extracted_path = (current_dir / self._normalized_member_name(member)).resolve()
             suffix = extracted_path.suffix.lower()
             if suffix in MEDIA_EXTENSIONS:
                 result.media.append(extracted_path)
@@ -84,7 +84,7 @@ class ZipExtractor:
         destination = destination.resolve()
         seen_targets: set[str] = set()
         for member in members:
-            name = self._normalized_member_name(member.filename)
+            name = self._normalized_member_name(member)
             self._validate_member_name(name)
             target = (destination / name).resolve()
             if not target.is_relative_to(destination):
@@ -123,7 +123,7 @@ class ZipExtractor:
     def _extract_members(archive: ZipFile, members, destination: Path) -> None:
         destination = destination.resolve()
         for member in members:
-            name = ZipExtractor._normalized_member_name(member.filename)
+            name = ZipExtractor._normalized_member_name(member)
             target = (destination / name).resolve()
             if member.is_dir():
                 target.mkdir(parents=True, exist_ok=True)
@@ -143,8 +143,27 @@ class ZipExtractor:
         return normalized.startswith("__MACOSX/") or "/__MACOSX/" in normalized or normalized.endswith(".DS_Store")
 
     @staticmethod
-    def _normalized_member_name(name: str) -> str:
-        """Return a canonical Unicode path before touching the filesystem."""
+    def _normalized_member_name(member) -> str:
+        """Return a canonical Unicode path before touching the filesystem.
+
+        Some macOS-created archives contain UTF-8 filename bytes while omitting
+        the ZIP UTF-8 flag. Python's zipfile therefore decodes those bytes as
+        CP437, producing mojibake such as ``compresio╠ün.wmv``. When the legacy
+        decoding can be losslessly reversed to UTF-8 and the recovered text
+        contains combining marks, repair it before NFC canonicalization.
+        Legitimate CP437 names (for example ``niño.wmv``) remain unchanged
+        because their CP437 bytes are not valid UTF-8.
+        """
+        name = member.filename if hasattr(member, "filename") else str(member)
+        if hasattr(member, "flag_bits") and not (member.flag_bits & 0x800):
+            try:
+                recovered = name.encode("cp437").decode("utf-8")
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                recovered = None
+            if recovered is not None and any(
+                unicodedata.combining(char) for char in recovered
+            ):
+                name = recovered
         normalized = unicodedata.normalize("NFC", name.replace("\\", "/"))
         return "/".join(unicodedata.normalize("NFC", part) for part in normalized.split("/"))
 
