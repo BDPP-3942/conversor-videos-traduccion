@@ -21,22 +21,22 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 1
-      - name: Validate 1.9.0 release section
+      - name: Validar sección de release 1.10.0
         shell: bash
         run: |
           set -euo pipefail
 
-          # Validate release headings independently from the prose used
-          # inside each historical entry.
-          for version in 1.9.0 1.8.3 1.8.2 1.8.1 1.8.0; do
+          # Validar las cabeceras de release independientemente de la redacción
+          # utilizada dentro de cada entrada histórica.
+          for version in 1.10.0 1.8.3 1.8.2 1.8.1 1.8.0; do
             if ! grep -Fq "## [$version]" CHANGELOG.md; then
-              echo "Missing CHANGELOG heading: ## [$version]" >&2
+              echo "Falta la cabecera del CHANGELOG: ## [$version]" >&2
               exit 1
             fi
           done
 
-          # Validate release-specific concepts without coupling the check to
-          # one exact sentence that may legitimately be edited.
+          # Validar conceptos propios de la release sin acoplar el control a
+          # una frase exacta que pueda editarse legítimamente.
           for marker in \
             'Windows:' \
             'PyInstaller' \
@@ -49,9 +49,9 @@ jobs:
             'programada' \
             'No se introduce soporte móvil'; do
             if ! grep -Fq "$marker" CHANGELOG.md; then
-              echo "Missing CHANGELOG marker: $marker" >&2
+              echo "Falta el marcador del CHANGELOG: $marker" >&2
               exit 1
             fi
           done
 
-          echo 'CHANGELOG.md contains the complete 1.9.0 release section and historical entries.'
+          echo 'CHANGELOG.md contiene la sección completa de release 1.10.0 y las entradas históricas.'
