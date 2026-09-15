@@ -1,0 +1,47 @@
+name: Formato Python
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comprobar código de la rama de la PR
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          fetch-depth: 0
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: latest-known
+          enable-cache: true
+      - name: Preparar Python y dependencias de desarrollo
+        run: |
+          uv python install 3.13
+          uv sync --locked --group dev
+      - name: Aplicar formato Ruff a todo el código Python
+        run: uv run ruff format .
+      - name: Comprobar lint después del formato
+        run: uv run ruff check .
+      - name: Publicar cambios de formato en la rama de la PR
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo 'No hay cambios de formato pendientes.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- '*.py'
+          git commit -m 'style: aplicar formato Ruff al código Python'
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
