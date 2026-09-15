@@ -47,13 +47,13 @@ Consulta [`INSTALLATION.md`](INSTALLATION.md), [`CONFIGURATION.md`](CONFIGURATIO
 
 ## Release candidata actual
 
-La candidata actual es `1.9.0`. Es una release `MINOR` que añade la aplicación de escritorio, el empaquetado nativo, la reparación de nombres Unicode en ZIP y la arquitectura de almacenamiento de trabajo separada del estado privado.
+La candidata actual es `1.10.0`. Es una release `MINOR` que añade la aplicación de escritorio, el empaquetado nativo, la reparación de nombres Unicode en ZIP y la arquitectura de almacenamiento de trabajo separada del estado privado.
 
-La publicación de `v1.9.0` requiere que CI y Release Gate estén verdes sobre el SHA final y que se actualicen de forma coherente `pyproject.toml`, `config/app.toml`, `uv.lock`, [`CHANGELOG.md`](../CHANGELOG.md) y [`RELEASES.md`](RELEASES.md).
+La publicación de `v1.10.0` requiere que CI y Release Gate estén verdes sobre el SHA final y que se actualicen de forma coherente [`pyproject.toml`](../pyproject.toml), [`config/app.toml`](../config/app.toml), [`uv.lock`](../uv.lock), [`CHANGELOG.md`](../CHANGELOG.md) y [`docs/RELEASES.md`](RELEASES.md).
 
 Las releases publicadas anteriores son inmutables. Consulta [`RELEASES.md`](RELEASES.md) para el historial.
 
-## Cambios principales de 1.9.0
+## Cambios principales de 1.10.0
 
 ### Aplicación de escritorio
 
@@ -83,6 +83,15 @@ El instalador MSI se construye con la arquitectura real del ejecutable. El build
 
 El MSI crea un acceso directo en el menú Inicio y la aplicación no requiere escritura en su directorio de instalación.
 
+### CLI y documentación
+
+- Las descripciones `description=` y `help=` de los parsers CLI deben estar en español.
+- [`CLI.md`](CLI.md) es la referencia de uso y documenta los casos de uso públicos, incluyendo comandos, opciones, wrappers y ejemplos.
+- Los ejemplos de comandos explican qué comprueban o modifican y sus restricciones relevantes.
+- Las referencias a otros documentos utilizan enlaces Markdown relativos.
+- Los comentarios y docstrings modificados para esta release conservan el contenido técnico en español.
+- Las reglas se aplican directamente sobre los ficheros canónicos; no existe un `INDEX.md` auxiliar que deba mantenerse sincronizado.
+
 ## Evidencia de releases
 
 | Capacidad | Primera release verificada |
@@ -100,7 +109,7 @@ El MSI crea un acceso directo en el menú Inicio y la aplicación no requiere es
 | Bootstrap gestionado de uv | `1.8.1` |
 | Corrección MADLAD/tokenizer/diagnóstico Hugging Face | `1.8.2` |
 | Resolución gestionada de uv en wrappers | `1.8.3` candidata histórica |
-| Aplicación GUI, empaquetado nativo, reparación ZIP Unicode y almacenamiento de escritorio | `1.9.0` candidata |
+| Aplicación GUI, empaquetado nativo, reparación ZIP Unicode y almacenamiento de escritorio | `1.10.0` candidata |
 
 ## Documentación canónica
 
