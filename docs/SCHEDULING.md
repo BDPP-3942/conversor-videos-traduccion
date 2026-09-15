@@ -1,30 +1,30 @@
-# Scheduling and unattended execution
+# Programación y ejecución desatendida
 
-The application separates interactive administration from unattended processing.
+La aplicación separa la administración interactiva del procesamiento desatendido.
 
-## Scheduled command
+## Comando programado
 
 ```bash
 python main.py run --scheduled
 ```
 
-Scheduled mode uses the saved active provider configuration and does not open a browser or request interactive input.
+El modo programado utiliza la configuración guardada del proveedor activo y no abre un navegador ni solicita entrada interactiva.
 
-## Supported scheduler integrations
+## Integraciones de scheduler compatibles
 
-Repository scripts provide support for:
+Los scripts del repositorio proporcionan soporte para:
 
 - Windows Task Scheduler (`scripts/install_task_scheduler.ps1`);
-- macOS `launchd` (`scripts/install_launchd.sh`);
-- cron-style execution on Linux/macOS;
-- unattended wrapper scripts under `scripts/run_unattended.*` and `scripts/run_scheduled.*`.
+- `launchd` de macOS (`scripts/install_launchd.sh`);
+- ejecución de tipo cron en Linux/macOS;
+- wrappers de ejecución desatendida bajo `scripts/run_unattended.*` y `scripts/run_scheduled.*`.
 
-A scheduled process must have a deterministic working directory, access to configuration/secrets/models, write permissions for runtime state and logs, and the intended Python environment or packaged executable.
+Un proceso programado debe tener un directorio de trabajo determinista, acceso a configuración/secretos/modelos, permisos de escritura para el estado y los logs del runtime, y el entorno de Python previsto o un ejecutable empaquetado.
 
-## Cloud authentication
+## Autenticación en la nube
 
-Google Drive uses persistent OAuth credentials and silent refresh where possible. rclone manages OAuth credentials for its remotes. Scheduled execution never performs interactive consent; a credential requiring reauthorization causes readiness to fail instead.
+Google Drive utiliza credenciales OAuth persistentes y renovación silenciosa cuando es posible. rclone gestiona las credenciales OAuth de sus remotes. La ejecución programada nunca realiza consentimiento interactivo; si una credencial requiere una nueva autorización, la comprobación de disponibilidad falla en su lugar.
 
-## Concurrency
+## Concurrencia
 
-The pipeline uses a runtime lock. Do not configure multiple independent scheduler tasks to process the same runtime directory concurrently.
+El pipeline utiliza un bloqueo de runtime. No configures varias tareas independientes del scheduler para procesar simultáneamente el mismo directorio de runtime.
