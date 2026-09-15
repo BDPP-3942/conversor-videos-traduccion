@@ -1,49 +1,49 @@
-# Processing pipeline
+# Pipeline de procesamiento
 
-The common pipeline processes each input through independently recoverable stages. When multiple videos are processed in one run, the runtime determines the effective video concurrency before creating the workers.
+El pipeline común procesa cada entrada mediante etapas que pueden recuperarse de forma independiente. Cuando se procesan varios vídeos en una ejecución, el runtime determina la concurrencia efectiva de vídeo antes de crear los workers.
 
 ```text
-input video / ZIP
+vídeo de entrada / ZIP
       ↓
-validation + extraction
+validación + extracción
       ↓
-media normalization
+normalización multimedia
       ↓
-STT + silence-aware segmentation
+STT + segmentación sensible a silencios
       ↓
-original VTT validation
+validación del VTT original
       ↓
-translation
+traducción
       ↓
-translated VTT validation
-      ├── subtitles / normal video
-      └── optional TTS
+validación del VTT traducido
+      ├── subtítulos / vídeo normal
+      └── TTS opcional
               ↓
-          cue audio
+          audio de cada cue
               ↓
           MP4/WebM TTS
               ↓
-       artifact validation
+       validación de artefactos
               ↓
            manifest
 ```
 
-The exact stages reused or skipped depend on valid existing artifacts and the configured resume policy.
+Las etapas exactas que se reutilizan u omiten dependen de los artefactos existentes válidos y de la política de resume configurada.
 
-## Video concurrency
+## Concurrencia de vídeo
 
-For concurrent video processing, `max_parallel_videos` is treated as an upper bound. In the current `main` implementation, `0` means AUTO: the runtime resolves the effective Whisper configuration and derives a conservative concurrency ceiling from CPU and available RAM, also considering available GPU memory when CUDA is selected. A positive configured value can be clamped to that ceiling, while `1` remains single-worker execution.
+Para el procesamiento concurrente de vídeo, `max_parallel_videos` se trata como un límite superior. En la implementación actual de `main`, `0` significa AUTO: el runtime resuelve la configuración efectiva de Whisper y deriva un límite conservador de concurrencia a partir de la CPU y la RAM disponible, considerando también la memoria de GPU cuando se selecciona CUDA. Un valor positivo configurado puede limitarse a ese techo, mientras que `1` mantiene la ejecución con un único worker.
 
-This resource-aware scheduling of video workers was introduced after the published `1.2.2` release by PR #20. It is therefore part of current `main` behavior and must not be attributed retroactively to release `1.2.2`.
+Esta planificación consciente de los recursos de los workers de vídeo se introdujo después de la release publicada `1.2.2` mediante la PR #20. Por tanto, forma parte del comportamiento actual de `main` y no debe atribuirse retroactivamente a la release `1.2.2`.
 
-## Temporal invariant
+## Invariante temporal
 
-Every generated subtitle cue must satisfy `start < end`. Translation changes cue text but preserves `start`/`end`. TTS uses the translated, validated VTT as its timing source and preserves gaps as silence.
+Cada cue de subtítulo generado debe cumplir `start < end`. La traducción modifica el texto del cue, pero conserva `start`/`end`. TTS utiliza el VTT traducido y validado como fuente temporal y conserva los intervalos como silencio.
 
-## Failure and recovery
+## Fallos y recuperación
 
-- Missing/invalid artifacts are candidates for regeneration.
-- Valid artifacts are reused when the stage permits it.
-- Subtitle repair does not regenerate the normal video.
-- A TTS failure does not delete valid normal-video or subtitle artifacts.
-- A runtime lock prevents overlapping pipeline executions.
+- Los artefactos ausentes/no válidos son candidatos a regeneración.
+- Los artefactos válidos se reutilizan cuando la etapa lo permite.
+- La reparación de subtítulos no regenera el vídeo normal.
+- Un fallo de TTS no elimina artefactos válidos del vídeo normal ni de los subtítulos.
+- Un bloqueo de runtime impide ejecuciones simultáneas del pipeline.
