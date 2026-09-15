@@ -21,37 +21,54 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 1
-      - name: Validar sección de release 1.10.0
+      - name: Validar historial y sección de release 1.10.0
         shell: bash
         run: |
           set -euo pipefail
 
-          # Validar las cabeceras de release independientemente de la redacción
-          # utilizada dentro de cada entrada histórica.
-          for version in 1.10.0 1.8.3 1.8.2 1.8.1 1.8.0; do
+          # Validar las cabeceras de la release candidata y de su baseline
+          # sin acoplar el control a la redacción interna de las entradas.
+          for version in 1.10.0 1.9.0 1.8.3 1.8.2 1.8.1 1.8.0; do
             if ! grep -Fq "## [$version]" CHANGELOG.md; then
               echo "Falta la cabecera del CHANGELOG: ## [$version]" >&2
               exit 1
             fi
           done
 
-          # Validar conceptos propios de la release sin acoplar el control a
-          # una frase exacta que pueda editarse legítimamente.
+          # La sección 1.10.0 debe describir únicamente cambios posteriores a
+          # v1.9.0; la funcionalidad de escritorio y packaging de v1.9.0 debe
+          # permanecer en su propia entrada histórica.
+          release_section="$(awk '/^## \[1\.10\.0\]/{flag=1;next}/^## \[1\.9\.0\]/{flag=0}flag' CHANGELOG.md)"
+          baseline_section="$(awk '/^## \[1\.9\.0\]/{flag=1;next}/^## \[1\.8\.3\]/{flag=0}flag' CHANGELOG.md)"
+
+          grep -Fq 'Baseline:' <<< "$release_section" || {
+            echo 'La sección 1.10.0 debe declarar su baseline.' >&2
+            exit 1
+          }
+          grep -Fq 'v1.9.0' <<< "$release_section" || {
+            echo 'La sección 1.10.0 debe identificar v1.9.0 como baseline.' >&2
+            exit 1
+          }
+          grep -Fq 'video-translation-desktop' <<< "$baseline_section" || {
+            echo 'La funcionalidad de escritorio debe permanecer documentada en 1.9.0.' >&2
+            exit 1
+          }
+          grep -Fq 'PyInstaller' <<< "$baseline_section" || {
+            echo 'El packaging introducido en 1.9.0 debe permanecer en su entrada histórica.' >&2
+            exit 1
+          }
+
           for marker in \
-            'Windows:' \
-            'PyInstaller' \
-            'Linux:' \
-            'AppImage' \
-            'ZIP portable de Windows' \
-            'macOS:' \
+            'Reparación conservadora de nombres Unicode' \
+            'Normalización Unicode' \
+            'Separación de las carpetas de trabajo' \
             'CLI' \
-            'unattended/headless' \
-            'programada' \
+            'CI/CD' \
             'No se introduce soporte móvil'; do
-            if ! grep -Fq "$marker" CHANGELOG.md; then
-              echo "Falta el marcador del CHANGELOG: $marker" >&2
+            if ! grep -Fq "$marker" <<< "$release_section"; then
+              echo "Falta el marcador propio de 1.10.0: $marker" >&2
               exit 1
             fi
           done
 
-          echo 'CHANGELOG.md contiene la sección completa de release 1.10.0 y las entradas históricas.'
+          echo 'CHANGELOG.md separa correctamente 1.10.0 de la baseline histórica 1.9.0.'
