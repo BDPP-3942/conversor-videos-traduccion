@@ -13,7 +13,6 @@ def make_zip(path: Path, name: str, data: bytes = b"data") -> None:
 
 
 def make_cp437_zip(path: Path, name: str, data: bytes = b"data") -> None:
-    """Create a ZIP whose member name is encoded with the ZIP legacy CP437 rule."""
     placeholder = "niZo.wmv"
     assert len(name) == len(placeholder)
     with ZipFile(path, "w") as archive:
@@ -26,26 +25,22 @@ def make_cp437_zip(path: Path, name: str, data: bytes = b"data") -> None:
 
 
 def make_unflagged_utf8_zip(path: Path, name: str, data: bytes = b"data") -> None:
-    """Create a ZIP with UTF-8 filename bytes but without the UTF-8 flag."""
     placeholder = "xxxxxxxxxxxx.wmv"
     assert len(name.encode("utf-8")) == len(placeholder.encode("utf-8"))
     with ZipFile(path, "w") as archive:
         archive.writestr(placeholder, data)
     raw = path.read_bytes()
-    raw = raw.replace(placeholder.encode("ascii"), name.encode("utf-8"))
-    path.write_bytes(raw)
+    path.write_bytes(raw.replace(placeholder.encode("ascii"), name.encode("utf-8")))
 
 
 def make_unflagged_utf8_ntilde_zip(path: Path, data: bytes = b"data") -> None:
-    """Create UTF-8 bytes for ``niño.wmv`` while clearing the ZIP UTF-8 flag."""
-    placeholder = "xxxxxxxx.wmv"
+    placeholder = "xxxxx.wmv"
     name = "niño.wmv"
     assert len(name.encode("utf-8")) == len(placeholder.encode("utf-8"))
     with ZipFile(path, "w") as archive:
         archive.writestr(placeholder, data)
     raw = path.read_bytes()
-    raw = raw.replace(placeholder.encode("ascii"), name.encode("utf-8"))
-    path.write_bytes(raw)
+    path.write_bytes(raw.replace(placeholder.encode("ascii"), name.encode("utf-8")))
 
 
 def extractor(**overrides):
