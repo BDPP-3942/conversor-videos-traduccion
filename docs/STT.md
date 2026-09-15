@@ -1,134 +1,134 @@
-# Speech-to-text (STT)
+# Conversión de voz a texto (STT)
 
-STT uses `faster-whisper` backed by CTranslate2. The selected model, device, compute type, beam size, CPU threads, VAD behavior, initial prompt and degeneration-recovery policy are configurable.
+STT utiliza `faster-whisper` respaldado por CTranslate2. El modelo, dispositivo, tipo de cálculo, tamaño de beam, hilos de CPU, comportamiento de VAD, prompt inicial y política de recuperación ante degeneración seleccionados son configurables.
 
-The published `1.8.0` release uses `faster-whisper>=1.2.1,<1.3` with `ctranslate2>=4.8.2,<4.9`. It refines the existing selective-recovery mechanism rather than replacing the STT architecture.
+La release publicada `1.8.0` utiliza `faster-whisper>=1.2.1,<1.3` con `ctranslate2>=4.8.2,<4.9`. Refina el mecanismo existente de recuperación selectiva en lugar de sustituir la arquitectura STT.
 
-Defaults in `config/app.toml` include automatic model/device/compute selection, beam size `5`, VAD enabled, a minimum VAD silence duration of `2000` ms and an independent subtitle split threshold of `1000` ms. `.env.example` exposes explicit environment overrides.
+Los valores predeterminados de `config/app.toml` incluyen selección automática de modelo/dispositivo/cálculo, tamaño de beam `5`, VAD habilitado, una duración mínima de silencio VAD de `2000` ms y un umbral independiente de división de subtítulos de `1000` ms. `.env.example` expone las sobreescrituras explícitas mediante variables de entorno.
 
-## Initial prompt / context file
+## Prompt inicial / archivo de contexto
 
-`processing.whisper_initial_prompt` accepts the original literal prompt form and can also point to a context file.
+`processing.whisper_initial_prompt` acepta la forma original de prompt literal y también puede apuntar a un archivo de contexto.
 
-Supported formats are:
+Los formatos compatibles son:
 
 - `.txt`
 - `.md`
-- `.csv` — cells are flattened into a comma-separated prompt
-- `.docx` — paragraph text is extracted from `word/document.xml` without adding a runtime `python-docx` dependency
+- `.csv` — las celdas se aplanan en un prompt separado por comas
+- `.docx` — el texto de los párrafos se extrae de `word/document.xml` sin añadir una dependencia de runtime `python-docx`
 
-The repository configuration uses:
-
-```toml
-whisper_initial_prompt = "config/palabras_contexto.txt"
-```
-
-The conventional names `palabras_contexto.txt`, `palabras_contexto.md`, `palabras_contexto.csv` and `palabras_contexto.docx` are also auto-discovered when the configured value is empty. Context files are bounded to 2 MiB and DOCX XML containing DTD/entity declarations is rejected.
-
-For example:
+La configuración del repositorio utiliza:
 
 ```toml
 whisper_initial_prompt = "config/palabras_contexto.txt"
 ```
 
-or, for a literal prompt:
+Los nombres convencionales `palabras_contexto.txt`, `palabras_contexto.md`, `palabras_contexto.csv` y `palabras_contexto.docx` también se descubren automáticamente cuando el valor configurado está vacío. Los archivos de contexto están limitados a 2 MiB y se rechaza XML de DOCX que contenga declaraciones DTD/entity.
+
+Por ejemplo:
+
+```toml
+whisper_initial_prompt = "config/palabras_contexto.txt"
+```
+
+o, para un prompt literal:
 
 ```toml
 whisper_initial_prompt = "Tai Chi, taijiquan, qigong"
 ```
 
-## STT degeneration detection and recovery
+## Detección y recuperación de degeneración de STT
 
-The normal transcription path keeps `whisper_condition_on_previous_text` as configured. A segment is considered suspicious when the quality policy detects degeneration signals such as excessive repetition, compression ratio, low average log probability or high no-speech probability. Short legitimate repetition is protected by `whisper_min_repetition_words`.
+La ruta normal de transcripción mantiene `whisper_condition_on_previous_text` según la configuración. Un segmento se considera sospechoso cuando la política de calidad detecta señales de degeneración, como repetición excesiva, ratio de compresión, baja probabilidad logarítmica media o alta probabilidad de ausencia de voz. La repetición legítima breve se protege mediante `whisper_min_repetition_words`.
 
-Suspicious segments are recovered selectively; normal segments are not retranscribed. Recovery is segment-scoped through `clip_timestamps`, so a failure in one interval does not cause the complete media file to be regenerated.
+Los segmentos sospechosos se recuperan selectivamente; los segmentos normales no se retranscriben. La recuperación se limita al segmento mediante `clip_timestamps`, de modo que un fallo en un intervalo no provoca que se regenere el archivo multimedia completo.
 
-### faster-whisper clip contract
+### Contrato de `clip_timestamps` de faster-whisper
 
-The recovery path calls `WhisperModel.transcribe()` directly. Its `clip_timestamps` argument must therefore contain numeric time values, not segment dictionaries. The project passes each suspicious interval as:
+La ruta de recuperación llama directamente a `WhisperModel.transcribe()`. Por tanto, su argumento `clip_timestamps` debe contener valores temporales numéricos, no diccionarios de segmentos. El proyecto pasa cada intervalo sospechoso como:
 
 ```python
 clip_timestamps = [float(start), float(end)]
 ```
 
-This is intentionally distinct from APIs that may represent batched segments as dictionaries. Passing dictionaries to the `WhisperModel` path causes arithmetic inside `faster-whisper` to fail with `TypeError: unsupported operand type(s) for *: 'dict' and 'int'`. Regression tests verify that the recovery call receives numeric timestamps.
+Esto es deliberadamente distinto de las API que pueden representar segmentos agrupados mediante diccionarios. Pasar diccionarios a la ruta `WhisperModel` provoca que falle una operación aritmética interna de `faster-whisper` con `TypeError: unsupported operand type(s) for *: 'dict' and 'int'`. Las pruebas de regresión verifican que la llamada de recuperación recibe marcas temporales numéricas.
 
 ### `whisper_recovery_retries`
 
-`whisper_recovery_retries` is the maximum number of recovery rounds per suspicious segment. It is not an unlimited retry loop and is independent of the initial transcription attempt.
+`whisper_recovery_retries` es el número máximo de rondas de recuperación por segmento sospechoso. No es un bucle de reintentos ilimitado y es independiente del intento de transcripción inicial.
 
-- `0`: disables recovery. A suspicious segment is rejected instead of being retried.
-- `1`: performs at most one recovery round.
-- `N > 1`: performs at most `N` recovery rounds.
+- `0`: desactiva la recuperación. Un segmento sospechoso se rechaza en lugar de reintentarse.
+- `1`: realiza como máximo una ronda de recuperación.
+- `N > 1`: realiza como máximo `N` rondas de recuperación.
 
-Each recovery round follows this bounded policy:
+Cada ronda de recuperación sigue esta política acotada:
 
-1. Retry the suspicious interval with `condition_on_previous_text=true` and the configured initial prompt, preserving normal context behavior.
-2. If that result is still suspicious or empty, retry the same interval with `condition_on_previous_text=false` **and without the initial prompt**. This is the context-free/prompt-free path intended to prevent a large domain prompt from amplifying hallucinations.
-3. If a healthy candidate is produced, recovery stops immediately; later rounds are not executed.
+1. Reintenta el intervalo sospechoso con `condition_on_previous_text=true` y el prompt inicial configurado, conservando el comportamiento de contexto normal.
+2. Si ese resultado sigue siendo sospechoso o está vacío, reintenta el mismo intervalo con `condition_on_previous_text=false` **y sin el prompt inicial**. Esta es la ruta sin contexto/sin prompt destinada a evitar que un prompt de dominio grande amplifique las alucinaciones.
+3. Si se obtiene un candidato saludable, la recuperación termina inmediatamente; no se ejecutan rondas posteriores.
 
-Therefore, one configured recovery round can make up to two backend `transcribe` calls (context-preserving plus context-free/prompt-free). The configuration value counts recovery rounds, not individual backend calls.
+Por tanto, una ronda de recuperación configurada puede realizar hasta dos llamadas `transcribe` al backend (conservando contexto y sin contexto/sin prompt). El valor de configuración cuenta rondas de recuperación, no llamadas individuales al backend.
 
-`whisper_recovery_temperatures` supplies the temperature used by each recovery round. If fewer temperatures than rounds are configured, values are reused cyclically. If the list is empty, recovery uses `0.0`.
+`whisper_recovery_temperatures` proporciona la temperatura utilizada por cada ronda de recuperación. Si se configuran menos temperaturas que rondas, los valores se reutilizan cíclicamente. Si la lista está vacía, la recuperación utiliza `0.0`.
 
-All candidates from the executed rounds are scored using the same STT quality policy. The best candidate is selected, but it is emitted only if it is no longer suspicious. A candidate that remains suspicious after all configured rounds is rejected; the pipeline does not silently accept a known-degenerate transcription.
+Todos los candidatos de las rondas ejecutadas se puntúan con la misma política de calidad STT. Se selecciona el mejor candidato, pero solo se emite si deja de ser sospechoso. Un candidato que siga siendo sospechoso después de todas las rondas configuradas se rechaza; el pipeline no acepta silenciosamente una transcripción conocida como degenerada.
 
-Recovery logs include the interval, configured retry count, candidate count and quality metrics/reasons, but do not log the recovered transcription text.
+Los logs de recuperación incluyen el intervalo, el número de reintentos configurado, el número de candidatos y las métricas/motivos de calidad, pero no registran el texto de la transcripción recuperada.
 
-Configuration example:
+Ejemplo de configuración:
 
 ```toml
 whisper_recovery_retries = 1
 whisper_recovery_temperatures = [0.2]
 ```
 
-Environment overrides:
+Sobreescrituras mediante variables de entorno:
 
 ```text
 WHISPER_RECOVERY_RETRIES=1
 WHISPER_RECOVERY_TEMPERATURES=0.2,0.4
 ```
 
-The tests verify disabled recovery, the retry limit, temperature selection, context-preserving/context-free ordering, prompt omission on the context-free pass and early termination after a healthy candidate.
+Las pruebas verifican la recuperación desactivada, el límite de reintentos, la selección de temperatura, el orden con/sin conservación de contexto, la omisión del prompt en el pase sin contexto y la terminación temprana después de obtener un candidato saludable.
 
-The recovery mechanism is a defensive STT policy, not a guarantee that every hallucination can be corrected. Real-media regression claims require an actual representative media fixture or recorded execution; synthetic tests do not constitute an A/B benchmark.
+El mecanismo de recuperación es una política defensiva de STT, no una garantía de que puedan corregirse todas las alucinaciones. Las afirmaciones de regresión sobre medios reales requieren un fixture multimedia representativo o una ejecución registrada; las pruebas sintéticas no constituyen un benchmark A/B.
 
-## Hardware and GPU/CPU execution
+## Hardware y ejecución GPU/CPU
 
-Hardware detection verifies the actual CTranslate2 CUDA capability instead of treating the presence of a GPU driver as sufficient. The effective profile records CPU count, available RAM, GPU/VRAM, selected model, device and compute type.
+La detección de hardware verifica la capacidad CUDA real de CTranslate2 en lugar de considerar suficiente la presencia de un driver GPU. El perfil efectivo registra CPU, RAM disponible, GPU/VRAM, modelo seleccionado, dispositivo y tipo de cálculo.
 
-When CUDA is selected, the Whisper model executes on the GPU. CPU resources are still used by the surrounding Python/media pipeline, but `cpu_threads` must not be interpreted as a mechanism for splitting one Whisper inference between CPU and GPU. The project therefore does not claim single-inference CPU+GPU model partitioning.
+Cuando se selecciona CUDA, el modelo Whisper se ejecuta en la GPU. Los recursos de CPU siguen siendo utilizados por el pipeline circundante de Python/medios, pero `cpu_threads` no debe interpretarse como un mecanismo para dividir una inferencia Whisper entre CPU y GPU. Por tanto, el proyecto no afirma disponer de partición de un único modelo de inferencia entre CPU y GPU.
 
-The supported throughput strategy is parallelism between independent video jobs when the resource budget permits it. Each video worker owns its Whisper instance (`num_workers = 1` inside that instance), while the pipeline-level concurrency ceiling accounts for CPU threads, available RAM and GPU memory. This avoids duplicating work or creating uncontrolled concurrent generation inside a single model instance.
+La estrategia de rendimiento compatible es el paralelismo entre trabajos de vídeo independientes cuando el presupuesto de recursos lo permite. Cada worker de vídeo posee su propia instancia de Whisper (`num_workers = 1` dentro de esa instancia), mientras que el límite de concurrencia del pipeline tiene en cuenta hilos de CPU, RAM disponible y memoria GPU. Esto evita duplicar trabajo o crear generación concurrente descontrolada dentro de una única instancia del modelo.
 
-If CUDA initialization fails, the application performs one controlled fallback to CPU rather than repeatedly retrying the same failed GPU initialization.
+Si falla la inicialización CUDA, la aplicación realiza un único fallback controlado a CPU en lugar de reintentar repetidamente la misma inicialización GPU fallida.
 
-## Segmentation
+## Segmentación
 
-VAD and subtitle cue splitting are deliberately independent controls. `whisper_min_silence_duration_ms` is passed to faster-whisper VAD when VAD is enabled and defaults to `2000` ms in `config/app.toml`. `whisper_subtitle_split_silence_duration_ms` controls grouping of word timestamps into subtitle cues and defaults to `1000` ms.
+VAD y división de cues de subtítulos son controles deliberadamente independientes. `whisper_min_silence_duration_ms` se pasa al VAD de faster-whisper cuando VAD está habilitado y tiene `2000` ms como valor predeterminado en `config/app.toml`. `whisper_subtitle_split_silence_duration_ms` controla la agrupación de marcas temporales de palabras en cues de subtítulos y tiene `1000` ms como valor predeterminado.
 
-The subtitle threshold must not be implemented by lowering the VAD threshold: VAD decides which audio regions are speech, while subtitle splitting decides where word-timestamped speech should become separate cues. In the current implementation, a gap **greater than** the configured subtitle threshold starts a new cue; a gap exactly equal to the threshold does not.
+El umbral de subtítulos no debe implementarse reduciendo el umbral VAD: VAD decide qué regiones de audio son voz, mientras que la división de subtítulos decide dónde la voz con marcas temporales de palabras debe convertirse en cues independientes. En la implementación actual, un intervalo **mayor que** el umbral configurado inicia un nuevo cue; un intervalo exactamente igual al umbral no lo hace.
 
-Whisper timestamps are used to construct subtitle cues. Final intervals are validated before a VTT is accepted.
+Las marcas temporales de Whisper se utilizan para construir los cues de subtítulos. Los intervalos finales se validan antes de aceptar un VTT.
 
-The invariant is:
+El invariante es:
 
 ```text
 start < end
 ```
 
-Cues violating the invariant are not propagated as usable subtitles.
+Los cues que incumplen el invariante no se propagan como subtítulos utilizables.
 
-## Model prefetch
+## Descarga anticipada del modelo
 
-To initialize/download the automatically selected Whisper model:
+Para inicializar/descargar el modelo Whisper seleccionado automáticamente:
 
 ```bash
 python main.py prefetch-whisper
 ```
 
-The model is not bundled into the repository by default.
+El modelo no se incluye en el repositorio de forma predeterminada.
 
-## Reprocessing
+## Reprocesamiento
 
-The `1.7.0` baseline introduced the reprocessing/manifests workflows and `1.7.1` corrected the selective `clip_timestamps` backend contract. The published `1.8.0` release preserves those workflows while refining suspicious-segment recovery and its context handling.
+La línea base `1.7.0` introdujo los workflows de reprocesamiento/manifests y `1.7.1` corrigió el contrato selectivo del backend para `clip_timestamps`. La release publicada `1.8.0` conserva esos workflows y refina la recuperación de segmentos sospechosos y su gestión del contexto.
