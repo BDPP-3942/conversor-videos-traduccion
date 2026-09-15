@@ -31,7 +31,10 @@ def _build_msi(version: str, windows_arch: str) -> int:
         print("Se necesita WiX v6 para construir el MSI de Windows.", file=sys.stderr)
         return 2
     if platform.system() != "Windows":
-        print("El MSI de Windows debe construirse en Windows para conservar la arquitectura correcta.", file=sys.stderr)
+        print(
+            "El MSI de Windows debe construirse en Windows para conservar la arquitectura correcta.",
+            file=sys.stderr,
+        )
         return 2
     actual_arch = _windows_python_architecture()
     if actual_arch != windows_arch:
@@ -88,7 +91,9 @@ def _build_appimage(version: str) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Construye los artefactos nativos de escritorio de Video Translation Pipeline")
+    parser = argparse.ArgumentParser(
+        description="Construye los artefactos nativos de escritorio de Video Translation Pipeline"
+    )
     parser.add_argument("--clean", action="store_true", help="Elimina las carpetas build y dist anteriores")
     parser.add_argument(
         "--format",
@@ -96,7 +101,11 @@ def main() -> int:
         default="native",
         help="Formato: native, windows-msi o linux-appimage",
     )
-    parser.add_argument("--version", required=True, help="Versión de release utilizada en los nombres de artefacto")
+    parser.add_argument(
+        "--version",
+        required=True,
+        help="Versión de release utilizada en los nombres de artefacto",
+    )
     parser.add_argument(
         "--windows-arch",
         choices=["x64", "x86"],
