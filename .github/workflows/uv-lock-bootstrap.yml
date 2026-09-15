@@ -28,7 +28,7 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout del estado exacto de la PR principal
+      - name: Comprobar el estado exacto de la PR principal
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
@@ -69,12 +69,15 @@ jobs:
             --repo "$REPOSITORY" \
             --base "$TARGET_BRANCH" \
             --head "$automation_branch" \
-            --state open \
-            --json number \
-            --jq '.[0].number // empty')"
+            --state all \
+            --json number,state,mergedAt \
+            --jq '.[0] | select(.number != null) | "\(.number) \(.state) \(.mergedAt // "")"')"
 
+          pr_number=""
+          pr_state=""
           if [[ -n "$existing_pr" ]]; then
-            pr_url="$(gh pr view "$existing_pr" --repo "$REPOSITORY" --json url --jq '.url')"
+            read -r pr_number pr_state _ <<< "$existing_pr"
+            pr_url="$(gh pr view "$pr_number" --repo "$REPOSITORY" --json url --jq '.url')"
           else
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -89,11 +92,45 @@ jobs:
               --head "$automation_branch" \
               --title "build: sincronizar uv.lock" \
               --body "PR auxiliar generada automáticamente para incorporar el resultado de uv lock en la PR principal #${PR_NUMBER}. La rama se eliminará únicamente después de fusionar esta PR y validar la CI ejecutada sobre el estado resultante.")"
+            pr_number="$(gh pr view "$pr_url" --repo "$REPOSITORY" --json number --jq '.number')"
+            pr_state="OPEN"
           fi
 
           echo "PR auxiliar: $pr_url"
-          echo "Fusionando la PR auxiliar mediante squash, sin depender de auto-merge."
-          gh pr merge "$pr_url" --repo "$REPOSITORY" --squash
+
+          if [[ "$pr_state" != "MERGED" ]]; then
+            echo "Esperando a que terminen las comprobaciones de la PR auxiliar."
+            if ! gh pr checks "$pr_url" --repo "$REPOSITORY" --watch --fail-fast; then
+              echo "Las comprobaciones de la PR auxiliar no han terminado correctamente." >&2
+              exit 1
+            fi
+
+            echo "Intentando fusionar automáticamente la PR auxiliar mediante squash."
+            merge_attempts=0
+            while true; do
+              merge_attempts=$((merge_attempts + 1))
+              current_state="$(gh pr view "$pr_url" --repo "$REPOSITORY" --json state,mergedAt,mergeStateStatus --jq '.state + " " + (.mergedAt // "") + " " + (.mergeStateStatus // "")')"
+              read -r state merged_at merge_status <<< "$current_state"
+
+              if [[ "$state" == "MERGED" && -n "$merged_at" ]]; then
+                echo "La PR auxiliar ya estaba fusionada."
+                break
+              fi
+
+              if [[ "$merge_attempts" -gt 6 ]]; then
+                echo "No se ha podido fusionar automáticamente la PR auxiliar." >&2
+                echo "Estado de merge de GitHub: $merge_status" >&2
+                exit 1
+              fi
+
+              if ! gh pr merge "$pr_url" --repo "$REPOSITORY" --squash; then
+                echo "El intento $merge_attempts de fusión no ha sido aceptado todavía." >&2
+                sleep 10
+                continue
+              fi
+              break
+            done
+          fi
 
           echo "Esperando a que la PR auxiliar quede fusionada..."
           merge_sha=""
@@ -112,10 +149,34 @@ jobs:
 
           echo "Merge commit de la PR auxiliar: $merge_sha"
 
-          echo "Lanzando explícitamente CI sobre la rama de la PR principal para validar el estado fusionado."
+          echo "Esperando a que la rama principal de la PR se estabilice tras la fusión."
+          stable_sha=""
+          previous_sha=""
+          stable_count=0
+          for attempt in {1..30}; do
+            current_sha="$(gh api "repos/$REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha')"
+            if [[ "$current_sha" == "$previous_sha" ]]; then
+              stable_count=$((stable_count + 1))
+            else
+              stable_count=0
+            fi
+            previous_sha="$current_sha"
+            if [[ "$stable_count" -ge 2 ]]; then
+              stable_sha="$current_sha"
+              break
+            fi
+            sleep 10
+          done
+
+          if [[ -z "$stable_sha" ]]; then
+            stable_sha="$previous_sha"
+          fi
+          echo "SHA estable de la rama principal de la PR: $stable_sha"
+
+          echo "Lanzando explícitamente CI sobre el estado fusionado y estable."
           gh workflow run CI.yml --repo "$REPOSITORY" --ref "$TARGET_BRANCH"
 
-          echo "Esperando la CI correspondiente al estado fusionado..."
+          echo "Esperando la CI correspondiente al SHA estable..."
           ci_conclusion="pending"
           for attempt in {1..90}; do
             ci_conclusion="$(gh run list \
@@ -124,7 +185,7 @@ jobs:
               --branch "$TARGET_BRANCH" \
               --limit 1 \
               --json headSha,status,conclusion \
-              --jq 'if length == 0 then "pending" elif .[0].headSha != "'"$merge_sha"'" then "pending" elif .[0].status != "completed" then "running" else (.[0].conclusion // "unknown") end')"
+              --jq 'if length == 0 then "pending" elif .[0].headSha != "'"$stable_sha"'" then "pending" elif .[0].status != "completed" then "running" else (.[0].conclusion // "unknown") end')"
             echo "CI del estado fusionado: $ci_conclusion"
 
             if [[ "$ci_conclusion" == "success" ]]; then
@@ -145,6 +206,9 @@ jobs:
           fi
 
           echo "CI validada correctamente. Eliminando la rama auxiliar $automation_branch."
-          gh api --method DELETE \
-            "repos/$REPOSITORY/git/refs/heads/$automation_branch"
-          echo "Rama auxiliar eliminada correctamente."
+          if gh api --method DELETE "repos/$REPOSITORY/git/refs/heads/$automation_branch"; then
+            echo "Rama auxiliar eliminada correctamente."
+          else
+            echo "La rama auxiliar ya no existe o no pudo eliminarse automáticamente." >&2
+            exit 1
+          fi
