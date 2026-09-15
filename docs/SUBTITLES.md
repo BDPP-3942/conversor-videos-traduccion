@@ -1,25 +1,25 @@
-# Subtitles and WebVTT
+# Subtítulos y WebVTT
 
-WebVTT is the subtitle interchange format between STT, translation, QA/repair and TTS.
+WebVTT es el formato de intercambio de subtítulos entre STT, traducción, QA/reparación y TTS.
 
-## Temporal contract
+## Contrato temporal
 
-The original VTT establishes the timing. Translation preserves `start` and `end`; TTS uses the translated validated VTT without shifting later cues.
+El VTT original establece la temporización. La traducción conserva `start` y `end`; TTS utiliza el VTT traducido y validado sin desplazar los cues posteriores.
 
-A valid cue must have `start < end`, ordered timestamps and valid WebVTT syntax. Gaps between cues are valid and represent silence; they are not filled automatically.
+Un cue válido debe tener `start < end`, marcas de tiempo ordenadas y sintaxis WebVTT válida. Los intervalos entre cues son válidos y representan silencio; no se rellenan automáticamente.
 
-## QA and repair
+## QA y reparación
 
-The project includes `src.subtitle_qa` and the `video-subtitle-qa` entry point for subtitle diagnostics. The repair layer handles missing/invalid historical VTT artifacts.
+El proyecto incluye `src.subtitle_qa` y el punto de entrada `video-subtitle-qa` para el diagnóstico de subtítulos. La capa de reparación gestiona artefactos VTT históricos ausentes/no válidos.
 
-Recovery rules:
+Reglas de recuperación:
 
-1. invalid/missing original VTT → rerun STT, validate, then translate;
-2. valid original + invalid/missing translation → keep original timing and rerun translation;
-3. both invalid → rerun STT once, validate, then translate.
+1. VTT original no válido/ausente → volver a ejecutar STT, validar y después traducir;
+2. original válido + traducción no válida/ausente → conservar la temporización original y volver a ejecutar la traducción;
+3. ambos no válidos → volver a ejecutar STT una vez, validar y después traducir.
 
-Existing VTT files are backed up before replacement. A valid VTT is not unnecessarily regenerated.
+Los archivos VTT existentes se guardan como copia de seguridad antes de sustituirlos. Un VTT válido no se regenera innecesariamente.
 
-## Output conventions
+## Convenciones de salida
 
-The output may contain an original transcription under `original_transcriptions/` and a translated VTT named according to the configured target language. Do not hard-code a language suffix in operational tooling; inspect the generated output or configuration.
+La salida puede contener una transcripción original bajo `original_transcriptions/` y un VTT traducido cuyo nombre depende del idioma de destino configurado. No codifiques un sufijo de idioma en las herramientas operativas; inspecciona la salida generada o la configuración.
