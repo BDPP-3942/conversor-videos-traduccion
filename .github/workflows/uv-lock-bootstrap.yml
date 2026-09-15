@@ -92,9 +92,10 @@ jobs:
           fi
 
           echo "PR auxiliar: $pr_url"
-          gh pr merge "$pr_url" --repo "$REPOSITORY" --squash --auto
+          echo "Fusionando la PR auxiliar mediante squash, sin depender de auto-merge."
+          gh pr merge "$pr_url" --repo "$REPOSITORY" --squash
 
-          echo "Esperando a que la PR auxiliar se fusione..."
+          echo "Esperando a que la PR auxiliar quede fusionada..."
           merge_sha=""
           for attempt in {1..60}; do
             merge_sha="$(gh pr view "$pr_url" --repo "$REPOSITORY" --json state,mergedAt,mergeCommit --jq 'if .state == "MERGED" and .mergedAt != null then (.mergeCommit.oid // "") else "" end')"
@@ -111,7 +112,7 @@ jobs:
 
           echo "Merge commit de la PR auxiliar: $merge_sha"
 
-          echo "Lanzando explícitamente CI sobre la rama principal de la PR para validar el estado fusionado."
+          echo "Lanzando explícitamente CI sobre la rama de la PR principal para validar el estado fusionado."
           gh workflow run CI.yml --repo "$REPOSITORY" --ref "$TARGET_BRANCH"
 
           echo "Esperando la CI correspondiente al estado fusionado..."
