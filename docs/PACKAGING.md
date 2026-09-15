@@ -10,7 +10,7 @@ Las herramientas de build están declaradas en el grupo de dependencias de desar
 uv sync --group dev --extra tts
 ```
 
-No existe un extra `[package]` independiente en `pyproject.toml`; las herramientas de empaquetado pertenecen al grupo `dev`.
+Este comando sincroniza el entorno de desarrollo y activa el extra opcional `tts`, necesario cuando el ejecutable debe incluir el runtime de Kokoro. Las herramientas de empaquetado pertenecen al grupo `dev`.
 
 ## Aplicación de escritorio
 
@@ -20,47 +20,50 @@ El punto de entrada es:
 uv run video-translation-desktop
 ```
 
-La aplicación utiliza la lógica común de `VideoTranslationApplication` y `MediaPipeline`; el empaquetado no crea un segundo motor de procesamiento.
+`uv run` ejecuta el entry point dentro del entorno bloqueado del proyecto; `video-translation-desktop` inicia la GUI sin crear un segundo motor de procesamiento. La lógica continúa pasando por `VideoTranslationApplication` y `MediaPipeline`.
 
 ## Windows
 
-Construcción del MSI:
+Construcción del MSI de la candidata `1.10.0`:
 
 ```bash
-uv run python scripts/build_desktop.py --clean --version 1.9.0 --format windows-msi
+uv run python scripts/build_desktop.py --clean --version 1.10.0 --format windows-msi
 ```
+
+`--clean` elimina restos de `build` y `dist`, `--version` fija la versión incluida en el nombre del artefacto y `--format windows-msi` solicita el ejecutable PyInstaller y el MSI WiX.
 
 La arquitectura se obtiene del intérprete Python utilizado para construir PyInstaller. También puede solicitarse explícitamente:
 
 ```bash
-uv run python scripts/build_desktop.py --clean --version 1.9.0 --format windows-msi --windows-arch x64
-uv run python scripts/build_desktop.py --clean --version 1.9.0 --format windows-msi --windows-arch x86
+uv run python scripts/build_desktop.py --clean --version 1.10.0 --format windows-msi --windows-arch x64
+uv run python scripts/build_desktop.py --clean --version 1.10.0 --format windows-msi --windows-arch x86
 ```
 
-La segunda variante solo es válida si el entorno Python x86 y todas las dependencias binarias del proyecto pueden construirse realmente para x86.
+`--windows-arch` se transmite a WiX mediante `-arch`. La variante x86 solo es válida si el intérprete Python, PyInstaller y todas las dependencias binarias pueden construirse realmente para x86.
 
-El script pasa la arquitectura a WiX mediante la opción `-arch`; no depende de una variable de preprocesador `Platform` inventada. El archivo WiX utiliza `ProgramFilesFolder`, y WiX genera el MSI con la arquitectura solicitada. Por tanto:
-
-- MSI x64 → `Program Files` nativo del sistema.
-- MSI x86 → ubicación de `Program Files` correspondiente a aplicaciones de 32 bits en sistemas x64.
-
-La aplicación no escribe datos de trabajo dentro de la instalación.
+El MSI x64 se instala en el `Program Files` nativo. No se presenta un ejecutable x64 como compatible con Windows x86. El instalador no debe utilizar su directorio de instalación como espacio de trabajo escribible.
 
 ## Linux
 
 ```bash
-uv run python scripts/build_desktop.py --clean --version 1.9.0 --format linux-appimage
+uv run python scripts/build_desktop.py --clean --version 1.10.0 --format linux-appimage
 ```
 
-PyInstaller genera el bundle y `appimagetool` lo encapsula como AppImage.
+El comando genera el ejecutable PyInstaller, crea el AppDir con `AppRun`, metadata `.desktop` e icono SVG y ejecuta `appimagetool` para producir el AppImage x86_64. CI ejecuta esta operación en un runner Linux nativo.
 
 ## macOS
 
 ```bash
-uv run python scripts/build_desktop.py --clean --version 1.9.0 --format native
+uv run python scripts/build_desktop.py --clean --version 1.10.0 --format native
 ```
 
-PyInstaller genera `VideoTranslationPipeline.app`. La firma y notarización pertenecen al proceso de publicación y requieren credenciales de release.
+El comando genera `VideoTranslationPipeline.app`. En la publicación se archiva como ZIP; la firma y notarización pertenecen al proceso de release y requieren las credenciales correspondientes.
+
+## Builds de release
+
+La workflow de escritorio utiliza explícitamente `RELEASE_VERSION=1.10.0` durante la preparación de esta candidata. Esto evita que los nombres y validaciones de artefactos continúen apuntando a `1.9.0`.
+
+La publicación definitiva se realiza mediante [`.github/workflows/release.yml`](../.github/workflows/release.yml) al crear el tag `v1.10.0`. No se deben publicar binarios generados manualmente desde un equipo de desarrollo.
 
 ## Datos de runtime
 
@@ -78,7 +81,7 @@ Datos privados de la aplicación
 └── estado, logs, cachés, trabajo temporal y manifests internos
 ```
 
-La GUI permite cambiar `input` y `output` por cualquier carpeta donde el usuario tenga permisos de escritura.
+La GUI permite cambiar `input` y `output` por cualquier carpeta donde el usuario tenga permisos de escritura, incluida una carpeta compartida, de red o sincronizada.
 
 ## Validación
 
@@ -95,7 +98,9 @@ uv run pytest -q --ignore=tests/test_packaging.py
 uv build
 ```
 
-Además, CI construye el artefacto nativo de cada plataforma en su runner correspondiente y comprueba que el archivo esperado exista.
+`uv lock --check` verifica que el lockfile corresponde al proyecto; `ruff check` valida lint, imports y reglas de calidad; `ruff format --check` comprueba el formato sin modificar archivos; `compileall` comprueba que Python pueda compilar el código; `pytest` ejecuta la suite y `uv build` valida la construcción de distribución Python.
+
+Además, CI construye el artefacto nativo de cada plataforma en su runner correspondiente y comprueba que el archivo esperado exista. Las pruebas funcionales y de rendimiento de la aplicación deben completarse antes de publicar `v1.10.0`.
 
 ## Documentación relacionada
 
