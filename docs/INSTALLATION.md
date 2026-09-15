@@ -1,18 +1,18 @@
-# Installation and setup
+# Instalación y configuración
 
-## Requirements
+## Requisitos
 
-- Python 3.11, 3.12 or 3.13 (`>=3.11,<3.14`). The setup scripts can install the requested Python through the project-managed `uv` tool.
-- Internet access for package/model/provider downloads as applicable.
-- Disk space for media, Whisper/TTS assets and generated output.
-- Optional Google dependency for Google Drive.
-- rclone is an external executable; the project can bootstrap and manage its own binary under `tools/rclone/`.
+- Python 3.11, 3.12 o 3.13 (`>=3.11,<3.14`). Los scripts de configuración pueden instalar la versión de Python solicitada mediante la herramienta `uv` gestionada por el proyecto.
+- Acceso a Internet para descargar paquetes/modelos/proveedores cuando corresponda.
+- Espacio en disco para medios, recursos de Whisper/TTS y salidas generadas.
+- Dependencia opcional de Google para Google Drive.
+- rclone es un ejecutable externo; el proyecto puede hacer bootstrap y gestionar su propio binario bajo `tools/rclone/`.
 
-FFmpeg is supplied through the `imageio-ffmpeg` dependency unless an explicit executable is configured.
+FFmpeg se proporciona mediante la dependencia `imageio-ffmpeg`, salvo que se configure un ejecutable explícito.
 
-## Install
+## Instalación
 
-Clone the repository:
+Clona el repositorio:
 
 ```bash
 git clone https://github.com/BDPP-3942/conversor-videos-traduccion.git
@@ -26,36 +26,36 @@ chmod +x scripts/setup_env.sh
 ./scripts/setup_env.sh
 ```
 
-The setup script first uses a project-managed `tools/uv/uv` executable when one already exists. Otherwise it uses `uv` from `PATH`; if neither is available, it downloads the official uv installer and creates the project-managed copy under `tools/uv/`. The local binary is ignored by Git and the installer is invoked in unmanaged mode, so the setup does not modify the user's shell profile.
+El script de configuración utiliza primero el ejecutable `tools/uv/uv` gestionado por el proyecto cuando ya existe. En caso contrario utiliza `uv` desde `PATH`; si ninguno está disponible, descarga el instalador oficial de uv y crea la copia gestionada por el proyecto bajo `tools/uv/`. El binario local está ignorado por Git y el instalador se ejecuta en modo no gestionado, por lo que la configuración no modifica el perfil de shell del usuario.
 
-The setup script accepts these optional flags:
+El script de configuración acepta estas opciones opcionales:
 
-- `--cloud` — install the Google Drive extra.
-- `--rclone` — bootstrap the managed rclone binary.
-- `--tts` — install and enable the optional Kokoro TTS dependency/assets.
-- `--prefetch-whisper` — prefetch the Whisper model selected by the application.
-- `--local-translation` — download and validate the configured pinned local translation model during the same setup run.
+- `--cloud` — instala el extra de Google Drive.
+- `--rclone` — hace bootstrap del binario gestionado de rclone.
+- `--tts` — instala y habilita la dependencia/recursos opcionales de Kokoro TTS.
+- `--prefetch-whisper` — descarga por adelantado el modelo de Whisper seleccionado por la aplicación.
+- `--local-translation` — descarga y valida el modelo de traducción local fijado y configurado durante la misma ejecución de configuración.
 
-For a complete local setup including the default MADLAD-400 3B translation model:
+Para una configuración local completa, incluido el modelo de traducción MADLAD-400 3B predeterminado:
 
 ```bash
 ./scripts/setup_env.sh --local-translation
 ```
 
-The `--local-translation` flag is deliberately opt-in because the default MADLAD model is approximately 2.95 GB. If it is omitted, the environment is fully prepared but the local translation weights are not downloaded. They can be installed later with the existing command:
+La opción `--local-translation` es deliberadamente opt-in porque el modelo MADLAD predeterminado ocupa aproximadamente 2,95 GB. Si se omite, el entorno queda completamente preparado, pero no se descargan los pesos de traducción local. Pueden instalarse posteriormente con el comando existente:
 
 ```bash
 uv run python scripts/manage_local_translation.py download
 ```
 
-Status and a real runtime benchmark can then be checked with:
+El estado y un benchmark real del runtime pueden comprobarse con:
 
 ```bash
 uv run python scripts/manage_local_translation.py status
 uv run python scripts/benchmark_local_translation.py --sentences 1
 ```
 
-The project-managed `uv` binary is not committed to the repository. It is downloaded for the host platform when required, while the Python environment remains the normal project `.venv` managed by uv.
+El binario `uv` gestionado por el proyecto no se incluye en el repositorio. Se descarga para la plataforma anfitriona cuando es necesario, mientras que el entorno de Python sigue siendo el `.venv` normal del proyecto gestionado por uv.
 
 ### Windows
 
@@ -63,11 +63,11 @@ The project-managed `uv` binary is not committed to the repository. It is downlo
 scripts\setup_env.bat
 ```
 
-The Windows setup script implements the same uv resolution order and downloads a project-managed `tools\uv\uv.exe` when no system `uv.exe` is available. It accepts the same six optional flags listed above.
+El script de configuración de Windows implementa el mismo orden de resolución de uv y descarga `tools\uv\uv.exe`, gestionado por el proyecto, cuando no hay disponible un `uv.exe` del sistema. Acepta las mismas seis opciones opcionales indicadas anteriormente.
 
-### Manual virtual environment
+### Entorno virtual manual
 
-The setup scripts are the preferred installation path because they bootstrap uv when necessary. A manual installation remains supported:
+Los scripts de configuración son la vía de instalación preferida porque hacen bootstrap de uv cuando es necesario. Sigue siendo compatible una instalación manual:
 
 ```bash
 python -m venv .venv
@@ -79,7 +79,7 @@ python -m pip install --upgrade pip
 python -m pip install -e .
 ```
 
-Optional extras are declared in `pyproject.toml`. The repository currently defines `google`, `tts` and `rclone` extras; development, audit and packaging dependencies are uv dependency groups:
+Los extras opcionales se declaran en `pyproject.toml`. El repositorio define actualmente los extras `google`, `tts` y `rclone`; las dependencias de desarrollo, auditoría y empaquetado son grupos de dependencias de uv:
 
 ```bash
 python -m pip install -e ".[google]"
@@ -90,53 +90,53 @@ uv sync --group audit
 
 ## Release 1.8.1
 
-`1.8.1` is the next PATCH release after the published `1.8.0`. It improves fresh-checkout setup by making uv self-bootstrapping when no system uv is available, adds an explicit one-command option for preparing the pinned local translation model, and preserves the standalone model download command for deferred installation.
+`1.8.1` es la siguiente release PATCH después de la publicada `1.8.0`. Mejora la configuración desde un checkout limpio haciendo que uv pueda hacer bootstrap cuando no existe un uv del sistema, añade una opción explícita de un solo comando para preparar el modelo de traducción local fijado y conserva el comando independiente de descarga del modelo para una instalación aplazada.
 
-The runtime dependency ranges remain `faster-whisper>=1.2.1,<1.3` and `ctranslate2>=4.8.2,<4.9`.
+Los rangos de dependencias del runtime siguen siendo `faster-whisper>=1.2.1,<1.3` y `ctranslate2>=4.8.2,<4.9`.
 
-## NVIDIA/CUDA and Whisper
+## NVIDIA/CUDA y Whisper
 
-NVIDIA acceleration is optional. The `1.8.1` release does not change the GPU runtime architecture consolidated through the previous releases; the GPU path requires CUDA 12, cuBLAS for CUDA 12 and cuDNN 9 for CUDA 12.
+La aceleración NVIDIA es opcional. La release `1.8.1` no cambia la arquitectura del runtime GPU consolidada en las releases anteriores; la ruta GPU requiere CUDA 12, cuBLAS para CUDA 12 y cuDNN 9 para CUDA 12.
 
-`WHISPER_DEVICE=auto` does not treat the presence of `nvidia-smi` as sufficient. At Whisper initialization the project checks the NVIDIA driver, searches for an installed CUDA Toolkit, checks the required NVIDIA runtime libraries and asks CTranslate2 whether a CUDA device and supported compute types are actually available.
+`WHISPER_DEVICE=auto` no considera suficiente la presencia de `nvidia-smi`. Durante la inicialización de Whisper, el proyecto comprueba el driver NVIDIA, busca un CUDA Toolkit instalado, comprueba las librerías de runtime NVIDIA requeridas y pregunta a CTranslate2 si realmente están disponibles un dispositivo CUDA y tipos de cálculo compatibles.
 
-If an NVIDIA GPU is detected but the runtime is incomplete, an interactive execution reports the detected versions, requirements, approximate installation location and reason for failure, then asks whether the managed NVIDIA runtime should be installed. The managed libraries are placed under `tools/cuda/python/`; the NVIDIA driver is not replaced and a full CUDA Toolkit is not installed by this operation. In unattended execution no installation prompt is shown and the existing CPU fallback is used.
+Si se detecta una GPU NVIDIA pero el runtime está incompleto, una ejecución interactiva muestra las versiones detectadas, los requisitos, la ubicación aproximada de instalación y el motivo del fallo, y pregunta si debe instalarse el runtime NVIDIA gestionado. Las librerías gestionadas se colocan bajo `tools/cuda/python/`; el driver NVIDIA no se sustituye y esta operación no instala un CUDA Toolkit completo. En ejecución desatendida no se muestra ningún aviso de instalación y se utiliza el fallback existente a CPU.
 
-A CUDA Toolkit installed globally is not automatically replaced or removed. It may be used when compatible, while the managed runtime can provide the required user-space libraries without modifying the global Toolkit.
+Un CUDA Toolkit instalado globalmente no se sustituye ni elimina automáticamente. Puede utilizarse cuando sea compatible, mientras que el runtime gestionado puede proporcionar las librerías de espacio de usuario requeridas sin modificar el Toolkit global.
 
-See [`docs/CUDA.md`](CUDA.md) for diagnostics, compatibility and cleanup.
+Consulta [`docs/CUDA.md`](CUDA.md) para diagnóstico, compatibilidad y limpieza.
 
-## Configuration
+## Configuración
 
-The default configuration is in `config/app.toml`. `.env.default` supplies environment defaults and `.env.example` documents environment overrides.
+La configuración predeterminada está en `config/app.toml`. `.env.default` proporciona valores de entorno predeterminados y `.env.example` documenta las sobreescrituras mediante variables de entorno.
 
 ```bash
 cp .env.example .env
 ```
 
-On Windows:
+En Windows:
 
 ```bat
 copy .env.example .env
 ```
 
-Do not commit `.env`, credentials, provider profiles or model weights.
+No hagas commit de `.env`, credenciales, perfiles de proveedores ni pesos de modelos.
 
-## Naming and existing output migration
+## Nombres y migración de salidas existentes
 
-The naming policy is part of the application core rather than an installation option. It separates logical course/resource metadata from physical filesystem names.
+La política de nombres forma parte del núcleo de la aplicación y no es una opción de instalación. Separa los metadatos lógicos de curso/recurso de los nombres físicos del sistema de archivos.
 
-The physical form is:
+La forma física es:
 
 ```text
 <curso_o_contenedor>x<nombre_sanitizado>
 ```
 
-`x` is the scope separator and `_` is the word separator. Physical names normalize whitespace and separator hyphens, incompatible punctuation and controls, Unicode diacritics, Windows reserved names and filesystem length. Existing output migration is controlled by the current `normalize_legacy_names` workflow setting and is designed to preserve content while moving only the affected output paths.
+`x` es el separador de ámbito y `_` el separador de palabras. Los nombres físicos normalizan espacios y guiones separadores, puntuación y controles incompatibles, diacríticos Unicode, nombres reservados de Windows y límites de longitud del sistema de archivos. La migración de salidas existentes se controla mediante el ajuste de workflow `normalize_legacy_names` y está diseñada para conservar el contenido mientras mueve únicamente las rutas de salida afectadas.
 
-## Runtime directories
+## Directorios de runtime
 
-The runtime layout is:
+La estructura del runtime es:
 
 ```text
 storage/
@@ -150,75 +150,75 @@ storage/
 └── state/
 ```
 
-If a checkout lacks a directory, create it under `storage/`; logs are written to `storage/logs/pipeline.log`.
+Si un checkout no contiene algún directorio, créalo bajo `storage/`; los logs se escriben en `storage/logs/pipeline.log`.
 
-Managed optional model/runtime resources are kept under `tools/` and are deliberately separate from project data. The project-managed uv executable, when bootstrapped, lives under `tools/uv/` and is ignored by Git.
+Los recursos opcionales de modelos/runtime gestionados se mantienen bajo `tools/` y están deliberadamente separados de los datos del proyecto. El ejecutable uv gestionado por el proyecto, cuando se hace bootstrap, reside bajo `tools/uv/` y está ignorado por Git.
 
-## Translation providers
+## Proveedores de traducción
 
-The default processing configuration uses the provider declared in `config/app.toml` (currently Mistral in the repository baseline) with the configured fallback chain. Provider credentials are configured through environment/profile mechanisms. See [TRANSLATION_PROVIDERS.md](TRANSLATION_PROVIDERS.md).
+La configuración de procesamiento predeterminada utiliza el proveedor declarado en `config/app.toml` (actualmente Mistral en la referencia del repositorio) con la cadena de fallback configurada. Las credenciales de los proveedores se configuran mediante mecanismos de entorno/perfiles. Consulta [TRANSLATION_PROVIDERS.md](TRANSLATION_PROVIDERS.md).
 
-For the optional offline local provider, the preferred setup path is now:
+Para el proveedor local offline opcional, la vía de configuración preferida es ahora:
 
 ```bash
 ./scripts/setup_env.sh --local-translation
 ```
 
-That flag runs the same validated download flow as the standalone manager after the Python environment has been prepared. It uses the pinned model configured by the checkout; the default is MADLAD-400 3B CT2 INT8. If you prefer to defer the large model download, omit the flag and run it later:
+Esa opción ejecuta el mismo flujo de descarga validada que el gestor independiente después de preparar el entorno de Python. Utiliza el modelo fijado configurado por el checkout; el predeterminado es MADLAD-400 3B CT2 INT8. Si prefieres aplazar la descarga del modelo grande, omite la opción y ejecútala posteriormente:
 
 ```bash
 uv run python scripts/manage_local_translation.py download
 ```
 
-The local-model preparation validates the selected pinned model before activation. MADLAD requires `model.bin`, `sentencepiece.model`, `config.json` and `shared_vocabulary.json`; OPUS-MT retains its `model.bin`, `source.spm`, `target.spm` and JSON metadata contract. The MADLAD installation is bounded by the project installation budget and model integrity is checked before offline use.
+La preparación del modelo local valida el modelo fijado seleccionado antes de activarlo. MADLAD requiere `model.bin`, `sentencepiece.model`, `config.json` y `shared_vocabulary.json`; OPUS-MT conserva su contrato de `model.bin`, `source.spm`, `target.spm` y metadatos JSON. La instalación de MADLAD está limitada por el presupuesto de instalación del proyecto y la integridad del modelo se comprueba antes del uso offline.
 
-The model is stored below `tools/models/translation/`. See [LOCAL_TRANSLATION.md](LOCAL_TRANSLATION.md).
+El modelo se almacena bajo `tools/models/translation/`. Consulta [LOCAL_TRANSLATION.md](LOCAL_TRANSLATION.md).
 
-After downloading, validate the actual runtime rather than only checking file presence:
+Después de descargarlo, valida el runtime real en lugar de comprobar únicamente la presencia de archivos:
 
 ```bash
 uv run python scripts/manage_local_translation.py status
 uv run python scripts/benchmark_local_translation.py --sentences 1
 ```
 
-The benchmark initializes CTranslate2 + SentencePiece and executes a real translation with the prepared model.
+El benchmark inicializa CTranslate2 + SentencePiece y ejecuta una traducción real con el modelo preparado.
 
 ## TTS
 
-TTS is disabled by default. When enabled, the local provider is Kokoro through `kokoro-onnx`. The setup helper prepares the default assets when TTS is enabled:
+TTS está desactivado de forma predeterminada. Cuando se habilita, el proveedor local es Kokoro mediante `kokoro-onnx`. El helper de configuración prepara los recursos predeterminados cuando TTS está habilitado:
 
 ```text
 tools/tts/kokoro-v1.0.onnx
 tools/tts/voices-v1.0.bin
 ```
 
-Equivalent explicit installation:
+Instalación explícita equivalente:
 
 ```bash
 python -m pip install -e ".[tts]"
 python scripts/setup_tts.py --enable
 ```
 
-Custom asset locations can be configured with `TTS_MODEL_PATH` and `TTS_VOICES_PATH`.
+Las ubicaciones personalizadas de recursos pueden configurarse mediante `TTS_MODEL_PATH` y `TTS_VOICES_PATH`.
 
-## Google Drive and rclone
+## Google Drive y rclone
 
-Google Drive requires the `[google]` extra and a provider profile. The interactive setup is exposed by:
+Google Drive requiere el extra `[google]` y un perfil de proveedor. La configuración interactiva se expone mediante:
 
 ```bash
 uv run python main.py provider setup-google --help
 ```
 
-rclone is not a Python dependency. The project can bootstrap its managed rclone binary and then configure a remote through the provider CLI:
+rclone no es una dependencia de Python. El proyecto puede hacer bootstrap de su binario gestionado de rclone y después configurar un remote mediante la CLI del proveedor:
 
 ```bash
 uv run python main.py provider bootstrap
 uv run python main.py provider setup-rclone --help
 ```
 
-The managed binary is stored under `tools/rclone/`; its configuration is under `secrets/rclone/rclone.conf` by default.
+El binario gestionado se almacena bajo `tools/rclone/`; su configuración está bajo `secrets/rclone/rclone.conf` de forma predeterminada.
 
-## Validate installation
+## Validar la instalación
 
 ```bash
 uv run python main.py doctor
@@ -228,7 +228,7 @@ uv run python main.py reprocess-subtitles --help
 uv run python main.py run --dry-run
 ```
 
-For development checks:
+Para comprobaciones de desarrollo:
 
 ```bash
 uv run pytest -q
@@ -237,19 +237,19 @@ uv run ruff format --check .
 uv run python -m compileall .
 ```
 
-## First run
+## Primera ejecución
 
-For local processing, place a supported video or ZIP in `storage/input/` and run:
+Para procesamiento local, coloca un vídeo o ZIP compatible en `storage/input/` y ejecuta:
 
 ```bash
 uv run python main.py run
 ```
 
-The wrapper equivalents are `scripts/run_local.sh` and `scripts\run_local.bat`.
+Los wrappers equivalentes son `scripts/run_local.sh` y `scripts\run_local.bat`.
 
-## Existing results
+## Resultados existentes
 
-Do not blindly reinsert already processed sources. Inspect the existing output and use the duplicate/subtitle recovery workflows when appropriate:
+No vuelvas a introducir a ciegas fuentes ya procesadas. Inspecciona la salida existente y utiliza los workflows de duplicados/recuperación de subtítulos cuando corresponda:
 
 ```bash
 uv run python main.py duplicates scan
@@ -257,11 +257,11 @@ uv run python main.py duplicates analyze
 uv run python main.py reprocess-subtitles --help
 ```
 
-See [RESUME.md](RESUME.md) and [SUBTITLES.md](SUBTITLES.md).
+Consulta [RESUME.md](RESUME.md) y [SUBTITLES.md](SUBTITLES.md).
 
-## Cleanup and uninstall
+## Limpieza y desinstalación
 
-Project-managed resources can be inspected or removed independently:
+Los recursos gestionados por el proyecto pueden inspeccionarse o eliminarse de forma independiente:
 
 ```bash
 uv run python scripts/manage_runtime_resources.py translation-model status
@@ -270,25 +270,25 @@ uv run python scripts/manage_runtime_resources.py cuda status
 uv run python scripts/manage_runtime_resources.py cuda cleanup
 ```
 
-These commands do not delete `storage/` data, source code, manifests or credentials. The CUDA cleanup only removes the project's `tools/cuda/` directory; it does not uninstall a global NVIDIA driver or CUDA Toolkit. See [UNINSTALLATION.md](UNINSTALLATION.md).
+Estos comandos no eliminan los datos de `storage/`, el código fuente, los manifests ni las credenciales. La limpieza de CUDA solo elimina el directorio `tools/cuda/` del proyecto; no desinstala un driver NVIDIA global ni un CUDA Toolkit global. Consulta [UNINSTALLATION.md](UNINSTALLATION.md).
 
-If the project-managed uv tool needs to be removed, delete `tools/uv/`; this has no effect on a separately installed system uv.
+Si es necesario eliminar la herramienta uv gestionada por el proyecto, borra `tools/uv/`; esto no afecta a un uv del sistema instalado por separado.
 
-## Upgrade
+## Actualización
 
-1. Stop scheduled execution.
-2. Back up `storage/output`, `storage/archive`, `storage/state`, manifests and provider profiles.
-3. Update source with `git pull`.
-4. Re-run `./scripts/setup_env.sh` (or `scripts\setup_env.bat`) if the dependency graph or setup behavior changed.
-5. Run `uv run python main.py doctor` and `uv run python main.py run --dry-run`.
-6. Test a representative input.
-7. Re-enable scheduling.
+1. Detén la ejecución programada.
+2. Haz una copia de seguridad de `storage/output`, `storage/archive`, `storage/state`, manifests y perfiles de proveedores.
+3. Actualiza el código fuente con `git pull`.
+4. Vuelve a ejecutar `./scripts/setup_env.sh` (o `scripts\setup_env.bat`) si cambió el grafo de dependencias o el comportamiento de configuración.
+5. Ejecuta `uv run python main.py doctor` y `uv run python main.py run --dry-run`.
+6. Prueba una entrada representativa.
+7. Vuelve a habilitar la programación.
 
-Do not delete manifests or outputs during an upgrade unless a documented migration requires it.
+No elimines manifests ni salidas durante una actualización salvo que una migración documentada lo requiera.
 
-## Packaging
+## Empaquetado
 
-The repository currently provides packaging scripts for Windows and Linux:
+El repositorio proporciona actualmente scripts de empaquetado para Windows y Linux:
 
 ```bash
 uv sync --group dev --extra tts
@@ -302,4 +302,4 @@ uv sync --group dev --extra tts
 scripts\build_windows.bat
 ```
 
-There is no repository packaging script for macOS at present. See [PACKAGING.md](PACKAGING.md).
+Actualmente no existe un script de empaquetado del repositorio para macOS. Consulta [PACKAGING.md](PACKAGING.md).
