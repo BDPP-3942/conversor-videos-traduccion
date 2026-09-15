@@ -26,7 +26,7 @@ def make_cp437_zip(path: Path, name: str, data: bytes = b"data") -> None:
 
 def make_unflagged_utf8_zip(path: Path, name: str, data: bytes = b"data") -> None:
     """Create a ZIP with UTF-8 filename bytes but without the UTF-8 flag."""
-    placeholder = "x.wmv"
+    placeholder = "xxxxxxxxxxxx.wmv"
     assert len(name.encode("utf-8")) == len(placeholder.encode("utf-8"))
     with ZipFile(path, "w") as archive:
         archive.writestr(placeholder, data)
