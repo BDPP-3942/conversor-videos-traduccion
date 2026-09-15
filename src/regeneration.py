@@ -141,11 +141,42 @@ def regenerate(source: str, target: str, settings) -> dict[str, Any]:
     original_manifests: dict[str, dict[str, Any]] = {}
     remote_manifests: set[str] = set()
     try:
-        # El resto de la implementación conserva el contrato existente de regeneración.
+        zips = storage.list_zip_files(source)
+        if not zips:
+            raise RegenerationError(f"No se han encontrado fuentes ZIP en {source!r}")
+
+        for zip_file in zips:
+            manifest_path = _manifest_local_path(zip_file.name)
+            original_manifests[zip_file.name] = _read_manifest(manifest_path)
+            if not original_manifests[zip_file.name]:
+                remote = _download_remote_manifest(storage, target, zip_file.name)
+                if remote:
+                    original_manifests[zip_file.name] = _read_manifest(remote)
+                    remote_manifests.add(zip_file.name)
+            entries = _load_existing_entries(storage, target, zip_file.name)
+            backups.extend(
+                _backup_existing_outputs(
+                    storage,
+                    target,
+                    entries,
+                    run_id,
+                    settings.original_transcript_subdir,
+                )
+            )
+
         pipeline = MediaPipeline(settings, storage)
-        result = pipeline.run(source, target, force_reprocess=True)
+        result = pipeline.run(source, target, force_reprocess=True, finalize_source=False)
+        if result.get("status") != "success":
+            raise RegenerationError(
+                "La regeneración no ha terminado correctamente "
+                f"(status={result.get('status')!r})"
+            )
+
+        _delete_backups(storage, target, backups)
         return {
             "status": "success",
+            "mode": "regenerate_from_zero",
+            "source_preserved": True,
             "backup_cleanup": "complete",
             "run_id": run_id,
             "pipeline": result,
@@ -153,11 +184,15 @@ def regenerate(source: str, target: str, settings) -> dict[str, Any]:
     except Exception:
         _restore_backups(storage, target, backups, settings.original_transcript_subdir)
         for zip_name, manifest in original_manifests.items():
-            _restore_manifest(storage, target, zip_name, manifest, zip_name in remote_manifests)
+            _restore_manifest(
+                storage,
+                target,
+                zip_name,
+                manifest,
+                zip_name in remote_manifests,
+            )
         raise
     finally:
-        if backups:
-            _delete_backups(storage, target, backups)
         storage.close()
 
 
