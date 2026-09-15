@@ -56,12 +56,13 @@ jobs:
           PY
           uv run ruff format src/cuda_runtime.py src/local_translation.py
           uv run ruff check src/cuda_runtime.py src/local_translation.py --select E501
-      - name: Crear y fusionar PR auxiliar
+      - name: Publicar la corrección mediante la rama auxiliar precreada
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
+          AUTOMATION_BRANCH: automation/ruff-e501-58
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -69,24 +70,15 @@ jobs:
             echo 'No hay correcciones E501 pendientes.'
             exit 0
           fi
-          branch="automation/ruff-e501-pr-${PR_NUMBER}-${GITHUB_SHA:0:12}"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git switch -c "$branch"
+          git fetch origin "$AUTOMATION_BRANCH" "$TARGET_BRANCH"
+          git checkout -B "$AUTOMATION_BRANCH" "origin/$TARGET_BRANCH"
           git add -- src/cuda_runtime.py src/local_translation.py
           git commit -m 'style: dividir cadenas largas de Ruff'
-          git push --set-upstream origin "$branch"
-          pr_url="$(gh pr create --repo "$REPOSITORY" --base "$TARGET_BRANCH" --head "$branch" --title 'style: dividir cadenas largas de Ruff' --body "Corrección automática de E501 para la PR principal #${PR_NUMBER}.")"
-          gh pr merge "$pr_url" --repo "$REPOSITORY" --squash
-          for attempt in {1..30}; do
-            state="$(gh pr view "$pr_url" --repo "$REPOSITORY" --json state,mergedAt --jq 'if .state == "MERGED" and .mergedAt != null then "merged" else .state end')"
-            if [[ "$state" == 'merged' ]]; then
-              break
-            fi
-            sleep 5
-          done
-          if [[ "$state" != 'merged' ]]; then
-            echo 'La PR auxiliar E501 no se ha fusionado.' >&2
-            exit 1
+          git push --force-with-lease origin "$AUTOMATION_BRANCH"
+          pr_url="$(gh pr list --repo "$REPOSITORY" --base "$TARGET_BRANCH" --head "$AUTOMATION_BRANCH" --state open --json url --jq '.[0].url // empty')"
+          if [[ -z "$pr_url" ]]; then
+            pr_url="$(gh pr create --repo "$REPOSITORY" --base "$TARGET_BRANCH" --head "$AUTOMATION_BRANCH" --title 'style: dividir cadenas largas de Ruff' --body "Corrección automática de E501 para la PR principal #${PR_NUMBER}.")"
           fi
-          gh api --method DELETE "repos/$REPOSITORY/git/refs/heads/$branch"
+          gh pr merge "$pr_url" --repo "$REPOSITORY" --squash
