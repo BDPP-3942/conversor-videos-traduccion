@@ -24,10 +24,10 @@ jobs:
         with:
           version: latest-known
           enable-cache: true
-      - name: Sincronizar entorno de desarrollo
+      - name: Preparar entorno de desarrollo para Ruff
         run: |
           uv python install 3.13
-          uv sync --locked --group dev
+          uv sync --group dev
       - name: Aplicar formato Ruff a todo el código Python
         run: uv run ruff format .
       - name: Publicar automáticamente los cambios de formato
