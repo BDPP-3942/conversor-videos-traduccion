@@ -264,14 +264,7 @@ class MediaConverter:
                 time.sleep(0.25)
             reader.join(timeout=2)
             if process.returncode != 0:
-                detail = next(
-                    (
-                        line
-                        for line in reversed(stderr_lines)
-                        if line
-                    ),
-                    "sin detalles",
-                )
+                detail = next((line for line in reversed(stderr_lines) if line), "sin detalles")
                 raise RuntimeError(f"FFmpeg failed: {detail}")
         finally:
             if process is not None and process.poll() is None:
