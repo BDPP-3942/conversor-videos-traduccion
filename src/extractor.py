@@ -73,13 +73,7 @@ class ZipExtractor:
                 result.media.append(extracted_path)
             elif suffix == ".zip":
                 result.nested_zips.append(extracted_path)
-                self._extract_recursive(
-                    extracted_path,
-                    extracted_path.parent,
-                    depth + 1,
-                    result,
-                    processed,
-                )
+                self._extract_recursive(extracted_path, extracted_path.parent, depth + 1, result, processed)
             else:
                 result.ignored_files.append(extracted_path)
 
@@ -182,7 +176,10 @@ class ZipExtractor:
         """Crea un nombre de raíz de extracción portable a partir del nombre del ZIP."""
         normalized = unicodedata.normalize("NFC", name)
         invalid = '<>:"/\\|?*'
-        sanitized = "".join("_" if char in invalid or unicodedata.category(char) == "Cc" else char for char in normalized)
+        sanitized = "".join(
+            "_" if char in invalid or unicodedata.category(char) == "Cc" else char
+            for char in normalized
+        )
         sanitized = sanitized.rstrip(" .")
         if ZipExtractor._is_windows_reserved_component(sanitized):
             sanitized = f"_{sanitized}"
