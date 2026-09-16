@@ -11,9 +11,7 @@ from src.storage.uri import parse_storage_uri
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Procesa vídeos originales sin contenedores ZIP"
-    )
+    parser = argparse.ArgumentParser(description="Procesa vídeos originales sin contenedores ZIP")
     parser.add_argument(
         "--source",
         default=None,
