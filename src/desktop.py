@@ -142,13 +142,9 @@ class DesktopApp:
             ["mistral", "local", "deepl", "mymemory"],
         )
         self._entry_row(general, 3, "Proveedores de respaldo", self.fallback)
-        self.local_model = tk.StringVar(
-            value=self._setting("local_translation_model", "madlad400-3b-ct2-int8")
-        )
+        self.local_model = tk.StringVar(value=self._setting("local_translation_model", "madlad400-3b-ct2-int8"))
         self.local_device = tk.StringVar(value=self._setting("local_translation_device", "auto"))
-        self.local_compute = tk.StringVar(
-            value=self._setting("local_translation_compute_type", "auto")
-        )
+        self.local_compute = tk.StringVar(value=self._setting("local_translation_compute_type", "auto"))
         self.local_beam = tk.IntVar(value=self._setting("local_translation_beam_size", 2))
         self._entry_row(general, 4, "Modelo local", self.local_model)
         self._combo_row(
@@ -170,9 +166,7 @@ class DesktopApp:
         self.tts_required = tk.BooleanVar(value=self._setting("tts_required", False))
         self.resume = tk.BooleanVar(value=self._setting("resume_enabled", True))
         self.normalize_names = tk.BooleanVar(value=self._setting("normalize_legacy_names", True))
-        self.auto_dedupe = tk.BooleanVar(
-            value=self._setting("automatic_output_deduplication", False)
-        )
+        self.auto_dedupe = tk.BooleanVar(value=self._setting("automatic_output_deduplication", False))
         self._spin_row(execution, 0, "Vídeos en paralelo (0 = AUTO)", self.parallel, 0, 64)
         self._spin_row(execution, 1, "Tamaño de lote de traducción", self.batch_size, 1, 500)
         self._check_row(execution, 2, "Generar WebM secundario", self.webm)
@@ -189,12 +183,8 @@ class DesktopApp:
         self.whisper_compute = tk.StringVar(value=self._setting("whisper_compute_type", "auto"))
         self.whisper_beam = tk.IntVar(value=self._setting("whisper_beam_size", 5))
         self.whisper_vad = tk.BooleanVar(value=self._setting("whisper_vad_filter", True))
-        self.whisper_silence = tk.IntVar(
-            value=self._setting("whisper_min_silence_duration_ms", 2000)
-        )
-        self.whisper_split = tk.IntVar(
-            value=self._setting("whisper_subtitle_split_silence_duration_ms", 1000)
-        )
+        self.whisper_silence = tk.IntVar(value=self._setting("whisper_min_silence_duration_ms", 2000))
+        self.whisper_split = tk.IntVar(value=self._setting("whisper_subtitle_split_silence_duration_ms", 1000))
         self.context = tk.StringVar(value=self._setting("whisper_initial_prompt", ""))
         self.ffmpeg_preset = tk.StringVar(value=self._setting("ffmpeg_preset", "medium"))
         self.ffmpeg_crf = tk.IntVar(value=self._setting("ffmpeg_crf", 23))
@@ -226,10 +216,13 @@ class DesktopApp:
         self.tts_voice = tk.StringVar(value=self._setting("tts_voice", "am_michael"))
         self.tts_speed = tk.DoubleVar(value=self._setting("tts_speed", 1.0))
         self._entry_row(advanced, 11, "Voz Kokoro TTS", self.tts_voice)
-        ttk.Label(
-            advanced,
-            text="Velocidad TTS (0,50–1,35x)",
-        ).grid(row=12, column=0, sticky="w", padx=(0, 8), pady=4)
+        ttk.Label(advanced, text="Velocidad TTS (0,50–1,35x)").grid(
+            row=12,
+            column=0,
+            sticky="w",
+            padx=(0, 8),
+            pady=4,
+        )
         ttk.Spinbox(
             advanced,
             from_=0.5,
@@ -273,16 +266,12 @@ class DesktopApp:
             text="Reutiliza los medios existentes y reconstruye los artefactos de subtítulos.",
             wraplength=820,
         ).grid(row=4, column=0, columnspan=3, sticky="w", pady=10)
-        ttk.Button(
-            parent,
-            text="Ejecutar recuperación",
-            command=self.start_recovery,
-        ).grid(row=5, column=0, sticky="w")
-        ttk.Button(
-            parent,
-            text="Recuperar todos",
-            command=self.start_recovery_all,
-        ).grid(row=5, column=1, sticky="w", padx=8)
+        ttk.Button(parent, text="Ejecutar recuperación", command=self.start_recovery).grid(
+            row=5, column=0, sticky="w"
+        )
+        ttk.Button(parent, text="Recuperar todos", command=self.start_recovery_all).grid(
+            row=5, column=1, sticky="w", padx=8
+        )
         parent.columnconfigure(1, weight=1)
 
     def _build_duplicates(self, parent: ttk.Frame) -> None:
@@ -295,16 +284,10 @@ class DesktopApp:
         ).grid(row=1, column=0, columnspan=3, sticky="w", pady=10)
         buttons = ttk.Frame(parent)
         buttons.grid(row=2, column=0, columnspan=3, sticky="w")
-        ttk.Button(
-            buttons,
-            text="Analizar",
-            command=lambda: self.start_duplicate("scan"),
-        ).pack(side="left")
-        ttk.Button(
-            buttons,
-            text="Evaluar",
-            command=lambda: self.start_duplicate("analyze"),
-        ).pack(side="left", padx=8)
+        ttk.Button(buttons, text="Analizar", command=lambda: self.start_duplicate("scan")).pack(side="left")
+        ttk.Button(buttons, text="Evaluar", command=lambda: self.start_duplicate("analyze")).pack(
+            side="left", padx=8
+        )
         ttk.Button(
             buttons,
             text="Simular eliminación",
@@ -324,21 +307,11 @@ class DesktopApp:
         ).pack(anchor="w", pady=(0, 12))
         buttons = ttk.Frame(parent)
         buttons.pack(anchor="w")
-        ttk.Button(
-            buttons,
-            text="Ejecutar diagnóstico",
-            command=self.start_doctor,
-        ).pack(side="left")
-        ttk.Button(
-            buttons,
-            text="Preparar modelo Whisper",
-            command=self.start_prefetch,
-        ).pack(side="left", padx=8)
-        ttk.Button(
-            buttons,
-            text="Abrir datos privados",
-            command=self.open_runtime_folder,
-        ).pack(side="left")
+        ttk.Button(buttons, text="Ejecutar diagnóstico", command=self.start_doctor).pack(side="left")
+        ttk.Button(buttons, text="Preparar modelo Whisper", command=self.start_prefetch).pack(
+            side="left", padx=8
+        )
+        ttk.Button(buttons, text="Abrir datos privados", command=self.open_runtime_folder).pack(side="left")
 
     def _build_scheduling(self, parent: ttk.Frame) -> None:
         text = (
@@ -353,10 +326,7 @@ class DesktopApp:
 
     @staticmethod
     def _path_row(parent: ttk.Frame, row: int, label: str, variable: tk.StringVar) -> None:
-        ttk.Label(
-            parent,
-            text=label,
-        ).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
+        ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
         ttk.Entry(parent, textvariable=variable).grid(row=row, column=1, sticky="ew", pady=4)
         ttk.Button(
             parent,
@@ -367,29 +337,21 @@ class DesktopApp:
 
     @staticmethod
     def _file_row(parent: ttk.Frame, row: int, label: str, variable: tk.StringVar) -> None:
-        ttk.Label(
-            parent,
-            text=label,
-        ).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
+        ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
         ttk.Entry(parent, textvariable=variable).grid(row=row, column=1, sticky="ew", pady=4)
         ttk.Button(
             parent,
             text="Elegir archivo…",
             command=lambda: DesktopApp._browse_file(variable),
         ).grid(row=row, column=2, padx=(8, 0))
-        ttk.Button(
-            parent,
-            text="Limpiar",
-            command=lambda: variable.set(""),
-        ).grid(row=row, column=3, padx=(4, 0))
+        ttk.Button(parent, text="Limpiar", command=lambda: variable.set("")).grid(
+            row=row, column=3, padx=(4, 0)
+        )
         parent.columnconfigure(1, weight=1)
 
     @staticmethod
     def _entry_row(parent: ttk.Frame, row: int, label: str, variable: tk.Variable) -> None:
-        ttk.Label(
-            parent,
-            text=label,
-        ).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
+        ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
         ttk.Entry(parent, textvariable=variable).grid(row=row, column=1, sticky="ew", pady=4)
 
     @staticmethod
@@ -400,10 +362,7 @@ class DesktopApp:
         variable: tk.Variable,
         values: list[str],
     ) -> None:
-        ttk.Label(
-            parent,
-            text=label,
-        ).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
+        ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
         ttk.Combobox(
             parent,
             textvariable=variable,
@@ -421,10 +380,7 @@ class DesktopApp:
         minimum: int,
         maximum: int,
     ) -> None:
-        ttk.Label(
-            parent,
-            text=label,
-        ).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
+        ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
         ttk.Spinbox(
             parent,
             from_=minimum,
@@ -435,28 +391,18 @@ class DesktopApp:
 
     @staticmethod
     def _check_row(parent: ttk.Frame, row: int, label: str, variable: tk.BooleanVar) -> None:
-        ttk.Checkbutton(
-            parent,
-            text=label,
-            variable=variable,
-        ).grid(row=row, column=1, sticky="w", pady=4)
+        ttk.Checkbutton(parent, text=label, variable=variable).grid(row=row, column=1, sticky="w", pady=4)
 
     @staticmethod
     def _browse(variable: tk.StringVar) -> None:
-        selected = filedialog.askdirectory(
-            initialdir=variable.get() or str(Path.home())
-        )
+        selected = filedialog.askdirectory(initialdir=variable.get() or str(Path.home()))
         if selected:
             variable.set(selected)
 
     @staticmethod
     def _browse_file(variable: tk.StringVar) -> None:
         selected = filedialog.askopenfilename(
-            initialdir=(
-                str(Path(variable.get()).parent)
-                if variable.get()
-                else str(Path.home())
-            ),
+            initialdir=(str(Path(variable.get()).parent) if variable.get() else str(Path.home())),
             filetypes=[
                 ("Archivos de contexto", "*.txt *.md *.csv *.docx"),
                 ("Todos los archivos", "*.*"),
@@ -486,9 +432,7 @@ class DesktopApp:
             "source_lang": self.source_lang.get().strip(),
             "target_lang": self.target_lang.get().strip(),
             "translation_provider": self.translation.get(),
-            "translation_fallback_providers": tuple(
-                x.strip() for x in self.fallback.get().split(",") if x.strip()
-            ),
+            "translation_fallback_providers": tuple(x.strip() for x in self.fallback.get().split(",") if x.strip()),
             "max_parallel_videos": self.parallel.get(),
             "translation_batch_size": self.batch_size.get(),
             "generate_webm": self.webm.get(),
@@ -566,10 +510,14 @@ class DesktopApp:
         )
 
     def start_duplicate(self, action: str, dry_run: bool = False) -> None:
-        if action == "delete" and not dry_run and not messagebox.askyesno(
-            "Confirmar eliminación",
-            "¿Eliminar los duplicados incluidos en el plan persistido?",
-            parent=self.root,
+        if (
+            action == "delete"
+            and not dry_run
+            and not messagebox.askyesno(
+                "Confirmar eliminación",
+                "¿Eliminar los duplicados incluidos en el plan persistido?",
+                parent=self.root,
+            )
         ):
             return
         self._append(f"Iniciando la gestión de duplicados: {action}.\n")
@@ -637,9 +585,7 @@ class DesktopApp:
             self.worker.cancel()
             self.cancel.configure(state="disabled")
             self.status.set("Solicitando cancelación…")
-            self._append(
-                "Cancelación solicitada; el pipeline se detendrá en un límite seguro.\n"
-            )
+            self._append("Cancelación solicitada; el pipeline se detendrá en un límite seguro.\n")
 
     def _report(self, event: dict[str, object]) -> None:
         self.root.after(0, lambda: self._apply_event(event))
