@@ -256,7 +256,7 @@ class STTEngine:
         return [selected] if selected is not None and not reasons else []
 
     def transcribe(self, media_path: Path):
-        if self._x86_engine is not None:
+        if getattr(self, "_x86_engine", None) is not None:
             return self._x86_engine.transcribe(media_path)
         logger.info(
             "Transcribing: %s using device=%s compute=%s",
