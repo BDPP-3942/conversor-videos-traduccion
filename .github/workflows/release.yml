@@ -141,13 +141,13 @@ jobs:
         run: |
           $tag = "${{ github.event.inputs.tag || github.ref_name }}"
           "version=$($tag -replace '^v','')" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-      - name: Build x86 wheel
-        shell: pwsh
-        run: python -m pip wheel . --no-deps --wheel-dir dist
       - name: Build x86 desktop package
         shell: pwsh
         run: python scripts/build_desktop.py --clean --version "${{ steps.version.outputs.version }}" --format windows-msi --windows-arch x86
-      - name: Validate x86 executable and MSI
+      - name: Build x86 wheel
+        shell: pwsh
+        run: python -m pip wheel . --no-deps --wheel-dir dist
+      - name: Validate x86 executable, MSI and wheel
         shell: pwsh
         run: |
           if (-not (Test-Path 'dist\VideoTranslationPipeline\VideoTranslationPipeline.exe')) { throw 'Falta el ejecutable de Windows x86' }
