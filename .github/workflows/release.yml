@@ -123,12 +123,11 @@ jobs:
       - name: Install WiX v6
         shell: pwsh
         run: dotnet tool install --global wix --version 6.0.2
-      - name: Install x86 runtime dependencies
+      - name: Install x86 runtime and build dependencies
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements-x86.txt
-          python -m pip install --no-deps .
+          python -m pip install . pyinstaller==6.22.2
       - name: Validate x86 interpreter and dependencies
         shell: pwsh
         run: |
