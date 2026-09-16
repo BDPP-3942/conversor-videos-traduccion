@@ -20,35 +20,35 @@ def extractor() -> ZipExtractor:
 def test_windows_absolute_path_is_rejected(tmp_path: Path) -> None:
     archive = tmp_path / "absolute.zip"
     make_zip(archive, ["C:/escape.txt"])
-    with pytest.raises(ValueError, match="Unsafe ZIP path"):
+    with pytest.raises(ValueError, match="ruta ZIP no segura"):
         extractor().extract_zip(archive, tmp_path / "out")
 
 
 def test_unc_path_is_rejected(tmp_path: Path) -> None:
     archive = tmp_path / "unc.zip"
     make_zip(archive, ["//server/share/escape.txt"])
-    with pytest.raises(ValueError, match="Unsafe ZIP path"):
+    with pytest.raises(ValueError, match="ruta ZIP no segura"):
         extractor().extract_zip(archive, tmp_path / "out")
 
 
 def test_backslash_traversal_is_rejected(tmp_path: Path) -> None:
     archive = tmp_path / "backslash.zip"
     make_zip(archive, [r"..\..\escape.txt"])
-    with pytest.raises(ValueError, match="Unsafe ZIP path"):
+    with pytest.raises(ValueError, match="ruta ZIP no segura"):
         extractor().extract_zip(archive, tmp_path / "out")
 
 
 def test_windows_reserved_component_is_rejected(tmp_path: Path) -> None:
     archive = tmp_path / "reserved.zip"
     make_zip(archive, ["lessons/CON.txt"])
-    with pytest.raises(ValueError, match="Reserved Windows ZIP path component"):
+    with pytest.raises(ValueError, match="reservado de Windows"):
         extractor().extract_zip(archive, tmp_path / "out")
 
 
 def test_case_and_unicode_normalization_collision_is_rejected(tmp_path: Path) -> None:
     archive = tmp_path / "collision.zip"
     make_zip(archive, ["Café.txt", "Cafe\u0301.txt"])
-    with pytest.raises(ValueError, match="ZIP path collision"):
+    with pytest.raises(ValueError, match="colisión de ruta ZIP"):
         extractor().extract_zip(archive, tmp_path / "out")
 
 
@@ -59,5 +59,5 @@ def test_duplicate_logical_paths_are_rejected(tmp_path: Path) -> None:
         with ZipFile(archive, "w") as handle:
             handle.writestr("lesson.txt", b"first")
             handle.writestr("lesson.txt", b"second")
-    with pytest.raises(ValueError, match="ZIP path collision"):
+    with pytest.raises(ValueError, match="colisión de ruta ZIP"):
         extractor().extract_zip(archive, tmp_path / "dupout")
