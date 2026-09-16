@@ -4,13 +4,18 @@
 
 El rango de Python compatible es `>=3.11,<3.14`.
 
-Para desarrollo:
+El proyecto utiliza `uv` para reproducir el entorno de desarrollo:
 
 ```bash
-python -m pip install -e ".[dev]"
+uv sync --locked --group dev
 ```
 
-Añade extras opcionales solo cuando la funcionalidad que se esté desarrollando los necesite, por ejemplo `[google]`, `[tts]` o `[package]`.
+Los extras opcionales se instalan solo cuando la funcionalidad que se esté desarrollando los necesita, por ejemplo `google` o `tts`:
+
+```bash
+uv sync --locked --extra google --group dev
+uv sync --locked --extra tts --group dev
+```
 
 ## Estructura del proyecto
 
@@ -37,3 +42,5 @@ tools/        recursos externos de runtime
 ## Regla de documentación
 
 No documentes una opción, comando, ruta o funcionalidad salvo que pueda verificarse contra el código, la configuración o las pruebas actuales. Prioriza la salida de `--help` y las definiciones del código fuente frente a la documentación histórica.
+
+Los comandos de herramientas se mantienen con su sintaxis real. No se traducen nombres de comandos, flags, rutas, dependencias ni APIs: por ejemplo, `uv run ruff check .`, `uv run pytest -q` y `uv build` deben conservarse literalmente.
