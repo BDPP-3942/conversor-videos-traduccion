@@ -24,10 +24,10 @@ uv run video-translation-desktop
 
 ## Windows
 
-Construcción del MSI de la candidata `1.10.0`:
+Construcción del MSI:
 
 ```bash
-uv run python scripts/build_desktop.py --clean --version 1.10.0 --format windows-msi
+uv run python scripts/build_desktop.py --clean --version <version> --format windows-msi
 ```
 
 `--clean` elimina restos de `build` y `dist`, `--version` fija la versión incluida en el nombre del artefacto y `--format windows-msi` solicita el ejecutable PyInstaller y el MSI WiX.
@@ -35,18 +35,18 @@ uv run python scripts/build_desktop.py --clean --version 1.10.0 --format windows
 La arquitectura se obtiene del intérprete Python utilizado para construir PyInstaller. También puede solicitarse explícitamente:
 
 ```bash
-uv run python scripts/build_desktop.py --clean --version 1.10.0 --format windows-msi --windows-arch x64
-uv run python scripts/build_desktop.py --clean --version 1.10.0 --format windows-msi --windows-arch x86
+uv run python scripts/build_desktop.py --clean --version <version> --format windows-msi --windows-arch x64
+uv run python scripts/build_desktop.py --clean --version <version> --format windows-msi --windows-arch x86
 ```
 
-`--windows-arch` se transmite a WiX mediante `-arch`. La variante x86 solo es válida si el intérprete Python, PyInstaller y todas las dependencias binarias pueden construirse realmente para x86.
+`--windows-arch` se transmite a WiX mediante `-arch`. La variante x86 solo es válida si el intérprete Python, PyInstaller y todas las dependencias binarias pueden construirse realmente para x86. El proyecto no debe declarar una build x86 como disponible mientras esa comprobación de compatibilidad no sea satisfactoria.
 
 El MSI x64 se instala en el `Program Files` nativo. No se presenta un ejecutable x64 como compatible con Windows x86. El instalador no debe utilizar su directorio de instalación como espacio de trabajo escribible.
 
 ## Linux
 
 ```bash
-uv run python scripts/build_desktop.py --clean --version 1.10.0 --format linux-appimage
+uv run python scripts/build_desktop.py --clean --version <version> --format linux-appimage
 ```
 
 El comando genera el ejecutable PyInstaller, crea el AppDir con `AppRun`, metadata `.desktop` e icono SVG y ejecuta `appimagetool` para producir el AppImage x86_64. CI ejecuta esta operación en un runner Linux nativo.
@@ -54,16 +54,16 @@ El comando genera el ejecutable PyInstaller, crea el AppDir con `AppRun`, metada
 ## macOS
 
 ```bash
-uv run python scripts/build_desktop.py --clean --version 1.10.0 --format native
+uv run python scripts/build_desktop.py --clean --version <version> --format native
 ```
 
 El comando genera `VideoTranslationPipeline.app`. En la publicación se archiva como ZIP; la firma y notarización pertenecen al proceso de release y requieren las credenciales correspondientes.
 
 ## Builds de release
 
-La workflow de escritorio utiliza explícitamente `RELEASE_VERSION=1.10.0` durante la preparación de esta candidata. Esto evita que los nombres y validaciones de artefactos continúen apuntando a `1.9.0`.
+La workflow de release utiliza la versión del tag `vX.Y.Z` para nombrar y validar los artefactos. Los comandos de esta guía utilizan `<version>` para no acoplar la documentación técnica a una release concreta.
 
-La publicación definitiva se realiza mediante [`.github/workflows/release.yml`](../.github/workflows/release.yml) al crear el tag `v1.10.0`. No se deben publicar binarios generados manualmente desde un equipo de desarrollo.
+La publicación definitiva se realiza mediante [`.github/workflows/release.yml`](../.github/workflows/release.yml) al crear un tag `vX.Y.Z`. No se deben publicar binarios generados manualmente desde un equipo de desarrollo.
 
 ## Datos de runtime
 
@@ -85,7 +85,7 @@ La GUI permite cambiar `input` y `output` por cualquier carpeta donde el usuario
 
 ## Validación
 
-La validación mínima antes de una release es:
+La validación mínima antes de integrar cambios es:
 
 ```bash
 uv lock --check
@@ -100,7 +100,7 @@ uv build
 
 `uv lock --check` verifica que el lockfile corresponde al proyecto; `ruff check` valida lint, imports y reglas de calidad; `ruff format --check` comprueba el formato sin modificar archivos; `compileall` comprueba que Python pueda compilar el código; `pytest` ejecuta la suite y `uv build` valida la construcción de distribución Python.
 
-Además, CI construye el artefacto nativo de cada plataforma en su runner correspondiente y comprueba que el archivo esperado exista. Las pruebas funcionales y de rendimiento de la aplicación deben completarse antes de publicar `v1.10.0`.
+Además, CI construye el artefacto nativo de cada plataforma en su runner correspondiente y comprueba que el archivo esperado exista.
 
 ## Documentación relacionada
 
@@ -108,4 +108,4 @@ Además, CI construye el artefacto nativo de cada plataforma en su runner corres
 - [`CLI.md`](CLI.md): comandos y opciones de la CLI.
 - [`INSTALLATION.md`](INSTALLATION.md): instalación del proyecto.
 - [`CI_CD.md`](CI_CD.md): validación continua y publicación.
-- [`RELEASES.md`](RELEASES.md): alcance de las releases.
+- [`RELEASES.md`](RELEASES.md): histórico y alcance de las releases.
