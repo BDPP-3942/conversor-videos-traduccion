@@ -5,23 +5,27 @@ La suite de pruebas se configura mediante `pyproject.toml` y se encuentra bajo `
 ## Comprobaciones locales
 
 ```bash
-pytest
-ruff check .
-ruff check . --select S
-ruff format --check .
-python -m compileall .
+uv lock --check
+uv sync --locked --extra google --group dev
+uv pip check
+uv run pytest -q
+uv run ruff check .
+uv run ruff check . --select S
+uv run ruff format --check .
+uv run python -m compileall .
+uv build
 ```
 
 Para ejecutar una prueba concreta:
 
 ```bash
-pytest tests/test_pipeline.py
-pytest tests/test_tts_pipeline.py
-pytest tests/test_reprocessor.py
-pytest tests/test_file_naming.py
-pytest tests/test_naming_reference.py
-pytest tests/test_extractor.py
-pytest tests/test_local_translation.py
+uv run pytest tests/test_pipeline.py
+uv run pytest tests/test_tts_pipeline.py
+uv run pytest tests/test_reprocessor.py
+uv run pytest tests/test_file_naming.py
+uv run pytest tests/test_naming_reference.py
+uv run pytest tests/test_extractor.py
+uv run pytest tests/test_local_translation.py
 ```
 
 ## Áreas cubiertas
@@ -34,6 +38,14 @@ Las pruebas ZIP cubren traversal, rutas absolutas/UNC de Windows, componentes re
 
 Las pruebas de traducción local cubren la validación del modelo fijado, descargas reanudables, autorización opcional de Hugging Face, fallback a CPU cuando falla la detección de CUDA y el contrato de salida por lotes de CTranslate2/SentencePiece. La suite normal de pruebas unitarias utiliza mocks y no requiere descargar el modelo ni disponer de una GPU.
 
-El benchmark de traducción local es la prueba smoke a nivel de hardware: `python scripts/benchmark_local_translation.py --sentences 100` debe ejecutarse en el equipo de destino después de preparar el modelo. Verifica la inicialización real del modelo y rechaza una salida de traducción vacía.
+El benchmark de traducción local es la prueba smoke a nivel de hardware:
+
+```bash
+uv run python scripts/benchmark_local_translation.py --sentences 100
+```
+
+Debe ejecutarse en el equipo de destino después de preparar el modelo. Verifica la inicialización real del modelo y rechaza una salida de traducción vacía.
 
 Los proveedores externos deben probarse con mocks deterministas en lugar de requerir acceso a red en vivo. Las descargas de modelos y la ejecución GPU son cuestiones de integración y no deben convertirse en requisitos de la suite normal de pruebas unitarias.
+
+Los nombres de comandos, flags, dependencias, rutas y APIs se conservan literalmente en esta documentación para que los ejemplos sean ejecutables.
