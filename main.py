@@ -56,108 +56,70 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
     run = sub.add_parser(
         "run",
-        help="Ejecuta un lote de procesamiento desatendido usando el perfil activo guardado",
-        description="Procesa los vídeos de origen mediante el pipeline completo de STT, traducción y TTS opcional.",
+        help="Ejecuta un lote de procesamiento desatendido",
+        description="Procesa vídeo/audio mediante STT, traducción y TTS opcional.",
     )
     run.add_argument(
         "--scheduled",
         action="store_true",
-        help=(
-            "Ejecuta en modo de tarea programada desatendida; nunca abre un navegador "
-            "ni solicita entrada interactiva"
-        ),
+        help="Ejecuta sin navegador ni entrada interactiva",
     )
     run.add_argument(
         "--dry-run",
         action="store_true",
-        help="Valida la preparación del runtime/proveedor y muestra los ajustes efectivos sin procesar archivos",
+        help="Valida el runtime y muestra los ajustes efectivos sin procesar archivos",
     )
     run.add_argument(
         "--provider",
         choices=["local", "google_drive", "gdrive", "rclone"],
         default=None,
-        help=(
-            "Sobrescribe el proveedor de almacenamiento; puede ser local, google_drive/gdrive o rclone. "
-            "Predeterminado: proveedor activo configurado"
-        ),
+        help="Sobrescribe el proveedor de almacenamiento configurado",
     )
-    run.add_argument(
-        "--source",
-        default=None,
-        help=(
-            "Sobrescribe la URI de almacenamiento de entrada. "
-            "Predeterminado: URI source de la configuración activa"
-        ),
-    )
-    run.add_argument(
-        "--target",
-        default=None,
-        help=(
-            "Sobrescribe la URI de almacenamiento de salida. "
-            "Predeterminado: URI target de la configuración activa"
-        ),
-    )
+    run.add_argument("--source", default=None, help="Sobrescribe la URI source de almacenamiento")
+    run.add_argument("--target", default=None, help="Sobrescribe la URI target de almacenamiento")
     run.add_argument(
         "--no-retain-sources",
         action="store_true",
-        help=(
-            "En procesamiento local, desactiva la conservación de los archivos fuente después del procesamiento normal. "
-            "No se aplica a regeneración"
-        ),
+        help="No conserva los archivos fuente tras el procesamiento local",
     )
     run.add_argument(
         "--no-resume",
         action="store_true",
-        help=(
-            "Desactiva la reutilización/resume normal para esta ejecución. "
-            "La regeneración ya fuerza el reprocesamiento y no acepta este flag"
-        ),
+        help="Desactiva la reutilización de resultados compatibles",
     )
     run.add_argument(
         "--no-name-migration",
         action="store_true",
-        help="Desactiva la normalización de nombres de curso/lección heredados durante esta ejecución",
+        help="Desactiva la normalización de nombres heredados",
     )
     run.add_argument(
         "--parallel-videos",
         type=int,
         default=None,
-        help=(
-            "Máximo solicitado de workers de vídeo; 0 selecciona AUTO, 1 mantiene un worker "
-            "y los valores positivos se limitan al máximo seguro del hardware"
-        ),
+        help="Máximo de workers de vídeo; 0 selecciona AUTO",
     )
     run.add_argument(
         "--translation-batch-size",
         type=int,
         default=None,
-        help=(
-            "Sobrescribe el tamaño de lote de las peticiones de traducción. "
-            "Los valores menores que 1 se normalizan al mínimo válido; predeterminado: valor configurado"
-        ),
+        help="Sobrescribe el tamaño de lote de traducción",
     )
     run.add_argument(
         "--whisper-beam-size",
         type=int,
         default=None,
-        help=(
-            "Sobrescribe el beam size de Whisper. "
-            "Los valores menores que 1 se normalizan a 1; predeterminado: valor configurado"
-        ),
+        help="Sobrescribe el beam size de Whisper",
     )
     run.add_argument(
         "--whisper-cpu-threads",
         type=int,
         default=None,
-        help=(
-            "Sobrescribe los hilos de CPU de Whisper. 0 mantiene la selección automática del runtime; "
-            "los valores negativos se normalizan a 0"
-        ),
+        help="Sobrescribe los hilos de CPU de Whisper; 0 mantiene AUTO",
     )
     run.add_argument(
         "--no-ffmpeg-copy",
         action="store_true",
-        help="Desactiva la optimización de stream-copy de FFmpeg y utiliza la ruta de recodificación configurada",
+        help="Desactiva la optimización stream-copy de FFmpeg",
     )
     webm_group = run.add_mutually_exclusive_group()
     webm_group.add_argument(
@@ -176,209 +138,128 @@ def build_parser() -> argparse.ArgumentParser:
 
     duplicates = sub.add_parser(
         "duplicates",
-        help="Inspecciona y gestiona carpetas de salida locales duplicadas",
-        description=(
-            "Analiza y, opcionalmente, elimina carpetas de salida locales duplicadas "
-            "mediante el plan persistido de eliminación."
-        ),
+        help="Inspecciona y gestiona carpetas de salida duplicadas",
+        description="Analiza y elimina opcionalmente duplicados mediante el plan persistido.",
     )
     duplicates.add_argument(
         "--target",
         type=Path,
         default=BASE_DIR / "storage" / "output",
-        help="Directorio local de salida que se inspeccionará. Predeterminado: storage/output",
+        help="Directorio local de salida; predeterminado: storage/output",
     )
     duplicate_sub = duplicates.add_subparsers(dest="duplicates_command", required=True)
-    duplicate_sub.add_parser("scan", help="Detecta grupos de salida duplicados sin modificar resultados")
-    duplicate_sub.add_parser("analyze", help="Analiza grupos duplicados y persiste el plan de eliminación")
+    duplicate_sub.add_parser("scan", help="Detecta duplicados sin modificar resultados")
+    duplicate_sub.add_parser("analyze", help="Analiza duplicados y persiste el plan de eliminación")
     delete_duplicates = duplicate_sub.add_parser(
-        "delete", help="Elimina únicamente los duplicados presentes en el plan de análisis persistido"
+        "delete", help="Elimina únicamente los duplicados del plan persistido"
     )
     delete_duplicates.add_argument(
-        "--dry-run", action="store_true", help="Muestra exactamente qué se eliminaría sin borrar nada"
+        "--dry-run", action="store_true", help="Muestra qué se eliminaría sin borrar nada"
     )
 
     auth = sub.add_parser(
         "auth",
         help="Autenticación interactiva de un solo uso",
-        description="Autoriza un proveedor para un perfil persistente con nombre.",
+        description="Autoriza un proveedor para un perfil persistente.",
     )
-    auth.add_argument(
-        "provider", choices=["google"], help="Proveedor de autenticación. Actualmente solo se admite google"
-    )
-    auth.add_argument(
-        "--profile",
-        default="default",
-        help="Nombre del perfil del proveedor. Predeterminado: default",
-    )
+    auth.add_argument("provider", choices=["google"], help="Proveedor de autenticación")
+    auth.add_argument("--profile", default="default", help="Nombre del perfil; predeterminado: default")
+
     provider = sub.add_parser(
         "provider",
-        help="Configura y selecciona perfiles persistentes de proveedores",
-        description="Gestiona perfiles de proveedores de almacenamiento y la selección activa del runtime.",
+        help="Configura y selecciona perfiles persistentes",
+        description="Gestiona perfiles de proveedores y la selección activa del runtime.",
     )
     provider_sub = provider.add_subparsers(dest="provider_command", required=True)
     provider_sub.add_parser("bootstrap", help="Instala el binario gestionado de rclone")
     provider_sub.add_parser("list", help="Lista los perfiles configurados y el runtime activo")
     verify = provider_sub.add_parser(
         "verify",
-        help="Ejecuta una comprobación de credenciales cloud de solo lectura",
-        description="Comprueba el acceso sin cambiar la configuración del proveedor.",
+        help="Comprueba credenciales cloud en modo de solo lectura",
+        description="Comprueba el acceso sin cambiar la configuración.",
     )
-    verify.add_argument("provider", choices=["google_drive", "rclone"], help="Proveedor cloud que se comprobará")
-    verify.add_argument(
-        "--profile",
-        default="default",
-        help="Perfil del proveedor que se comprobará. Predeterminado: default",
-    )
-    verify.add_argument(
-        "--location",
-        default="",
-        help="Carpeta de rclone utilizada para la comprobación de salud. Predeterminado: vacío",
-    )
+    verify.add_argument("provider", choices=["google_drive", "rclone"], help="Proveedor cloud")
+    verify.add_argument("--profile", default="default", help="Perfil; predeterminado: default")
+    verify.add_argument("--location", default="", help="Carpeta de rclone para la comprobación")
     update = provider_sub.add_parser(
-        "update-rclone",
-        help="Actualiza explícitamente el binario gestionado de rclone",
+        "update-rclone", help="Actualiza explícitamente el binario gestionado de rclone"
     )
     update.add_argument(
         "--force",
         action="store_true",
-        help="Ejecuta la actualización aunque las actualizaciones automáticas estén desactivadas",
+        help="Actualiza aunque las actualizaciones automáticas estén desactivadas",
     )
     setup_google = provider_sub.add_parser(
-        "setup-google", help="Configuración inicial de Google Drive: OAuth + carpetas + perfil activo"
+        "setup-google", help="Configura Google Drive: OAuth, carpetas y perfil activo"
     )
-    setup_google.add_argument(
-        "--profile",
-        default="default",
-        help="Nombre del perfil de Google. Predeterminado: default",
-    )
-    setup_google.add_argument(
-        "--source-folder-id",
-        required=True,
-        help="ID de la carpeta de origen de Google Drive",
-    )
-    setup_google.add_argument(
-        "--target-folder-id",
-        required=True,
-        help="ID de la carpeta de destino de Google Drive",
-    )
-    setup_google.add_argument(
-        "--archive-folder-id",
-        default="",
-        help="ID opcional de la carpeta de archivo de Google Drive. Predeterminado: vacío",
-    )
-    auth_rclone = provider_sub.add_parser(
-        "auth-rclone", help="Configuración inicial de un remote de rclone"
-    )
+    setup_google.add_argument("--profile", default="default", help="Perfil de Google; predeterminado: default")
+    setup_google.add_argument("--source-folder-id", required=True, help="ID de la carpeta de origen de Google Drive")
+    setup_google.add_argument("--target-folder-id", required=True, help="ID de la carpeta de destino de Google Drive")
+    setup_google.add_argument("--archive-folder-id", default="", help="ID opcional de la carpeta de archivo")
+    auth_rclone = provider_sub.add_parser("auth-rclone", help="Configura un remote de rclone")
     auth_rclone.add_argument("name", help="Nombre del remote de rclone")
     auth_rclone.add_argument("backend", help="Tipo de backend de rclone")
+    auth_rclone.add_argument("options", nargs="*", help="Ajustes opcionales como key=value")
     auth_rclone.add_argument(
-        "options", nargs="*", help="Ajustes opcionales de rclone como pares key=value"
-    )
-    auth_rclone.add_argument(
-        "--non-interactive",
-        action="store_true",
-        help="Crea el remote sin iniciar la configuración interactiva de rclone",
+        "--non-interactive", action="store_true", help="Crea el remote sin configuración interactiva"
     )
     setup_rclone = provider_sub.add_parser(
-        "setup-rclone",
-        help="Configuración inicial de rclone + source/target activos",
+        "setup-rclone", help="Configura rclone y source/target activos"
     )
     setup_rclone.add_argument("name", help="Nombre del remote de rclone")
     setup_rclone.add_argument("backend", help="Tipo de backend de rclone")
-    setup_rclone.add_argument(
-        "--source", required=True, help="Ruta de la carpeta remota, por ejemplo input"
-    )
-    setup_rclone.add_argument(
-        "--target", required=True, help="Ruta de la carpeta remota, por ejemplo output"
-    )
-    setup_rclone.add_argument(
-        "--option", action="append", default=[], help="Opción de rclone como key=value; repetible"
-    )
+    setup_rclone.add_argument("--source", required=True, help="Ruta remota de entrada, por ejemplo input")
+    setup_rclone.add_argument("--target", required=True, help="Ruta remota de salida, por ejemplo output")
+    setup_rclone.add_argument("--option", action="append", default=[], help="Opción de rclone como key=value")
     use = provider_sub.add_parser("use", help="Selecciona el proveedor/perfil activo")
     use.add_argument("provider", choices=["local", "google_drive", "rclone"], help="Proveedor que se activará")
-    use.add_argument("--profile", default="default", help="Perfil del proveedor. Predeterminado: default")
+    use.add_argument("--profile", default="default", help="Perfil del proveedor")
     use.add_argument("--source", required=True, help="URI source activa")
     use.add_argument("--target", required=True, help="URI target activa")
-    use.add_argument("--archive", default="", help="Ubicación opcional de archivo. Predeterminado: vacío")
+    use.add_argument("--archive", default="", help="Ubicación opcional de archivo")
     remove = provider_sub.add_parser("remove", help="Elimina un perfil cloud que ya no se utilice")
-    remove.add_argument(
-        "provider",
-        choices=["google_drive", "rclone"],
-        help="Proveedor cloud cuyo perfil se eliminará",
-    )
-    remove.add_argument("name", help="Nombre del perfil o remote que se eliminará")
-    provider_sub.add_parser("clear", help="Vuelve a config/app.toml como proveedor activo")
+    remove.add_argument("provider", choices=["google_drive", "rclone"], help="Proveedor cloud")
+    remove.add_argument("name", help="Nombre del perfil o remote")
+    provider_sub.add_parser("clear", help="Borra la selección de proveedor guardada")
 
     reprocess = sub.add_parser(
         "reprocess-subtitles",
-        help="Reprocesa STT y/o traducción dentro de una carpeta de salida existente sin regenerar medios",
-        description=(
-            "Repara o regenera las etapas de subtítulos de resultados existentes "
-            "sin modificar los medios audiovisuales."
-        ),
+        help="Reprocesa STT y/o traducción sin regenerar medios",
+        description="Regenera las etapas de subtítulos de resultados existentes.",
     )
     mode = reprocess.add_mutually_exclusive_group()
     mode.add_argument("--stt-only", action="store_true", help="Regenera únicamente la transcripción original")
     mode.add_argument("--translate-only", action="store_true", help="Regenera únicamente el VTT traducido")
     reprocess.add_argument(
-        "--output-folder",
-        default=None,
-        help=(
-            "Carpeta de salida existente que se procesará. "
-            "Predeterminado: se selecciona mediante otros selectores o --all"
-        ),
+        "--output-folder", default=None, help="Carpeta de salida existente que se procesará"
     )
     reprocess.add_argument(
-        "--all",
-        dest="reprocess_all",
-        action="store_true",
-        help="Procesa todas las carpetas de salida elegibles; no se puede combinar con otros selectores",
+        "--all", dest="reprocess_all", action="store_true", help="Procesa todas las carpetas elegibles"
     )
-    reprocess.add_argument(
-        "--video",
-        dest="video_name",
-        default=None,
-        help="Selector del nombre del vídeo/fuente dentro del conjunto de salida. Predeterminado: ninguno",
-    )
-    reprocess.add_argument(
-        "--source",
-        default=None,
-        help="URI de origen o selector de fuente utilizado por el reprocesador. Predeterminado: ninguno",
-    )
-    reprocess.add_argument(
-        "--scheduled",
-        action="store_true",
-        help="Usa la configuración guardada del proveedor sin sobrescrituras interactivas",
-    )
+    reprocess.add_argument("--video", dest="video_name", default=None, help="Nombre del vídeo/fuente a seleccionar")
+    reprocess.add_argument("--source", default=None, help="URI de origen o selector de fuente")
+    reprocess.add_argument("--scheduled", action="store_true", help="Usa la configuración guardada del proveedor")
     reprocess.add_argument(
         "--provider",
         choices=["local", "google_drive", "gdrive", "rclone"],
         default=None,
-        help="Sobrescribe el proveedor de almacenamiento. Predeterminado: proveedor activo configurado",
+        help="Sobrescribe el proveedor de almacenamiento",
     )
-    reprocess.add_argument(
-        "--target",
-        default=None,
-        help="Sobrescribe la URI target de almacenamiento. Predeterminado: target activo configurado",
-    )
+    reprocess.add_argument("--target", default=None, help="Sobrescribe la URI target de almacenamiento")
     sub.add_parser(
         "prefetch-whisper",
-        help="Descarga/inicializa el modelo de Whisper seleccionado automáticamente",
-        description=(
-            "Inicializa el modelo configurado de Whisper/STT para que los procesamientos posteriores "
-            "puedan usarlo sin descargarlo primero."
-        ),
+        help="Descarga/inicializa el modelo de Whisper seleccionado",
+        description="Inicializa el modelo configurado de Whisper/STT.",
     )
     sub.add_parser(
         "doctor",
         help="Comprueba la preparación del runtime interactivo y desatendido",
-        description="Comprueba configuración, Python, FFmpeg, Whisper/runtime y preparación de proveedores.",
+        description="Comprueba configuración, Python, FFmpeg, Whisper y proveedores.",
     )
     sub.add_parser(
         "init",
         help="Crea los directorios de runtime",
-        description="Crea los directorios de runtime requeridos por el pipeline.",
+        description="Crea los directorios requeridos por el pipeline.",
     )
     return parser
 
