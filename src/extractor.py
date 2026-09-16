@@ -26,14 +26,14 @@ class ZipExtractor:
 
     def __init__(self, max_depth: int, max_files: int, max_total_size: int) -> None:
         if max_depth < 0 or max_files <= 0 or max_total_size <= 0:
-            raise ValueError("ZIP extraction limits must be positive")
+            raise ValueError("Los límites de extracción ZIP deben ser positivos")
         self.max_depth = max_depth
         self.max_files = max_files
         self.max_total_size = max_total_size
 
     def extract_zip(self, zip_path: Path, extract_to: Path) -> ExtractionResult:
         if not zip_path.is_file():
-            raise FileNotFoundError(f"ZIP not found: {zip_path}")
+            raise FileNotFoundError(f"No se encontró el ZIP: {zip_path}")
         extract_to.mkdir(parents=True, exist_ok=True)
         result = ExtractionResult()
         self._extract_recursive(zip_path.resolve(), extract_to, 0, result, set())
@@ -48,7 +48,7 @@ class ZipExtractor:
         processed: set[Path],
     ) -> None:
         if depth > self.max_depth:
-            raise ValueError(f"Maximum ZIP nesting depth exceeded: {self.max_depth}")
+            raise ValueError(f"Se ha superado la profundidad máxima de anidación ZIP: {self.max_depth}")
         if zip_path in processed:
             return
         processed.add(zip_path)
@@ -56,7 +56,7 @@ class ZipExtractor:
 
         current_dir = extract_to / self._safe_directory_name(zip_path.stem)
         if current_dir.exists():
-            raise ValueError(f"ZIP extraction directory collision: {current_dir.name}")
+            raise ValueError(f"Colisión en el directorio de extracción ZIP: {current_dir.name}")
         current_dir.mkdir(parents=True, exist_ok=False)
 
         with ZipFile(zip_path, "r") as archive:
@@ -85,36 +85,36 @@ class ZipExtractor:
             self._validate_member_name(name)
             target = (destination / name).resolve()
             if not target.is_relative_to(destination):
-                raise ValueError(f"Unsafe ZIP path detected: {member.filename}")
+                raise ValueError(f"Se ha detectado una ruta ZIP no segura: {member.filename}")
             if self._is_symlink(member):
-                raise ValueError(f"Symlink entries are not allowed in ZIPs: {member.filename}")
+                raise ValueError(f"No se permiten entradas symlink en los ZIP: {member.filename}")
             collision_key = unicodedata.normalize("NFC", target.as_posix()).casefold()
             if collision_key in seen_targets:
-                raise ValueError(f"ZIP path collision detected: {member.filename}")
+                raise ValueError(f"Se ha detectado una colisión de ruta ZIP: {member.filename}")
             seen_targets.add(collision_key)
             if member.is_dir():
                 continue
             result.extracted_files += 1
             result.extracted_bytes += member.file_size
             if result.extracted_files > self.max_files:
-                raise ValueError(f"Maximum number of extracted files exceeded: {self.max_files}")
+                raise ValueError(f"Se ha superado el número máximo de archivos extraídos: {self.max_files}")
             if result.extracted_bytes > self.max_total_size:
-                raise ValueError(f"Maximum extracted ZIP size exceeded: {self.max_total_size} bytes")
+                raise ValueError(f"Se ha superado el tamaño máximo de extracción ZIP: {self.max_total_size} bytes")
 
     @classmethod
     def _validate_member_name(cls, name: str) -> None:
         if not name or "\x00" in name:
-            raise ValueError(f"Unsafe ZIP path detected: {name!r}")
+            raise ValueError(f"Se ha detectado una ruta ZIP no segura: {name!r}")
         if PurePosixPath(name).is_absolute() or PureWindowsPath(name).is_absolute():
-            raise ValueError(f"Unsafe ZIP path detected: {name}")
+            raise ValueError(f"Se ha detectado una ruta ZIP no segura: {name}")
         if PureWindowsPath(name).drive or PureWindowsPath(name).root:
-            raise ValueError(f"Unsafe ZIP path detected: {name}")
+            raise ValueError(f"Se ha detectado una ruta ZIP no segura: {name}")
         components = [part for part in name.split("/") if part not in {"", "."}]
         if any(part == ".." for part in components):
-            raise ValueError(f"Unsafe ZIP path detected: {name}")
+            raise ValueError(f"Se ha detectado una ruta ZIP no segura: {name}")
         for part in components:
             if cls._is_windows_reserved_component(part):
-                raise ValueError(f"Reserved Windows ZIP path component is not allowed: {name}")
+                raise ValueError(f"No se permite el componente de ruta ZIP reservado de Windows: {name}")
 
     @staticmethod
     def _extract_members(archive: ZipFile, members, destination: Path) -> None:
