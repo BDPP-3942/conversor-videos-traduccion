@@ -262,7 +262,8 @@ class MediaConverter:
                     reader.join(timeout=2)
                     raise RuntimeError(f"FFmpeg conversion timed out after {timeout}s")
                 time.sleep(0.25)
-            reader.join(timeout=2)
+            reader.join()
+            process.stderr.close()
             if process.returncode != 0:
                 detail = next((line for line in reversed(stderr_lines) if line), "sin detalles")
                 raise RuntimeError(f"FFmpeg failed: {detail}")
