@@ -34,11 +34,6 @@ jobs:
             format: windows-msi
             arch: x64
             python: "3.13"
-          - os: windows-latest
-            artifact: windows-msi-x86
-            format: windows-msi
-            arch: x86
-            python: "3.13-windows-x86"
           - os: macos-latest
             artifact: macos-app
             format: native
@@ -93,11 +88,11 @@ jobs:
         shell: pwsh
         run: |
           if (-not (Test-Path 'dist\VideoTranslationPipeline\VideoTranslationPipeline.exe')) { throw 'Falta el ejecutable de Windows' }
-          if (-not (Test-Path "dist\VideoTranslationPipeline-${{ steps.version.outputs.version }}-windows-${{ matrix.arch }}.msi")) { throw 'Falta el MSI de Windows' }
+          if (-not (Test-Path "dist\VideoTranslationPipeline-${{ steps.version.outputs.version }}-windows-x64.msi")) { throw 'Falta el MSI de Windows x64' }
       - name: Archive Windows portable executable
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Compress-Archive -Path 'dist\VideoTranslationPipeline\*' -DestinationPath "dist\VideoTranslationPipeline-${{ steps.version.outputs.version }}-windows-${{ matrix.arch }}-portable.zip" -Force
+        run: Compress-Archive -Path 'dist\VideoTranslationPipeline\*' -DestinationPath "dist\VideoTranslationPipeline-${{ steps.version.outputs.version }}-windows-x64-portable.zip" -Force
       - name: Archive macOS app
         if: runner.os == 'macOS'
         shell: bash
