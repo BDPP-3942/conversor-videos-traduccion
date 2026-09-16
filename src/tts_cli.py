@@ -14,9 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Genera medios TTS sincronizados a partir de VTT traducidos"
-    )
+    parser = argparse.ArgumentParser(description="Genera medios TTS sincronizados a partir de VTT traducidos")
     parser.add_argument(
         "--config",
         type=Path,
