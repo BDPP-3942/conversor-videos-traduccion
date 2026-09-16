@@ -59,11 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Ejecuta un lote de procesamiento desatendido",
         description="Procesa vídeo/audio mediante STT, traducción y TTS opcional.",
     )
-    run.add_argument(
-        "--scheduled",
-        action="store_true",
-        help="Ejecuta sin navegador ni entrada interactiva",
-    )
+    run.add_argument("--scheduled", action="store_true", help="Ejecuta sin navegador ni entrada interactiva")
     run.add_argument(
         "--dry-run",
         action="store_true",
@@ -150,12 +146,8 @@ def build_parser() -> argparse.ArgumentParser:
     duplicate_sub = duplicates.add_subparsers(dest="duplicates_command", required=True)
     duplicate_sub.add_parser("scan", help="Detecta duplicados sin modificar resultados")
     duplicate_sub.add_parser("analyze", help="Analiza duplicados y persiste el plan de eliminación")
-    delete_duplicates = duplicate_sub.add_parser(
-        "delete", help="Elimina únicamente los duplicados del plan persistido"
-    )
-    delete_duplicates.add_argument(
-        "--dry-run", action="store_true", help="Muestra qué se eliminaría sin borrar nada"
-    )
+    delete_duplicates = duplicate_sub.add_parser("delete", help="Elimina únicamente los duplicados del plan persistido")
+    delete_duplicates.add_argument("--dry-run", action="store_true", help="Muestra qué se eliminaría sin borrar nada")
 
     auth = sub.add_parser(
         "auth",
@@ -181,9 +173,7 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("provider", choices=["google_drive", "rclone"], help="Proveedor cloud")
     verify.add_argument("--profile", default="default", help="Perfil; predeterminado: default")
     verify.add_argument("--location", default="", help="Carpeta de rclone para la comprobación")
-    update = provider_sub.add_parser(
-        "update-rclone", help="Actualiza explícitamente el binario gestionado de rclone"
-    )
+    update = provider_sub.add_parser("update-rclone", help="Actualiza explícitamente el binario gestionado de rclone")
     update.add_argument(
         "--force",
         action="store_true",
@@ -203,9 +193,7 @@ def build_parser() -> argparse.ArgumentParser:
     auth_rclone.add_argument(
         "--non-interactive", action="store_true", help="Crea el remote sin configuración interactiva"
     )
-    setup_rclone = provider_sub.add_parser(
-        "setup-rclone", help="Configura rclone y source/target activos"
-    )
+    setup_rclone = provider_sub.add_parser("setup-rclone", help="Configura rclone y source/target activos")
     setup_rclone.add_argument("name", help="Nombre del remote de rclone")
     setup_rclone.add_argument("backend", help="Tipo de backend de rclone")
     setup_rclone.add_argument("--source", required=True, help="Ruta remota de entrada, por ejemplo input")
@@ -230,12 +218,8 @@ def build_parser() -> argparse.ArgumentParser:
     mode = reprocess.add_mutually_exclusive_group()
     mode.add_argument("--stt-only", action="store_true", help="Regenera únicamente la transcripción original")
     mode.add_argument("--translate-only", action="store_true", help="Regenera únicamente el VTT traducido")
-    reprocess.add_argument(
-        "--output-folder", default=None, help="Carpeta de salida existente que se procesará"
-    )
-    reprocess.add_argument(
-        "--all", dest="reprocess_all", action="store_true", help="Procesa todas las carpetas elegibles"
-    )
+    reprocess.add_argument("--output-folder", default=None, help="Carpeta de salida existente que se procesará")
+    reprocess.add_argument("--all", dest="reprocess_all", action="store_true", help="Procesa todas las carpetas elegibles")
     reprocess.add_argument("--video", dest="video_name", default=None, help="Nombre del vídeo/fuente a seleccionar")
     reprocess.add_argument("--source", default=None, help="URI de origen o selector de fuente")
     reprocess.add_argument("--scheduled", action="store_true", help="Usa la configuración guardada del proveedor")
@@ -256,11 +240,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Comprueba la preparación del runtime interactivo y desatendido",
         description="Comprueba configuración, Python, FFmpeg, Whisper y proveedores.",
     )
-    sub.add_parser(
-        "init",
-        help="Crea los directorios de runtime",
-        description="Crea los directorios requeridos por el pipeline.",
-    )
+    sub.add_parser("init", help="Crea los directorios de runtime", description="Crea los directorios requeridos por el pipeline.")
     return parser
 
 

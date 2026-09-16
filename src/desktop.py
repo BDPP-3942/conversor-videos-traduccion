@@ -266,9 +266,7 @@ class DesktopApp:
             text="Reutiliza los medios existentes y reconstruye los artefactos de subtítulos.",
             wraplength=820,
         ).grid(row=4, column=0, columnspan=3, sticky="w", pady=10)
-        ttk.Button(parent, text="Ejecutar recuperación", command=self.start_recovery).grid(
-            row=5, column=0, sticky="w"
-        )
+        ttk.Button(parent, text="Ejecutar recuperación", command=self.start_recovery).grid(row=5, column=0, sticky="w")
         ttk.Button(parent, text="Recuperar todos", command=self.start_recovery_all).grid(
             row=5, column=1, sticky="w", padx=8
         )
@@ -285,9 +283,7 @@ class DesktopApp:
         buttons = ttk.Frame(parent)
         buttons.grid(row=2, column=0, columnspan=3, sticky="w")
         ttk.Button(buttons, text="Analizar", command=lambda: self.start_duplicate("scan")).pack(side="left")
-        ttk.Button(buttons, text="Evaluar", command=lambda: self.start_duplicate("analyze")).pack(
-            side="left", padx=8
-        )
+        ttk.Button(buttons, text="Evaluar", command=lambda: self.start_duplicate("analyze")).pack(side="left", padx=8)
         ttk.Button(
             buttons,
             text="Simular eliminación",
@@ -308,9 +304,7 @@ class DesktopApp:
         buttons = ttk.Frame(parent)
         buttons.pack(anchor="w")
         ttk.Button(buttons, text="Ejecutar diagnóstico", command=self.start_doctor).pack(side="left")
-        ttk.Button(buttons, text="Preparar modelo Whisper", command=self.start_prefetch).pack(
-            side="left", padx=8
-        )
+        ttk.Button(buttons, text="Preparar modelo Whisper", command=self.start_prefetch).pack(side="left", padx=8)
         ttk.Button(
             buttons,
             text="Instalar modelo de traducción local",
@@ -349,9 +343,7 @@ class DesktopApp:
             text="Elegir archivo…",
             command=lambda: DesktopApp._browse_file(variable),
         ).grid(row=row, column=2, padx=(8, 0))
-        ttk.Button(parent, text="Limpiar", command=lambda: variable.set("")).grid(
-            row=row, column=3, padx=(4, 0)
-        )
+        ttk.Button(parent, text="Limpiar", command=lambda: variable.set("")).grid(row=row, column=3, padx=(4, 0))
         parent.columnconfigure(1, weight=1)
 
     @staticmethod

@@ -48,10 +48,7 @@ def _download(url: str, destination: Path) -> None:
         return
     _validate_download_url(url)
     print(f"[INFO] Descargando recurso TTS: {url}")
-    fd, temp_name = tempfile.mkstemp(
-        prefix=f".{destination.name}.",
-        dir=destination.parent,
-    )
+    fd, temp_name = tempfile.mkstemp(prefix=f".{destination.name}.", dir=destination.parent)
     temporary = Path(temp_name)
     try:
         with os.fdopen(fd, "wb") as temp:
@@ -74,10 +71,7 @@ def _download(url: str, destination: Path) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description=(
-            "Prepara los recursos TTS opcionales de Kokoro. "
-            "Instala primero la dependencia de Python con uv."
-        )
+        description=("Prepara los recursos TTS opcionales de Kokoro. Instala primero la dependencia de Python con uv.")
     )
     parser.add_argument(
         "--enable",
@@ -112,9 +106,7 @@ def main() -> int:
     try:
         importlib.import_module("kokoro_onnx")
     except ImportError as exc:
-        raise RuntimeError(
-            "Falta la dependencia de Kokoro. Ejecuta 'uv sync --extra tts' primero."
-        ) from exc
+        raise RuntimeError("Falta la dependencia de Kokoro. Ejecuta 'uv sync --extra tts' primero.") from exc
 
     model_path = args.model_path or _resolve_configured_path(
         env.get("TTS_MODEL_PATH", ""),
