@@ -1,8 +1,17 @@
 from __future__ import annotations
 
-import tkinter as tk
-
 from src.desktop import DesktopApp
+
+
+class _FakeVariable:
+    def __init__(self, value):
+        self.value = value
+
+    def get(self):
+        return self.value
+
+    def set(self, value) -> None:
+        self.value = value
 
 
 class _FakeWidget:
@@ -15,9 +24,9 @@ class _FakeWidget:
 
 def _app_for_toggle_test() -> DesktopApp:
     app = DesktopApp.__new__(DesktopApp)
-    app.webm = tk.BooleanVar(value=False)
-    app.tts = tk.BooleanVar(value=False)
-    app.tts_required = tk.BooleanVar(value=True)
+    app.webm = _FakeVariable(False)
+    app.tts = _FakeVariable(False)
+    app.tts_required = _FakeVariable(True)
     app.webm_toggle = _FakeWidget()
     app.tts_toggle = _FakeWidget()
     app.tts_required_check = _FakeWidget()
