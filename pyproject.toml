@@ -20,7 +20,7 @@ dependencies = [
 
 [project.optional-dependencies]
 google = ["google-auth-oauthlib>=1,<2"]
-tts = ["kokoro-onnx>=0.6.1,<0.7"]
+tts = ["kokoro-onnx>=0.6.1,<0.7; platform_machine != 'x86'"]
 rclone = []
 
 [dependency-groups]
