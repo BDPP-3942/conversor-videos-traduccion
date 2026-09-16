@@ -13,7 +13,7 @@ env:
 
 jobs:
   desktop:
-    name: ${{ matrix.os }} desktop artifact
+    name: ${{ matrix.os }} ${{ matrix.arch || 'native' }} desktop artifact
     strategy:
       fail-fast: false
       matrix:
@@ -21,12 +21,23 @@ jobs:
           - os: ubuntu-latest
             format: linux-appimage
             artifact: linux-appimage
+            arch: x86_64
+            python: "3.13"
           - os: windows-latest
             format: windows-msi
-            artifact: windows-msi
+            artifact: windows-msi-x64
+            arch: x64
+            python: "3.13"
+          - os: windows-latest
+            format: windows-msi
+            artifact: windows-msi-x86
+            arch: x86
+            python: "3.13-windows-x86"
           - os: macos-latest
             format: native
             artifact: macos-app
+            arch: native
+            python: "3.13"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
@@ -36,7 +47,7 @@ jobs:
         with:
           version: latest-known
           enable-cache: true
-      - run: uv python install 3.13
+      - run: uv python install ${{ matrix.python }}
       - run: uv lock --check
       - name: Sync locked desktop environment
         env:
@@ -57,7 +68,7 @@ jobs:
           sudo mv /tmp/appimagetool /usr/local/bin/appimagetool
       - name: Build native desktop artifact
         shell: bash
-        run: uv run python scripts/build_desktop.py --clean --version "$RELEASE_VERSION" --format ${{ matrix.format }}
+        run: uv run python scripts/build_desktop.py --clean --version "$RELEASE_VERSION" --format ${{ matrix.format }} --windows-arch ${{ matrix.arch }}
       - name: Validate macOS app bundle
         if: runner.os == 'macOS'
         shell: bash
@@ -67,7 +78,7 @@ jobs:
         shell: pwsh
         run: |
           if (-not (Test-Path 'dist\VideoTranslationPipeline\VideoTranslationPipeline.exe')) { exit 1 }
-          if (-not (Test-Path "dist\VideoTranslationPipeline-$env:RELEASE_VERSION-windows-x64.msi")) { exit 1 }
+          if (-not (Test-Path "dist\VideoTranslationPipeline-$env:RELEASE_VERSION-windows-${{ matrix.arch }}.msi")) { exit 1 }
       - name: Validate Linux AppImage
         if: runner.os == 'Linux'
         shell: bash
