@@ -3,6 +3,7 @@ from __future__ import annotations
 import gc
 import logging
 import math
+import struct
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,18 @@ logger = logging.getLogger(__name__)
 class STTEngine:
     def __init__(self, settings: AppSettings) -> None:
         self.settings = settings
+        self._x86_engine = None
+        if struct.calcsize("P") * 8 == 32:
+            if not __import__("sys").platform.startswith("win"):
+                raise RuntimeError("El motor STT x86 solo está disponible en Windows de 32 bits")
+            from src.stt_engine_vosk import VoskSTTEngine
+
+            self._x86_engine = VoskSTTEngine(settings)
+            self.device = "cpu"
+            self.compute_type = "int8"
+            self.model = None
+            return
+
         self.device = settings.whisper_device
         self.compute_type = settings.whisper_compute_type
         self._quality_thresholds = STTQualityThresholds(
@@ -243,6 +256,8 @@ class STTEngine:
         return [selected] if selected is not None and not reasons else []
 
     def transcribe(self, media_path: Path):
+        if self._x86_engine is not None:
+            return self._x86_engine.transcribe(media_path)
         logger.info(
             "Transcribing: %s using device=%s compute=%s",
             media_path.name,
