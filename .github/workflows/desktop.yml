@@ -28,11 +28,6 @@ jobs:
             artifact: windows-msi-x64
             arch: x64
             python: "3.13"
-          - os: windows-latest
-            format: windows-msi
-            artifact: windows-msi-x86
-            arch: x86
-            python: "3.13-windows-x86"
           - os: macos-latest
             format: native
             artifact: macos-app
@@ -78,7 +73,7 @@ jobs:
         shell: pwsh
         run: |
           if (-not (Test-Path 'dist\VideoTranslationPipeline\VideoTranslationPipeline.exe')) { exit 1 }
-          if (-not (Test-Path "dist\VideoTranslationPipeline-$env:RELEASE_VERSION-windows-${{ matrix.arch }}.msi")) { exit 1 }
+          if (-not (Test-Path "dist\VideoTranslationPipeline-$env:RELEASE_VERSION-windows-x64.msi")) { exit 1 }
       - name: Validate Linux AppImage
         if: runner.os == 'Linux'
         shell: bash
