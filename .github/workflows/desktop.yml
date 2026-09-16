@@ -88,3 +88,45 @@ jobs:
             dist/VideoTranslationPipeline-*.msi
             dist/VideoTranslationPipeline-*.AppImage
           if-no-files-found: error
+
+  desktop-windows-x86:
+    name: windows-latest x86 desktop artifact
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          architecture: x86
+      - name: Install WiX v6
+        shell: pwsh
+        run: dotnet tool install --global wix --version 6.0.2
+      - name: Install x86 runtime and build dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install . pyinstaller==6.22.2
+      - name: Validate x86 environment
+        shell: pwsh
+        run: |
+          python -c "import struct; assert struct.calcsize('P') * 8 == 32"
+          python -m pip check
+          python -m compileall src config main.py
+      - name: Build Windows x86 desktop artifact
+        shell: pwsh
+        run: python scripts/build_desktop.py --clean --version "$env:RELEASE_VERSION" --format windows-msi --windows-arch x86
+      - name: Validate Windows x86 executable and MSI
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'dist\VideoTranslationPipeline\VideoTranslationPipeline.exe')) { exit 1 }
+          if (-not (Test-Path "dist\VideoTranslationPipeline-$env:RELEASE_VERSION-windows-x86.msi")) { exit 1 }
+      - name: Upload Windows x86 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-translation-windows-msi-x86
+          path: |
+            dist/VideoTranslationPipeline/**
+            dist/VideoTranslationPipeline-*-windows-x86.msi
+          if-no-files-found: error
