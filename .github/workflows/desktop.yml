@@ -107,21 +107,25 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
-          python -m pip install . pyinstaller==6.22.2
+          python -m pip install -r requirements-x86.txt
+          python -m pip install --no-deps .
       - name: Validate x86 environment
         shell: pwsh
         run: |
-          python -c "import struct; assert struct.calcsize('P') * 8 == 32"
-          python -m pip check
+          python -c "import struct, vosk; assert struct.calcsize('P') * 8 == 32"
           python -m compileall src config main.py
       - name: Build Windows x86 desktop artifact
         shell: pwsh
         run: python scripts/build_desktop.py --clean --version "$env:RELEASE_VERSION" --format windows-msi --windows-arch x86
-      - name: Validate Windows x86 executable and MSI
+      - name: Build Windows x86 wheel
+        shell: pwsh
+        run: python -m pip wheel . --no-deps --wheel-dir dist --config-settings=--build-option=--plat-name --config-settings=--build-option=win32
+      - name: Validate Windows x86 executable, MSI and wheel
         shell: pwsh
         run: |
           if (-not (Test-Path 'dist\VideoTranslationPipeline\VideoTranslationPipeline.exe')) { exit 1 }
           if (-not (Test-Path "dist\VideoTranslationPipeline-$env:RELEASE_VERSION-windows-x86.msi")) { exit 1 }
+          if (-not (Get-ChildItem 'dist\*-win32.whl')) { exit 1 }
       - name: Upload Windows x86 artifact
         uses: actions/upload-artifact@v4
         with:
@@ -129,4 +133,5 @@ jobs:
           path: |
             dist/VideoTranslationPipeline/**
             dist/VideoTranslationPipeline-*-windows-x86.msi
+            dist/*-win32.whl
           if-no-files-found: error
