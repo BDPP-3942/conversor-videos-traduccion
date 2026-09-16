@@ -13,6 +13,7 @@ APP_NAME = "VideoTranslationPipeline"
 
 
 def _run(command: list[str]) -> int:
+    """Ejecuta una herramienta de empaquetado desde la raíz del proyecto."""
     return subprocess.run(command, cwd=ROOT, check=False).returncode
 
 
@@ -22,10 +23,21 @@ def _windows_python_architecture() -> str:
 
 
 def _build_pyinstaller() -> int:
-    return _run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "desktop.spec"])
+    """Construye la aplicación de escritorio con el intérprete Python activo."""
+    return _run(
+        [
+            sys.executable,
+            "-m",
+            "PyInstaller",
+            "--noconfirm",
+            "--clean",
+            "desktop.spec",
+        ]
+    )
 
 
 def _build_msi(version: str, windows_arch: str) -> int:
+    """Genera el MSI y comprueba que coincide con la arquitectura de Python."""
     wix = shutil.which("wix")
     if wix is None:
         print("Se necesita WiX v6 para construir el MSI de Windows.", file=sys.stderr)
@@ -64,6 +76,7 @@ def _build_msi(version: str, windows_arch: str) -> int:
 
 
 def _build_appimage(version: str) -> int:
+    """Construye el AppImage Linux a partir del directorio generado por PyInstaller."""
     appimagetool = shutil.which("appimagetool")
     if appimagetool is None:
         print("Se necesita appimagetool para construir el AppImage de Linux.", file=sys.stderr)
@@ -74,7 +87,10 @@ def _build_appimage(version: str) -> int:
     usr_bin = app_dir / "usr" / "bin"
     usr_bin.mkdir(parents=True)
     shutil.copytree(DIST / APP_NAME, usr_bin / APP_NAME)
-    shutil.copy2(ROOT / "installer" / "VideoTranslationPipeline.svg", app_dir / "VideoTranslationPipeline.svg")
+    shutil.copy2(
+        ROOT / "installer" / "VideoTranslationPipeline.svg",
+        app_dir / "VideoTranslationPipeline.svg",
+    )
     (app_dir / "AppRun").write_text(
         '#!/bin/sh\nexec "$(dirname "$0")/usr/bin/VideoTranslationPipeline/VideoTranslationPipeline" "$@"\n',
         encoding="utf-8",
@@ -91,10 +107,15 @@ def _build_appimage(version: str) -> int:
 
 
 def main() -> int:
+    """Expone el CLI de construcción para los formatos de escritorio soportados."""
     parser = argparse.ArgumentParser(
         description="Construye los artefactos nativos de escritorio de Video Translation Pipeline"
     )
-    parser.add_argument("--clean", action="store_true", help="Elimina las carpetas build y dist anteriores")
+    parser.add_argument(
+        "--clean",
+        action="store_true",
+        help="Elimina las carpetas build y dist anteriores",
+    )
     parser.add_argument(
         "--format",
         choices=["native", "windows-msi", "linux-appimage"],
