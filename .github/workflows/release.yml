@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing release tag to build and publish"
+        description: "Tag de release existente que se debe construir y publicar"
         required: true
         type: string
 
@@ -27,7 +27,7 @@ jobs:
           - os: ubuntu-latest
             artifact: linux-appimage
             format: linux-appimage
-            arch: x86_64
+            arch: x64
             python: "3.13"
           - os: windows-latest
             artifact: windows-msi-x64
@@ -42,7 +42,7 @@ jobs:
           - os: macos-latest
             artifact: macos-app
             format: native
-            arch: native
+            arch: x64
             python: "3.13"
     runs-on: ${{ matrix.os }}
     steps:
@@ -92,8 +92,8 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          if (-not (Test-Path 'dist\VideoTranslationPipeline\VideoTranslationPipeline.exe')) { throw 'Missing Windows executable' }
-          if (-not (Test-Path "dist\VideoTranslationPipeline-${{ steps.version.outputs.version }}-windows-${{ matrix.arch }}.msi")) { throw 'Missing Windows MSI' }
+          if (-not (Test-Path 'dist\VideoTranslationPipeline\VideoTranslationPipeline.exe')) { throw 'Falta el ejecutable de Windows' }
+          if (-not (Test-Path "dist\VideoTranslationPipeline-${{ steps.version.outputs.version }}-windows-${{ matrix.arch }}.msi")) { throw 'Falta el MSI de Windows' }
       - name: Archive Windows portable executable
         if: runner.os == 'Windows'
         shell: pwsh
@@ -146,7 +146,7 @@ jobs:
         run: |
           mapfile -t assets < <(find release-assets -type f -print)
           if [ "${#assets[@]}" -eq 0 ]; then
-            echo "No release assets found" >&2
+            echo "No se han encontrado artefactos de release" >&2
             exit 1
           fi
           if gh release view "$TAG" >/dev/null 2>&1; then
