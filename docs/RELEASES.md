@@ -14,7 +14,7 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 
 ## Releases publicadas
 
-### 1.8.2 — Corrección de descarga y revisión de MADLAD
+### 1.8.2 — MADLAD model download and Hugging Face revision fix
 
 **Tipo:** `PATCH` · **Tag:** `v1.8.2` · **Estado:** publicada.
 
@@ -24,7 +24,7 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 - Diferencia diagnósticos `404` de errores `401/403` de Hugging Face.
 - Corrige fixtures de integridad y alinea metadatos de aplicación, empaquetado y documentación.
 
-### 1.8.1 — Bootstrap gestionado de uv y traducción local opcional
+### 1.8.1 — Local uv Bootstrap & Optional Local Translation Setup
 
 **Tipo:** `PATCH` · **Tag:** `v1.8.1` · **Estado:** publicada.
 
@@ -32,7 +32,7 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 - Permite preparar opcionalmente el modelo local de traducción durante el setup.
 - Mantiene la descarga diferida mediante `manage_local_translation.py`.
 
-### 1.8.0 — Recuperación Whisper y traducción local
+### 1.8.0 — Whisper Recovery & Local Translation
 
 **Tipo:** `MINOR` · **Tag:** `v1.8.0` · **Estado:** publicada.
 
@@ -40,32 +40,32 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 - Incorpora MADLAD-400 3B CT2 INT8 como modelo local predeterminado y conserva OPUS-MT como alternativa ligera.
 - Refuerza integridad, tokenización, revisiones fijadas y selección de modelos.
 
-### 1.7.4 — Validación de uv y traducción local
+### 1.7.4 — Local translation shared vocabulary validation
 
 **Tipo:** `PATCH` · **Estado:** publicada.
 
 - Valida `shared_vocabulary.json` según la estructura real del artefacto fijado.
 - Consolida la migración reproducible de desarrollo, CI, build y auditoría a uv.
 
-### 1.7.3 — Metadatos del modelo local
+### 1.7.3 — Local translation model metadata bootstrap
 
 **Tipo:** `PATCH` · **Estado:** publicada.
 
 - Empaqueta los metadatos JSON necesarios para la revisión fijada del modelo local.
 
-### 1.7.2 — Corrección de descarga del modelo local
+### 1.7.2 — Local translation model download fix
 
 **Tipo:** `PATCH` · **Estado:** publicada.
 
 - Corrige el límite y el recorrido de los artefactos del modelo local.
 
-### 1.7.1 — Compatibilidad de recuperación STT
+### 1.7.1 — STT selective recovery compatibility
 
 **Tipo:** `PATCH` · **Estado:** publicada.
 
 - Corrige el contrato de `clip_timestamps` de `faster-whisper`.
 
-### 1.7.0 — Regeneración, nombres Unicode y runtime de traducción
+### 1.7.0 — Reprocessing, Unicode Naming & Translation Runtime
 
 **Tipo:** `MINOR` · **Estado:** publicada.
 
@@ -73,67 +73,67 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 - Refuerza naming determinista, Unicode, límites de filesystem y colisiones.
 - Consolida traducción local CTranslate2 + SentencePiece y su validación.
 
-### 1.6.0 — Traducción local y endurecimiento del runtime GPU
+### 1.6.0 — Local Translation & GPU Runtime Hardening
 
 **Tipo:** `MINOR` · **Estado:** publicada.
 
 - Introduce traducción local opcional, recuperación STT configurable y runtime GPU gestionado.
 
-### 1.5.1 — Extracción ZIP y endurecimiento multiplataforma
+### 1.5.1 — ZIP extraction and cross-platform filesystem hardening
 
 **Tipo:** `PATCH` · **Estado:** publicada.
 
 - Endurece traversal ZIP, rutas absolutas/UNC, symlinks, nombres reservados y colisiones Unicode/case.
 
-### 1.5.0 — Whisper multiplataforma, contexto y empaquetado
+### 1.5.0 — Multiplatform Whisper, Context & Packaging
 
 **Tipo:** `MINOR` · **Estado:** publicada.
 
 - Introduce wrappers multiplataforma, contexto externo de Whisper y empaquetado reproducible.
 
-### 1.4.2 — Contrato CLI de regeneración
+### 1.4.2 — Regeneration CLI contract and help alignment
 
 **Tipo:** `PATCH` · **Estado:** publicada.
 
 - Amplía y documenta el contrato CLI de regeneración.
 
-### 1.4.1 — Integración de regeneración en scripts
+### 1.4.1 — Corrective Script Integration
 
 **Tipo:** `PATCH` · **Estado:** publicada.
 
 - Integra la regeneración en wrappers sin duplicar la lógica del pipeline.
 
-### 1.4.0 — Regeneración limpia y endurecimiento de release
+### 1.4.0 — Clean Video Regeneration and Release Hardening
 
 **Tipo:** `MINOR` · **Estado:** publicada.
 
 - Introduce regeneración limpia, backup/restauración y endurecimiento de release.
 
-### 1.3.0 — Concurrencia adaptada a recursos
+### 1.3.0 — Safe Resource-Aware Video Concurrency
 
 **Tipo:** `MINOR` · **Estado:** publicada.
 
 - Introduce concurrencia adaptativa basada en CPU/RAM/GPU.
 
-### 1.2.2 — Limpieza de timestamps del naming
+### 1.2.2 — Naming Timestamp Cleanup
 
 **Tipo:** `PATCH` · **Estado:** publicada.
 
 - Elimina timestamps técnicos de nombres y resultados.
 
-### 1.2.1 — Corrección de instalación TTS
+### 1.2.1 — TTS Installation Fix
 
 **Tipo:** `PATCH` · **Estado:** publicada.
 
 - Corrige la instalación multiplataforma de recursos TTS.
 
-### 1.2.0 — Mejoras de naming y TTS
+### 1.2.0 — Naming and TTS Improvements
 
 **Tipo:** `MINOR` · **Estado:** publicada.
 
 - Introduce naming descriptivo y bootstrap de assets Kokoro.
 
-### 1.1.0 — Reparación VTT e integración TTS
+### 1.1.0 — Reparación de VTT e integración TTS en el pipeline
 
 **Tipo:** `MINOR` · **Estado:** publicada.
 
