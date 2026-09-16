@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import os
 import tempfile
 from pathlib import Path
@@ -109,7 +110,7 @@ def main() -> int:
         return 0
 
     try:
-        import kokoro_onnx  # noqa: F401
+        importlib.import_module("kokoro_onnx")
     except ImportError as exc:
         raise RuntimeError(
             "Falta la dependencia de Kokoro. Ejecuta 'uv sync --extra tts' primero."
