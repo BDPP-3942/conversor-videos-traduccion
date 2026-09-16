@@ -219,7 +219,12 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument("--stt-only", action="store_true", help="Regenera únicamente la transcripción original")
     mode.add_argument("--translate-only", action="store_true", help="Regenera únicamente el VTT traducido")
     reprocess.add_argument("--output-folder", default=None, help="Carpeta de salida existente que se procesará")
-    reprocess.add_argument("--all", dest="reprocess_all", action="store_true", help="Procesa todas las carpetas elegibles")
+    reprocess.add_argument(
+        "--all",
+        dest="reprocess_all",
+        action="store_true",
+        help="Procesa todas las carpetas elegibles",
+    )
     reprocess.add_argument("--video", dest="video_name", default=None, help="Nombre del vídeo/fuente a seleccionar")
     reprocess.add_argument("--source", default=None, help="URI de origen o selector de fuente")
     reprocess.add_argument("--scheduled", action="store_true", help="Usa la configuración guardada del proveedor")
@@ -240,7 +245,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Comprueba la preparación del runtime interactivo y desatendido",
         description="Comprueba configuración, Python, FFmpeg, Whisper y proveedores.",
     )
-    sub.add_parser("init", help="Crea los directorios de runtime", description="Crea los directorios requeridos por el pipeline.")
+    sub.add_parser(
+        "init",
+        help="Crea los directorios de runtime",
+        description="Crea los directorios requeridos por el pipeline.",
+    )
     return parser
 
 

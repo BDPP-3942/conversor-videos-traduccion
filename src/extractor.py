@@ -141,15 +141,7 @@ class ZipExtractor:
 
     @staticmethod
     def _normalized_member_name(member) -> str:
-        """Devuelve una ruta Unicode canónica antes de acceder al sistema de archivos.
-
-        Los nombres ZIP sin indicador UTF-8 se decodifican como CP437. Algunos
-        archivos creados por macOS contienen bytes UTF-8 aunque omiten ese indicador,
-        produciendo mojibake como ``compresio╠ün`` o ``├▒`` para ``ñ``. Se intenta
-        una recuperación CP437 -> UTF-8 sin pérdida solo cuando aparecen marcadores
-        sospechosos o marcas combinantes. Un nombre CP437 legítimo como ``niño``
-        no supera la decodificación UTF-8 y permanece intacto.
-        """
+        """Devuelve una ruta Unicode canónica antes de acceder al sistema de archivos."""
         name = member.filename if hasattr(member, "filename") else str(member)
         if hasattr(member, "flag_bits") and not (member.flag_bits & 0x800):
             try:
@@ -176,7 +168,10 @@ class ZipExtractor:
         """Crea un nombre de raíz de extracción portable a partir del nombre del ZIP."""
         normalized = unicodedata.normalize("NFC", name)
         invalid = '<>:"/\\|?*'
-        sanitized = "".join("_" if char in invalid or unicodedata.category(char) == "Cc" else char for char in normalized)
+        sanitized = "".join(
+            "_" if char in invalid or unicodedata.category(char) == "Cc" else char
+            for char in normalized
+        )
         sanitized = sanitized.rstrip(" .")
         if ZipExtractor._is_windows_reserved_component(sanitized):
             sanitized = f"_{sanitized}"
