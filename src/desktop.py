@@ -311,9 +311,11 @@ class DesktopApp:
         ttk.Button(buttons, text="Preparar modelo Whisper", command=self.start_prefetch).pack(
             side="left", padx=8
         )
-        ttk.Button(buttons, text="Instalar modelo de traducción local", command=self.start_local_translation_install).pack(
-            side="left", padx=8
-        )
+        ttk.Button(
+            buttons,
+            text="Instalar modelo de traducción local",
+            command=self.start_local_translation_install,
+        ).pack(side="left", padx=8)
         ttk.Button(buttons, text="Abrir datos privados", command=self.open_runtime_folder).pack(side="left")
 
     def _build_scheduling(self, parent: ttk.Frame) -> None:
