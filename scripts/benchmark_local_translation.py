@@ -9,9 +9,7 @@ from src.local_translation import LocalTranslationModelManager, LocalTranslation
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Mide el rendimiento del modelo local de traducción sin conexión preparado"
-    )
+    parser = argparse.ArgumentParser(description="Mide el rendimiento del modelo local de traducción sin conexión preparado")
     parser.add_argument(
         "--sentences",
         type=int,
@@ -39,10 +37,7 @@ def main() -> int:
     total = time.perf_counter() - start
     empty_outputs = sum(not output.strip() for output in outputs)
     if len(outputs) != len(texts) or empty_outputs:
-        print(
-            "model=INVALID_OUTPUT "
-            f"empty_outputs={empty_outputs} returned={len(outputs)} expected={len(texts)}"
-        )
+        print(f"model=INVALID_OUTPUT empty_outputs={empty_outputs} returned={len(outputs)} expected={len(texts)}")
         return 3
     print(f"model={status.repository}@{status.revision}")
     print(f"hardware={hardware.gpu.vendor or 'none'}:{hardware.gpu.model or 'none'}")
