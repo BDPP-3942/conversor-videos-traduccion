@@ -1,6 +1,6 @@
 # Aplicación de escritorio
 
-La aplicación de escritorio de `1.9.0` es una capa de presentación sobre `VideoTranslationApplication` y el `MediaPipeline` existente. No duplica la lógica de STT, traducción, TTS, procesamiento multimedia ni almacenamiento.
+La aplicación de escritorio es una capa de presentación sobre `VideoTranslationApplication` y `MediaPipeline`. No duplica la lógica de STT, traducción, TTS, procesamiento multimedia ni almacenamiento.
 
 ## Instalación y ejecución
 
@@ -17,11 +17,12 @@ La GUI expone:
 - idiomas, proveedor principal y proveedores de respaldo de traducción;
 - paralelismo de vídeos y tamaño de lote de traducción;
 - modelo, dispositivo, cálculo y beam de Whisper;
-- WebM y TTS Kokoro;
+- activación opcional de WebM y TTS;
 - reanudación y normalización de nombres heredados;
 - recuperación `full`, `stt_only` y `translate_only`;
 - análisis y eliminación confirmada de duplicados;
 - diagnóstico y preparación de Whisper;
+- instalación del modelo local de traducción;
 - ejecución en segundo plano, progreso, registro y cancelación cooperativa;
 - selección de un archivo de contexto para el prompt inicial de Whisper.
 
@@ -57,6 +58,16 @@ No se conceden permisos de escritura especiales sobre `Program Files`. Esto evit
 
 La cancelación es cooperativa: se detiene en límites seguros y no termina a la fuerza una ejecución activa de FFmpeg o Whisper, evitando estados parciales o corruptos.
 
+## WebM y TTS
+
+WebM y TTS son capacidades opcionales y están desactivadas por defecto cuando la configuración no las activa. La GUI presenta controles de activación/desactivación independientes para que el usuario pueda aplicar los valores booleanos de configuración sin convertirlos en requisitos del procesamiento.
+
+El TTS obligatorio es una propiedad distinta: `TTS_REQUIRED` solo debe activarse cuando se quiera que un fallo de TTS impida considerar completado el procesamiento. Activar TTS no implica exigirlo.
+
+## Modelo local de traducción
+
+La preparación del modelo local se realiza mediante el botón de instalación de la GUI, que delega en `LocalTranslationModelManager` y conserva la misma ruta de configuración y validación que la CLI. La instalación es una acción explícita y no se ejecuta automáticamente durante cada procesamiento.
+
 ## Arquitectura
 
 ```text
@@ -83,24 +94,28 @@ La fachada es independiente de Tk para permitir reutilizar los mismos casos de u
 
 ## Distribución nativa
 
-La versión `1.9.0` distribuye aplicaciones de escritorio nativas para los tres sistemas objetivo:
+La distribución se construye en la plataforma y arquitectura de destino. Cada artefacto debe corresponder a la arquitectura real del intérprete Python y de sus dependencias binarias.
 
 | Plataforma | Construcción | Artefacto |
 | --- | --- | --- |
 | Windows x64 | PyInstaller + WiX 6 | `.exe` + `.msi` x64 |
-| Windows x86 | PyInstaller x86 + WiX 6, solo si todo el conjunto de dependencias es compatible | `.exe` + `.msi` x86 |
+| Windows x86 | PyInstaller x86 + WiX 6, cuando el conjunto de dependencias sea compatible | `.exe` + `.msi` x86 |
 | macOS | PyInstaller `BUNDLE` | `.app` dentro de `.zip` |
 | Linux x86_64 | PyInstaller + AppDir + appimagetool | `.AppImage` |
 
-Un ejecutable x64 no puede ejecutarse en Windows x86. Por ello, el proyecto no presenta el MSI x64 como compatible con sistemas de 32 bits. El soporte x86 requiere un build x86 real de Python, PyInstaller y todas las dependencias binarias necesarias.
+Un ejecutable x64 no puede ejecutarse en Windows x86. Por ello, un MSI x64 no debe anunciar compatibilidad con sistemas de 32 bits. Una variante x86 requiere un build x86 real de Python, PyInstaller y todas las dependencias binarias necesarias; no basta con cambiar el nombre del artefacto.
 
 ### Windows
 
+El comando general es:
+
 ```bash
-uv run python scripts/build_desktop.py --clean --version 1.9.0 --format windows-msi
+uv run python scripts/build_desktop.py --clean --version <version> --format windows-msi --windows-arch <x64|x86>
 ```
 
-El ejecutable lo genera PyInstaller y el MSI lo genera WiX 6 a partir del bundle. El paquete x64 se instala en el `Program Files` nativo del sistema. El paquete x86, cuando exista, utiliza la ubicación de `Program Files` correspondiente a aplicaciones de 32 bits.
+`--windows-arch` debe coincidir con la arquitectura del intérprete Python que ejecuta PyInstaller. WiX recibe la misma arquitectura para generar el MSI correspondiente.
+
+El ejecutable x64 se instala en el `Program Files` nativo del sistema. Una build x86 real utiliza la ubicación de `Program Files` correspondiente a aplicaciones de 32 bits.
 
 El instalador crea además un acceso directo en el menú Inicio para que Windows Search pueda localizar la aplicación.
 
@@ -113,16 +128,16 @@ Linux utiliza el mismo ejecutable GUI generado por PyInstaller que el resto de p
 - `VideoTranslationPipeline.desktop` para la integración con el escritorio;
 - `VideoTranslationPipeline.svg` como icono.
 
-Finalmente `appimagetool` genera `VideoTranslationPipeline-<version>-linux-x86_64.AppImage`.
+Finalmente `appimagetool` genera el AppImage x86_64.
 
 ```bash
-uv run python scripts/build_desktop.py --clean --version 1.9.0 --format linux-appimage
+uv run python scripts/build_desktop.py --clean --version <version> --format linux-appimage
 ```
 
 ### macOS
 
 ```bash
-uv run python scripts/build_desktop.py --clean --version 1.9.0 --format native
+uv run python scripts/build_desktop.py --clean --version <version> --format native
 ```
 
 PyInstaller genera `VideoTranslationPipeline.app`. La firma y la notarización son operaciones de publicación que requieren credenciales de release y no forman parte de cada PR.
@@ -144,10 +159,10 @@ La validación de escritorio debe comprobar al menos:
 Los nombres de artefacto deben conservar la arquitectura cuando exista más de una variante, por ejemplo:
 
 ```text
-VideoTranslationPipeline-1.9.0-windows-x64.msi
-VideoTranslationPipeline-1.9.0-windows-x86.msi
-VideoTranslationPipeline-1.9.0-linux-x86_64.AppImage
-VideoTranslationPipeline-1.9.0-macos.app.zip
+VideoTranslationPipeline-<version>-windows-x64.msi
+VideoTranslationPipeline-<version>-windows-x86.msi
+VideoTranslationPipeline-<version>-linux-x86_64.AppImage
+VideoTranslationPipeline-<version>-macos.app.zip
 ```
 
 No debe publicarse un artefacto x86 si las dependencias del ejecutable no pueden construirse y probarse realmente para x86.
@@ -162,10 +177,6 @@ uv run video-translation-pipeline run --scheduled
 ```
 
 También se conservan regeneración, QA de subtítulos, TTS, wrappers desatendidos y programación mediante launchd, cron y el Programador de tareas de Windows.
-
-## Alcance de la release
-
-La release `1.9.0` incorpora la aplicación de escritorio, el endurecimiento de extracción ZIP/Unicode y el empaquetado nativo. El soporte móvil permanece fuera del alcance del producto.
 
 ## Documentación relacionada
 
