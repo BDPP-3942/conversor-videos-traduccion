@@ -311,6 +311,9 @@ class DesktopApp:
         ttk.Button(buttons, text="Preparar modelo Whisper", command=self.start_prefetch).pack(
             side="left", padx=8
         )
+        ttk.Button(buttons, text="Instalar modelo de traducción local", command=self.start_local_translation_install).pack(
+            side="left", padx=8
+        )
         ttk.Button(buttons, text="Abrir datos privados", command=self.open_runtime_folder).pack(side="left")
 
     def _build_scheduling(self, parent: ttk.Frame) -> None:
@@ -566,6 +569,18 @@ class DesktopApp:
         settings = VideoTranslationApplication().load_settings()
         STTEngine(settings)
         return {"status": "success", "whisper_model": settings.whisper_model}
+
+    def start_local_translation_install(self) -> None:
+        self._append("Instalando el modelo local de traducción.\n")
+        self._launch(lambda _report, _cancel: self._install_local_translation_model())
+
+    @staticmethod
+    def _install_local_translation_model() -> dict[str, object]:
+        from src.local_translation import LocalTranslationModelManager
+
+        manager = LocalTranslationModelManager()
+        path = manager.ensure(confirm=lambda status: True)
+        return {"status": "success", "model": manager.model_name, "path": str(path)}
 
     def open_runtime_folder(self) -> None:
         path = self.runtime["root"].resolve()
