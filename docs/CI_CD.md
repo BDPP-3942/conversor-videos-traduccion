@@ -26,10 +26,11 @@ El workflow `.github/workflows/desktop.yml` añade packaging nativo para la GUI:
 
 - Ubuntu: PyInstaller + AppDir + AppImage x86_64.
 - Windows x64: PyInstaller + WiX 6.0.2, produciendo `.exe`, MSI x64 y ZIP portable x64.
-- Windows x86: PyInstaller + WiX 6.0.2, produciendo `.exe`, MSI x86 y ZIP portable x86 cuando la build completa utiliza Python x86.
 - macOS: PyInstaller `BUNDLE`, produciendo `.app`.
 
-La arquitectura Windows no se deduce del sistema operativo de forma abstracta: el ejecutable y todas sus dependencias deben ser realmente de la arquitectura solicitada. El build valida que la arquitectura del intérprete Python coincide con `--windows-arch`.
+La arquitectura Windows no se deduce del sistema operativo de forma abstracta: el ejecutable y sus dependencias deben ser realmente de la arquitectura solicitada. El build valida que la arquitectura del intérprete Python coincide con `--windows-arch`.
+
+Actualmente no se publica una build Windows x86. La comprobación realizada con Python x86 demuestra que `ctranslate2==4.8.2`, dependencia del runtime actual, no dispone de wheel `win32`; `uv sync --locked` falla antes de poder construir el ejecutable. Por tanto, fabricar un MSI x86 sin resolver primero esa incompatibilidad produciría un paquete incompleto o engañoso. La build publicada permanece en Windows x64 hasta que todo el stack sea realmente compatible con x86.
 
 ## Linux desktop packaging
 
@@ -45,8 +46,8 @@ El workflow:
 
 1. hace checkout del tag exacto;
 2. ejecuta `uv lock --check` y `uv sync --locked`;
-3. construye Linux, Windows x86, Windows x64 y macOS en runners nativos;
-4. valida los artefactos y su arquitectura Windows;
+3. construye Linux x86_64, Windows x64 y macOS en runners nativos;
+4. valida los artefactos y la arquitectura Windows;
 5. comprime el `.app` de macOS;
 6. publica los artefactos como assets de workflow;
 7. crea la GitHub Release si no existe o hace upload con `--clobber` si ya existe.
@@ -59,12 +60,10 @@ Artefactos esperados:
 VideoTranslationPipeline-X.Y.Z-linux-x86_64.AppImage
 VideoTranslationPipeline-X.Y.Z-windows-x64.msi
 VideoTranslationPipeline-X.Y.Z-windows-x64-portable.zip
-VideoTranslationPipeline-X.Y.Z-windows-x86.msi
-VideoTranslationPipeline-X.Y.Z-windows-x86-portable.zip
 VideoTranslationPipeline-X.Y.Z-macos.app.zip
 ```
 
-El `.exe` correspondiente permanece dentro de cada paquete portable generado por PyInstaller.
+El `.exe` correspondiente permanece dentro del paquete portable generado por PyInstaller.
 
 ## Versionado y lockfile
 
@@ -101,8 +100,7 @@ Para validar desktop localmente en la plataforma correspondiente:
 ```bash
 uv run python scripts/build_desktop.py --clean --version 1.10.0 --format native
 uv run python scripts/build_desktop.py --clean --version 1.10.0 --format windows-msi --windows-arch x64
-uv run python scripts/build_desktop.py --clean --version 1.10.0 --format windows-msi --windows-arch x86
 uv run python scripts/build_desktop.py --clean --version 1.10.0 --format linux-appimage
 ```
 
-Los builds Windows x86 y x64 deben ejecutarse con intérpretes Python de la arquitectura correspondiente. El segundo y tercer comando Windows requieren Windows y WiX; el comando Linux requiere Linux y `appimagetool`. La firma/notarización de macOS y firma de editor de Windows son operaciones de publicación y requieren credenciales específicas.
+El build Windows requiere Windows y WiX; el build Linux requiere Linux y `appimagetool`. La firma/notarización de macOS y firma de editor de Windows son operaciones de publicación y requieren credenciales específicas.
