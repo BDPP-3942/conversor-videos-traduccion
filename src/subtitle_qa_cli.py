@@ -8,7 +8,9 @@ from src.subtitle_qa import run_subtitle_qa
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Comprueba y, opcionalmente, corrige un archivo de subtítulos WebVTT")
+    parser = argparse.ArgumentParser(
+        description="Comprueba y, opcionalmente, corrige un archivo de subtítulos WebVTT"
+    )
     parser.add_argument("vtt", type=Path, help="Archivo VTT traducido que se va a revisar")
     parser.add_argument(
         "--source-vtt",
