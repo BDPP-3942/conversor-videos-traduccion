@@ -39,9 +39,7 @@ def main() -> int:
     total = time.perf_counter() - start
     empty_outputs = sum(not output.strip() for output in outputs)
     if len(outputs) != len(texts) or empty_outputs:
-        print(
-            f"model=INVALID_OUTPUT empty_outputs={empty_outputs} returned={len(outputs)} expected={len(texts)}"
-        )
+        print(f"model=INVALID_OUTPUT empty_outputs={empty_outputs} returned={len(outputs)} expected={len(texts)}")
         return 3
     print(f"model={status.repository}@{status.revision}")
     print(f"hardware={hardware.gpu.vendor or 'none'}:{hardware.gpu.model or 'none'}")
