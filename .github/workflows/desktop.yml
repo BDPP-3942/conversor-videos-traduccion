@@ -13,7 +13,7 @@ env:
 
 jobs:
   desktop:
-    name: ${{ matrix.os }} ${{ matrix.arch || 'native' }} desktop artifact
+    name: ${{ matrix.os }} ${{ matrix.arch }} desktop artifact
     strategy:
       fail-fast: false
       matrix:
@@ -21,7 +21,7 @@ jobs:
           - os: ubuntu-latest
             format: linux-appimage
             artifact: linux-appimage
-            arch: x86_64
+            arch: x64
             python: "3.13"
           - os: windows-latest
             format: windows-msi
@@ -36,7 +36,7 @@ jobs:
           - os: macos-latest
             format: native
             artifact: macos-app
-            arch: native
+            arch: x64
             python: "3.13"
     runs-on: ${{ matrix.os }}
     steps:
