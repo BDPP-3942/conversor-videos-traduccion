@@ -14,6 +14,17 @@ Una release agrupa un conjunto funcional coherente. Los tags publicados son inmu
 
 ## Releases publicadas
 
+### 1.8.3 — Release candidate de resolución gestionada de uv
+
+**Tipo:** `PATCH` · **Estado:** candidata histórica; no sustituye a las releases publicadas posteriores.
+
+- Añade un resolvedor POSIX compartido que prioriza `tools/uv/uv` y utiliza `uv` de `PATH` como fallback.
+- Añade el resolvedor Windows equivalente, que prioriza `tools\\uv\\uv.exe` antes de `PATH`.
+- Alinea `run_local.*`, `run_unattended.*`, `setup_rclone.*`, `setup_google.*` y los scripts de build con el ejecutable resuelto.
+- Conserva la prioridad de ejecutables empaquetados y el fallback directo a `.venv` cuando uv no está disponible.
+- Añade cobertura de los contratos POSIX y Windows en `tests/test_uv_resolution_contract.py`.
+- Mantiene el historial de releases anteriores y no introduce soporte de escritorio en esta candidata.
+
 ### 1.8.2 — MADLAD model download and Hugging Face revision fix
 
 **Tipo:** `PATCH` · **Tag:** `v1.8.2` · **Estado:** publicada.
@@ -183,7 +194,7 @@ Primera release estable de esta línea de producto.
 - Windows x64: el instalador se dirige al `Program Files` nativo; una build x86 requiere un ejecutable y dependencias realmente x86.
 - macOS: `.app` + ZIP de distribución.
 - Linux: ejecutable PyInstaller + AppDir + AppRun + `.desktop` + SVG + AppImage x86_64.
-- Las builds de escritorio reciben explícitamente `1.10.0` en el workflow de packaging y validan los nombres de artefacto de esa versión.
+- Las builds de escritorio reciben explícitamente la versión objetivo en el workflow de packaging y validan los nombres de artefactos de esa versión.
 
 ### Cambios de CI/CD y release
 
@@ -194,15 +205,14 @@ Primera release estable de esta línea de producto.
 - Adjuntar automático de `.AppImage`, MSI y ZIP de macOS a la GitHub Release.
 - Los ZIP/TAR del código fuente continúan siendo generados automáticamente por GitHub para el tag.
 - El proceso normal de publicación no requiere build local ni subida manual de binarios.
-- `pyproject.toml`, `config/app.toml`, `uv.lock` y los documentos de release deben permanecer sincronizados con `1.10.0`.
 
 ### Documentación y CLI
 
-- La documentación operativa nueva o modificada se redacta en español y conserva los comentarios técnicos en español en lugar de eliminarlos.
+- La documentación operativa nueva o modificada se redacta en español y conserva los comentarios técnicos y el contenido histórico.
 - Los comandos de ejemplo explican su finalidad, efectos y restricciones.
 - Las referencias a otros documentos del repositorio son enlaces Markdown relativos.
 - La referencia CLI cubre procesamiento, `dry-run`, programación, regeneración, recuperación, duplicados, proveedores, diagnóstico, wrappers y traducción local.
-- Las descripciones `description=` y `help=` de los parsers CLI deben estar en español y [`docs/CLI.md`](CLI.md) debe reflejar la ayuda real.
+- Las descripciones `description=` y `help=` de los parsers CLI deben estar en español y [`docs/CLI.md`](CLI.md) debe reflejar la ayuda real sin eliminar información semántica.
 
 ### Compatibilidad
 
@@ -230,4 +240,4 @@ Además, CI debe construir y validar los artefactos nativos de escritorio. Las p
 
 ## Integridad histórica
 
-Las versiones publicadas no se reescriben. La documentación de `1.10.0` describe exclusivamente el nuevo alcance de escritorio, la reparación Unicode, el almacenamiento de trabajo, la documentación en español y la automatización de release. El soporte móvil permanece fuera del producto.
+Las versiones publicadas no se reescriben. Los títulos y anotaciones históricas se conservan; cuando se corrige esta documentación, se corrige el cuerpo sin eliminar cambios de la release correspondiente. Las versiones candidatas se distinguen de las publicadas y el histórico completo permanece en este documento y en `CHANGELOG.md`.
