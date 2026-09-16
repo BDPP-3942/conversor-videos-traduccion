@@ -5,7 +5,8 @@ import os
 import tempfile
 from pathlib import Path
 from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+
+import requests
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_MODEL = BASE_DIR / "tools" / "tts" / "kokoro-v1.0.onnx"
@@ -46,10 +47,6 @@ def _download(url: str, destination: Path) -> None:
         return
     _validate_download_url(url)
     print(f"[INFO] Descargando recurso TTS: {url}")
-    request = Request(
-        url,
-        headers={"User-Agent": "video-translation-pipeline/setup"},
-    )  # noqa: S310
     fd, temp_name = tempfile.mkstemp(
         prefix=f".{destination.name}.",
         dir=destination.parent,
@@ -57,9 +54,16 @@ def _download(url: str, destination: Path) -> None:
     temporary = Path(temp_name)
     try:
         with os.fdopen(fd, "wb") as temp:
-            with urlopen(request, timeout=60) as response:  # noqa: S310
-                while chunk := response.read(1024 * 1024):
-                    temp.write(chunk)
+            with requests.get(
+                url,
+                headers={"User-Agent": "video-translation-pipeline/setup"},
+                stream=True,
+                timeout=60,
+            ) as response:
+                response.raise_for_status()
+                for chunk in response.iter_content(chunk_size=1024 * 1024):
+                    if chunk:
+                        temp.write(chunk)
         if temporary.stat().st_size <= 0:
             raise RuntimeError(f"El recurso TTS descargado está vacío: {url}")
         temporary.replace(destination)
