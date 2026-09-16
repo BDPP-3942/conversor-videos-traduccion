@@ -42,7 +42,11 @@ def _read_manifest(path: Path) -> dict[str, Any]:
 def _download_remote_manifest(storage, target: str, zip_name: str) -> Path | None:
     manifest_name = f"{Path(zip_name).stem}.json"
     try:
-        candidates = [item for item in storage.list_children(target) if item.name == manifest_name and not item.is_directory]
+        candidates = [
+            item
+            for item in storage.list_children(target)
+            if item.name == manifest_name and not item.is_directory
+        ]
     except Exception:
         logger.exception("No se pudo inspeccionar el manifest remoto de %s", zip_name)
         return None
@@ -124,7 +128,7 @@ def _restore_manifest(
 
 
 def regenerate(source: str, target: str, settings) -> dict[str, Any]:
-    """Regenera desde cero resultados de vídeo existentes mediante el contrato normal de MediaPipeline y StorageProvider."""
+    """Regenera resultados de vídeo existentes mediante MediaPipeline y StorageProvider."""
     from src.pipeline import MediaPipeline
 
     storage = create_storage_provider(settings.provider, settings)
