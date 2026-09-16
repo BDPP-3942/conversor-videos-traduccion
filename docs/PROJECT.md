@@ -45,76 +45,76 @@ El estado interno, logs y cachés se mantienen separados en el directorio privad
 
 Consulta [`INSTALLATION.md`](INSTALLATION.md), [`CONFIGURATION.md`](CONFIGURATION.md), [`CLI.md`](CLI.md) y [`DESKTOP.md`](DESKTOP.md).
 
-## Release candidata actual
+## Versionado e historial
 
-La candidata actual es `1.10.0`. Es una release `MINOR` que añade la aplicación de escritorio, el empaquetado nativo, la reparación de nombres Unicode en ZIP y la arquitectura de almacenamiento de trabajo separada del estado privado.
+El proyecto utiliza Semantic Versioning (`MAJOR.MINOR.PATCH`). Las versiones publicadas, sus tags y el alcance de cada release se documentan exclusivamente en [`RELEASES.md`](RELEASES.md) y [`CHANGELOG.md`](../CHANGELOG.md).
 
-La publicación de `v1.10.0` requiere que CI y Release Gate estén verdes sobre el SHA final y que se actualicen de forma coherente [`pyproject.toml`](../pyproject.toml), [`config/app.toml`](../config/app.toml), [`uv.lock`](../uv.lock), [`CHANGELOG.md`](../CHANGELOG.md) y [`docs/RELEASES.md`](RELEASES.md).
+La documentación técnica de funcionalidades no depende de una versión concreta: describe el comportamiento general vigente del proyecto. Cuando un procedimiento necesite mostrar un valor específico, se indica como `<version>` o mediante el tag/versionado que corresponda al artefacto que se esté documentando.
 
-Las releases publicadas anteriores son inmutables. Consulta [`RELEASES.md`](RELEASES.md) para el historial.
+El histórico general conserva las versiones desde `1.0.0` y distingue entre releases publicadas y candidatas sin eliminar anotaciones de versiones anteriores.
 
-## Cambios principales de 1.10.0
+## Arquitectura funcional
 
-### Aplicación de escritorio
+```text
+Entrada de vídeo / ZIP
+        |
+        v
+Almacenamiento + extracción segura
+        |
+        v
+Normalización de medios
+        |
+        v
+STT / Whisper
+        |
+        v
+VTT original + QA
+        |
+        v
+Traducción + proveedores de respaldo
+        |
+        v
+VTT traducido
+        |
+        +----> TTS Kokoro opcional
+        |
+        +----> WebM opcional
+        |
+        v
+Resultados + manifest + estado de ejecución
+```
 
-- Interfaz Tk/ttk sobre la fachada de aplicación existente.
-- Ejecución explícita mediante botón principal.
-- Configuración de almacenamiento, idiomas, traducción, Whisper, FFmpeg, TTS, concurrencia, resume y naming.
-- Selección de archivo de contexto para Whisper.
-- Recuperación de subtítulos, deduplicación y diagnóstico.
-- Progreso, logs, ejecución en segundo plano y cancelación cooperativa.
+La aplicación de escritorio, la CLI y los wrappers utilizan los mismos casos de uso y contratos del pipeline. La GUI no implementa un motor audiovisual alternativo.
 
-### Almacenamiento
+## Almacenamiento
 
-- `input` y `output` predeterminados en `Documentos/Video Translation Pipeline`.
-- Estado interno separado en datos privados del usuario.
-- Selección libre de carpetas compartidas, de red o sincronizadas siempre que el usuario tenga permisos de escritura.
-- Ninguna operación normal de procesamiento necesita escribir en `Program Files`.
+Los datos de trabajo del usuario y el estado privado de la aplicación están separados. `input` y `output` pueden estar en una carpeta local, compartida, de red o sincronizada siempre que el usuario tenga permisos de escritura.
 
-### ZIP y Unicode
+Los manifests y mecanismos de reanudación permiten identificar resultados existentes y evitar procesamiento innecesario cuando los artefactos son compatibles.
 
-La extracción corrige los nombres UTF-8 que han sido interpretados erróneamente como CP437 cuando el ZIP no contiene el indicador UTF-8. La detección es conservadora para no reinterpretar nombres CP437 legítimos.
+## ZIP y Unicode
 
-La reparación de extracción y la normalización física posterior son capas distintas: un nombre legítimo como `niño` puede conservarse al extraer y convertirse después en `nino` por la política de nombres de salida.
+La extracción corrige de forma conservadora nombres UTF-8 que hayan sido interpretados como CP437 cuando falta el indicador UTF-8. La reparación de extracción y la normalización física posterior son capas distintas: un nombre legítimo como `niño` puede conservarse al extraer y convertirse después en `nino` por la política de nombres de salida.
 
-### Windows
+La extracción también valida traversal, rutas absolutas/UNC, symlinks, nombres reservados de Windows, colisiones por normalización Unicode y colisiones por mayúsculas/minúsculas.
 
-El instalador MSI se construye con la arquitectura real del ejecutable. El build x64 utiliza `Program Files`; un build x86 utiliza la ubicación de programas de 32 bits correspondiente. No se declara que un ejecutable x64 pueda ejecutarse en Windows x86.
+## Windows y distribución
 
-El MSI crea un acceso directo en el menú Inicio y la aplicación no requiere escritura en su directorio de instalación.
+La construcción de escritorio se realiza en la plataforma y arquitectura de destino. Un ejecutable x64 no puede ejecutarse en Windows x86.
 
-### CLI y documentación
+El sistema de build acepta `x64` y `x86` como arquitecturas explícitas del MSI, pero una build x86 solo puede publicarse cuando Python, PyInstaller y todas las dependencias binarias requeridas por el pipeline estén disponibles y validadas para Win32. Cambiar únicamente la etiqueta del artefacto no constituye soporte x86.
 
-- Las descripciones `description=` y `help=` de los parsers CLI deben estar en español.
-- [`CLI.md`](CLI.md) es la referencia de uso y documenta los casos de uso públicos, incluyendo comandos, opciones, wrappers y ejemplos.
-- Los ejemplos de comandos explican qué comprueban o modifican y sus restricciones relevantes.
-- Las referencias a otros documentos utilizan enlaces Markdown relativos.
-- Los comentarios y docstrings modificados para esta release conservan el contenido técnico en español.
-- Las reglas se aplican directamente sobre los ficheros canónicos; no existe un `INDEX.md` auxiliar que deba mantenerse sincronizado.
+La aplicación no requiere escribir en `Program Files` durante la operación normal; los datos de trabajo se almacenan en las carpetas del usuario.
 
-## Evidencia de releases
+## CLI y GUI
 
-| Capacidad | Primera release verificada |
-| --- | ---: |
-| Pipeline audiovisual, STT, VTT, traducción, almacenamiento, resume, deduplicación, TTS y programación | `1.0.0` |
-| Recuperación VTT e integración TTS | `1.1.0` |
-| Naming y bootstrap de TTS | `1.2.0` |
-| Concurrencia adaptada a recursos | `1.3.0` |
-| Regeneración limpia | `1.4.0` |
-| Whisper/contexto/empaquetado multiplataforma | `1.5.0` |
-| Endurecimiento ZIP/filesystem | `1.5.1` |
-| Traducción local y endurecimiento GPU/runtime | `1.6.0` |
-| Reprocessing, manifests y naming Unicode | `1.7.0` |
-| Recuperación Whisper refinada y modelos locales fijados | `1.8.0` |
-| Bootstrap gestionado de uv | `1.8.1` |
-| Corrección MADLAD/tokenizer/diagnóstico Hugging Face | `1.8.2` |
-| Resolución gestionada de uv en wrappers | `1.8.3` candidata histórica |
-| Aplicación GUI, empaquetado nativo, reparación ZIP Unicode y almacenamiento de escritorio | `1.10.0` candidata |
+La CLI es el contrato de automatización y conserva sus comandos, flags y restricciones. La GUI ofrece controles para los casos de uso interactivos, incluidos procesamiento, recuperación, deduplicación, diagnóstico, preparación de Whisper, instalación del modelo local y activación opcional de WebM/TTS.
+
+La documentación de CLI debe conservar el detalle semántico de cada opción: finalidad, valores, valores predeterminados, restricciones, incompatibilidades y efectos. Los términos técnicos, comandos, flags, rutas, APIs, formatos y nombres de modelos no se traducen.
 
 ## Documentación canónica
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md)
-- [`USE_CASES.md`](USE_CASES.md)
 - [`PIPELINE.md`](PIPELINE.md)
 - [`INSTALLATION.md`](INSTALLATION.md)
 - [`CONFIGURATION.md`](CONFIGURATION.md)
