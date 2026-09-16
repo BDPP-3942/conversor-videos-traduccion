@@ -169,12 +169,27 @@ class DesktopApp:
         self.auto_dedupe = tk.BooleanVar(value=self._setting("automatic_output_deduplication", False))
         self._spin_row(execution, 0, "Vídeos en paralelo (0 = AUTO)", self.parallel, 0, 64)
         self._spin_row(execution, 1, "Tamaño de lote de traducción", self.batch_size, 1, 500)
-        self._check_row(execution, 2, "Generar WebM secundario", self.webm)
-        self._check_row(execution, 3, "Activar TTS sincronizado", self.tts)
-        self._check_row(execution, 4, "Exigir TTS para completar", self.tts_required)
+
+        ttk.Label(execution, text="Salida WebM secundaria").grid(row=2, column=0, sticky="w", padx=(0, 8), pady=4)
+        self.webm_toggle = ttk.Button(execution, command=self._toggle_webm, width=24)
+        self.webm_toggle.grid(row=2, column=1, sticky="w", pady=4)
+
+        ttk.Label(execution, text="Narración TTS sincronizada").grid(row=3, column=0, sticky="w", padx=(0, 8), pady=4)
+        self.tts_toggle = ttk.Button(execution, command=self._toggle_tts, width=24)
+        self.tts_toggle.grid(row=3, column=1, sticky="w", pady=4)
+
+        ttk.Label(execution, text="Requisito TTS").grid(row=4, column=0, sticky="w", padx=(0, 8), pady=4)
+        self.tts_required_check = ttk.Checkbutton(
+            execution,
+            text="Exigir TTS para considerar completada la ejecución",
+            variable=self.tts_required,
+        )
+        self.tts_required_check.grid(row=4, column=1, sticky="w", pady=4)
+
         self._check_row(execution, 5, "Reutilizar resultados compatibles", self.resume)
         self._check_row(execution, 6, "Normalizar nombres heredados", self.normalize_names)
         self._check_row(execution, 7, "Deduplicación automática", self.auto_dedupe)
+        self._refresh_feature_toggles()
 
         advanced = ttk.LabelFrame(parent, text="STT / medios / contexto", padding=10)
         advanced.pack(fill="x", pady=(0, 10))
@@ -245,6 +260,23 @@ class DesktopApp:
             buttons,
             text="La interfaz utiliza el pipeline existente y no duplica su lógica multimedia.",
         ).pack(side="left", padx=14)
+
+    def _refresh_feature_toggles(self) -> None:
+        self.webm_toggle.configure(text=f"WebM: {'ACTIVADO' if self.webm.get() else 'DESACTIVADO'}")
+        self.tts_toggle.configure(text=f"TTS: {'ACTIVADO' if self.tts.get() else 'DESACTIVADO'}")
+        if self.tts.get():
+            self.tts_required_check.configure(state="normal")
+        else:
+            self.tts_required.set(False)
+            self.tts_required_check.configure(state="disabled")
+
+    def _toggle_webm(self) -> None:
+        self.webm.set(not self.webm.get())
+        self._refresh_feature_toggles()
+
+    def _toggle_tts(self) -> None:
+        self.tts.set(not self.tts.get())
+        self._refresh_feature_toggles()
 
     def _build_recovery(self, parent: ttk.Frame) -> None:
         self.recovery_target = tk.StringVar(value=str(self.runtime["output"]))
