@@ -27,12 +27,23 @@ jobs:
           - os: ubuntu-latest
             artifact: linux-appimage
             format: linux-appimage
+            arch: x86_64
+            python: "3.13"
           - os: windows-latest
-            artifact: windows-msi
+            artifact: windows-msi-x64
             format: windows-msi
+            arch: x64
+            python: "3.13"
+          - os: windows-latest
+            artifact: windows-msi-x86
+            format: windows-msi
+            arch: x86
+            python: "3.13-windows-x86"
           - os: macos-latest
             artifact: macos-app
             format: native
+            arch: native
+            python: "3.13"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
@@ -43,7 +54,7 @@ jobs:
         with:
           version: latest-known
           enable-cache: true
-      - run: uv python install 3.13
+      - run: uv python install ${{ matrix.python }}
       - run: uv lock --check
       - run: uv sync --locked --group dev
       - name: Resolve release version
@@ -68,7 +79,7 @@ jobs:
           sudo mv /tmp/appimagetool /usr/local/bin/appimagetool
       - name: Build desktop package
         shell: bash
-        run: uv run python scripts/build_desktop.py --clean --version "${{ steps.version.outputs.version }}" --format ${{ matrix.format }}
+        run: uv run python scripts/build_desktop.py --clean --version "${{ steps.version.outputs.version }}" --format ${{ matrix.format }} --windows-arch ${{ matrix.arch }}
       - name: Validate macOS app
         if: runner.os == 'macOS'
         shell: bash
@@ -82,11 +93,11 @@ jobs:
         shell: pwsh
         run: |
           if (-not (Test-Path 'dist\VideoTranslationPipeline\VideoTranslationPipeline.exe')) { throw 'Missing Windows executable' }
-          if (-not (Test-Path "dist\VideoTranslationPipeline-${{ steps.version.outputs.version }}-windows-x64.msi")) { throw 'Missing Windows MSI' }
+          if (-not (Test-Path "dist\VideoTranslationPipeline-${{ steps.version.outputs.version }}-windows-${{ matrix.arch }}.msi")) { throw 'Missing Windows MSI' }
       - name: Archive Windows portable executable
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Compress-Archive -Path 'dist\VideoTranslationPipeline\*' -DestinationPath "dist\VideoTranslationPipeline-${{ steps.version.outputs.version }}-windows-x64-portable.zip" -Force
+        run: Compress-Archive -Path 'dist\VideoTranslationPipeline\*' -DestinationPath "dist\VideoTranslationPipeline-${{ steps.version.outputs.version }}-windows-${{ matrix.arch }}-portable.zip" -Force
       - name: Archive macOS app
         if: runner.os == 'macOS'
         shell: bash
