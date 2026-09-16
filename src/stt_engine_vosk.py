@@ -38,9 +38,7 @@ class VoskSTTEngine:
         try:
             from vosk import Model
         except ImportError as exc:
-            raise RuntimeError(
-                "El motor STT x86 requiere la dependencia vosk==0.3.42."
-            ) from exc
+            raise RuntimeError("El motor STT x86 requiere la dependencia vosk==0.3.42.") from exc
         logger.info("Cargando modelo Vosk desde %s", model_path)
         return Model(str(model_path))
 
@@ -48,9 +46,7 @@ class VoskSTTEngine:
         try:
             from vosk import KaldiRecognizer
         except ImportError as exc:
-            raise RuntimeError(
-                "El motor STT x86 requiere la dependencia vosk==0.3.42."
-            ) from exc
+            raise RuntimeError("El motor STT x86 requiere la dependencia vosk==0.3.42.") from exc
 
         with tempfile.TemporaryDirectory(prefix="video-translation-stt-") as temp_dir:
             wav_path = Path(temp_dir) / "audio.wav"
