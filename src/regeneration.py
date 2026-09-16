@@ -42,11 +42,7 @@ def _read_manifest(path: Path) -> dict[str, Any]:
 def _download_remote_manifest(storage, target: str, zip_name: str) -> Path | None:
     manifest_name = f"{Path(zip_name).stem}.json"
     try:
-        candidates = [
-            item
-            for item in storage.list_children(target)
-            if item.name == manifest_name and not item.is_directory
-        ]
+        candidates = [item for item in storage.list_children(target) if item.name == manifest_name and not item.is_directory]
     except Exception:
         logger.exception("No se pudo inspeccionar el manifest remoto de %s", zip_name)
         return None
@@ -68,11 +64,7 @@ def _load_existing_entries(storage, target: str, zip_name: str) -> list[dict[str
         remote = _download_remote_manifest(storage, target, zip_name)
         if remote:
             manifest = _read_manifest(remote)
-    return [
-        entry
-        for entry in manifest.get("entries", [])
-        if isinstance(entry, dict) and entry.get("output_folder")
-    ]
+    return [entry for entry in manifest.get("entries", []) if isinstance(entry, dict) and entry.get("output_folder")]
 
 
 def _backup_existing_outputs(
@@ -167,10 +159,7 @@ def regenerate(source: str, target: str, settings) -> dict[str, Any]:
         pipeline = MediaPipeline(settings, storage)
         result = pipeline.run(source, target, force_reprocess=True, finalize_source=False)
         if result.get("status") != "success":
-            raise RegenerationError(
-                "La regeneración no ha terminado correctamente "
-                f"(status={result.get('status')!r})"
-            )
+            raise RegenerationError(f"La regeneración no ha terminado correctamente (status={result.get('status')!r})")
 
         _delete_backups(storage, target, backups)
         return {
@@ -236,9 +225,7 @@ def main(argv: list[str] | None = None) -> int:
         "rclone": "rclone",
     }[provider]
     if parsed_source.scheme != expected_scheme or parsed_target.scheme != expected_scheme:
-        raise SystemExit(
-            f"El proveedor {provider!r} requiere source y target con esquema {expected_scheme}://"
-        )
+        raise SystemExit(f"El proveedor {provider!r} requiere source y target con esquema {expected_scheme}://")
 
     configure_logging(settings.log_level)
     ensure_directories()
