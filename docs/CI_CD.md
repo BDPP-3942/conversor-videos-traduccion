@@ -9,8 +9,10 @@ El job de calidad ejecuta:
 - `uv lock --check`;
 - `uv sync --locked`;
 - `uv pip check`;
-- Ruff lint, imports y format;
+- Ruff lint, imports, security y format;
 - `compileall`.
+
+La configuración de Ruff no se relaja para ocultar hallazgos de seguridad: si aparece una alerta `S*`, se corrige el código que la provoca.
 
 ## Tests
 
@@ -22,11 +24,12 @@ El packaging Python valida `uv build`, recursos, instalación limpia con pip y e
 
 El workflow `.github/workflows/desktop.yml` añade packaging nativo para la GUI:
 
-- Ubuntu: PyInstaller + AppDir + AppImage.
-- Windows: PyInstaller + WiX 6.0.2, produciendo `.exe` y `.msi`.
+- Ubuntu: PyInstaller + AppDir + AppImage x86_64.
+- Windows x64: PyInstaller + WiX 6.0.2, produciendo `.exe`, MSI x64 y ZIP portable x64.
+- Windows x86: PyInstaller + WiX 6.0.2, produciendo `.exe`, MSI x86 y ZIP portable x86 cuando la build completa utiliza Python x86.
 - macOS: PyInstaller `BUNDLE`, produciendo `.app`.
 
-Cada plataforma valida la existencia del artefacto esperado y lo publica como workflow artifact.
+La arquitectura Windows no se deduce del sistema operativo de forma abstracta: el ejecutable y todas sus dependencias deben ser realmente de la arquitectura solicitada. El build valida que la arquitectura del intérprete Python coincide con `--windows-arch`.
 
 ## Linux desktop packaging
 
@@ -42,10 +45,10 @@ El workflow:
 
 1. hace checkout del tag exacto;
 2. ejecuta `uv lock --check` y `uv sync --locked`;
-3. construye Windows, macOS y Linux en runners nativos;
-4. valida los artefactos;
+3. construye Linux, Windows x86, Windows x64 y macOS en runners nativos;
+4. valida los artefactos y su arquitectura Windows;
 5. comprime el `.app` de macOS;
-6. publica los tres binarios como assets de workflow;
+6. publica los artefactos como assets de workflow;
 7. crea la GitHub Release si no existe o hace upload con `--clobber` si ya existe.
 
 GitHub sigue generando automáticamente los ZIP/TAR de código fuente para el tag. La release final contiene, por tanto, tanto los fuentes automáticos como los binarios nativos sin intervención manual.
@@ -55,22 +58,19 @@ Artefactos esperados:
 ```text
 VideoTranslationPipeline-X.Y.Z-linux-x86_64.AppImage
 VideoTranslationPipeline-X.Y.Z-windows-x64.msi
+VideoTranslationPipeline-X.Y.Z-windows-x64-portable.zip
+VideoTranslationPipeline-X.Y.Z-windows-x86.msi
+VideoTranslationPipeline-X.Y.Z-windows-x86-portable.zip
 VideoTranslationPipeline-X.Y.Z-macos.app.zip
 ```
 
-El `.exe` se valida durante el job Windows y permanece dentro del paquete generado por PyInstaller; si se desea distribuirlo además como asset independiente, se puede añadir al patrón de upload sin cambiar la arquitectura.
+El `.exe` correspondiente permanece dentro de cada paquete portable generado por PyInstaller.
 
 ## Versionado y lockfile
 
 `pyproject.toml` es la fuente declarativa y `uv.lock` la resolución reproducible. Cada release debe sincronizar ambos.
 
-La rama de preparación de `1.9.0` incluye un workflow de sincronización de metadatos que regenera `uv.lock` cuando cambia `pyproject.toml` y actualiza el encabezado de `CHANGELOG.md`. En el release final, el requisito sigue siendo `uv lock --check` sobre el SHA etiquetado.
-
-## Release 1.9.0
-
-`1.9.0` es MINOR porque introduce la aplicación GUI y la distribución nativa. El cambio no elimina CLI, scheduling, unattended execution ni los entry points existentes.
-
-El Release Gate final debe comprobar el SHA exacto de `main`, matriz de tests, Ruff, seguridad, compileall, lockfile, packaging y los artefactos nativos de Linux/Windows/macOS.
+El workflow de sincronización de releases comprueba que el historial de `CHANGELOG.md` no se reduzca ni se eliminen releases anteriores. Los títulos históricos se conservan y solo se modifican los contenidos cuando existe una corrección documental explícita.
 
 ## uv policy
 
@@ -90,16 +90,19 @@ uv sync --locked --extra google --group dev
 uv pip check
 uv run pytest -q
 uv run ruff check .
+uv run ruff check . --select S
 uv run ruff format --check .
 uv run python -m compileall .
 uv build
 ```
 
-Para validar desktop localmente:
+Para validar desktop localmente en la plataforma correspondiente:
 
 ```bash
-uv run python scripts/build_desktop.py --clean --version 1.9.0 --format native
-uv run python scripts/build_desktop.py --clean --version 1.9.0 --format linux-appimage
+uv run python scripts/build_desktop.py --clean --version 1.10.0 --format native
+uv run python scripts/build_desktop.py --clean --version 1.10.0 --format windows-msi --windows-arch x64
+uv run python scripts/build_desktop.py --clean --version 1.10.0 --format windows-msi --windows-arch x86
+uv run python scripts/build_desktop.py --clean --version 1.10.0 --format linux-appimage
 ```
 
-El segundo comando requiere Linux y `appimagetool`; WiX requiere Windows. La firma/notarización de macOS y firma de editor de Windows son operaciones de publicación y requieren credenciales específicas.
+Los builds Windows x86 y x64 deben ejecutarse con intérpretes Python de la arquitectura correspondiente. El segundo y tercer comando Windows requieren Windows y WiX; el comando Linux requiere Linux y `appimagetool`. La firma/notarización de macOS y firma de editor de Windows son operaciones de publicación y requieren credenciales específicas.
