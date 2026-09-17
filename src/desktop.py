@@ -12,6 +12,47 @@ from src.application import ApplicationError, VideoTranslationApplication
 from src.runtime_paths import ensure_runtime_storage
 
 
+class ScrollableFrame(ttk.Frame):
+    """Contenedor con desplazamiento vertical y horizontal para formularios extensos."""
+
+    def __init__(self, parent, **kwargs):
+        super().__init__(parent, **kwargs)
+        self.canvas = tk.Canvas(self, highlightthickness=0)
+        self.vertical = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.horizontal = ttk.Scrollbar(self, orient="horizontal", command=self.canvas.xview)
+        self.content = ttk.Frame(self.canvas)
+        self.window_id = self.canvas.create_window((0, 0), window=self.content, anchor="nw")
+        self.canvas.configure(
+            yscrollcommand=self.vertical.set,
+            xscrollcommand=self.horizontal.set,
+        )
+        self.canvas.grid(row=0, column=0, sticky="nsew")
+        self.vertical.grid(row=0, column=1, sticky="ns")
+        self.horizontal.grid(row=1, column=0, sticky="ew")
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+        self.content.bind("<Configure>", self._update_scrollregion)
+        self.canvas.bind("<Configure>", self._update_canvas_width)
+        self.canvas.bind("<Enter>", self._bind_mousewheel)
+        self.canvas.bind("<Leave>", self._unbind_mousewheel)
+
+    def _update_scrollregion(self, _event=None):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def _update_canvas_width(self, event):
+        self.canvas.itemconfigure(self.window_id, width=max(event.width, self.content.winfo_reqwidth()))
+
+    def _bind_mousewheel(self, _event=None):
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel, add="+")
+
+    def _unbind_mousewheel(self, _event=None):
+        self.canvas.unbind_all("<MouseWheel>")
+
+    def _on_mousewheel(self, event):
+        if event.delta:
+            self.canvas.yview_scroll(int(-event.delta / 120), "units")
+
+
 class Worker:
     """Ejecuta una operación del pipeline sin bloquear la interfaz."""
 
@@ -72,15 +113,17 @@ class DesktopApp:
         container.pack(fill="both", expand=True)
         notebook = ttk.Notebook(container)
         notebook.pack(fill="both", expand=True)
-        tabs = {
-            "Procesamiento": ttk.Frame(notebook, padding=12),
-            "Recuperación de subtítulos": ttk.Frame(notebook, padding=12),
-            "Duplicados": ttk.Frame(notebook, padding=12),
-            "Diagnóstico": ttk.Frame(notebook, padding=12),
-            "CLI y programación": ttk.Frame(notebook, padding=12),
-        }
-        for title, frame in tabs.items():
+        tabs = {}
+        for title in (
+            "Procesamiento",
+            "Recuperación de subtítulos",
+            "Duplicados",
+            "Diagnóstico",
+            "CLI y programación",
+        ):
+            frame = ScrollableFrame(notebook)
             notebook.add(frame, text=title)
+            tabs[title] = frame.content
         self._build_processing(tabs["Procesamiento"])
         self._build_recovery(tabs["Recuperación de subtítulos"])
         self._build_duplicates(tabs["Duplicados"])
@@ -102,8 +145,13 @@ class DesktopApp:
         self.cancel.pack(side="right")
         log_frame = ttk.LabelFrame(container, text="Registro de ejecución", padding=8)
         log_frame.pack(fill="both", expand=False, pady=(8, 0))
-        self.log = tk.Text(log_frame, height=9, wrap="word", state="disabled")
-        self.log.pack(fill="both", expand=True)
+        log_body = ttk.Frame(log_frame)
+        log_body.pack(fill="both", expand=True)
+        self.log = tk.Text(log_body, height=9, wrap="word", state="disabled")
+        log_scroll = ttk.Scrollbar(log_body, orient="vertical", command=self.log.yview)
+        self.log.configure(yscrollcommand=log_scroll.set)
+        self.log.pack(side="left", fill="both", expand=True)
+        log_scroll.pack(side="right", fill="y")
 
     def _build_processing(self, parent: ttk.Frame) -> None:
         paths = ttk.LabelFrame(parent, text="Carpetas de trabajo", padding=10)
