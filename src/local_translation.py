@@ -11,7 +11,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from config.settings import MANAGED_TOOLS_DIR
+from config.settings import MANAGED_TOOLS_DIR, resolve_project_path
 from src.hardware import detect_hardware
 
 logger = logging.getLogger(__name__)
@@ -154,7 +154,7 @@ class LocalTranslationModelManager:
         if model_dir is not None:
             self.model_dir = Path(model_dir)
         elif configured:
-            self.model_dir = Path(configured)
+            self.model_dir = resolve_project_path(configured)
         else:
             self.model_dir = MANAGED_TOOLS_DIR / "models" / "translation" / self.model_name
 
