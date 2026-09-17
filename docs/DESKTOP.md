@@ -2,137 +2,46 @@
 
 La aplicación de escritorio es una capa de presentación sobre `VideoTranslationApplication` y `MediaPipeline`. No duplica la lógica de STT, traducción, TTS, procesamiento multimedia ni almacenamiento.
 
-## Instalación y ejecución
+## Funcionalidad
 
-En un entorno de desarrollo:
-
-```bash
-uv sync --group dev
-uv run video-translation-desktop
-```
-
-La GUI expone:
-
-- almacenamiento local, Google Drive y rclone;
-- idiomas, proveedor principal y proveedores de respaldo de traducción;
-- paralelismo de vídeos y tamaño de lote de traducción;
-- modelo, dispositivo, cálculo y beam de Whisper;
-- activación opcional de WebM y TTS;
-- reanudación y normalización de nombres heredados;
-- recuperación `full`, `stt_only` y `translate_only`;
-- análisis y eliminación confirmada de duplicados;
-- diagnóstico y preparación de Whisper;
-- instalación del modelo local de traducción;
-- ejecución en segundo plano, progreso, registro y cancelación cooperativa;
-- selección de un archivo de contexto para el prompt inicial de Whisper.
-
-La autenticación de proveedores mantiene los flujos CLI existentes cuando requiere OAuth o configuración interactiva de rclone.
+La GUI expone los casos de uso interactivos del pipeline: procesamiento, recuperación de subtítulos, deduplicación, diagnóstico, preparación de Whisper, modelo local de traducción, WebM, TTS, reanudación, normalización de nombres y selección de archivo de contexto para Whisper. La CLI y la ejecución programada/headless se conservan sin depender de la GUI.
 
 ## Carpetas de trabajo y permisos
 
-La aplicación no utiliza `Program Files` como área de datos de trabajo. La separación es intencionada:
+La aplicación no utiliza `Program Files` como área de datos de trabajo. En Windows, la instalación contiene el ejecutable y recursos de solo lectura; `Documents/Video Translation Pipeline/input` y `output` contienen los datos del usuario y `%LOCALAPPDATA%/VideoTranslationPipeline` contiene estado, logs y cachés. En macOS/Linux se utiliza el equivalente convencional de `Documents` para `input`/`output` y el directorio de datos privado de la aplicación para el estado interno.
 
-```text
-Windows:
-C:\Program Files\VideoTranslationPipeline\
-    → ejecutable y recursos de solo lectura
+Las carpetas de trabajo pueden sustituirse por cualquier ubicación con permisos de escritura, incluidas carpetas compartidas, unidades de red y carpetas sincronizadas.
 
-%USERPROFILE%\Documents\Video Translation Pipeline\
-    ├── input\
-    └── output\
-        → medios y resultados gestionados por el usuario
+## Distribución y arquitecturas
 
-%LOCALAPPDATA%\VideoTranslationPipeline\
-    → estado, logs, cachés y datos internos
-```
+Cada artefacto se construye con el intérprete Python y las dependencias de su arquitectura real. No se etiqueta un binario como compatible con una arquitectura que no haya sido construida y validada.
 
-En macOS y Linux se utiliza el equivalente convencional de `Documentos` para `input`/`output` y el directorio de datos de aplicación del usuario para el estado interno.
-
-Las carpetas de `Documentos` son solo el valor predeterminado. La GUI permite seleccionar cualquier otra carpeta con permisos de escritura, incluidas carpetas compartidas, unidades de red y carpetas sincronizadas por servicios como OneDrive o Dropbox.
-
-No se conceden permisos de escritura especiales sobre `Program Files`. Esto evita depender de elevación de privilegios y mantiene la instalación separada de los datos del usuario.
-
-## Control del pipeline
-
-`ControllableMediaPipeline` adapta el pipeline existente para exponer eventos de preparación, descarga, extracción, conversión, transcripción, traducción, finalización, ZIP, error y cancelación.
-
-La cancelación es cooperativa: se detiene en límites seguros y no termina a la fuerza una ejecución activa de FFmpeg o Whisper, evitando estados parciales o corruptos.
-
-## WebM y TTS
-
-WebM y TTS son capacidades opcionales y están desactivadas por defecto cuando la configuración no las activa. La GUI presenta controles de activación/desactivación independientes para que el usuario pueda aplicar los valores booleanos de configuración sin convertirlos en requisitos del procesamiento.
-
-El TTS obligatorio es una propiedad distinta: `TTS_REQUIRED` solo debe activarse cuando se quiera que un fallo de TTS impida considerar completado el procesamiento. Activar TTS no implica exigirlo.
-
-## Modelo local de traducción
-
-La preparación del modelo local se realiza mediante el botón de instalación de la GUI, que delega en `LocalTranslationModelManager` y conserva la misma ruta de configuración y validación que la CLI. La instalación es una acción explícita y no se ejecuta automáticamente durante cada procesamiento.
-
-## Arquitectura
-
-```text
-Interfaz Tk/ttk
-       |
-       v
-VideoTranslationApplication
-       |
-       v
-ControllableMediaPipeline
-       |
-       v
-MediaPipeline + adaptadores existentes
-       |
-       +-- STT / Whisper
-       +-- proveedores de traducción + respaldo
-       +-- Kokoro TTS
-       +-- FFmpeg
-       +-- almacenamiento local / Google Drive / rclone
-       +-- resume / nombres / deduplicación
-```
-
-La fachada es independiente de Tk para permitir reutilizar los mismos casos de uso desde otras interfaces.
-
-## Distribución nativa
-
-La distribución se construye en la plataforma y arquitectura de destino. Cada artefacto debe corresponder a la arquitectura real del intérprete Python y de sus dependencias binarias.
-
-| Plataforma | Construcción | Artefacto |
+| Plataforma | Arquitectura validada | Artefacto |
 | --- | --- | --- |
-| Windows x64 | PyInstaller + WiX 6 | `.exe` + `.msi` x64 |
-| Windows x86 | PyInstaller x86 + WiX 6, cuando el conjunto de dependencias sea compatible | `.exe` + `.msi` x86 |
-| macOS | PyInstaller `BUNDLE` | `.app` dentro de `.zip` |
-| Linux x86_64 | PyInstaller + AppDir + appimagetool | `.AppImage` |
+| Windows | x64 | `.exe` + `.msi` x64 |
+| Windows | x86/32 bits | `.exe` + `.msi` x86 y wheel `win32`, mediante `Vosk` para STT |
+| macOS | x64 | `.app` dentro de `.zip` |
+| Linux | x86_64 | `.AppImage` |
 
-Un ejecutable x64 no puede ejecutarse en Windows x86. Por ello, un MSI x64 no debe anunciar compatibilidad con sistemas de 32 bits. Una variante x86 requiere un build x86 real de Python, PyInstaller y todas las dependencias binarias necesarias; no basta con cambiar el nombre del artefacto.
+La matriz actual **no declara soporte de 32 bits para macOS ni Linux**. No es correcto fabricar un artefacto x86 cambiando únicamente su nombre: el ecosistema de Python 3.11 y las dependencias binarias actuales del proyecto no proporciona una cadena reproducible para esas dos plataformas. Python 3.11 publica instaladores macOS universal2 de 64 bits, mientras que sí existe un instalador Windows de 32 bits; además, `vosk==0.3.42` publica una wheel `win32`, pero no una wheel macOS de 32 bits ni Linux i686. citeturn3search0turn1search0
+
+Por tanto, la release solo publica arquitecturas que la CI puede construir y validar realmente. Si en el futuro se incorpora un runtime 32-bit completo para Linux o una plataforma macOS 32-bit compatible, deberá añadirse como una nueva matriz de build y una validación funcional independiente.
 
 ### Windows
-
-El comando general es:
 
 ```bash
 uv run python scripts/build_desktop.py --clean --version <version> --format windows-msi --windows-arch <x64|x86>
 ```
 
-`--windows-arch` debe coincidir con la arquitectura del intérprete Python que ejecuta PyInstaller. WiX recibe la misma arquitectura para generar el MSI correspondiente.
-
-El ejecutable x64 se instala en el `Program Files` nativo del sistema. Una build x86 real utiliza la ubicación de `Program Files` correspondiente a aplicaciones de 32 bits.
-
-El instalador crea además un acceso directo en el menú Inicio para que Windows Search pueda localizar la aplicación.
+`--windows-arch` debe coincidir con la arquitectura del intérprete Python que ejecuta PyInstaller. WiX recibe la misma arquitectura para generar el MSI correspondiente. El x64 se instala en el `Program Files` nativo y la variante x86 utiliza la ubicación de 32 bits correspondiente. El instalador crea un acceso directo en el menú Inicio.
 
 ### Linux
-
-Linux utiliza el mismo ejecutable GUI generado por PyInstaller que el resto de plataformas. `scripts/build_desktop.py` crea un AppDir con:
-
-- el bundle bajo `usr/bin/VideoTranslationPipeline`;
-- `AppRun` como lanzador;
-- `VideoTranslationPipeline.desktop` para la integración con el escritorio;
-- `VideoTranslationPipeline.svg` como icono.
-
-Finalmente `appimagetool` genera el AppImage x86_64.
 
 ```bash
 uv run python scripts/build_desktop.py --clean --version <version> --format linux-appimage
 ```
+
+El artefacto publicado es actualmente `x86_64`; incluye el bundle PyInstaller, `AppRun`, el fichero `.desktop` y el icono SVG.
 
 ### macOS
 
@@ -140,32 +49,17 @@ uv run python scripts/build_desktop.py --clean --version <version> --format linu
 uv run python scripts/build_desktop.py --clean --version <version> --format native
 ```
 
-PyInstaller genera `VideoTranslationPipeline.app`. La firma y la notarización son operaciones de publicación que requieren credenciales de release y no forman parte de cada PR.
+La CI valida el bundle `.app` en macOS x64. La firma y notarización son operaciones de publicación que requieren credenciales de release y no forman parte de cada PR.
 
-## Artefactos de GitHub Release
+## TTS
 
-`.github/workflows/release.yml` se activa al publicar un tag `vX.Y.Z` y construye los artefactos en runners nativos.
+TTS es opcional. La implementación publicada utiliza `KokoroONNXProvider` con `kokoro-onnx` y los recursos `kokoro-v1.0.onnx` y `voices-v1.0.bin`. La CI comprueba la instalación/auditoría de la dependencia TTS y las pruebas del pipeline verifican la sincronización temporal y la generación del medio. El soporte TTS no debe declararse para una arquitectura cuyo runtime de Python y dependencias no haya sido validado.
 
-La validación de escritorio debe comprobar al menos:
+## CI/CD
 
-1. ejecutable GUI;
-2. MSI de Windows correspondiente a la arquitectura construida;
-3. AppImage de Linux;
-4. `.app` de macOS;
-5. ausencia de escritura requerida dentro de `Program Files`;
-6. creación y utilización de las carpetas de usuario;
-7. acceso directo del menú Inicio en Windows.
+`.github/workflows/desktop.yml` construye los artefactos de Windows x64, Windows x86, macOS x64 y Linux x86_64. El job x86 usa un intérprete Python de 32 bits, comprueba el tamaño de puntero, instala `requirements-x86.txt`, construye el MSI y genera la wheel `win32`.
 
-Los nombres de artefacto deben conservar la arquitectura cuando exista más de una variante, por ejemplo:
-
-```text
-VideoTranslationPipeline-<version>-windows-x64.msi
-VideoTranslationPipeline-<version>-windows-x86.msi
-VideoTranslationPipeline-<version>-linux-x86_64.AppImage
-VideoTranslationPipeline-<version>-macos.app.zip
-```
-
-No debe publicarse un artefacto x86 si las dependencias del ejecutable no pueden construirse y probarse realmente para x86.
+`.github/workflows/release.yml` repite la matriz sobre el tag exacto y adjunta los artefactos validados a la GitHub Release. No se publica un artefacto x86 que no haya pasado el build correspondiente.
 
 ## CLI y ejecución programada
 
