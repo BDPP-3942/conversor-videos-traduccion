@@ -100,7 +100,7 @@ El contenido del fichero se lee, normaliza y se entrega al motor de Whisper como
 
 ## Traducción local
 
-La preparación del modelo local valida revisión, tamaño, integridad y estructura antes de activarlo. Los recursos se almacenan bajo `tools/models/translation/` y no se incluyen en los binarios de escritorio.
+La preparación del modelo local valida revisión, tamaño, integridad y estructura antes de activarlo. Los recursos descargados por la aplicación se almacenan bajo el directorio privado de datos de usuario; no se escriben en la carpeta de instalación ni se incluyen en los binarios de escritorio. Las rutas configuradas explícitamente de forma absoluta se respetan.
 
 ## TTS
 
@@ -111,12 +111,7 @@ uv sync --extra tts
 uv run python scripts/setup_tts.py --enable
 ```
 
-Los recursos predeterminados son:
-
-```text
-tools/tts/kokoro-v1.0.onnx
-tools/tts/voices-v1.0.bin
-```
+Los recursos predeterminados se gestionan en el directorio privado de datos de la aplicación. Las rutas pueden personalizarse mediante `TTS_MODEL_PATH` y `TTS_VOICES_PATH`. Las rutas absolutas se mantienen fuera de la instalación si así se configuran.
 
 Las rutas pueden personalizarse mediante `TTS_MODEL_PATH` y `TTS_VOICES_PATH`. La funcionalidad TTS se considera soportada en una arquitectura solo cuando `kokoro-onnx`, ONNX Runtime y los recursos correspondientes pueden instalarse y ejecutarse en esa arquitectura.
 
