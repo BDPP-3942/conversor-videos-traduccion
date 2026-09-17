@@ -13,7 +13,7 @@ analysis = Analysis(
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=["installer/runtime_user_paths.py"],
     excludes=["tests", "secrets", "storage"],
     noarchive=False,
 )
