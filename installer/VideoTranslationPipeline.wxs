@@ -25,7 +25,6 @@
   <Fragment>
     <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
       <Files Include="$(var.SourceDir)\**" />
-      <File Source="$(var.ProjectDir)\installer\Uninstall-VideoTranslationPipeline.ps1" KeyPath="yes" />
     </ComponentGroup>
   </Fragment>
 
