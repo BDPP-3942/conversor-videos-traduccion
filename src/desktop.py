@@ -390,6 +390,11 @@ class DesktopApp:
         ttk.Button(buttons, text="Preparar modelo Whisper", command=self.start_prefetch).pack(side="left", padx=8)
         ttk.Button(
             buttons,
+            text="Preparar recursos TTS",
+            command=self.start_tts_assets,
+        ).pack(side="left", padx=8)
+        ttk.Button(
+            buttons,
             text="Instalar modelo de traducción local",
             command=self.start_local_translation_install,
         ).pack(side="left", padx=8)
@@ -710,6 +715,30 @@ class DesktopApp:
         settings = VideoTranslationApplication().load_settings()
         STTEngine(settings)
         return {"status": "success", "whisper_model": settings.whisper_model}
+
+    def start_tts_assets(self) -> None:
+        self._append("Preparando los recursos TTS de Kokoro.
+")
+        self._launch(lambda _report, _cancel: self._install_tts_assets())
+
+    def _install_tts_assets(self) -> dict[str, object]:
+        import struct
+        import sys
+
+        if sys.platform == "win32" and struct.calcsize("P") * 8 == 32:
+            return {"status": "success", "provider": "SAPI", "message": "Windows x86 utiliza el TTS nativo SAPI; no necesita recursos Kokoro."}
+
+        def install():
+            from src.tts_assets import ensure_tts_assets
+
+            settings = VideoTranslationApplication().load_settings()
+            model, voices = ensure_tts_assets(
+                Path(settings.tts_model_path),
+                Path(settings.tts_voices_path),
+            )
+            return {"status": "success", "model": str(model), "voices": str(voices)}
+
+        return self._with_credentials(install)
 
     def start_local_translation_install(self) -> None:
         self._append("Instalando el modelo local de traducción.\n")
