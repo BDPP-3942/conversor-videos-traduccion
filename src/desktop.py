@@ -72,15 +72,32 @@ class DesktopApp:
         container.pack(fill="both", expand=True)
         notebook = ttk.Notebook(container)
         notebook.pack(fill="both", expand=True)
-        tabs = {
-            "Procesamiento": ttk.Frame(notebook, padding=12),
-            "Recuperación de subtítulos": ttk.Frame(notebook, padding=12),
-            "Duplicados": ttk.Frame(notebook, padding=12),
-            "Diagnóstico": ttk.Frame(notebook, padding=12),
-            "CLI y programación": ttk.Frame(notebook, padding=12),
-        }
-        for title, frame in tabs.items():
+        tabs = {}
+        for title in (
+            "Procesamiento",
+            "Recuperación de subtítulos",
+            "Duplicados",
+            "Diagnóstico",
+            "CLI y programación",
+        ):
+            frame = ttk.Frame(notebook)
+            canvas = tk.Canvas(frame, highlightthickness=0)
+            vertical = ttk.Scrollbar(frame, orient="vertical", command=canvas.yview)
+            horizontal = ttk.Scrollbar(frame, orient="horizontal", command=canvas.xview)
+            inner = ttk.Frame(canvas, padding=12)
+            inner.bind("<Configure>", lambda event, c=canvas: c.configure(scrollregion=c.bbox("all")))
+            window = canvas.create_window((0, 0), window=inner, anchor="nw")
+            canvas.configure(yscrollcommand=vertical.set, xscrollcommand=horizontal.set)
+            canvas.grid(row=0, column=0, sticky="nsew")
+            vertical.grid(row=0, column=1, sticky="ns")
+            horizontal.grid(row=1, column=0, sticky="ew")
+            frame.rowconfigure(0, weight=1)
+            frame.columnconfigure(0, weight=1)
+            canvas.bind("<Configure>", lambda event, c=canvas, w=window: c.itemconfigure(w, width=max(event.width, 1)))
+            canvas.bind("<Enter>", lambda event, c=canvas: self._bind_tab_scroll(c))
+            canvas.bind("<Leave>", lambda event, c=canvas: self._unbind_tab_scroll(c))
             notebook.add(frame, text=title)
+            tabs[title] = inner
         self._build_processing(tabs["Procesamiento"])
         self._build_recovery(tabs["Recuperación de subtítulos"])
         self._build_duplicates(tabs["Duplicados"])
@@ -104,6 +121,17 @@ class DesktopApp:
         log_frame.pack(fill="both", expand=False, pady=(8, 0))
         self.log = tk.Text(log_frame, height=9, wrap="word", state="disabled")
         self.log.pack(fill="both", expand=True)
+
+
+    @staticmethod
+    def _bind_tab_scroll(canvas: tk.Canvas) -> None:
+        canvas.bind_all("<MouseWheel>", lambda event: canvas.yview_scroll(-int(event.delta / 120), "units"))
+        canvas.bind_all("<Shift-MouseWheel>", lambda event: canvas.xview_scroll(-int(event.delta / 120), "units"))
+
+    @staticmethod
+    def _unbind_tab_scroll(canvas: tk.Canvas) -> None:
+        canvas.unbind_all("<MouseWheel>")
+        canvas.unbind_all("<Shift-MouseWheel>")
 
     def _build_processing(self, parent: ttk.Frame) -> None:
         paths = ttk.LabelFrame(parent, text="Carpetas de trabajo", padding=10)
