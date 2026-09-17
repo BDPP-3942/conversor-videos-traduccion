@@ -1,11 +1,19 @@
 from __future__ import annotations
 
 import os
+import sys
 import tomllib
 from dataclasses import replace
 from pathlib import Path
 
 from config.settings import BASE_DIR, AppSettings, resolve_project_path
+
+
+def _runtime_path(value: str) -> Path:
+    """Resuelve rutas escribibles en datos de usuario solo en aplicaciones empaquetadas."""
+    if getattr(sys, "frozen", False):
+        return resolve_project_path(value)
+    return Path(value).expanduser()
 
 
 def _load_dotenv() -> None:
