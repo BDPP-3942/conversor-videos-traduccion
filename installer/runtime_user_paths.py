@@ -27,6 +27,8 @@ def _documents_root() -> Path:
 def install() -> None:
     """Redirige el estado mutable del ejecutable a ubicaciones del usuario."""
     from config import settings as settings_module
+    from config import loader as loader_module
+    from src.providers import runtime as runtime_module
 
     user_root = _user_data_root()
     media_root = _documents_root() / MEDIA_NAME
@@ -37,6 +39,7 @@ def install() -> None:
 
     settings_module.STORAGE_DIR = storage_root
     settings_module.SECRETS_DIR = secrets_root
+    runtime_module.RUNTIME_FILE = state_root / "runtime.toml"
 
     os.environ.setdefault("SOURCE_URI", f"local://{media_root / 'input'}")
     os.environ.setdefault("TARGET_URI", f"local://{media_root / 'output'}")
@@ -47,6 +50,24 @@ def install() -> None:
     os.environ.setdefault("RCLONE_CONFIG_FILE", str(secrets_root / "rclone" / "rclone.conf"))
     os.environ.setdefault("RCLONE_BINARY_FILE", str(tools_root / "rclone" / "rclone"))
     os.environ.setdefault("PROVIDER_PROFILE_DIR", str(secrets_root / "providers"))
+
+    def load_user_runtime(settings):
+        runtime = runtime_module.load_runtime().get("active", {})
+        if not isinstance(runtime, dict):
+            return settings
+        from dataclasses import replace
+
+        values = {}
+        for name in ("provider", "source", "target", "rclone_remote"):
+            if name in runtime:
+                values[name] = str(runtime[name])
+        if "archive" in runtime and runtime.get("provider") in {"google_drive", "gdrive"}:
+            values["archive_folder_id"] = str(runtime.get("archive", ""))
+        if runtime.get("profile"):
+            values["provider_profile_dir"] = secrets_root / "providers" / str(runtime["profile"])
+        return replace(settings, **values)
+
+    loader_module._apply_runtime_provider = load_user_runtime
 
     for path in (
         media_root / "input",
