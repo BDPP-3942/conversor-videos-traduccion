@@ -81,3 +81,12 @@ También se conservan regeneración, QA de subtítulos, TTS, wrappers desatendid
 - [`TESTING.md`](TESTING.md)
 - [`CI_CD.md`](CI_CD.md)
 - [`RELEASES.md`](RELEASES.md)
+
+
+## Desinstalación y datos de usuario
+
+El instalador MSI mantiene los binarios y recursos de la aplicación separados de los datos escribibles. El estado, las credenciales de proveedor, los modelos descargados y otros recursos gestionados que necesiten escritura se almacenan en la ubicación privada del usuario cuando la aplicación está empaquetada. Las carpetas de entrada y salida permanecen en Documentos.
+
+El instalador incluye `uninstall.cmd` dentro de la carpeta de instalación como acceso directo al desinstalador de Windows Installer. También aparece la entrada normal de Aplicaciones instaladas de Windows. La desinstalación elimina los componentes de la aplicación, pero no elimina automáticamente vídeos, resultados, modelos ni configuración privada del usuario.
+
+La GUI y el núcleo no deben escribir en `Program Files` durante una ejecución normal. Si una ruta configurada explícitamente apunta a una ubicación protegida, esa configuración debe cambiarse a una ubicación con permisos de escritura en lugar de ejecutar la aplicación como administrador.
