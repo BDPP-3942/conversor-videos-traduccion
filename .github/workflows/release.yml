@@ -143,15 +143,11 @@ jobs:
       - name: Build x86 desktop package
         shell: pwsh
         run: python scripts/build_desktop.py --clean --version "${{ steps.version.outputs.version }}" --format windows-msi --windows-arch x86
-      - name: Build x86 wheel
-        shell: pwsh
-        run: python -m pip wheel . --no-deps --wheel-dir dist --config-settings=--build-option=--plat-name --config-settings=--build-option=win32
-      - name: Validate x86 executable, MSI and wheel
+      - name: Validate x86 executable and MSI
         shell: pwsh
         run: |
           if (-not (Test-Path 'dist\VideoTranslationPipeline\VideoTranslationPipeline.exe')) { throw 'Falta el ejecutable de Windows x86' }
           if (-not (Test-Path "dist\VideoTranslationPipeline-${{ steps.version.outputs.version }}-windows-x86.msi")) { throw 'Falta el MSI de Windows x86' }
-          if (-not (Get-ChildItem 'dist\*-win32.whl')) { throw 'Falta la wheel x86 win32' }
       - name: Archive Windows x86 portable executable
         shell: pwsh
         run: Compress-Archive -Path 'dist\VideoTranslationPipeline\*' -DestinationPath "dist\VideoTranslationPipeline-${{ steps.version.outputs.version }}-windows-x86-portable.zip" -Force
@@ -162,7 +158,6 @@ jobs:
           path: |
             dist/VideoTranslationPipeline-*.msi
             dist/VideoTranslationPipeline-*-portable.zip
-            dist/*-win32.whl
           if-no-files-found: error
 
   publish:
