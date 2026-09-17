@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 APP_NAME = "VideoTranslationPipeline"
@@ -26,8 +27,8 @@ def _documents_root() -> Path:
 
 def install() -> None:
     """Redirige el estado mutable del ejecutable a ubicaciones del usuario."""
-    from config import settings as settings_module
     from config import loader as loader_module
+    from config import settings as settings_module
     from src.providers import runtime as runtime_module
 
     user_root = _user_data_root()
@@ -44,7 +45,10 @@ def install() -> None:
     os.environ.setdefault("SOURCE_URI", f"local://{media_root / 'input'}")
     os.environ.setdefault("TARGET_URI", f"local://{media_root / 'output'}")
     os.environ.setdefault("RUN_LOCK_FILE", str(state_root / "run.lock"))
-    os.environ.setdefault("LOCAL_TRANSLATION_MODEL_DIR", str(tools_root / "models" / "translation" / "madlad400-3b-ct2-int8"))
+    os.environ.setdefault(
+        "LOCAL_TRANSLATION_MODEL_DIR",
+        str(tools_root / "models" / "translation" / "madlad400-3b-ct2-int8"),
+    )
     os.environ.setdefault("TTS_MODEL_PATH", str(tools_root / "tts" / "kokoro-v1.0.onnx"))
     os.environ.setdefault("TTS_VOICES_PATH", str(tools_root / "tts" / "voices-v1.0.bin"))
     os.environ.setdefault("RCLONE_CONFIG_FILE", str(secrets_root / "rclone" / "rclone.conf"))
@@ -55,8 +59,6 @@ def install() -> None:
         runtime = runtime_module.load_runtime().get("active", {})
         if not isinstance(runtime, dict):
             return settings
-        from dataclasses import replace
-
         values = {}
         for name in ("provider", "source", "target", "rclone_remote"):
             if name in runtime:
