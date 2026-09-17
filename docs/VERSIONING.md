@@ -4,7 +4,9 @@ La línea de releases de producto es `1.x` y utiliza Semantic Versioning.
 
 ## Releases publicadas
 
-- `v1.8.2` — PATCH: corrección de la revisión MADLAD, tokenizer, fixtures e información de diagnóstico de Hugging Face.
+- `v1.9.0` — MINOR: aplicación GUI de escritorio y distribución nativa.
+- `v1.8.3` — PATCH: resolución gestionada de `uv` en wrappers POSIX y Windows.
+- `v1.8.2` — PATCH: corrección de revisión MADLAD, tokenizer, fixtures y diagnósticos de Hugging Face.
 - `v1.8.1` — PATCH: bootstrap gestionado de uv y preparación opt-in de traducción local.
 - `v1.8.0` — MINOR: recuperación Whisper refinada, modelos locales fijados y base reproducible con uv.
 - `v1.7.4` — PATCH: validación de `shared_vocabulary.json` y migración reproducible a uv.
@@ -26,32 +28,34 @@ La línea de releases de producto es `1.x` y utiliza Semantic Versioning.
 - `v1.0.1` — PATCH: documentación inicial de instalación y mantenimiento.
 - `v1.0.0` — primera release estable.
 
-Los tags publicados son historia inmutable.
+Los tags publicados son historia inmutable y no deben reutilizarse ni reclasificarse.
 
-## Release candidate: 1.9.0
+## Release objetivo: 1.10.0
 
-`1.9.0` es una **MINOR** porque introduce una capacidad nueva y compatible: una aplicación GUI de escritorio y su distribución nativa.
+`1.10.0` es una **MINOR** sobre la baseline publicada `v1.9.0`. La funcionalidad GUI y la distribución nativa pertenecen a `v1.9.0`; esta release no las vuelve a presentar como funcionalidad nueva.
 
-### Cambios registrados en 1.9.0
+### Cambios de 1.10.0
 
-1. **Aplicación de escritorio:** nuevo entry point `video-translation-desktop` y GUI Tk/ttk multiplataforma.
-2. **Arquitectura:** `VideoTranslationApplication` centraliza la fachada de aplicación y `ControllableMediaPipeline` adapta el pipeline existente para eventos de etapa y cancelación cooperativa.
-3. **Procesamiento GUI:** almacenamiento local/Google Drive/rclone, idiomas, proveedores/fallbacks, concurrencia, Whisper, WebM, TTS, resume y normalización de nombres.
-4. **Recuperación:** workflows `full`, `stt_only` y `translate_only`.
-5. **Deduplicación:** scan, análisis, dry-run y eliminación confirmada.
-6. **Diagnóstico:** comprobaciones del entorno y preparación de Whisper.
-7. **UX:** ejecución en segundo plano, barra de progreso, log, estado, errores y cancelación segura en límites de etapa.
-8. **Windows:** PyInstaller `.exe` y MSI WiX 6.0.2.
-9. **macOS:** bundle `.app`, archivado automático como `.zip`.
-10. **Linux:** PyInstaller executable + AppDir + `AppRun` + `.desktop` + SVG + AppImage x86_64.
-11. **CI/CD:** validación nativa en Linux/Windows/macOS y workflow de release activado por tags.
-12. **Release assets:** los binarios se generan automáticamente y se adjuntan a GitHub Release; los ZIP fuente siguen siendo los archivos automáticos del tag.
-13. **CLI:** los entry points existentes y la ejecución programada/headless permanecen soportados.
-14. **Alcance:** móvil permanece fuera de esta release.
+1. **ZIP/Unicode:** reparación conservadora de nombres cuyos bytes UTF-8 fueron interpretados como CP437 cuando falta el indicador UTF-8, preservando nombres CP437 legítimos.
+2. **Normalización Unicode:** canonicalización NFC antes de acceder al filesystem y detección de colisiones por normalización y mayúsculas/minúsculas.
+3. **Almacenamiento:** separación entre `input`/`output` visibles y el estado privado de la aplicación, con valores predeterminados bajo `Documents/Video Translation Pipeline/`.
+4. **Estado privado:** logs, manifests, cachés, trabajo intermedio y fallos dejan de depender de la carpeta de instalación.
+5. **GUI:** ampliación de la interfaz existente para exponer configuración de Whisper, FFmpeg, traducción local, TTS, contexto, diagnóstico, recuperación y deduplicación.
+6. **Windows:** distinción explícita entre builds x64 y x86 y uso de la ubicación nativa de `Program Files` para x64.
+7. **STT x86:** motor Vosk específico para Windows de 32 bits y artefactos `win32` construidos con un intérprete Python x86 real.
+8. **CLI:** ampliación y alineación de la documentación de ejecución, regeneración, recuperación, proveedores y TTS con sus parsers reales.
+9. **Documentación:** documentación operativa en español, preservando nombres técnicos, comandos, rutas, APIs y terminología contractual.
+10. **CI/CD:** validación de lockfile, lint, security, format, tests, packaging, auditoría de dependencias y artefactos de escritorio sobre las arquitecturas realmente disponibles.
+
+### Baseline y trazabilidad
+
+La baseline de `1.10.0` es **`v1.9.0` publicada**. El alcance se obtiene comparando `v1.9.0` con el SHA final candidato. No se copian cambios de releases anteriores a la sección de `1.10.0`.
+
+Antes de crear `v1.10.0` deben estar sincronizados `pyproject.toml`, `config/app.toml`, `uv.lock`, `CHANGELOG.md`, `docs/RELEASES.md`, `docs/VERSIONING.md` y los documentos de preparación de release.
 
 ## Política de dependencias
 
-`pyproject.toml` es la fuente declarativa. `uv.lock` es la resolución reproducible versionada y debe estar sincronizada con cada versión publicada. `uv lock --check` y `uv sync --locked` forman parte del Release Gate.
+`pyproject.toml` es la fuente declarativa. `uv.lock` es la resolución reproducible versionada. `uv lock --check` y `uv sync --locked` forman parte del Release Gate.
 
 ## Trazabilidad
 
@@ -73,7 +77,18 @@ pyproject.toml / config/app.toml
  GitHub Release + desktop artifacts
 ```
 
-La release automática de escritorio se ejecuta desde `.github/workflows/release.yml` cuando se crea un tag `vX.Y.Z`. El workflow construye los artefactos en runners nativos y los adjunta al GitHub Release. No se deben subir manualmente binarios generados desde un equipo de desarrollo.
+La release automática de escritorio se ejecuta desde [`.github/workflows/release.yml`](../.github/workflows/release.yml) al crear un tag `vX.Y.Z`. Los artefactos se construyen en runners de la arquitectura correspondiente y se adjuntan al GitHub Release.
+
+## Reglas documentales y de CLI
+
+- La documentación operativa nueva o modificada se redacta en español.
+- Los comentarios y docstrings con texto humano se redactan en español.
+- Nombres técnicos, APIs, flags, claves, clases, funciones, rutas, formatos y directivas se conservan literalmente cuando forman parte del contrato.
+- Todas las descripciones `description=` y `help=` de `argparse` deben estar en español.
+- `docs/CLI.md` debe cubrir los casos de uso públicos y conservar detalle semántico aunque las opciones concretas también aparezcan en `--help`.
+- Las referencias a otros documentos deben ser enlaces Markdown relativos.
+- Los comentarios históricos no se eliminan al reorganizar o traducir documentación.
+- Las comprobaciones técnicas conservan sus nombres reales: `Ruff lint`, `Ruff security`, `Ruff format`, `uv lock --check`, `uv sync --locked`, etc.
 
 ## Semantic Versioning
 

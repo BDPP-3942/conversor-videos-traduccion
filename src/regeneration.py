@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class RegenerationError(RuntimeError):
-    """Raised when a clean regeneration cannot be completed safely."""
+    """Se produce cuando una regeneración limpia no puede completarse con seguridad."""
 
 
 def _manifest_local_path(zip_name: str) -> Path:
@@ -46,7 +46,7 @@ def _download_remote_manifest(storage, target: str, zip_name: str) -> Path | Non
             item for item in storage.list_children(target) if item.name == manifest_name and not item.is_directory
         ]
     except Exception:
-        logger.exception("Could not inspect remote manifest for %s", zip_name)
+        logger.exception("No se pudo inspeccionar el manifest remoto de %s", zip_name)
         return None
     if not candidates:
         return None
@@ -54,7 +54,7 @@ def _download_remote_manifest(storage, target: str, zip_name: str) -> Path | Non
     try:
         storage.download_file(candidates[0], destination)
     except Exception:
-        logger.exception("Could not download remote manifest for %s", zip_name)
+        logger.exception("No se pudo descargar el manifest remoto de %s", zip_name)
         return None
     return destination
 
@@ -70,7 +70,11 @@ def _load_existing_entries(storage, target: str, zip_name: str) -> list[dict[str
 
 
 def _backup_existing_outputs(
-    storage, target: str, entries: list[dict[str, Any]], run_id: str, transcript_subdir: str
+    storage,
+    target: str,
+    entries: list[dict[str, Any]],
+    run_id: str,
+    transcript_subdir: str,
 ) -> list[tuple[str, str]]:
     backups: list[tuple[str, str]] = []
     seen: set[str] = set()
@@ -85,12 +89,17 @@ def _backup_existing_outputs(
     return backups
 
 
-def _restore_backups(storage, target: str, backups: list[tuple[str, str]], transcript_subdir: str) -> None:
+def _restore_backups(
+    storage,
+    target: str,
+    backups: list[tuple[str, str]],
+    transcript_subdir: str,
+) -> None:
     for original, backup in reversed(backups):
         try:
             storage.restore_output_backup(target, backup, original, transcript_subdir)
         except Exception:
-            logger.exception("Could not restore regeneration backup %s", backup)
+            logger.exception("No se pudo restaurar la copia de regeneración %s", backup)
 
 
 def _delete_backups(storage, target: str, backups: list[tuple[str, str]]) -> None:
@@ -98,7 +107,13 @@ def _delete_backups(storage, target: str, backups: list[tuple[str, str]]) -> Non
         storage.delete_output_backup(target, backup)
 
 
-def _restore_manifest(storage, target: str, zip_name: str, original: dict[str, Any], remote: bool) -> None:
+def _restore_manifest(
+    storage,
+    target: str,
+    zip_name: str,
+    original: dict[str, Any],
+    remote: bool,
+) -> None:
     if not original:
         return
     path = _manifest_local_path(zip_name)
@@ -107,11 +122,11 @@ def _restore_manifest(storage, target: str, zip_name: str, original: dict[str, A
         try:
             storage.upload_file(path, target, "application/json")
         except Exception:
-            logger.exception("Could not restore manifest for %s", zip_name)
+            logger.exception("No se pudo restaurar el manifest de %s", zip_name)
 
 
 def regenerate(source: str, target: str, settings) -> dict[str, Any]:
-    """Regenerate existing results through MediaPipeline and StorageProvider contracts."""
+    """Regenera resultados de vídeo existentes mediante MediaPipeline y StorageProvider."""
     from src.pipeline import MediaPipeline
 
     storage = create_storage_provider(settings.provider, settings)
@@ -122,7 +137,7 @@ def regenerate(source: str, target: str, settings) -> dict[str, Any]:
     try:
         zips = storage.list_zip_files(source)
         if not zips:
-            raise RegenerationError(f"No ZIP sources found in {source!r}")
+            raise RegenerationError(f"No se han encontrado fuentes ZIP en {source!r}")
 
         for zip_file in zips:
             manifest_path = _manifest_local_path(zip_file.name)
@@ -134,13 +149,19 @@ def regenerate(source: str, target: str, settings) -> dict[str, Any]:
                     remote_manifests.add(zip_file.name)
             entries = _load_existing_entries(storage, target, zip_file.name)
             backups.extend(
-                _backup_existing_outputs(storage, target, entries, run_id, settings.original_transcript_subdir)
+                _backup_existing_outputs(
+                    storage,
+                    target,
+                    entries,
+                    run_id,
+                    settings.original_transcript_subdir,
+                )
             )
 
         pipeline = MediaPipeline(settings, storage)
         result = pipeline.run(source, target, force_reprocess=True, finalize_source=False)
         if result.get("status") != "success":
-            raise RegenerationError(f"Regeneration did not complete successfully (status={result.get('status')!r})")
+            raise RegenerationError(f"La regeneración no ha terminado correctamente (status={result.get('status')!r})")
 
         _delete_backups(storage, target, backups)
         return {
@@ -154,7 +175,13 @@ def regenerate(source: str, target: str, settings) -> dict[str, Any]:
     except Exception:
         _restore_backups(storage, target, backups, settings.original_transcript_subdir)
         for zip_name, manifest in original_manifests.items():
-            _restore_manifest(storage, target, zip_name, manifest, zip_name in remote_manifests)
+            _restore_manifest(
+                storage,
+                target,
+                zip_name,
+                manifest,
+                zip_name in remote_manifests,
+            )
         raise
     finally:
         storage.close()
@@ -163,15 +190,16 @@ def regenerate(source: str, target: str, settings) -> dict[str, Any]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Explicit REGENERATE FROM ZERO operation for existing video results. "
-            "It reuses the normal run configuration contract and forces the common MediaPipeline to reprocess sources."
+            "Regenera desde cero resultados de vídeo existentes. "
+            "Reutiliza el contrato normal de configuración y fuerza al MediaPipeline "
+            "común a reprocesar las fuentes."
         )
     )
     parser.add_argument(
         "--config",
         type=Path,
         default=resolve_project_path("config/app.toml"),
-        help="Path to the TOML configuration file",
+        help="Ruta al archivo de configuración TOML",
     )
     add_regenerate_run_options(parser)
     return parser
@@ -192,23 +220,34 @@ def main(argv: list[str] | None = None) -> int:
 
     parsed_source = parse_storage_uri(source)
     parsed_target = parse_storage_uri(target)
-    expected_scheme = {"local": "local", "google_drive": "gdrive", "gdrive": "gdrive", "rclone": "rclone"}[provider]
+    expected_scheme = {
+        "local": "local",
+        "google_drive": "gdrive",
+        "gdrive": "gdrive",
+        "rclone": "rclone",
+    }[provider]
     if parsed_source.scheme != expected_scheme or parsed_target.scheme != expected_scheme:
-        raise SystemExit(f"Provider {provider!r} requires {expected_scheme}:// source and target")
+        raise SystemExit(f"El proveedor {provider!r} requiere source y target con esquema {expected_scheme}://")
 
     configure_logging(settings.log_level)
     ensure_directories()
     readiness = check_unattended(
-        settings, ensure_rclone_binary=(provider == "rclone" and settings.auto_bootstrap_rclone)
+        settings,
+        ensure_rclone_binary=(provider == "rclone" and settings.auto_bootstrap_rclone),
     )
     if not readiness.ready:
-        print(json.dumps({"status": "not_ready", "checks": readiness.checks, "errors": readiness.errors}, indent=2))
+        print(
+            json.dumps(
+                {"status": "not_ready", "checks": readiness.checks, "errors": readiness.errors},
+                indent=2,
+            )
+        )
         return 3
     with RunLock(resolve_project_path(settings.run_lock_file)):
-        result = regenerate(parse_storage_uri(source).value, parse_storage_uri(target).value, settings)
+        result = regenerate(
+            parse_storage_uri(source).value,
+            parse_storage_uri(target).value,
+            settings,
+        )
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

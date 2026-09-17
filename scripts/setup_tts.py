@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import os
 import tempfile
 from pathlib import Path
 from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+
+import requests
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_MODEL = BASE_DIR / "tools" / "tts" / "kokoro-v1.0.onnx"
@@ -36,26 +38,32 @@ def _resolve_configured_path(value: str, default: Path) -> Path:
 def _validate_download_url(url: str) -> None:
     parsed = urlsplit(url)
     if parsed.scheme != "https" or parsed.hostname != ALLOWED_HOST:
-        raise ValueError(f"Refusing TTS download from untrusted URL: {url}")
+        raise ValueError(f"Se rechaza la descarga TTS desde una URL no fiable: {url}")
 
 
 def _download(url: str, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.is_file() and destination.stat().st_size > 0:
-        print(f"[OK] TTS asset already exists: {destination}")
+        print(f"[OK] El recurso TTS ya existe: {destination}")
         return
     _validate_download_url(url)
-    print(f"[INFO] Downloading TTS asset: {url}")
-    request = Request(url, headers={"User-Agent": "video-translation-pipeline/setup"})  # noqa: S310
+    print(f"[INFO] Descargando recurso TTS: {url}")
     fd, temp_name = tempfile.mkstemp(prefix=f".{destination.name}.", dir=destination.parent)
     temporary = Path(temp_name)
     try:
         with os.fdopen(fd, "wb") as temp:
-            with urlopen(request, timeout=60) as response:  # noqa: S310
-                while chunk := response.read(1024 * 1024):
-                    temp.write(chunk)
+            with requests.get(
+                url,
+                headers={"User-Agent": "video-translation-pipeline/setup"},
+                stream=True,
+                timeout=60,
+            ) as response:
+                response.raise_for_status()
+                for chunk in response.iter_content(chunk_size=1024 * 1024):
+                    if chunk:
+                        temp.write(chunk)
         if temporary.stat().st_size <= 0:
-            raise RuntimeError(f"Downloaded empty TTS asset: {url}")
+            raise RuntimeError(f"El recurso TTS descargado está vacío: {url}")
         temporary.replace(destination)
     finally:
         temporary.unlink(missing_ok=True)
@@ -63,27 +71,51 @@ def _download(url: str, destination: Path) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Bootstrap the optional Kokoro TTS assets. Install the Python dependency with uv first."
+        description=("Prepara los recursos TTS opcionales de Kokoro. Instala primero la dependencia de Python con uv.")
     )
-    parser.add_argument("--enable", action="store_true", help="Bootstrap TTS even when TTS_ENABLED is not true.")
-    parser.add_argument("--force", action="store_true", help="Replace existing model files.")
-    parser.add_argument("--model-path", type=Path, default=None)
-    parser.add_argument("--voices-path", type=Path, default=None)
+    parser.add_argument(
+        "--enable",
+        action="store_true",
+        help="Prepara TTS aunque TTS_ENABLED no esté establecido en true",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Sustituye los archivos de modelo existentes",
+    )
+    parser.add_argument(
+        "--model-path",
+        type=Path,
+        default=None,
+        help="Ruta personalizada del modelo Kokoro",
+    )
+    parser.add_argument(
+        "--voices-path",
+        type=Path,
+        default=None,
+        help="Ruta personalizada del archivo de voces Kokoro",
+    )
     args = parser.parse_args()
 
     env = _env_values()
     enabled = args.enable or env.get("TTS_ENABLED", "").lower() == "true"
     if not enabled:
-        print("[INFO] TTS is disabled; skipping Kokoro asset bootstrap.")
+        print("[INFO] TTS está desactivado; se omite la preparación de recursos Kokoro.")
         return 0
 
     try:
-        import kokoro_onnx  # noqa: F401
+        importlib.import_module("kokoro_onnx")
     except ImportError as exc:
-        raise RuntimeError("Kokoro dependency is missing. Run 'uv sync --extra tts' first.") from exc
+        raise RuntimeError("Falta la dependencia de Kokoro. Ejecuta 'uv sync --extra tts' primero.") from exc
 
-    model_path = args.model_path or _resolve_configured_path(env.get("TTS_MODEL_PATH", ""), DEFAULT_MODEL)
-    voices_path = args.voices_path or _resolve_configured_path(env.get("TTS_VOICES_PATH", ""), DEFAULT_VOICES)
+    model_path = args.model_path or _resolve_configured_path(
+        env.get("TTS_MODEL_PATH", ""),
+        DEFAULT_MODEL,
+    )
+    voices_path = args.voices_path or _resolve_configured_path(
+        env.get("TTS_VOICES_PATH", ""),
+        DEFAULT_VOICES,
+    )
 
     if args.force:
         model_path.unlink(missing_ok=True)
@@ -91,7 +123,7 @@ def main() -> int:
 
     _download(MODEL_URL, model_path)
     _download(VOICES_URL, voices_path)
-    print(f"[OK] Kokoro TTS ready: {model_path} / {voices_path}")
+    print(f"[OK] Kokoro TTS preparado: {model_path} / {voices_path}")
     return 0
 
 

@@ -1,83 +1,141 @@
-# Project overview
+# Resumen del proyecto
 
-## Purpose
+## Propósito
 
-**Video Translation Pipeline** is a batch-oriented Python application for audiovisual localization. It accepts video files or ZIP packages, normalizes media, transcribes speech, creates and validates WebVTT subtitles, translates subtitle cues while preserving their timing, and can optionally synthesize synchronized narration with Kokoro TTS.
+**Video Translation Pipeline** es una aplicación Python orientada al procesamiento por lotes para la localización audiovisual. Acepta vídeos o paquetes ZIP, normaliza los medios, transcribe el habla, crea y valida subtítulos WebVTT, traduce sus segmentos conservando los tiempos y puede sintetizar narración sincronizada mediante Kokoro TTS.
 
-It is designed for unattended operation and supports local storage, Google Drive and rclone-backed storage.
+Está diseñada para ejecución desatendida y admite almacenamiento local, Google Drive y rclone.
 
-## Scope
+## Alcance
 
-Implemented capabilities include:
+Las capacidades implementadas incluyen:
 
-- video/ZIP ingestion;
-- FFmpeg-based media processing;
-- STT with `faster-whisper`;
-- silence-aware cue segmentation and VTT validation;
-- configurable translation providers with fallback and retry controls;
-- local, Google Drive and rclone storage adapters;
-- manifests, resume/idempotent processing and artifact validation;
-- conservative duplicate-output management;
-- optional synchronized Kokoro TTS;
-- resource-aware video concurrency based on detected CPU, RAM and optional GPU capacity;
-- CLI entry points and unattended execution;
-- Windows/Linux/macOS scheduler helpers; portable packaging scripts are currently provided for Windows and Linux;
-- automated tests, linting, security checks, packaging and dependency audits.
+- ingestión de vídeos y ZIP;
+- procesamiento multimedia mediante FFmpeg;
+- STT con `faster-whisper`;
+- segmentación basada en silencios y validación VTT;
+- proveedores de traducción configurables con respaldo y reintentos;
+- adaptadores local, Google Drive y rclone;
+- manifests, reanudación/idempotencia y validación de artefactos;
+- gestión conservadora de duplicados;
+- TTS Kokoro sincronizado opcional;
+- concurrencia adaptada a CPU, RAM y GPU disponible;
+- CLI y ejecución desatendida;
+- programación mediante los mecanismos de Windows, macOS y Linux;
+- aplicación de escritorio multiplataforma y empaquetado nativo;
+- pruebas, linting, seguridad, empaquetado y auditoría de dependencias.
 
-The application is not an interactive video editor and automated translation/TTS output still requires human quality review when accuracy matters.
+La aplicación no es un editor audiovisual interactivo y los resultados automáticos de traducción/TTS requieren revisión humana cuando la exactitud sea crítica.
 
-## Runtime contract
+## Contrato de ejecución
 
-The canonical runtime entry point is `main.py`. Installed packages also expose `video-translation-pipeline`, `video-subtitle-qa` and `video-translation-tts` entry points.
+El punto de entrada canónico es `main.py`. El paquete también expone `video-translation-pipeline`, `video-translation-regenerate`, `video-subtitle-qa`, `video-translation-tts` y `video-translation-desktop`.
 
-The default configuration uses local storage:
+En modo local, la aplicación de escritorio utiliza por defecto:
 
 ```text
-local://storage/input → pipeline → local://storage/output
+Documentos/Video Translation Pipeline/input
+                    ↓
+                 pipeline
+                    ↓
+Documentos/Video Translation Pipeline/output
 ```
 
-See [INSTALLATION.md](INSTALLATION.md), [CONFIGURATION.md](CONFIGURATION.md) and [CLI.md](CLI.md) for operational details.
+El estado interno, logs y cachés se mantienen separados en el directorio privado de datos de la aplicación. Las carpetas `input` y `output` pueden sustituirse por cualquier ubicación con permisos de escritura.
 
-## Current published release
+Consulta [`INSTALLATION.md`](INSTALLATION.md), [`CONFIGURATION.md`](CONFIGURATION.md), [`CLI.md`](CLI.md) y [`DESKTOP.md`](DESKTOP.md).
 
-The current product release is `1.8.2` (`v1.8.2`). It follows the published `1.8.1` release and contains the MADLAD resource, tokenizer, fixture and Hugging Face diagnostics correction.
+## Versionado e historial
 
-The current unreleased candidate is `1.8.3`. It corrects the project-managed `uv` resolution contract used by runtime/setup/build wrappers and does not replace or supersede the published `1.8.1` or `1.8.2` history.
+El proyecto utiliza Semantic Versioning (`MAJOR.MINOR.PATCH`). Las versiones publicadas, sus tags y el alcance de cada release se documentan exclusivamente en [`RELEASES.md`](RELEASES.md) y [`CHANGELOG.md`](../CHANGELOG.md).
 
-Published releases `1.0.0` through `1.8.2` remain immutable. `docs/RELEASES.md`, `docs/VERSIONING.md` and `CHANGELOG.md` retain the complete release ledger; only `1.8.3` is an active candidate.
+La documentación técnica de funcionalidades no depende de una versión concreta: describe el comportamiento general vigente del proyecto. Cuando un procedimiento necesite mostrar un valor específico, se indica como `<version>` o mediante el tag/versionado que corresponda al artefacto que se esté documentando.
 
-See [RELEASES.md](RELEASES.md) for historical release tracking and [../RELEASE_CANDIDATE.md](../RELEASE_CANDIDATE.md) for the current publication checklist.
+El histórico general conserva las versiones desde `1.0.0` y distingue entre releases publicadas y candidatas sin eliminar anotaciones de versiones anteriores.
 
-## Verified release evidence
+## Arquitectura funcional
 
-| Capability | First verified product release | Evidence |
-| --- | ---: | --- |
-| Core audiovisual pipeline, STT, VTT, translation, storage, resume/idempotency, conservative deduplication, TTS, scheduling and packaging | `1.0.0` | `CHANGELOG.md` / release history |
-| VTT recovery/repair and integrated synchronized TTS | `1.1.0` | `CHANGELOG.md` / release history |
-| Naming improvements and TTS asset bootstrap | `1.2.0` | release history |
-| TTS installation fix | `1.2.1` | release history |
-| Timestamp cleanup in naming | `1.2.2` | release history |
-| Resource-aware video concurrency | `1.3.0` | release history |
-| Clean regeneration | `1.4.0` | release history |
-| Multiplatform Whisper/context and packaging | `1.5.0` | release history |
-| ZIP/filesystem hardening | `1.5.1` | release history |
-| Local translation, GPU/runtime hardening and configurable STT recovery | `1.6.0` | release history |
-| Reprocessing/manifests, Unicode naming/filesystem consolidation and translation runtime improvements | `1.7.0` | published GitHub release |
-| `faster-whisper` selective recovery `clip_timestamps` compatibility fix | `1.7.1` | `CHANGELOG.md` / `RELEASES.md` |
-| Local translation model download and provider runtime fix | `1.7.2` | `CHANGELOG.md` / `RELEASES.md` |
-| Local translation metadata bootstrap | `1.7.3` | `CHANGELOG.md` / `RELEASES.md` |
-| Shared vocabulary validation and reproducible uv migration | `1.7.4` | `CHANGELOG.md` / `RELEASES.md` |
-| Refined Whisper recovery, dual pinned local models and updated TTS/WebM defaults | `1.8.0` | published GitHub release |
-| Project-managed uv bootstrap and optional local translation preparation | `1.8.1` | published GitHub release |
-| MADLAD resource, tokenizer and Hugging Face diagnostics correction | `1.8.2` | published GitHub release |
-| Project-managed uv wrapper resolution across POSIX/Windows | `1.8.3` | current release candidate |
+```text
+Entrada de vídeo / ZIP
+        |
+        v
+Almacenamiento + extracción segura
+        |
+        v
+Normalización de medios
+        |
+        v
+STT / Whisper
+        |
+        v
+VTT original + QA
+        |
+        v
+Traducción + proveedores de respaldo
+        |
+        v
+VTT traducido
+        |
+        +----> TTS Kokoro opcional
+        |
+        +----> WebM opcional
+        |
+        v
+Resultados + manifest + estado de ejecución
+```
 
-## Release history
+La aplicación de escritorio, la CLI y los wrappers utilizan los mismos casos de uso y contratos del pipeline. La GUI no implementa un motor audiovisual alternativo.
 
-- `v1.8.2` — official published release; immutable.
-- `v1.8.1` — official published release; immutable.
-- `v1.8.0` — official published release; immutable.
-- `1.8.3` — current and only active release candidate.
-- Earlier releases from `1.0.0` through `1.7.4` remain historical and immutable.
+## Almacenamiento
 
-Release-control documents must never rewrite a published release into a candidate state. New release work is appended as the next candidate.
+Los datos de trabajo del usuario y el estado privado de la aplicación están separados. `input` y `output` pueden estar en una carpeta local, compartida, de red o sincronizada siempre que el usuario tenga permisos de escritura.
+
+Los manifests y mecanismos de reanudación permiten identificar resultados existentes y evitar procesamiento innecesario cuando los artefactos son compatibles.
+
+## ZIP y Unicode
+
+La extracción corrige de forma conservadora nombres UTF-8 que hayan sido interpretados como CP437 cuando falta el indicador UTF-8. La reparación de extracción y la normalización física posterior son capas distintas: un nombre legítimo como `niño` puede conservarse al extraer y convertirse después en `nino` por la política de nombres de salida.
+
+La extracción también valida traversal, rutas absolutas/UNC, symlinks, nombres reservados de Windows, colisiones por normalización Unicode y colisiones por mayúsculas/minúsculas.
+
+## Windows y distribución
+
+La construcción de escritorio se realiza en la plataforma y arquitectura de destino. Un ejecutable x64 no puede ejecutarse en Windows x86.
+
+El sistema de build acepta `x64` y `x86` como arquitecturas explícitas del MSI, pero una build x86 solo puede publicarse cuando Python, PyInstaller y todas las dependencias binarias requeridas por el pipeline estén disponibles y validadas para Win32. Cambiar únicamente la etiqueta del artefacto no constituye soporte x86.
+
+La aplicación no requiere escribir en `Program Files` durante la operación normal; los datos de trabajo se almacenan en las carpetas del usuario.
+
+## CLI y GUI
+
+La CLI es el contrato de automatización y conserva sus comandos, flags y restricciones. La GUI ofrece controles para los casos de uso interactivos, incluidos procesamiento, recuperación, deduplicación, diagnóstico, preparación de Whisper, instalación del modelo local y activación opcional de WebM/TTS.
+
+La documentación de CLI debe conservar el detalle semántico de cada opción: finalidad, valores, valores predeterminados, restricciones, incompatibilidades y efectos. Los términos técnicos, comandos, flags, rutas, APIs, formatos y nombres de modelos no se traducen.
+
+## Documentación canónica
+
+- [`ARCHITECTURE.md`](ARCHITECTURE.md)
+- [`PIPELINE.md`](PIPELINE.md)
+- [`INSTALLATION.md`](INSTALLATION.md)
+- [`CONFIGURATION.md`](CONFIGURATION.md)
+- [`CLI.md`](CLI.md)
+- [`DESKTOP.md`](DESKTOP.md)
+- [`PACKAGING.md`](PACKAGING.md)
+- [`STORAGE.md`](STORAGE.md)
+- [`SUBTITLES.md`](SUBTITLES.md)
+- [`TRANSLATION.md`](TRANSLATION.md)
+- [`TRANSLATION_PROVIDERS.md`](TRANSLATION_PROVIDERS.md)
+- [`TTS.md`](TTS.md)
+- [`RESUME.md`](RESUME.md)
+- [`DEDUPLICATION.md`](DEDUPLICATION.md)
+- [`SCHEDULING.md`](SCHEDULING.md)
+- [`SECURITY.md`](SECURITY.md)
+- [`TESTING.md`](TESTING.md)
+- [`CI_CD.md`](CI_CD.md)
+- [`DEVELOPMENT.md`](DEVELOPMENT.md)
+- [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)
+- [`RELEASES.md`](RELEASES.md)
+- [`REGENERATION.md`](REGENERATION.md)
+- [`LOCAL_TRANSLATION.md`](LOCAL_TRANSLATION.md)
+- [`CUDA.md`](CUDA.md)
+- [`UNINSTALLATION.md`](UNINSTALLATION.md)

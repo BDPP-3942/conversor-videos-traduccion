@@ -11,9 +11,17 @@ from src.storage.uri import parse_storage_uri
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Process raw video files without ZIP containers")
-    parser.add_argument("--source", default=None)
-    parser.add_argument("--target", default=None)
+    parser = argparse.ArgumentParser(description="Procesa archivos de vídeo originales sin contenedores ZIP")
+    parser.add_argument(
+        "--source",
+        default=None,
+        help="URI de almacenamiento de entrada. Por defecto: valor de source de la configuración activa",
+    )
+    parser.add_argument(
+        "--target",
+        default=None,
+        help="URI de almacenamiento de salida. Por defecto: valor de target de la configuración activa",
+    )
     args = parser.parse_args()
     ensure_directories()
     settings = load_settings()

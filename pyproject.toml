@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "video-translation-pipeline"
-version = "1.9.0"
-description = "Local and pluggable video/audio transcription, translation and synchronized TTS pipeline"
+version = "1.10.0"
+description = "Pipeline local y modular de transcripción audiovisual, traducción y TTS sincronizado"
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "faster-whisper>=1.2.1,<1.3",
@@ -69,7 +69,7 @@ known-first-party = ["config", "src"]
 "src/subtitle_qa.py" = ["S310"]
 
 [tool.ruff.lint.pycodestyle]
-max-line-length = 127
+max-line-length = 120
 
 [tool.ruff.format]
 exclude = [

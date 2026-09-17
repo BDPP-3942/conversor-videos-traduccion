@@ -1,141 +1,83 @@
-# Desktop application
+# Aplicación de escritorio
 
-La aplicación de escritorio de `1.9.0` es una capa de presentación sobre la fachada de aplicación y el `MediaPipeline` existente. No duplica STT, traducción, TTS, media ni almacenamiento.
+La aplicación de escritorio es una capa de presentación sobre `VideoTranslationApplication` y `MediaPipeline`. No duplica la lógica de STT, traducción, TTS, procesamiento multimedia ni almacenamiento.
 
-## Install and run
+## Funcionalidad
 
-```bash
-uv sync --group dev
-uv run video-translation-desktop
-```
+La GUI expone los casos de uso interactivos del pipeline: procesamiento, recuperación de subtítulos, deduplicación, diagnóstico, preparación de Whisper, modelo local de traducción, WebM, TTS, reanudación, normalización de nombres y selección de archivo de contexto para Whisper. La CLI y la ejecución programada/headless se conservan sin depender de la GUI.
 
-La GUI expone:
+## Carpetas de trabajo y permisos
 
-- almacenamiento local, Google Drive y rclone;
-- idiomas, proveedor principal y fallbacks de traducción;
-- paralelismo de vídeos y batching de traducción;
-- modelo/device/compute/beam de Whisper;
-- WebM y TTS Kokoro;
-- resume y normalización de nombres heredados;
-- recuperación `full`, `stt_only` y `translate_only`;
-- scan, análisis, dry-run y eliminación confirmada de duplicados;
-- diagnósticos y preparación de Whisper;
-- ejecución en background, eventos de etapa, porcentaje, fichero actual, log y cancelación segura.
+La aplicación no utiliza `Program Files` como área de datos de trabajo. En Windows, la instalación contiene el ejecutable y recursos de solo lectura; `Documents/Video Translation Pipeline/input` y `output` contienen los datos del usuario y `%LOCALAPPDATA%/VideoTranslationPipeline` contiene estado, logs y cachés. En macOS/Linux se utiliza el equivalente convencional de `Documents` para `input`/`output` y el directorio de datos privado de la aplicación para el estado interno.
 
-La autenticación de proveedores continúa utilizando los flujos CLI/setup existentes cuando requiere OAuth o configuración interactiva de rclone.
+Las carpetas de trabajo pueden sustituirse por cualquier ubicación con permisos de escritura, incluidas carpetas compartidas, unidades de red y carpetas sincronizadas.
 
-## Pipeline control
+## Distribución y arquitecturas
 
-`ControllableMediaPipeline` adapta el pipeline existente para exponer eventos de preparación, descarga, extracción, conversión, transcripción, traducción, finalización, ZIP, error y cancelación.
+Cada artefacto se construye con el intérprete Python y las dependencias de su arquitectura real. No se etiqueta un binario como compatible con una arquitectura que no haya sido construida y validada.
 
-La cancelación es cooperativa: se detiene en límites seguros y no mata a la fuerza una ejecución activa de FFmpeg/Whisper, evitando estados parciales o corruptos.
-
-## Architecture
-
-```text
-Tk/ttk Desktop UI
-        |
-        v
-VideoTranslationApplication
-        |
-        v
-ControllableMediaPipeline
-        |
-        v
-Existing MediaPipeline + adapters
-        |
-        +-- STT / Whisper
-        +-- translation providers + fallback
-        +-- Kokoro TTS
-        +-- FFmpeg
-        +-- local / Google Drive / rclone storage
-        +-- resume / naming / deduplication
-```
-
-La fachada es independiente de Tk para permitir reutilizar los casos de uso desde otra interfaz.
-
-## Native distribution
-
-La versión `1.9.0` distribuye una aplicación GUI nativa en los tres sistemas objetivo:
-
-| Plataforma | Construcción | Artefacto de release |
+| Plataforma | Arquitectura validada | Artefacto |
 | --- | --- | --- |
-| Windows x64 | PyInstaller + WiX 6.0.2 | `.exe` + `.msi` |
-| macOS | PyInstaller `BUNDLE` | `.app` dentro de un `.zip` |
-| Linux x86_64 | PyInstaller + AppDir + appimagetool | `.AppImage` |
+| Windows | x64 | `.exe` + `.msi` x64 |
+| Windows | x86/32 bits | `.exe` + `.msi` x86 y wheel `win32`, mediante `Vosk` para STT |
+| macOS | x64 | `.app` dentro de `.zip` |
+| Linux | x86_64 | `.AppImage` |
 
-### Linux: método utilizado
+La matriz actual **no declara soporte de 32 bits para macOS ni Linux**. No es correcto fabricar un artefacto x86 cambiando únicamente su nombre: el ecosistema de Python 3.11 y las dependencias binarias actuales del proyecto no proporciona una cadena reproducible para esas dos plataformas. Python 3.11 publica instaladores macOS universal2 de 64 bits, mientras que sí existe un instalador Windows de 32 bits; además, `vosk==0.3.42` publica una wheel `win32`, pero no una wheel macOS de 32 bits ni Linux i686. citeturn3search0turn1search0
 
-Linux usa el mismo ejecutable GUI que Windows/macOS en cuanto a tecnología de aplicación: **PyInstaller empaqueta `src.desktop` y sus dependencias en un bundle ejecutable**. Después `scripts/build_desktop.py` crea un AppDir con:
-
-- el bundle PyInstaller bajo `usr/bin/VideoTranslationPipeline`;
-- `AppRun` como launcher;
-- `VideoTranslationPipeline.desktop` para integración con el escritorio;
-- `VideoTranslationPipeline.svg` como icono.
-
-Finalmente `appimagetool` convierte ese AppDir en `VideoTranslationPipeline-<version>-linux-x86_64.AppImage`. AppImage es la capa de distribución portable; no es un segundo framework GUI.
-
-Build local:
-
-```bash
-uv run python scripts/build_desktop.py --clean --version 1.9.0 --format linux-appimage
-```
+Por tanto, la release solo publica arquitecturas que la CI puede construir y validar realmente. Si en el futuro se incorpora un runtime 32-bit completo para Linux o una plataforma macOS 32-bit compatible, deberá añadirse como una nueva matriz de build y una validación funcional independiente.
 
 ### Windows
 
 ```bash
-uv run python scripts/build_desktop.py --clean --version 1.9.0 --format windows-msi
+uv run python scripts/build_desktop.py --clean --version <version> --format windows-msi --windows-arch <x64|x86>
 ```
 
-El `.exe` lo genera PyInstaller y el `.msi` lo genera WiX 6.0.2 a partir del bundle.
+`--windows-arch` debe coincidir con la arquitectura del intérprete Python que ejecuta PyInstaller. WiX recibe la misma arquitectura para generar el MSI correspondiente. El x64 se instala en el `Program Files` nativo y la variante x86 utiliza la ubicación de 32 bits correspondiente. El instalador crea un acceso directo en el menú Inicio.
+
+### Linux
+
+```bash
+uv run python scripts/build_desktop.py --clean --version <version> --format linux-appimage
+```
+
+El artefacto publicado es actualmente `x86_64`; incluye el bundle PyInstaller, `AppRun`, el fichero `.desktop` y el icono SVG.
 
 ### macOS
 
 ```bash
-uv run python scripts/build_desktop.py --clean --version 1.9.0 --format native
+uv run python scripts/build_desktop.py --clean --version <version> --format native
 ```
 
-PyInstaller genera `VideoTranslationPipeline.app`. La firma y notarización son operaciones de publicación que requieren credenciales de release y no se realizan en cada PR.
+La CI valida el bundle `.app` en macOS x64. La firma y notarización son operaciones de publicación que requieren credenciales de release y no forman parte de cada PR.
 
-## Automated GitHub Release artifacts
+## TTS
 
-No es necesario compilar ni subir manualmente los binarios en cada release.
+TTS es opcional. La implementación publicada utiliza `KokoroONNXProvider` con `kokoro-onnx` y los recursos `kokoro-v1.0.onnx` y `voices-v1.0.bin`. La CI comprueba la instalación/auditoría de la dependencia TTS y las pruebas del pipeline verifican la sincronización temporal y la generación del medio. El soporte TTS no debe declararse para una arquitectura cuyo runtime de Python y dependencias no haya sido validado.
 
-`.github/workflows/release.yml` se activa automáticamente cuando se publica un tag `vX.Y.Z` y:
+## CI/CD
 
-1. comprueba el `uv.lock` del tag;
-2. crea el entorno bloqueado;
-3. construye en runners nativos Ubuntu, Windows y macOS;
-4. valida el AppImage, MSI, EXE y `.app`;
-5. comprime el `.app` de macOS;
-6. descarga los tres artefactos en un job de publicación;
-7. crea la GitHub Release si no existe o actualiza sus assets si ya existe.
+`.github/workflows/desktop.yml` construye los artefactos de Windows x64, Windows x86, macOS x64 y Linux x86_64. El job x86 usa un intérprete Python de 32 bits, comprueba el tamaño de puntero, instala `requirements-x86.txt`, construye el MSI y genera la wheel `win32`.
 
-Los nombres de release son deterministas:
+`.github/workflows/release.yml` repite la matriz sobre el tag exacto y adjunta los artefactos validados a la GitHub Release. No se publica un artefacto x86 que no haya pasado el build correspondiente.
 
-```text
-VideoTranslationPipeline-1.9.0-linux-x86_64.AppImage
-VideoTranslationPipeline-1.9.0-windows-x64.msi
-VideoTranslationPipeline-1.9.0-macos.app.zip
-```
+## CLI y ejecución programada
 
-GitHub genera además automáticamente los ZIP/TAR del **código fuente** asociados al tag. Por tanto, una release de escritorio queda compuesta por los archivos fuente de GitHub más los tres artefactos nativos producidos por CI, sin intervención manual.
-
-La firma/notarización de macOS y la firma de editor de Windows pueden añadirse posteriormente al mismo job mediante secretos de release sin cambiar el modelo de automatización.
-
-## CLI and scheduled execution
-
-La GUI es aditiva. Se mantienen:
+La GUI es una capa adicional. La CLI continúa siendo el contrato de automatización:
 
 ```bash
 uv run video-translation-pipeline run
 uv run video-translation-pipeline run --scheduled
 ```
 
-También se conservan regeneración, subtitle-QA, TTS, wrappers unattended y scheduling mediante launchd, cron y Task Scheduler.
+También se conservan regeneración, QA de subtítulos, TTS, wrappers desatendidos y programación mediante launchd, cron y el Programador de tareas de Windows.
 
-Los modelos, credenciales y estado mutable siguen siendo recursos externos y no se embeben en el ejecutable.
+## Documentación relacionada
 
-## Release scope
-
-Desktop es `1.9.0` y no soporte móvil. El móvil permanece fuera del alcance del producto hasta una decisión futura explícita.
+- [`README.md`](../README.md)
+- [`CLI.md`](CLI.md)
+- [`INSTALLATION.md`](INSTALLATION.md)
+- [`PACKAGING.md`](PACKAGING.md)
+- [`TESTING.md`](TESTING.md)
+- [`CI_CD.md`](CI_CD.md)
+- [`RELEASES.md`](RELEASES.md)

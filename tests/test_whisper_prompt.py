@@ -1,8 +1,10 @@
 from pathlib import Path
+from types import SimpleNamespace
 from zipfile import ZipFile
 
 import pytest
 
+from src.stt_engine import STTEngine
 from src.whisper_prompt import resolve_initial_prompt
 
 
@@ -56,3 +58,40 @@ def test_empty_value_discovers_generic_context_file(tmp_path: Path) -> None:
     prompt, source = resolve_initial_prompt("", tmp_path)
     assert prompt == "Tai Chi"
     assert source == str(path.resolve())
+
+
+def test_context_prompt_is_forwarded_to_whisper_transcription(monkeypatch, tmp_path: Path) -> None:
+    context_path = tmp_path / "palabras_contexto.txt"
+    context_path.write_text("Tai Chi taijiquan", encoding="utf-8")
+    settings = SimpleNamespace(
+        whisper_initial_prompt=str(context_path),
+        whisper_vad_filter=False,
+        whisper_min_silence_duration_ms=2000,
+        source_lang="es",
+        whisper_beam_size=5,
+        whisper_compression_ratio_threshold=2.4,
+        whisper_log_prob_threshold=-1.0,
+        whisper_no_speech_threshold=0.6,
+        whisper_hallucination_silence_threshold=None,
+        whisper_condition_on_previous_text=True,
+        whisper_recovery_retries=0,
+        whisper_subtitle_split_silence_duration_ms=1000,
+    )
+    engine = object.__new__(STTEngine)
+    engine.settings = settings
+    engine.device = "cpu"
+    engine.compute_type = "int8"
+    engine._quality_thresholds = SimpleNamespace()
+
+    captured: dict[str, object] = {}
+
+    class FakeModel:
+        def transcribe(self, media_path: str, **kwargs):
+            captured.update(kwargs)
+            return ([], SimpleNamespace())
+
+    engine.model = FakeModel()
+    monkeypatch.setattr(engine, "_is_suspicious", lambda segment: False)
+    engine.transcribe(tmp_path / "audio.wav")
+
+    assert captured["initial_prompt"] == "Tai Chi taijiquan"

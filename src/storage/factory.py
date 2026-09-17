@@ -3,15 +3,15 @@ from __future__ import annotations
 from config.settings import AppSettings, resolve_project_path
 from src.storage.base import StorageProvider
 from src.storage.google_drive import GoogleDriveStorageProvider
-from src.storage.local import LocalStorageProvider
 from src.storage.rclone import RcloneStorageProvider
+from src.storage.runtime_local import RuntimeLocalStorageProvider
 from src.storage.tts import TTSAwareStorageProvider
 
 
 def create_storage_provider(provider: str, settings: AppSettings) -> StorageProvider:
     normalized = provider.lower()
     if normalized == "local":
-        storage: StorageProvider = LocalStorageProvider(
+        storage: StorageProvider = RuntimeLocalStorageProvider(
             settings.local_retain_sources,
             settings.local_input_min_age_seconds,
         )

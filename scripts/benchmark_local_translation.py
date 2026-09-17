@@ -9,11 +9,18 @@ from src.local_translation import LocalTranslationModelManager, LocalTranslation
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Benchmark the prepared offline local translation model")
-    parser.add_argument("--sentences", type=int, default=100)
+    parser = argparse.ArgumentParser(
+        description="Mide el rendimiento del modelo local de traducción sin conexión preparado"
+    )
+    parser.add_argument(
+        "--sentences",
+        type=int,
+        default=100,
+        help="Número de frases que se traducirán durante la medición. Por defecto: 100",
+    )
     args = parser.parse_args()
     if args.sentences < 1:
-        parser.error("--sentences must be >= 1")
+        parser.error("--sentences debe ser mayor o igual que 1")
 
     manager = LocalTranslationModelManager()
     status = manager.status()

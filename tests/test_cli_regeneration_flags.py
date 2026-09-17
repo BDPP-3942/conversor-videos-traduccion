@@ -79,8 +79,8 @@ def test_regeneration_reuses_run_help_contract() -> None:
     for option in REGENERATE_RUN_OPTIONS:
         assert option in help_text
 
-    assert "Force generation of the secondary WebM output" in help_text
-    assert "Prevent generation of the secondary WebM output" in help_text
+    assert "Fuerza la generación de la salida WebM secundaria" in help_text
+    assert "Impide la generación de la salida WebM secundaria" in help_text
 
 
 def test_run_only_options_are_not_accepted_by_regeneration() -> None:

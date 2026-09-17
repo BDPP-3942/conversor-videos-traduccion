@@ -14,11 +14,28 @@ logger = logging.getLogger(__name__)
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Generate synchronized TTS media from translated VTT outputs")
-    parser.add_argument("--config", type=Path, default=BASE_DIR / "config" / "app.toml")
-    parser.add_argument("--output-folder", default=None, help="Existing output folder name under storage/output")
-    parser.add_argument("--all", action="store_true", help="Process all eligible local output folders")
-    parser.add_argument("--no-webm", action="store_true", help="Skip TTS WebM even when WebM is configured")
+    parser = argparse.ArgumentParser(description="Genera medios TTS sincronizados a partir de VTT traducidos")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=BASE_DIR / "config" / "app.toml",
+        help="Ruta del archivo TOML de configuración",
+    )
+    parser.add_argument(
+        "--output-folder",
+        default=None,
+        help="Nombre de una carpeta de resultados existente dentro de storage/output",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Procesa todas las carpetas locales de resultados elegibles",
+    )
+    parser.add_argument(
+        "--no-webm",
+        action="store_true",
+        help="Omite el WebM de TTS aunque WebM esté configurado",
+    )
     return parser
 
 
@@ -52,16 +69,20 @@ def main(argv: list[str] | None = None) -> int:
 
 def _process_folder(folder: Path, settings) -> dict[str, object]:
     if not folder.is_dir():
-        return {"folder": str(folder), "status": "error", "error": "output folder does not exist"}
+        return {"folder": str(folder), "status": "error", "error": "la carpeta de salida no existe"}
     video = next((p for p in folder.glob("*.mp4") if "_tts" not in p.stem.lower()), None)
     vtt = next((p for p in folder.glob("*.vtt") if "_original" not in p.name.lower()), None)
     webm = next((p for p in folder.glob("*.webm") if "_tts" not in p.stem.lower()), None)
     if not video or not vtt:
-        return {"folder": str(folder), "status": "skipped", "reason": "MP4 or translated VTT not found"}
+        return {
+            "folder": str(folder),
+            "status": "skipped",
+            "reason": "no se encontró el MP4 o el VTT traducido",
+        }
     try:
         result = generate_tts_media(video, vtt, folder, video.stem, settings, webm_video_path=webm)
     except (TTSProviderError, RuntimeError, ValueError, OSError) as exc:
-        logger.exception("TTS generation failed for %s", folder)
+        logger.exception("Falló la generación TTS para %s", folder)
         return {"folder": str(folder), "status": "error", "error": str(exc)}
     return {
         "folder": str(folder),

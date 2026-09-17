@@ -51,6 +51,36 @@ class MediaConverter:
                 raise RuntimeError(f"FFmpeg did not create a valid output: {output}")
         return MediaArtifacts(mp4, secondary)
 
+    def extract_wav(self, source: Path, output: Path) -> Path:
+        """Extrae audio PCM mono de 16 kHz para motores STT ligeros."""
+        if not source.is_file():
+            raise FileNotFoundError(f"Media source does not exist: {source}")
+        if source.suffix.lower() not in MEDIA_EXTENSIONS:
+            raise ValueError(f"Unsupported media extension: {source.suffix}")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        self._run(
+            [
+                self.ffmpeg_bin,
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-i",
+                str(source),
+                "-vn",
+                "-ac",
+                "1",
+                "-ar",
+                "16000",
+                "-c:a",
+                "pcm_s16le",
+                str(output),
+            ]
+        )
+        if not output.is_file() or output.stat().st_size == 0:
+            raise RuntimeError(f"FFmpeg did not create a valid WAV file: {output}")
+        return output
+
     def _build_mp4_copy_command(self, source: Path, output: Path) -> list[str]:
         return [
             self.ffmpeg_bin,
@@ -232,39 +262,12 @@ class MediaConverter:
                     reader.join(timeout=2)
                     raise RuntimeError(f"FFmpeg conversion timed out after {timeout}s")
                 time.sleep(0.25)
-            reader.join(timeout=2)
+            reader.join()
+            process.stderr.close()
             if process.returncode != 0:
-                detail = next(
-                    (
-                        line
-                        for line in reversed(stderr_lines)
-                        if not line.startswith(("frame=", "fps=", "out_", "progress="))
-                    ),
-                    "FFmpeg conversion failed",
-                )
-                raise RuntimeError(detail)
-            logger.info("FFmpeg completed: elapsed=%.1fs", time.monotonic() - started)
-        except FileNotFoundError as exc:
-            raise RuntimeError("FFmpeg no está disponible. Configura FFMPEG_BIN o instala imageio-ffmpeg.") from exc
+                detail = next((line for line in reversed(stderr_lines) if line), "sin detalles")
+                raise RuntimeError(f"FFmpeg failed: {detail}")
         finally:
-            if process is not None:
-                if process.poll() is None:
-                    process.kill()
-                    process.wait()
-                if process.stderr is not None and not process.stderr.closed:
-                    process.stderr.close()
-
-
-def _extract_progress_value(lines: list[str], key: str) -> str | None:
-    prefix = f"{key}="
-    for line in reversed(lines):
-        if line.startswith(prefix):
-            return line[len(prefix) :].strip()
-    return None
-
-
-def _format_duration(seconds: float) -> str:
-    whole = max(0, int(seconds))
-    hours, remainder = divmod(whole, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            if process is not None and process.poll() is None:
+                process.kill()
+                process.wait()

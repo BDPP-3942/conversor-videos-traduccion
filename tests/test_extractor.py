@@ -4,6 +4,7 @@ from zipfile import ZipFile
 import pytest
 
 from src.extractor import ZipExtractor
+from src.file_naming import normalize_component
 
 
 def make_zip(path: Path, name: str, data: bytes = b"data") -> None:
@@ -12,7 +13,6 @@ def make_zip(path: Path, name: str, data: bytes = b"data") -> None:
 
 
 def make_cp437_zip(path: Path, name: str, data: bytes = b"data") -> None:
-    """Create a ZIP whose member name is encoded with the ZIP legacy CP437 rule."""
     placeholder = "niZo.wmv"
     assert len(name) == len(placeholder)
     with ZipFile(path, "w") as archive:
@@ -24,6 +24,25 @@ def make_cp437_zip(path: Path, name: str, data: bytes = b"data") -> None:
     path.write_bytes(raw.replace(encoded_placeholder, encoded_name))
 
 
+def make_unflagged_utf8_zip(path: Path, name: str, data: bytes = b"data") -> None:
+    placeholder = "xxxxxxxxxxxx.wmv"
+    assert len(name.encode("utf-8")) == len(placeholder.encode("utf-8"))
+    with ZipFile(path, "w") as archive:
+        archive.writestr(placeholder, data)
+    raw = path.read_bytes()
+    path.write_bytes(raw.replace(placeholder.encode("ascii"), name.encode("utf-8")))
+
+
+def make_unflagged_utf8_ntilde_zip(path: Path, data: bytes = b"data") -> None:
+    placeholder = "xxxxx.wmv"
+    name = "niño.wmv"
+    assert len(name.encode("utf-8")) == len(placeholder.encode("utf-8"))
+    with ZipFile(path, "w") as archive:
+        archive.writestr(placeholder, data)
+    raw = path.read_bytes()
+    path.write_bytes(raw.replace(placeholder.encode("ascii"), name.encode("utf-8")))
+
+
 def extractor(**overrides):
     values = dict(max_depth=3, max_files=10_000, max_total_size=10_000_000)
     values.update(overrides)
@@ -33,28 +52,28 @@ def extractor(**overrides):
 def test_zip_slip_is_rejected(tmp_path: Path) -> None:
     archive_path = tmp_path / "unsafe.zip"
     make_zip(archive_path, "../../escape.txt")
-    with pytest.raises(ValueError, match="Unsafe ZIP path"):
+    with pytest.raises(ValueError, match="ruta ZIP no segura"):
         extractor().extract_zip(archive_path, tmp_path / "out")
 
 
 def test_absolute_windows_zip_path_is_rejected(tmp_path: Path) -> None:
     archive_path = tmp_path / "unsafe-windows.zip"
     make_zip(archive_path, r"C:\escape.txt")
-    with pytest.raises(ValueError, match="Unsafe ZIP path"):
+    with pytest.raises(ValueError, match="ruta ZIP no segura"):
         extractor().extract_zip(archive_path, tmp_path / "out")
 
 
 def test_unc_windows_zip_path_is_rejected(tmp_path: Path) -> None:
     archive_path = tmp_path / "unsafe-unc.zip"
     make_zip(archive_path, r"\\server\share\escape.txt")
-    with pytest.raises(ValueError, match="Unsafe ZIP path"):
+    with pytest.raises(ValueError, match="ruta ZIP no segura"):
         extractor().extract_zip(archive_path, tmp_path / "out")
 
 
 def test_windows_reserved_zip_component_is_rejected(tmp_path: Path) -> None:
     archive_path = tmp_path / "reserved.zip"
     make_zip(archive_path, "folder/CON.txt")
-    with pytest.raises(ValueError, match="Reserved Windows"):
+    with pytest.raises(ValueError, match="reservado de Windows"):
         extractor().extract_zip(archive_path, tmp_path / "out")
 
 
@@ -63,7 +82,7 @@ def test_global_extraction_limits_are_enforced(tmp_path: Path) -> None:
     with ZipFile(archive_path, "w") as archive:
         archive.writestr("a.txt", b"12345")
         archive.writestr("b.txt", b"67890")
-    with pytest.raises(ValueError, match="Maximum extracted ZIP size"):
+    with pytest.raises(ValueError, match="tamaño máximo de extracción ZIP"):
         extractor(max_total_size=9).extract_zip(archive_path, tmp_path / "out")
 
 
@@ -111,7 +130,7 @@ def test_unicode_normalization_collision_is_rejected(tmp_path: Path) -> None:
     with ZipFile(archive_path, "w") as archive:
         archive.writestr("Café.txt", b"one")
         archive.writestr("Cafe\u0301.txt", b"two")
-    with pytest.raises(ValueError, match="ZIP path collision"):
+    with pytest.raises(ValueError, match="colisión de ruta ZIP"):
         extractor().extract_zip(archive_path, tmp_path / "out")
 
 
@@ -120,7 +139,7 @@ def test_unicode_normalization_collision_is_rejected_case_insensitively(tmp_path
     with ZipFile(archive_path, "w") as archive:
         archive.writestr("Café.txt", b"one")
         archive.writestr("cafe\u0301.TXT", b"two")
-    with pytest.raises(ValueError, match="ZIP path collision"):
+    with pytest.raises(ValueError, match="colisión de ruta ZIP"):
         extractor().extract_zip(archive_path, tmp_path / "out")
 
 
@@ -129,3 +148,21 @@ def test_zip_uses_cp437_for_legacy_non_utf8_member_names(tmp_path: Path) -> None
     make_cp437_zip(archive_path, "niño.wmv")
     result = extractor().extract_zip(archive_path, tmp_path / "out")
     assert result.media[0].name == "niño.wmv"
+    assert normalize_component(result.media[0].stem) == "nino"
+
+
+def test_unflagged_utf8_filename_is_repaired(tmp_path: Path) -> None:
+    archive_path = tmp_path / "macos.zip"
+    name = "compresio\u0301n.wmv"
+    make_unflagged_utf8_zip(archive_path, name)
+    result = extractor().extract_zip(archive_path, tmp_path / "out")
+    assert result.media[0].name == "compresión.wmv"
+    assert normalize_component(result.media[0].stem) == "compresion"
+
+
+def test_unflagged_utf8_n_tilde_is_repaired_without_cp437_false_positive(tmp_path: Path) -> None:
+    archive_path = tmp_path / "macos-ntilde.zip"
+    make_unflagged_utf8_ntilde_zip(archive_path)
+    result = extractor().extract_zip(archive_path, tmp_path / "out")
+    assert result.media[0].name == "niño.wmv"
+    assert normalize_component(result.media[0].stem) == "nino"

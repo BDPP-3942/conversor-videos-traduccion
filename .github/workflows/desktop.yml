@@ -8,9 +8,12 @@ on:
 permissions:
   contents: read
 
+env:
+  RELEASE_VERSION: "1.10.0"
+
 jobs:
   desktop:
-    name: ${{ matrix.os }} desktop artifact
+    name: ${{ matrix.os }} ${{ matrix.arch }} desktop artifact
     strategy:
       fail-fast: false
       matrix:
@@ -18,12 +21,18 @@ jobs:
           - os: ubuntu-latest
             format: linux-appimage
             artifact: linux-appimage
+            arch: x64
+            python: "3.13"
           - os: windows-latest
             format: windows-msi
-            artifact: windows-msi
+            artifact: windows-msi-x64
+            arch: x64
+            python: "3.13"
           - os: macos-latest
             format: native
             artifact: macos-app
+            arch: x64
+            python: "3.13"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
@@ -33,7 +42,7 @@ jobs:
         with:
           version: latest-known
           enable-cache: true
-      - run: uv python install 3.13
+      - run: uv python install ${{ matrix.python }}
       - run: uv lock --check
       - name: Sync locked desktop environment
         env:
@@ -54,7 +63,7 @@ jobs:
           sudo mv /tmp/appimagetool /usr/local/bin/appimagetool
       - name: Build native desktop artifact
         shell: bash
-        run: uv run python scripts/build_desktop.py --clean --version 1.9.0 --format ${{ matrix.format }}
+        run: uv run python scripts/build_desktop.py --clean --version "$RELEASE_VERSION" --format ${{ matrix.format }} --windows-arch ${{ matrix.arch }}
       - name: Validate macOS app bundle
         if: runner.os == 'macOS'
         shell: bash
@@ -64,11 +73,11 @@ jobs:
         shell: pwsh
         run: |
           if (-not (Test-Path 'dist\VideoTranslationPipeline\VideoTranslationPipeline.exe')) { exit 1 }
-          if (-not (Test-Path 'dist\VideoTranslationPipeline-1.9.0-windows-x64.msi')) { exit 1 }
+          if (-not (Test-Path "dist\VideoTranslationPipeline-$env:RELEASE_VERSION-windows-x64.msi")) { exit 1 }
       - name: Validate Linux AppImage
         if: runner.os == 'Linux'
         shell: bash
-        run: test -f dist/VideoTranslationPipeline-1.9.0-linux-x86_64.AppImage
+        run: test -f "dist/VideoTranslationPipeline-$RELEASE_VERSION-linux-x86_64.AppImage"
       - name: Upload desktop artifact
         uses: actions/upload-artifact@v4
         with:
@@ -78,4 +87,51 @@ jobs:
             dist/VideoTranslationPipeline/**
             dist/VideoTranslationPipeline-*.msi
             dist/VideoTranslationPipeline-*.AppImage
+          if-no-files-found: error
+
+  desktop-windows-x86:
+    name: windows-latest x86 desktop artifact
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11.9"
+          architecture: x86
+      - name: Install WiX v6
+        shell: pwsh
+        run: dotnet tool install --global wix --version 6.0.2
+      - name: Install x86 runtime and build dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-x86.txt
+          python -m pip install --no-deps .
+      - name: Validate x86 environment
+        shell: pwsh
+        run: |
+          python -c "import struct, vosk; assert struct.calcsize('P') * 8 == 32"
+          python -m compileall src config main.py
+      - name: Build Windows x86 desktop artifact
+        shell: pwsh
+        run: python scripts/build_desktop.py --clean --version "$env:RELEASE_VERSION" --format windows-msi --windows-arch x86
+      - name: Build Windows x86 wheel
+        shell: pwsh
+        run: python -m pip wheel . --no-deps --wheel-dir dist --config-settings=--build-option=--plat-name --config-settings=--build-option=win32
+      - name: Validate Windows x86 executable, MSI and wheel
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'dist\VideoTranslationPipeline\VideoTranslationPipeline.exe')) { exit 1 }
+          if (-not (Test-Path "dist\VideoTranslationPipeline-$env:RELEASE_VERSION-windows-x86.msi")) { exit 1 }
+          if (-not (Get-ChildItem 'dist\*-win32.whl')) { exit 1 }
+      - name: Upload Windows x86 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-translation-windows-msi-x86
+          path: |
+            dist/VideoTranslationPipeline/**
+            dist/VideoTranslationPipeline-*-windows-x86.msi
+            dist/*-win32.whl
           if-no-files-found: error
