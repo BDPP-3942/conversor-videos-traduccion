@@ -1,6 +1,8 @@
 name: Desktop packages
 
 on:
+  push:
+    branches: [audit/**]
   pull_request:
     branches: [main]
   workflow_dispatch:
