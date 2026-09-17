@@ -719,7 +719,11 @@ class DesktopApp:
         from src.local_translation import LocalTranslationModelManager
 
         def install():
-            manager = LocalTranslationModelManager()
+            settings = VideoTranslationApplication().load_settings()
+            manager = LocalTranslationModelManager(
+                settings.local_translation_model_dir,
+                settings.local_translation_model,
+            )
             path = manager.ensure(confirm=lambda status: True)
             return {"status": "success", "model": manager.model_name, "path": str(path)}
 
