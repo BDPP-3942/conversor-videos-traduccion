@@ -42,3 +42,22 @@ def test_ensure_runtime_storage_creates_all_writable_directories(monkeypatch, tm
         "manifests",
     ):
         assert paths[key].is_dir(), key
+
+
+def test_resolve_project_path_redirects_writable_frozen_paths(monkeypatch, tmp_path):
+    import config.settings as settings
+
+    monkeypatch.setattr(settings.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(settings, "USER_DATA_DIR", tmp_path / "user-data")
+    monkeypatch.setattr(settings, "BASE_DIR", tmp_path / "install")
+
+    assert settings.resolve_project_path("storage/state/run.lock") == (
+        tmp_path / "user-data" / "storage/state/run.lock"
+    )
+    assert settings.resolve_project_path("secrets/providers/default/token.json") == (
+        tmp_path / "user-data" / "secrets/providers/default/token.json"
+    )
+    assert settings.resolve_project_path("tools/models/translation/model") == (
+        tmp_path / "user-data" / "tools/models/translation/model"
+    )
+    assert settings.resolve_project_path("config/app.toml") == tmp_path / "install/config/app.toml"
