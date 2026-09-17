@@ -9,7 +9,7 @@ WORKING_DIRECTORY_NAME = "Video Translation Pipeline"
 
 
 def user_data_root() -> Path:
-    """Devuelve la carpeta del sistema para el estado privado de la aplicación."""
+    """Devuelve la raíz privada de datos de la aplicación, escribible por el usuario."""
     if os.name == "nt":
         root = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
     elif sys.platform == "darwin":
