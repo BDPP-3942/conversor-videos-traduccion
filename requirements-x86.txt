@@ -1,6 +1,7 @@
 # Dependencias específicas del build Windows x86 (32 bits).
-# Se instalan separadamente porque PEP 508 no permite distinguir de forma
-# fiable un intérprete Python de 32 bits bajo Windows x64.
+# El build x86 utiliza una ruta runtime separada porque la pila principal de
+# STT/traducción contiene dependencias binarias que no forman parte de este
+# conjunto Win32. La wheel x86 de Vosk aporta el motor STT compatible.
 vosk==0.3.42
 imageio-ffmpeg==0.6.0
 webvtt-py==0.5.1
