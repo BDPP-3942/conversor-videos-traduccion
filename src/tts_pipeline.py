@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import platform
 import re
 import subprocess
 import tempfile
@@ -85,10 +86,68 @@ class KokoroONNXProvider:
         return samples, int(sample_rate)
 
 
+class WindowsSAPIProvider:
+    """Proveedor TTS basado en SAPI para Windows de 32 bits."""
+
+    def synthesize(self, text: str, *, language: str, voice: str, speed: float) -> tuple[object, int]:
+        del language
+        try:
+            import pyttsx3
+        except ImportError as exc:
+            raise TTSProviderError(
+                "El TTS de Windows x86 requiere las dependencias pyttsx3 y pywin32."
+            ) from exc
+
+        with tempfile.TemporaryDirectory(prefix="vtt-sapi-") as directory:
+            output = Path(directory) / "speech.wav"
+            try:
+                engine = pyttsx3.init(driverName="sapi5")
+                requested = voice.strip().lower()
+                selected = None
+                for item in engine.getProperty("voices") or []:
+                    identity = f"{getattr(item, 'id', '')} {getattr(item, 'name', '')}".lower()
+                    if requested and requested in identity:
+                        selected = item.id
+                        break
+                if selected:
+                    engine.setProperty("voice", selected)
+                rate = max(50, min(400, round(200 * max(0.5, min(speed, 2.0)))))
+                engine.setProperty("rate", rate)
+                engine.save_to_file(text, str(output))
+                engine.runAndWait()
+                engine.stop()
+            except Exception as exc:
+                raise TTSProviderError(f"Falló la síntesis TTS mediante SAPI: {exc}") from exc
+
+            if not output.is_file() or output.stat().st_size <= 44:
+                raise TTSProviderError("SAPI no generó un archivo de audio válido.")
+
+            try:
+                with wave.open(str(output), "rb") as handle:
+                    channels = handle.getnchannels()
+                    width = handle.getsampwidth()
+                    sample_rate = handle.getframerate()
+                    frames = handle.readframes(handle.getnframes())
+            except (OSError, wave.Error) as exc:
+                raise TTSProviderError(f"No se pudo leer el audio TTS generado por SAPI: {exc}") from exc
+
+            if channels != 1 or width != 2:
+                raise TTSProviderError(
+                    f"SAPI generó un formato no compatible: canales={channels}, bytes_por_muestra={width}"
+                )
+
+            import numpy as np
+
+            samples = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+            return samples, int(sample_rate)
+
+
 def create_tts_provider(settings: AppSettings) -> TTSProvider:
     provider = settings.tts_provider.lower()
+    if platform.system() == "Windows" and __import__("struct").calcsize("P") * 8 == 32:
+        return WindowsSAPIProvider()
     if provider != "kokoro":
-        raise ValueError(f"Unsupported TTS provider: {settings.tts_provider}")
+        raise ValueError(f"Proveedor TTS no compatible: {settings.tts_provider}")
     return KokoroONNXProvider(
         resolve_project_path(settings.tts_model_path),
         resolve_project_path(settings.tts_voices_path),
