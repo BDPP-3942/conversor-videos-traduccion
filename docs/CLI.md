@@ -1,188 +1,147 @@
 # Referencia de la CLI
 
-La interfaz de línea de comandos (CLI) es el contrato de automatización del proyecto. Puede ejecutarse desde la raíz del repositorio con `python main.py` o mediante los puntos de entrada instalados con `video-translation-pipeline`.
+La CLI es el contrato de automatización del proyecto. Puede ejecutarse con `python main.py` o mediante los entry points instalados. Esta documentación explica los comandos públicos y su semántica; los nombres exactos de opciones, tipos y valores aceptados siguen definidos por `--help` del parser.
 
-## Comandos principales
-
-```bash
-python main.py --help
-python main.py run --help
-python main.py doctor --help
-python main.py init --help
-python main.py prefetch-whisper --help
-```
-
-Todo comando que exponga `--help` forma parte del contrato público de la CLI. El analizador de argumentos es la fuente de verdad para nombres, tipos, elecciones y valores aceptados; esta documentación explica su finalidad y los casos de uso.
-
-### Procesamiento: `run`
-
-Procesamiento normal:
+## Ayuda y comandos públicos
 
 ```bash
-python main.py run
+uv run video-translation-pipeline --help
+uv run video-translation-pipeline run --help
+uv run video-translation-pipeline doctor --help
+uv run video-translation-pipeline init --help
+uv run video-translation-pipeline prefetch-whisper --help
+uv run video-translation-regenerate --help
+uv run video-subtitle-qa --help
+uv run video-translation-tts --help
 ```
 
-Comprobación previa sin modificar vídeos:
+## `run`
+
+Procesa las entradas configuradas y genera los artefactos del pipeline:
 
 ```bash
-python main.py run --dry-run
+uv run video-translation-pipeline run
 ```
 
-Ejecución desatendida:
+Opciones principales:
 
-```bash
-python main.py run --scheduled
-```
-
-#### Opciones de `run`
-
-| Opción | Valor / predeterminado | Descripción |
+| Opción | Finalidad | Restricciones / efecto |
 | --- | --- | --- |
-| `--scheduled` | indicador; desactivado por defecto | Ejecuta el proceso como tarea desatendida. No abre navegadores ni solicita interacción. Usa la configuración persistida. |
-| `--dry-run` | indicador; desactivado por defecto | Comprueba la preparación del entorno y muestra la configuración efectiva sin procesar archivos. |
-| `--provider` | `local`, `google_drive`, `gdrive`, `rclone` | Selecciona el proveedor de almacenamiento para la ejecución. Si se omite, utiliza el configurado. |
-| `--source` | URI de almacenamiento | Sobrescribe la ubicación de entrada configurada. Se utiliza junto con `--target`. |
-| `--target` | URI de almacenamiento | Sobrescribe la ubicación de salida configurada. Se utiliza junto con `--source`. |
-| `--no-retain-sources` | indicador | Evita conservar los archivos fuente después de un procesamiento local normal. No está permitido durante una regeneración. |
-| `--no-resume` | indicador | Desactiva la reutilización de resultados compatibles para esta ejecución. No se aplica a regeneración. |
-| `--no-name-migration` | indicador | Desactiva la normalización de nombres legacy durante esta ejecución. |
-| `--parallel-videos N` | entero; `0 = AUTO` | Solicita el máximo de vídeos simultáneos. El runtime puede reducirlo según los recursos disponibles. `1` fuerza un único worker. |
-| `--translation-batch-size N` | entero | Sobrescribe el tamaño de lote utilizado por el proveedor de traducción. |
-| `--whisper-beam-size N` | entero | Sobrescribe el tamaño de haz de Whisper. |
-| `--whisper-cpu-threads N` | entero; `0` = automático | Sobrescribe el número de hilos de CPU de Whisper. Los valores negativos se normalizan a `0`. |
-| `--no-ffmpeg-copy` | indicador | Desactiva la optimización de copia directa de streams de FFmpeg y fuerza el comportamiento de recodificación configurado. |
-| `--generate-webm` | indicador | Solicita la generación del WebM secundario. Es incompatible con `--no-webm`. |
-| `--no-webm` | indicador | Impide generar el WebM secundario. Es incompatible con `--generate-webm`. |
+| `--scheduled` | Ejecuta en modo desatendido. | No abre navegadores ni solicita interacción. |
+| `--dry-run` | Comprueba preparación y configuración efectiva. | No procesa medios. |
+| `--provider` | Selecciona almacenamiento (`local`, `google_drive`, `gdrive`, `rclone`). | Si se omite se usa la configuración persistida. |
+| `--source` | Sobrescribe la entrada. | Debe utilizarse con `--target` cuando se cambia el par de almacenamiento. |
+| `--target` | Sobrescribe la salida. | Debe utilizarse con `--source` cuando se cambia el par de almacenamiento. |
+| `--no-retain-sources` | Evita conservar fuentes procesadas. | No se permite durante regeneración. |
+| `--no-resume` | Desactiva la reutilización de resultados compatibles. | Solo afecta a la ejecución actual. |
+| `--no-name-migration` | Desactiva la migración de nombres legacy. | No desactiva la política normal de naming. |
+| `--parallel-videos N` | Limita vídeos simultáneos. | `0` significa automático; `1` fuerza un worker. |
+| `--translation-batch-size N` | Sobrescribe el lote de traducción. | Se normaliza según las capacidades del proveedor. |
+| `--whisper-beam-size N` | Sobrescribe `beam_size`. | Debe ser positivo. |
+| `--whisper-cpu-threads N` | Configura hilos CPU de Whisper. | `0` es automático. |
+| `--no-ffmpeg-copy` | Desactiva copia directa de streams. | Fuerza la ruta de recodificación configurada. |
+| `--generate-webm` | Solicita el WebM secundario. | Es incompatible con `--no-webm`. |
+| `--no-webm` | Impide el WebM secundario. | Es incompatible con `--generate-webm`. |
 
-Los parámetros que no tengan una opción explícita en la CLI se obtienen de la configuración de la aplicación.
+Los ajustes no expuestos por una opción se toman de la configuración de la aplicación.
 
-### Regeneración completa
+## Regeneración: `video-translation-regenerate`
 
-Para volver a generar resultados existentes desde la fuente original, sin reutilizar resultados compatibles:
-
-```bash
-video-translation-regenerate --help
-video-translation-regenerate
-```
-
-También pueden indicarse las ubicaciones:
+Regenera resultados desde la fuente original sin reutilizar resultados compatibles:
 
 ```bash
-video-translation-regenerate \
+uv run video-translation-regenerate --help
+uv run video-translation-regenerate \
   --source local://storage/input \
   --target local://storage/output
 ```
 
-La regeneración reutiliza las mismas opciones de configuración compatibles con `run`:
+Admite las opciones de almacenamiento y procesamiento compatibles con la regeneración, incluidas `--provider`, `--source`, `--target`, `--no-name-migration`, `--parallel-videos`, `--translation-batch-size`, `--whisper-beam-size`, `--whisper-cpu-threads`, `--no-ffmpeg-copy`, `--generate-webm` y `--no-webm`.
 
-```text
---provider
---source
---target
---no-name-migration
---parallel-videos
---translation-batch-size
---whisper-beam-size
---whisper-cpu-threads
---no-ffmpeg-copy
---generate-webm
---no-webm
-```
+No acepta deliberadamente `--scheduled`, `--dry-run`, `--no-retain-sources` ni `--no-resume`: la regeneración es una operación forzada distinta. Aparta temporalmente los resultados, ejecuta el `MediaPipeline` común y restaura los anteriores si la operación falla y el backend lo permite.
 
-No acepta deliberadamente `--scheduled`, `--dry-run`, `--no-retain-sources` ni `--no-resume`, porque esas opciones representan contratos de ejecución distintos de la regeneración forzada.
-
-La regeneración aparta temporalmente los resultados existentes, fuerza el procesamiento desde la fuente mediante el `MediaPipeline` común y elimina las copias anteriores únicamente cuando la regeneración termina correctamente. La fuente original se conserva. Si el proceso falla y el backend lo permite, los resultados anteriores se restauran.
-
-Consulta [`REGENERATION.md`](REGENERATION.md).
-
-### Recuperación de subtítulos
-
-Procesar todos los resultados elegibles:
+## Recuperación de subtítulos
 
 ```bash
-python main.py reprocess-subtitles --all
+uv run python main.py reprocess-subtitles --help
+uv run python main.py reprocess-subtitles --all
+uv run python main.py reprocess-subtitles --all --stt-only
+uv run python main.py reprocess-subtitles --all --translate-only
 ```
 
-Regenerar únicamente la transcripción:
+`--stt-only` y `--translate-only` son mutuamente excluyentes. También existen `--output-folder`, `--all`, `--video`, `--source`, `--scheduled`, `--provider` y `--target`. Esta ruta permite recuperar la transcripción o traducción sin volver a convertir el vídeo cuando los artefactos existentes lo permiten.
+
+## Duplicados
 
 ```bash
-python main.py reprocess-subtitles --all --stt-only
+uv run python main.py duplicates --help
+uv run python main.py duplicates scan --help
+uv run python main.py duplicates analyze --help
+uv run python main.py duplicates delete --help
 ```
 
-Regenerar únicamente la traducción:
+- `scan` localiza candidatos.
+- `analyze` genera el análisis persistible.
+- `delete --dry-run` muestra el plan sin modificar datos.
+- `delete` ejecuta únicamente un plan válido y confirmado.
+
+Ejemplo:
 
 ```bash
-python main.py reprocess-subtitles --all --translate-only
+uv run python main.py duplicates scan --target local://storage/output
+uv run python main.py duplicates analyze --target local://storage/output
+uv run python main.py duplicates delete --target local://storage/output --dry-run
 ```
 
-Para consultar todas las opciones:
+## Proveedores de almacenamiento
 
 ```bash
-python main.py reprocess-subtitles --help
+uv run python main.py provider --help
+uv run python main.py provider list --help
+uv run python main.py provider verify google_drive --help
+uv run python main.py provider verify rclone --help
+uv run python main.py provider use --help
+uv run python main.py provider bootstrap --help
+uv run python main.py provider setup-google --help
+uv run python main.py provider setup-rclone --help
+uv run python main.py provider auth-rclone --help
+uv run python main.py provider update-rclone --help
+uv run python main.py provider remove --help
 ```
 
-La orden admite `--stt-only` y `--translate-only` de forma mutuamente excluyente, además de `--output-folder`, `--all`, `--video`, `--source`, `--scheduled`, `--provider` y `--target`.
+`bootstrap` prepara el binario gestionado de rclone. `setup-google` y `setup-rclone` realizan la configuración interactiva correspondiente. `verify` comprueba un proveedor sin convertirlo en el proveedor activo. `use` cambia el proveedor seleccionado por la configuración.
 
-### Gestión de duplicados
-
-Consultar ayuda general y específica:
+## Diagnóstico y preparación
 
 ```bash
-python main.py duplicates --help
-python main.py duplicates scan --help
-python main.py duplicates analyze --help
-python main.py duplicates delete --help
+uv run python main.py doctor --help
+uv run python main.py doctor
+uv run python main.py init --help
+uv run python main.py prefetch-whisper --help
+uv run python main.py prefetch-whisper
 ```
 
-Ejemplos:
+`doctor` valida dependencias, rutas y recursos necesarios. `init` prepara la configuración inicial. `prefetch-whisper` descarga/prepara el modelo seleccionado sin procesar un vídeo.
+
+## TTS
 
 ```bash
-python main.py duplicates scan --target local://storage/output
-python main.py duplicates analyze --target local://storage/output
-python main.py duplicates delete --target local://storage/output --dry-run
-python main.py duplicates delete --target local://storage/output
+uv run video-translation-tts --help
 ```
 
-`scan` localiza candidatos, `analyze` genera el análisis y `delete --dry-run` muestra qué se eliminaría sin modificar archivos. La eliminación real requiere el plan persistido correspondiente.
+El entry point de TTS mantiene un contrato separado del procesamiento principal. Las opciones concretas de voz, VTT, vídeo, WebM y configuración deben consultarse mediante `--help`; la GUI utiliza la misma capa de TTS y no implementa un motor paralelo.
 
-### Proveedores de almacenamiento
+## Archivo de contexto de Whisper
 
-```bash
-python main.py provider --help
-python main.py provider list --help
-python main.py provider verify google_drive --help
-python main.py provider verify rclone --help
-python main.py provider use --help
+`whisper_initial_prompt` admite texto literal o `txt`, `md`, `csv` y `docx`:
+
+```toml
+whisper_initial_prompt = "config/palabras_contexto.txt"
 ```
 
-El proyecto también dispone de `provider bootstrap`, `provider setup-google`, `provider setup-rclone`, `provider auth-rclone`, `provider update-rclone` y `provider remove`. Las opciones exactas de cada subcomando se consultan con su propio `--help`.
+El fichero se resuelve, se valida y su contenido se entrega a Whisper como `initial_prompt`. Esto proporciona contexto de terminología al decodificador y favorece las grafías esperadas, pero no convierte la transcripción en una sustitución literal del audio. La GUI permite seleccionar el fichero.
 
-### Diagnóstico y preparación
-
-```bash
-python main.py doctor --help
-python main.py doctor
-python main.py init --help
-python main.py prefetch-whisper --help
-python main.py prefetch-whisper
-```
-
-`doctor` comprueba la preparación del entorno. `init` inicializa la configuración cuando corresponde y `prefetch-whisper` prepara el modelo de Whisper configurado.
-
-### Otros puntos de entrada
-
-```bash
-video-translation-pipeline --help
-video-translation-regenerate --help
-video-subtitle-qa --help
-video-translation-tts --help
-```
-
-Los cuatro puntos de entrada se instalan desde `pyproject.toml` y mantienen contratos independientes para el procesamiento principal, regeneración, QA de subtítulos y TTS.
-
-## Wrappers multiplataforma
-
-Los wrappers locales delegan en el mismo dispatcher y conservan los argumentos recibidos.
+## Wrappers y programación
 
 Linux/macOS:
 
@@ -193,92 +152,40 @@ Linux/macOS:
 
 Windows:
 
-```powershell
-.\scripts\run_local.bat run --config .\config\app.toml
-.\scripts\run_local.bat regenerate --config .\config\app.toml --no-webm
+```bat
+scripts\run_local.bat run --config .\config\app.toml
+scripts\run_local.bat regenerate --config .\config\app.toml --no-webm
 ```
 
-`run` es el subcomando explícito y también el comportamiento predeterminado cuando el primer argumento es una opción. `regenerate` se elimina únicamente en el nivel del wrapper antes de delegar en `src.regeneration`.
+La ejecución programada utiliza el mismo dispatcher y conserva el modo `--scheduled` para entornos sin interacción.
 
-## Archivo de contexto de Whisper
-
-`whisper_initial_prompt` admite texto literal o una ruta a un archivo `txt`, `md`, `csv` o `docx`.
-
-```toml
-whisper_initial_prompt = "config/palabras_contexto.txt"
-```
-
-La GUI permite seleccionar ese archivo mediante un diálogo. El contenido se convierte en la cadena que espera Whisper.
-
-## Ejemplos de flujos habituales
-
-### Procesamiento local normal
-
-```bash
-uv run video-translation-pipeline run
-```
-
-### Comprobación previa
-
-```bash
-uv run video-translation-pipeline run --dry-run
-```
-
-### Procesamiento con más paralelismo y lote de traducción
-
-```bash
-uv run video-translation-pipeline run --parallel-videos 2 --translation-batch-size 32
-```
-
-### Desactivar la reutilización de resultados
-
-```bash
-uv run video-translation-pipeline run --no-resume
-```
-
-### Desactivar la migración de nombres legacy
-
-```bash
-uv run video-translation-pipeline run --no-name-migration
-```
-
-### Ejecutar con directorios locales explícitos
-
-```bash
-uv run video-translation-pipeline run \
-  --provider local \
-  --source local://storage/input \
-  --target local://storage/output
-```
-
-### Preparar el modelo local de traducción
-
-```bash
-uv run python scripts/manage_local_translation.py status
-uv run python scripts/manage_local_translation.py download
-```
-
-### Consultar la ayuda completa de la aplicación
+## Otros entry points
 
 ```bash
 uv run video-translation-pipeline --help
+uv run video-translation-regenerate --help
+uv run video-subtitle-qa --help
+uv run video-translation-tts --help
+uv run video-translation-desktop
 ```
-
-Para documentar una opción nueva, primero debe incorporarse a la ayuda del parser y después a este documento. No se mantienen manualmente dos contratos de argumentos.
 
 ## Códigos de salida
 
-`run` devuelve `0` cuando termina correctamente, `2` para finalización parcial, `1` para errores de procesamiento y `3` cuando no se cumplen las comprobaciones de preparación. Regeneración devuelve `0` al completarse y `3` si no se cumplen las comprobaciones de preparación; los errores de sintaxis o de contrato de proveedor producen un código distinto de cero.
+`run` devuelve `0` al completar correctamente, `2` ante finalización parcial, `1` ante errores de procesamiento y `3` cuando no se cumplen comprobaciones de preparación. Regeneración devuelve `0` al completar y `3` ante una preparación insuficiente; los errores de sintaxis y de contrato de proveedor producen un código distinto de cero.
+
+## Regla de mantenimiento
+
+Cuando se añada un comando público, primero debe existir en el parser y aparecer correctamente en `--help`; después se documenta aquí con finalidad, efectos y restricciones. No se traducen nombres técnicos, comandos, flags, rutas, APIs, formatos, clases, funciones ni nombres de modelos.
 
 ## Documentación relacionada
 
-- [`README.md`](../README.md): visión general y comienzo rápido.
-- [`PROJECT.md`](PROJECT.md): alcance y arquitectura del proyecto.
-- [`DESKTOP.md`](DESKTOP.md): aplicación de escritorio y empaquetado.
-- [`INSTALLATION.md`](INSTALLATION.md): instalación y preparación.
-- [`CONFIGURATION.md`](CONFIGURATION.md): configuración.
-- [`REGENERATION.md`](REGENERATION.md): regeneración completa.
-- [`STORAGE.md`](STORAGE.md): almacenamiento y proveedores.
-- [`SCHEDULING.md`](SCHEDULING.md): ejecución programada.
-- [`TESTING.md`](TESTING.md): estrategia de pruebas.
-- [`CI_CD.md`](CI_CD.md): integración y publicación continua.
+- [`README.md`](../README.md)
+- [`PROJECT.md`](PROJECT.md)
+- [`DESKTOP.md`](DESKTOP.md)
+- [`INSTALLATION.md`](INSTALLATION.md)
+- [`CONFIGURATION.md`](CONFIGURATION.md)
+- [`REGENERATION.md`](REGENERATION.md)
+- [`STORAGE.md`](STORAGE.md)
+- [`SCHEDULING.md`](SCHEDULING.md)
+- [`TESTING.md`](TESTING.md)
+- [`CI_CD.md`](CI_CD.md)
