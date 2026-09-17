@@ -1,9 +1,11 @@
 # Dependencias específicas del build Windows x86 (32 bits).
-# El build x86 utiliza una ruta runtime separada porque la pila principal de
-# STT/traducción contiene dependencias binarias que no forman parte de este
-# conjunto Win32. La wheel x86 de Vosk aporta el motor STT compatible.
+# El STT utiliza Vosk porque la pila faster-whisper/CTranslate2 no forma parte
+# del runtime Win32. TTS conserva Kokoro mediante ruedas Win32 disponibles.
 vosk==0.3.42
 imageio-ffmpeg==0.6.0
 webvtt-py==0.5.1
 python-dotenv==1.2.3
 pyinstaller==6.22.2
+numpy==2.3.2
+onnxruntime==1.20.1
+kokoro-onnx==0.6.1
