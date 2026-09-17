@@ -11,7 +11,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from config.settings import BASE_DIR
+from config.settings import MANAGED_TOOLS_DIR
 from src.hardware import detect_hardware
 
 logger = logging.getLogger(__name__)
@@ -156,7 +156,7 @@ class LocalTranslationModelManager:
         elif configured:
             self.model_dir = Path(configured)
         else:
-            self.model_dir = BASE_DIR / "tools" / "models" / "translation" / self.model_name
+            self.model_dir = MANAGED_TOOLS_DIR / "models" / "translation" / self.model_name
 
     @property
     def download_dir(self) -> Path:
