@@ -715,7 +715,6 @@ class DesktopApp:
         self._append("Instalando el modelo local de traducción.\n")
         self._launch(lambda _report, _cancel: self._install_local_translation_model())
 
-    @staticmethod
     def _install_local_translation_model(self) -> dict[str, object]:
         from src.local_translation import LocalTranslationModelManager
 
