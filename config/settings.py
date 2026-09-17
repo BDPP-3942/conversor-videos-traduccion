@@ -326,6 +326,6 @@ def local_storage_paths() -> dict[str, Path]:
 
 
 def ensure_directories() -> None:
-    for path in local_storage_paths().values():
-        path.mkdir(parents=True, exist_ok=True)
-    (SECRETS_DIR / "google").mkdir(parents=True, exist_ok=True)
+    # Evita poblar AppData con directorios que todavía no se necesitan.
+    for key in ("input", "output"):
+        local_storage_paths()[key].mkdir(parents=True, exist_ok=True)
