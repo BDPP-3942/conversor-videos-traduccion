@@ -34,10 +34,15 @@ jobs:
             format: windows-msi
             arch: x64
             python: "3.13"
-          - os: macos-latest
-            artifact: macos-app
+          - os: macos-26-intel
+            artifact: macos-app-intel
             format: native
             arch: x64
+            python: "3.13"
+          - os: macos-26
+            artifact: macos-app-arm64
+            format: native
+            arch: arm64
             python: "3.13"
     runs-on: ${{ matrix.os }}
     steps:
@@ -96,7 +101,7 @@ jobs:
       - name: Archive macOS app
         if: runner.os == 'macOS'
         shell: bash
-        run: ditto -c -k --sequesterRsrc --keepParent dist/VideoTranslationPipeline.app "dist/VideoTranslationPipeline-${{ steps.version.outputs.version }}-macos.app.zip"
+        run: ditto -c -k --sequesterRsrc --keepParent dist/VideoTranslationPipeline.app "dist/VideoTranslationPipeline-${{ steps.version.outputs.version }}-${{ matrix.artifact }}.app.zip"
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
@@ -132,7 +137,7 @@ jobs:
       - name: Validate x86 interpreter and dependencies
         shell: pwsh
         run: |
-          python -c "import struct, sys, vosk; assert struct.calcsize('P') * 8 == 32; print(sys.version)"
+          python -c "import struct, sys, vosk, numpy, onnxruntime, kokoro_onnx; assert struct.calcsize('P') * 8 == 32; print(sys.version)"
           python -m compileall src config main.py
       - name: Resolve release version
         id: version
