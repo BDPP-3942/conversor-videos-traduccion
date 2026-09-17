@@ -36,7 +36,14 @@
           Description="Aplicación de escritorio para Video Translation Pipeline"
           Target="[INSTALLFOLDER]VideoTranslationPipeline.exe"
           WorkingDirectory="INSTALLFOLDER" />
+      <Shortcut
+          Id="UninstallProduct"
+          Name="Desinstalar Video Translation Pipeline"
+          Description="Desinstala Video Translation Pipeline y conserva los datos del usuario"
+          Target="[SystemFolder]msiexec.exe"
+          Arguments="/x [ProductCode]" />
       <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
+      <!-- Windows Installer necesita este valor como KeyPath para el componente de accesos directos no anunciados. -->
       <RegistryValue Root="HKCU" Key="Software\BDPP-3942\VideoTranslationPipeline" Name="installed" Type="integer" Value="1" KeyPath="yes" />
     </Component>
   </Fragment>
