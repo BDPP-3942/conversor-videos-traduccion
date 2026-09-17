@@ -140,6 +140,9 @@ def main() -> int:
     result = _build_pyinstaller()
     if result != 0:
         return result
+    uninstall_script = ROOT / "installer" / "Uninstall-VideoTranslationPipeline.ps1"
+    if uninstall_script.is_file() and (DIST / APP_NAME).is_dir():
+        shutil.copy2(uninstall_script, DIST / APP_NAME / uninstall_script.name)
     if args.format == "windows-msi":
         windows_arch = args.windows_arch or _windows_python_architecture()
         return _build_msi(args.version, windows_arch)
