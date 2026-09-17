@@ -30,18 +30,10 @@ def test_ensure_runtime_storage_creates_all_writable_directories(monkeypatch, tm
 
     paths = runtime_paths.ensure_runtime_storage()
 
-    for key in (
-        "input",
-        "output",
-        "work",
-        "failures",
-        "archive",
-        "archive_sources",
-        "logs",
-        "state",
-        "manifests",
-    ):
-        assert paths[key].is_dir(), key
+    assert paths["input"].is_dir()
+    assert paths["output"].is_dir()
+    for key in ("work", "failures", "archive", "archive_sources", "logs", "state", "manifests"):
+        assert not paths[key].exists(), key
 
 
 def test_resolve_project_path_redirects_writable_frozen_paths(monkeypatch, tmp_path):
