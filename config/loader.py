@@ -86,7 +86,7 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
                 processing.get("translation_provider_max_parallel_requests", 0)
             ),
             local_translation_model=str(processing.get("local_translation_model", "madlad400-3b-ct2-int8")),
-            local_translation_model_dir=Path(
+            local_translation_model_dir=resolve_project_path(
                 str(processing.get("local_translation_model_dir", "tools/models/translation/madlad400-3b-ct2-int8"))
             ),
             local_translation_model_id=str(processing.get("local_translation_model_id", "cstr/madlad400-3b-ct2-int8")),
@@ -133,8 +133,8 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             tts_required=bool(tts.get("required", False)),
             tts_provider=str(tts.get("provider", "kokoro")),
             tts_voice=str(tts.get("voice", "am_michael")),
-            tts_model_path=Path(str(tts.get("model_path", "tools/tts/kokoro-v1.0.onnx"))),
-            tts_voices_path=Path(str(tts.get("voices_path", "tools/tts/voices-v1.0.bin"))),
+            tts_model_path=resolve_project_path(str(tts.get("model_path", "tools/tts/kokoro-v1.0.onnx"))),
+            tts_voices_path=resolve_project_path(str(tts.get("voices_path", "tools/tts/voices-v1.0.bin"))),
             tts_speed=float(tts.get("speed", 1.0)),
             tts_max_speed=float(tts.get("max_speed", 1.35)),
             tts_duration_tolerance=float(tts.get("duration_tolerance", 0.02)),
@@ -142,15 +142,15 @@ def load_settings(config_path: Path | None = None) -> AppSettings:
             tts_audio_bitrate=str(tts.get("audio_bitrate", "192k")),
             tts_webm_audio_bitrate=str(tts.get("webm_audio_bitrate", "192k")),
             tts_generate_webm=bool(tts.get("generate_webm", False)),
-            google_credentials_file=Path(
+            google_credentials_file=resolve_project_path(
                 str(google.get("credentials_file", "secrets/providers/google/default/credentials.json"))
             ),
-            google_token_file=Path(str(google.get("token_file", "secrets/providers/google/default/token.json"))),
-            rclone_config_file=Path(str(rclone.get("config_file", "secrets/rclone/rclone.conf"))),
-            rclone_binary_file=Path(str(rclone.get("binary_file", "tools/rclone/rclone"))),
+            google_token_file=resolve_project_path(str(google.get("token_file", "secrets/providers/google/default/token.json"))),
+            rclone_config_file=resolve_project_path(str(rclone.get("config_file", "secrets/rclone/rclone.conf"))),
+            rclone_binary_file=resolve_project_path(str(rclone.get("binary_file", "tools/rclone/rclone"))),
             rclone_remote=str(rclone.get("remote", "remote_drive")),
-            provider_profile_dir=Path(str(providers.get("profile_dir", "secrets/providers"))),
-            run_lock_file=Path(str(runtime_cfg.get("run_lock_file", "storage/state/run.lock"))),
+            provider_profile_dir=resolve_project_path(str(providers.get("profile_dir", "secrets/providers"))),
+            run_lock_file=resolve_project_path(str(runtime_cfg.get("run_lock_file", "storage/state/run.lock"))),
             auto_bootstrap_rclone=bool(runtime_cfg.get("auto_bootstrap_rclone", True)),
             auto_update_rclone=bool(runtime_cfg.get("auto_update_rclone", False)),
             auto_tune_resources=bool(runtime_cfg.get("auto_tune_resources", True)),
