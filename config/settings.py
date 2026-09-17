@@ -13,9 +13,16 @@ def _resolve_base_dir() -> Path:
 
 
 BASE_DIR = _resolve_base_dir()
+APP_NAME = "VideoTranslationPipeline"
+if getattr(sys, "frozen", False):
+    _user_data_parent = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
+    USER_DATA_DIR = _user_data_parent / APP_NAME
+else:
+    USER_DATA_DIR = BASE_DIR
 CONFIG_DIR = BASE_DIR / "config"
-SECRETS_DIR = BASE_DIR / "secrets"
-STORAGE_DIR = BASE_DIR / "storage"
+SECRETS_DIR = USER_DATA_DIR / "secrets"
+STORAGE_DIR = USER_DATA_DIR / "storage"
+MANAGED_TOOLS_DIR = USER_DATA_DIR / "tools"
 
 
 @dataclass(frozen=True)
@@ -54,7 +61,7 @@ class AppSettings:
     translation_max_parallel_requests: int = 2
     translation_provider_max_parallel_requests: int = 0
     local_translation_model: str = "madlad400-3b-ct2-int8"
-    local_translation_model_dir: Path = BASE_DIR / "tools" / "models" / "translation" / "madlad400-3b-ct2-int8"
+    local_translation_model_dir: Path = MANAGED_TOOLS_DIR / "models" / "translation" / "madlad400-3b-ct2-int8"
     local_translation_model_id: str = "cstr/madlad400-3b-ct2-int8"
     local_translation_model_revision: str = "fd0b55729c074372eb84b52b9309a00dc65c40c4"
     local_translation_device: str = "auto"
@@ -97,8 +104,8 @@ class AppSettings:
     tts_required: bool = False
     tts_provider: str = "kokoro"
     tts_voice: str = "am_michael"
-    tts_model_path: Path = BASE_DIR / "tools" / "tts" / "kokoro-v1.0.onnx"
-    tts_voices_path: Path = BASE_DIR / "tools" / "tts" / "voices-v1.0.bin"
+    tts_model_path: Path = MANAGED_TOOLS_DIR / "tts" / "kokoro-v1.0.onnx"
+    tts_voices_path: Path = MANAGED_TOOLS_DIR / "tts" / "voices-v1.0.bin"
     tts_speed: float = 1.0
     tts_max_speed: float = 1.35
     tts_duration_tolerance: float = 0.02
@@ -110,7 +117,7 @@ class AppSettings:
     google_token_file: Path = SECRETS_DIR / "providers" / "google" / "default" / "token.json"
     google_profile: str = "default"
     rclone_config_file: Path = SECRETS_DIR / "rclone" / "rclone.conf"
-    rclone_binary_file: Path = BASE_DIR / "tools" / "rclone" / "rclone"
+    rclone_binary_file: Path = MANAGED_TOOLS_DIR / "rclone" / "rclone"
     rclone_remote: str = "remote_drive"
     provider_profile_dir: Path = SECRETS_DIR / "providers"
     run_lock_file: Path = STORAGE_DIR / "state" / "run.lock"
@@ -295,6 +302,12 @@ def resolve_project_path(value: str | Path) -> Path:
     path = Path(value).expanduser()
     if path.is_absolute():
         return path.resolve()
+    if getattr(sys, "frozen", False):
+        parts = path.parts
+        if parts and parts[0] in {"storage", "secrets"}:
+            return (USER_DATA_DIR / path).resolve()
+        if len(parts) >= 2 and parts[0] == "tools" and parts[1] in {"models", "tts", "rclone", "cuda"}:
+            return (USER_DATA_DIR / path).resolve()
     return (BASE_DIR / path).resolve()
 
 
