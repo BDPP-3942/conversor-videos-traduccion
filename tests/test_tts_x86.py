@@ -13,7 +13,6 @@ from src.tts_pipeline import WindowsSAPIProvider, create_tts_provider
 def test_windows_x86_uses_sapi_provider(monkeypatch) -> None:
     monkeypatch.setattr(sys, "platform", "win32")
     monkeypatch.setattr("src.tts_pipeline.platform.system", lambda: "Windows")
-    monkeypatch.setattr("src.tts_pipeline.__import__", lambda name: __import__(name))
     monkeypatch.setattr("struct.calcsize", lambda _: 4)
     provider = create_tts_provider(SimpleNamespace(tts_provider="kokoro"))
     assert isinstance(provider, WindowsSAPIProvider)
