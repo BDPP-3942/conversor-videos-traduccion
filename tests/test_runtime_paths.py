@@ -48,6 +48,7 @@ def test_managed_relative_paths_resolve_to_private_user_data(monkeypatch, tmp_pa
     import config.settings as settings
 
     monkeypatch.setattr(settings, "BASE_DIR", tmp_path / "install")
+    monkeypatch.setattr(settings, "user_data_root", lambda: tmp_path / "user-data")
     monkeypatch.setattr(settings, "STORAGE_DIR", tmp_path / "user-data")
     monkeypatch.setattr(settings, "SECRETS_DIR", tmp_path / "user-data" / "secrets")
     monkeypatch.setattr(settings, "MANAGED_TOOLS_DIR", tmp_path / "user-data" / "tools")
