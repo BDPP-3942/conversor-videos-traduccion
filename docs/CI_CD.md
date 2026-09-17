@@ -104,3 +104,8 @@ uv run python scripts/build_desktop.py --clean --version 1.10.0 --format linux-a
 ```
 
 El build Windows requiere Windows y WiX; el build Linux requiere Linux y `appimagetool`. La firma/notarización de macOS y firma de editor de Windows son operaciones de publicación y requieren credenciales específicas.
+
+
+### Artefactos x86
+
+El job de escritorio Windows x86 publica únicamente el ejecutable y el MSI necesarios para la aplicación. La wheel Win32 puede utilizarse internamente para validaciones o empaquetado de Python, pero no se publica como artefacto visible del job de desktop/release.
