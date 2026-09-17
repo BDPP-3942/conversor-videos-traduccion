@@ -168,10 +168,11 @@ class ZipExtractor:
         """Crea un nombre de raíz de extracción portable a partir del nombre del ZIP."""
         normalized = unicodedata.normalize("NFC", name)
         invalid = '<>:"/\\|?*'
-        sanitized = "".join(
-            "_" if char in invalid or unicodedata.category(char) == "Cc" else char
-            for char in normalized
-        )
+
+        def sanitize_char(char: str) -> str:
+            return "_" if char in invalid or unicodedata.category(char) == "Cc" else char
+
+        sanitized = "".join(sanitize_char(char) for char in normalized)
         sanitized = sanitized.rstrip(" .")
         if ZipExtractor._is_windows_reserved_component(sanitized):
             sanitized = f"_{sanitized}"
