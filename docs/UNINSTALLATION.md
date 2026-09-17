@@ -64,3 +64,17 @@ La limpieza de recursos es deliberada y no debe ejecutarse mientras exista una e
 ## Release 1.8.0
 
 La release publicada `1.8.0` mantiene esta separación entre datos del proyecto y recursos gestionados. La limpieza de modelos locales o del runtime CUDA no elimina artefactos de usuario ni modifica las releases/tags del repositorio.
+
+
+## Aplicación de escritorio Windows
+
+La instalación MSI proporciona dos mecanismos equivalentes para iniciar la desinstalación:
+
+- la entrada de Aplicaciones instaladas de Windows;
+- `uninstall.cmd` dentro de la carpeta de instalación.
+
+El lanzador busca la instalación registrada por Windows Installer y ejecuta `msiexec /x` sobre el producto encontrado. No crea una clave propia en el Registro.
+
+La desinstalación elimina los archivos instalados por el MSI y el acceso directo, pero conserva los datos privados del usuario y los recursos de trabajo. Esto incluye, cuando existan, modelos descargados, credenciales/configuración de proveedores, logs, vídeos de entrada y resultados.
+
+La eliminación de datos de usuario debe hacerse mediante una acción explícita posterior; nunca forma parte de la desinstalación estándar.
