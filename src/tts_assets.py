@@ -4,6 +4,7 @@ import shutil
 import tempfile
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlsplit
 
 MODEL_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx"
 VOICES_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin"
@@ -13,10 +14,6 @@ ALLOWED_HOST = "github.com"
 def _download(url: str, destination: Path) -> None:
     if destination.is_file() and destination.stat().st_size > 0:
         return
-    if urllib.request.url2pathname(urllib.request.urlparse(url).path) == "":
-        raise ValueError("URL de recurso TTS vacía")
-    from urllib.parse import urlsplit
-
     parsed = urlsplit(url)
     if parsed.scheme != "https" or parsed.hostname != ALLOWED_HOST:
         raise ValueError(f"Se rechaza la descarga TTS desde una URL no fiable: {url}")
