@@ -29,6 +29,7 @@ def install() -> None:
     """Redirige el estado mutable del ejecutable a ubicaciones del usuario."""
     from config import loader as loader_module
     from config import settings as settings_module
+    from src import runtime_paths
     from src.providers import runtime as runtime_module
 
     user_root = _user_data_root()
@@ -41,6 +42,22 @@ def install() -> None:
     settings_module.STORAGE_DIR = storage_root
     settings_module.SECRETS_DIR = secrets_root
     runtime_module.RUNTIME_FILE = state_root / "runtime.toml"
+
+    def runtime_storage_paths() -> dict[str, Path]:
+        return {
+            "root": user_root,
+            "input": media_root / "input",
+            "output": media_root / "output",
+            "work": storage_root / "work",
+            "failures": storage_root / "failures",
+            "archive": storage_root / "archive",
+            "archive_sources": storage_root / "archive" / "sources",
+            "logs": storage_root / "logs",
+            "state": state_root,
+            "manifests": storage_root / "output" / "_manifests",
+        }
+
+    runtime_paths.runtime_storage_paths = runtime_storage_paths
 
     os.environ.setdefault("SOURCE_URI", f"local://{media_root / 'input'}")
     os.environ.setdefault("TARGET_URI", f"local://{media_root / 'output'}")
