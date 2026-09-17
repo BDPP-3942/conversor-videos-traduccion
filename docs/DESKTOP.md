@@ -81,3 +81,10 @@ También se conservan regeneración, QA de subtítulos, TTS, wrappers desatendid
 - [`TESTING.md`](TESTING.md)
 - [`CI_CD.md`](CI_CD.md)
 - [`RELEASES.md`](RELEASES.md)
+
+
+## Ventanas pequeñas y escalado
+
+Las pestañas de la aplicación utilizan desplazamiento vertical y horizontal cuando el contenido no cabe en el área visible. Esto permite acceder a controles de configuración en ventanas pequeñas y con escalados de pantalla elevados.
+
+La aplicación no debe depender de que la carpeta de instalación sea escribible: los datos de runtime, modelos y recursos gestionados se separan de los binarios instalados.
