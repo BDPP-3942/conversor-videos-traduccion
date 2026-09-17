@@ -42,3 +42,17 @@ def test_ensure_runtime_storage_creates_all_writable_directories(monkeypatch, tm
         "manifests",
     ):
         assert paths[key].is_dir(), key
+
+
+def test_managed_relative_paths_resolve_to_private_user_data(monkeypatch, tmp_path):
+    import config.settings as settings
+
+    monkeypatch.setattr(settings, "BASE_DIR", tmp_path / "install")
+    monkeypatch.setattr(settings, "STORAGE_DIR", tmp_path / "user-data")
+    monkeypatch.setattr(settings, "SECRETS_DIR", tmp_path / "user-data" / "secrets")
+    monkeypatch.setattr(settings, "MANAGED_TOOLS_DIR", tmp_path / "user-data" / "tools")
+
+    assert settings.resolve_project_path("storage/output") == tmp_path / "user-data" / "storage/output"
+    assert settings.resolve_project_path("secrets/providers") == tmp_path / "user-data" / "secrets/providers"
+    assert settings.resolve_project_path("tools/models/translation") == tmp_path / "user-data" / "tools/models/translation"
+    assert settings.resolve_project_path("config/app.toml") == tmp_path / "install/config/app.toml"
