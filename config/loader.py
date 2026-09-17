@@ -5,7 +5,7 @@ import tomllib
 from dataclasses import replace
 from pathlib import Path
 
-from config.settings import BASE_DIR, AppSettings
+from config.settings import BASE_DIR, AppSettings, resolve_project_path
 
 
 def _load_dotenv() -> None:
