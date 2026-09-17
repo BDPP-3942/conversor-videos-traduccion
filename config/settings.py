@@ -15,7 +15,12 @@ def _resolve_base_dir() -> Path:
 BASE_DIR = _resolve_base_dir()
 APP_NAME = "VideoTranslationPipeline"
 if getattr(sys, "frozen", False):
-    _user_data_parent = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
+    if os.name == "nt":
+        _user_data_parent = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
+    elif sys.platform == "darwin":
+        _user_data_parent = Path.home() / "Library" / "Application Support"
+    else:
+        _user_data_parent = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
     USER_DATA_DIR = _user_data_parent / APP_NAME
 else:
     USER_DATA_DIR = BASE_DIR
