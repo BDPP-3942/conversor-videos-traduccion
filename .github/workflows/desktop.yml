@@ -98,7 +98,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.11.9"
           architecture: x86
       - name: Install WiX v6
         shell: pwsh
