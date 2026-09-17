@@ -2,13 +2,24 @@
 
 ## Clasificación
 
-`1.10.0` es la siguiente release **MINOR**. Añade una aplicación de escritorio compatible hacia atrás y una capa de distribución nativa, preservando la CLI, la ejecución programada y los wrappers desatendidos existentes.
+`1.10.0` es la siguiente release **MINOR** respecto de la baseline publicada `v1.9.0`.
 
-La baseline publicada anterior es `v1.8.2`. La documentación histórica de `1.8.x` permanece inmutable; el trabajo histórico de resolución de uv se conserva como contexto y no se reclasifica como parte de esta release.
+La aplicación de escritorio, el empaquetado nativo y la automatización inicial de publicación pertenecen a `v1.9.0`. En `1.10.0` se amplían y endurecen esas capacidades; no se vuelven a contabilizar como funcionalidad nueva de producto.
 
-## Aplicación de escritorio
+## Cambios de producto
 
-La release añade el punto de entrada `video-translation-desktop`, implementado como capa de presentación sobre el pipeline existente y no como un segundo motor de procesamiento.
+- Reparación conservadora de nombres Unicode al extraer ZIP, diferenciando UTF-8 mal decodificado de nombres CP437 legítimos.
+- Normalización NFC y detección de colisiones de filesystem.
+- Endurecimiento de traversal, rutas absolutas/UNC, symlinks y nombres reservados.
+- Separación de `input`/`output` visibles y estado privado de la aplicación.
+- Ampliación de la GUI existente para configuración de Whisper, FFmpeg, traducción local, TTS, contexto, recuperación, duplicados y diagnóstico.
+- Motor Vosk específico para el build Windows x86/32 bits, manteniendo `faster-whisper` en arquitecturas compatibles.
+- Alineación de la documentación CLI con los parsers y `--help` reales.
+- Conservación de CLI, ejecución programada/headless, wrappers, regeneración, subtitle-QA y TTS.
+
+## Contexto de la aplicación de escritorio
+
+`video-translation-desktop` sigue siendo una capa de presentación sobre el pipeline existente y no un segundo motor de procesamiento.
 
 La GUI proporciona:
 
@@ -34,13 +45,16 @@ La cancelación se basa deliberadamente en límites seguros: un proceso nativo d
 
 ## Empaquetado nativo
 
-La release produce artefactos de escritorio nativos mediante PyInstaller y herramientas específicas de cada plataforma:
+La matriz de publicación validada es:
 
-- **Windows:** ejecutable GUI PyInstaller más MSI WiX 6.
-- **macOS:** bundle `.app` de PyInstaller distribuido en ZIP.
-- **Linux:** ejecutable PyInstaller dentro de AppDir (`AppRun`, metadata `.desktop` e icono SVG), empaquetado como AppImage x86_64.
+- **Windows x64:** ejecutable GUI PyInstaller más MSI WiX 6.
+- **Windows x86/32 bits:** ejecutable GUI, MSI y wheel `win32`, construidos con Python x86 y `Vosk`.
+- **macOS x64:** bundle `.app` de PyInstaller distribuido en ZIP.
+- **Linux x86_64:** ejecutable PyInstaller dentro de AppDir, empaquetado como AppImage.
 
-La build Windows x64 debe instalarse en el `Program Files` nativo y no en `Program Files (x86)`. Un ejecutable x64 no se presenta como compatible con Windows x86; una variante x86 solo es válida si se construye y valida realmente con Python x86 y dependencias compatibles.
+No se anuncia soporte 32-bit para macOS o Linux en `1.10.0`: la cadena actual de Python y las dependencias binarias no permite construir y validar de forma reproducible esos artefactos. Un artefacto de una arquitectura solo se considera soportado cuando la CI lo construye y valida realmente.
+
+La build Windows x64 se instala en el `Program Files` nativo y no en `Program Files (x86)`. Un ejecutable x64 no se presenta como compatible con Windows x86.
 
 ## Automatización de release
 
@@ -49,12 +63,11 @@ Un tag `vX.Y.Z` inicia automáticamente [`.github/workflows/release.yml`](.githu
 1. comprueba el tag exacto;
 2. valida `uv.lock` y prepara el entorno bloqueado;
 3. construye los artefactos Linux, Windows y macOS en runners nativos;
-4. valida el ejecutable y paquete esperado en cada plataforma;
-5. archiva el `.app` de macOS como ZIP;
-6. sube los artefactos al workflow;
-7. crea la GitHub Release si es necesario y adjunta los binarios.
-
-GitHub continúa proporcionando los archivos fuente asociados al tag. Los artefactos nativos se adjuntan junto a ellos, eliminando la necesidad de builds locales y subidas manuales.
+4. construye además Windows x86 con Python 3.11.9 de 32 bits;
+5. valida los ejecutables y paquetes esperados;
+6. archiva los bundles portables correspondientes;
+7. sube los artefactos al workflow;
+8. crea o actualiza la GitHub Release y adjunta los binarios.
 
 ## Consistencia de versión y lockfile
 
@@ -77,12 +90,14 @@ La documentación operativa y los comentarios/docstrings introducidos o modifica
 
 Las descripciones `description=` y `help=` de todos los parsers CLI deben estar en español. [`docs/CLI.md`](docs/CLI.md) debe recoger todos los casos de uso públicos y mantenerse sincronizado con la salida real de `--help`.
 
-Cuando un documento mencione otro documento del repositorio, debe enlazarlo mediante Markdown relativo. Estas reglas viven en los propios documentos canónicos y no requieren un `INDEX.md` auxiliar.
+Las comprobaciones técnicas mantienen sus nombres reales: `Ruff lint`, `Ruff security`, `Ruff format`, `uv lock --check`, `uv sync --locked`, `uv pip check` y `pip-audit`.
+
+Cuando un documento mencione otro documento del repositorio, debe enlazarlo mediante Markdown relativo. No se necesita un `INDEX.md` auxiliar para esa función.
 
 ## CI y Release Gate
 
-La matriz Linux/Windows/macOS con Python 3.11–3.13 sigue siendo obligatoria. El empaquetado de escritorio añade validación nativa en las tres plataformas. El SHA final debe superar tests, lint/formato, compilación, lockfile, empaquetado y Release Gate antes de considerarse publicable.
+La matriz Linux/Windows/macOS con Python 3.11–3.13 sigue siendo obligatoria. El empaquetado de escritorio añade validación nativa en las tres plataformas y Windows x86. El SHA final debe superar tests, lint/formato, compilación, lockfile, auditoría de dependencias, empaquetado y Release Gate antes de considerarse publicable.
 
-Las pruebas funcionales y de rendimiento del pipeline y de la aplicación de escritorio son requisitos previos adicionales a la publicación.
+Las pruebas funcionales de la aplicación de escritorio se validan mediante sus builds nativos y smoke tests de artefactos. TTS se audita mediante su entorno de dependencias y pruebas del pipeline; no se declara soporte para una arquitectura cuyo runtime TTS no pueda instalarse y ejecutarse.
 
-La versión móvil queda explícitamente fuera del alcance de `1.10.0`.
+La versión móvil queda fuera del alcance de `1.10.0`.
