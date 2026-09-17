@@ -152,7 +152,7 @@ class LocalTranslationModelManager:
         self.definition = _definition(self.model_name)
         configured = os.getenv("LOCAL_TRANSLATION_MODEL_DIR", "").strip()
         if model_dir is not None:
-            self.model_dir = Path(model_dir)
+            self.model_dir = resolve_project_path(model_dir)
         elif configured:
             self.model_dir = resolve_project_path(configured)
         else:
