@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import threading
 import tkinter as tk
 import webbrowser
@@ -119,6 +120,7 @@ class DesktopApp:
             "Recuperación de subtítulos",
             "Duplicados",
             "Diagnóstico",
+            "Credenciales",
             "CLI y programación",
         ):
             frame = ScrollableFrame(notebook)
@@ -128,6 +130,7 @@ class DesktopApp:
         self._build_recovery(tabs["Recuperación de subtítulos"])
         self._build_duplicates(tabs["Duplicados"])
         self._build_diagnostics(tabs["Diagnóstico"])
+        self._build_credentials(tabs["Credenciales"])
         self._build_scheduling(tabs["CLI y programación"])
 
         status_bar = ttk.Frame(container)
@@ -392,6 +395,68 @@ class DesktopApp:
         ).pack(side="left", padx=8)
         ttk.Button(buttons, text="Abrir datos privados", command=self.open_runtime_folder).pack(side="left")
 
+    def _build_credentials(self, parent: ttk.Frame) -> None:
+        ttk.Label(
+            parent,
+            text=(
+                "Las credenciales introducidas aquí solo se aplican durante la operación iniciada desde esta GUI. "
+                "No se guardan en la configuración ni se escriben en los logs."
+            ),
+            wraplength=820,
+        ).pack(anchor="w", pady=(0, 12))
+
+        form = ttk.LabelFrame(parent, text="Credenciales de proveedores", padding=10)
+        form.pack(fill="x")
+        self.credential_vars: dict[str, tk.StringVar] = {}
+        fields = (
+            ("MISTRAL_API_KEY", "Token Mistral"),
+            ("DEEPL_API_KEY", "Token DeepL"),
+            ("MICROSOFT_TRANSLATOR_API_KEY", "Token Microsoft Translator"),
+            ("MICROSOFT_TRANSLATOR_REGION", "Región Microsoft Translator"),
+            ("GOOGLE_TRANSLATE_API_KEY", "Token Google Translate"),
+            ("MYMEMORY_EMAIL", "Correo MyMemory"),
+            ("LOCAL_TRANSLATION_HF_TOKEN", "Token Hugging Face (modelo local)"),
+        )
+        for row, (name, label) in enumerate(fields):
+            variable = tk.StringVar()
+            self.credential_vars[name] = variable
+            ttk.Label(form, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
+            show = name.endswith("_REGION") or name == "MYMEMORY_EMAIL"
+            ttk.Entry(
+                form,
+                textvariable=variable,
+                width=52,
+                show="" if show else "•",
+            ).grid(row=row, column=1, sticky="ew", pady=4)
+        form.columnconfigure(1, weight=1)
+
+        ttk.Label(
+            parent,
+            text=(
+                "Los tokens solo se necesitan para el proveedor correspondiente. "
+                "La descarga de modelos públicos de Hugging Face no debe requerir token salvo que el recurso "
+                "o el entorno exijan autenticación."
+            ),
+            wraplength=820,
+        ).pack(anchor="w", pady=10)
+
+    def _with_credentials(self, task):
+        previous = {}
+        for name, variable in getattr(self, "credential_vars", {}).items():
+            value = variable.get().strip()
+            if value:
+                previous[name] = os.environ.get(name)
+                os.environ[name] = value
+        try:
+            return task()
+        finally:
+            for name in previous:
+                old = previous[name]
+                if old is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = old
+
     def _build_scheduling(self, parent: ttk.Frame) -> None:
         text = (
             "La GUI es interactiva; la CLI sigue siendo el contrato de automatización desatendida.\n\n"
@@ -548,10 +613,12 @@ class DesktopApp:
                 return
         self._append("Iniciando la traducción en segundo plano.\n")
         self._launch(
-            lambda report, cancel: VideoTranslationApplication().run(
-                progress=report,
-                cancel_event=cancel,
-                **options,
+            lambda report, cancel: self._with_credentials(
+                lambda: VideoTranslationApplication().run(
+                    progress=report,
+                    cancel_event=cancel,
+                    **options,
+                )
             )
         )
 
@@ -649,12 +716,15 @@ class DesktopApp:
         self._launch(lambda _report, _cancel: self._install_local_translation_model())
 
     @staticmethod
-    def _install_local_translation_model() -> dict[str, object]:
+    def _install_local_translation_model(self) -> dict[str, object]:
         from src.local_translation import LocalTranslationModelManager
 
-        manager = LocalTranslationModelManager()
-        path = manager.ensure(confirm=lambda status: True)
-        return {"status": "success", "model": manager.model_name, "path": str(path)}
+        def install():
+            manager = LocalTranslationModelManager()
+            path = manager.ensure(confirm=lambda status: True)
+            return {"status": "success", "model": manager.model_name, "path": str(path)}
+
+        return self._with_credentials(install)
 
     def open_runtime_folder(self) -> None:
         path = self.runtime["root"].resolve()
