@@ -11,7 +11,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from config.settings import MANAGED_TOOLS_DIR, resolve_project_path
+from config.settings import BASE_DIR, USER_DATA_DIR
 from src.hardware import detect_hardware
 
 logger = logging.getLogger(__name__)
@@ -152,11 +152,12 @@ class LocalTranslationModelManager:
         self.definition = _definition(self.model_name)
         configured = os.getenv("LOCAL_TRANSLATION_MODEL_DIR", "").strip()
         if model_dir is not None:
-            self.model_dir = resolve_project_path(model_dir)
+            self.model_dir = Path(model_dir)
         elif configured:
-            self.model_dir = resolve_project_path(configured)
+            self.model_dir = Path(configured)
         else:
-            self.model_dir = MANAGED_TOOLS_DIR / "models" / "translation" / self.model_name
+            root = USER_DATA_DIR if getattr(__import__("sys"), "frozen", False) else BASE_DIR
+            self.model_dir = root / "tools" / "models" / "translation" / self.model_name
 
     @property
     def download_dir(self) -> Path:

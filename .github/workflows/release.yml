@@ -34,7 +34,7 @@ jobs:
             format: windows-msi
             arch: x64
             python: "3.13"
-          - os: macos-latest
+          - os: macos-15-intel
             artifact: macos-app
             format: native
             arch: x64
@@ -143,11 +143,11 @@ jobs:
       - name: Build x86 desktop package
         shell: pwsh
         run: python scripts/build_desktop.py --clean --version "${{ steps.version.outputs.version }}" --format windows-msi --windows-arch x86
-      - name: Validate x86 executable y MSI
+      - name: Validate x86 executable, MSI and wheel
         shell: pwsh
         run: |
-          if (-not (Test-Path 'dist\\VideoTranslationPipeline\\VideoTranslationPipeline.exe')) { throw 'Falta el ejecutable de Windows x86' }
-          if (-not (Test-Path "dist\\VideoTranslationPipeline-${{ steps.version.outputs.version }}-windows-x86.msi")) { throw 'Falta el MSI de Windows x86' }
+          if (-not (Test-Path 'dist\VideoTranslationPipeline\VideoTranslationPipeline.exe')) { throw 'Falta el ejecutable de Windows x86' }
+          if (-not (Test-Path "dist\VideoTranslationPipeline-${{ steps.version.outputs.version }}-windows-x86.msi")) { throw 'Falta el MSI de Windows x86' }
       - name: Archive Windows x86 portable executable
         shell: pwsh
         run: Compress-Archive -Path 'dist\VideoTranslationPipeline\*' -DestinationPath "dist\VideoTranslationPipeline-${{ steps.version.outputs.version }}-windows-x86-portable.zip" -Force

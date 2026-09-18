@@ -137,3 +137,8 @@ La licencia de `kokoro-onnx` o de cualquier otra librería no determina por sí 
 - La generación local requiere instalar `[tts]` y disponer de los pesos configurados.
 - La calidad depende del idioma y la voz disponibles.
 - Un fallo TTS puede dejar el resultado tradicional válido pero impedir que el trabajo se marque como completo cuando `TTS_REQUIRED=true`.
+
+
+## Windows x86
+
+En Windows de 32 bits el pipeline no utiliza Kokoro/ONNX Runtime. El proveedor TTS se sustituye automáticamente por SAPI mediante `pyttsx3` y `pywin32`, evitando dependencias binarias que no forman parte del stack Win32 principal. La GUI no necesita descargar los recursos Kokoro en esta arquitectura.
