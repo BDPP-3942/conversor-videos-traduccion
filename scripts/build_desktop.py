@@ -19,7 +19,10 @@ def _run(command: list[str]) -> int:
 
 def _windows_python_architecture() -> str:
     """Devuelve la arquitectura del intérprete Python que genera el ejecutable."""
-    return "x64" if sys.maxsize > 2**32 else "x86"
+    if sys.maxsize <= 2**32:
+        return "x86"
+    machine = platform.machine().lower()
+    return "arm64" if machine in {"arm64", "aarch64"} else "x64"
 
 
 def _build_pyinstaller() -> int:
