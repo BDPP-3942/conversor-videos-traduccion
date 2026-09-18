@@ -83,8 +83,10 @@ También se conservan regeneración, QA de subtítulos, TTS, wrappers desatendid
 - [`RELEASES.md`](RELEASES.md)
 
 
-## Ventanas pequeñas y escalado
+## Desinstalación y datos de usuario
 
-Las pestañas de la aplicación utilizan desplazamiento vertical y horizontal cuando el contenido no cabe en el área visible. Esto permite acceder a controles de configuración en ventanas pequeñas y con escalados de pantalla elevados.
+El instalador MSI mantiene los binarios y recursos de la aplicación separados de los datos escribibles. El estado, las credenciales de proveedor, los modelos descargados y otros recursos gestionados que necesiten escritura se almacenan en la ubicación privada del usuario cuando la aplicación está empaquetada. Las carpetas de entrada y salida permanecen en Documentos.
 
-La aplicación no debe depender de que la carpeta de instalación sea escribible: los datos de runtime, modelos y recursos gestionados se separan de los binarios instalados.
+El instalador incluye `uninstall.cmd` dentro de la carpeta de instalación como acceso directo al desinstalador de Windows Installer. También aparece la entrada normal de Aplicaciones instaladas de Windows. La desinstalación elimina los componentes de la aplicación, pero no elimina automáticamente vídeos, resultados, modelos ni configuración privada del usuario.
+
+La GUI y el núcleo no deben escribir en `Program Files` durante una ejecución normal. Si una ruta configurada explícitamente apunta a una ubicación protegida, esa configuración debe cambiarse a una ubicación con permisos de escritura en lugar de ejecutar la aplicación como administrador.

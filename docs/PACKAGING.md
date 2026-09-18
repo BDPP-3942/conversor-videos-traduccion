@@ -109,3 +109,8 @@ Además, CI construye el artefacto nativo de cada plataforma en su runner corres
 - [`INSTALLATION.md`](INSTALLATION.md): instalación del proyecto.
 - [`CI_CD.md`](CI_CD.md): validación continua y publicación.
 - [`RELEASES.md`](RELEASES.md): histórico y alcance de las releases.
+
+
+### Windows x86 y TTS
+
+La variante Win32 instala el runtime TTS específico de Windows (`pyttsx3` + `pywin32`) y el proveedor SAPI se selecciona automáticamente cuando el intérprete es de 32 bits. No se incluye la wheel de Python como artefacto visible del job de aplicaciones de escritorio.

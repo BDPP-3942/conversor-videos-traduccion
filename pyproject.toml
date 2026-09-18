@@ -30,6 +30,9 @@ dev = [
 ]
 audit = ["pip-audit>=2,<3"]
 
+[tool.uv]
+override-dependencies = ["onnxruntime==1.23.2"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]

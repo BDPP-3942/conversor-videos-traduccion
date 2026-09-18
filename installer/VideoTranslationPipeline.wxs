@@ -29,7 +29,8 @@
   </Fragment>
 
   <Fragment>
-    <Component Id="ApplicationShortcuts" Directory="ApplicationProgramsFolder" Guid="*">
+    <Component Id="ApplicationShortcuts" Directory="ApplicationProgramsFolder"
+              Guid="6B2F8B3C-5A8D-4D0E-9F7B-2C6A1E4D8B90">
       <Shortcut
           Id="ApplicationStartMenuShortcut"
           Name="Video Translation Pipeline"

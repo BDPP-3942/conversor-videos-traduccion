@@ -11,13 +11,13 @@ import threading
 from dataclasses import dataclass
 from pathlib import Path
 
-from config.settings import BASE_DIR
+from config.settings import MANAGED_TOOLS_DIR
 
 CUDA_MAJOR = 12
 CUDNN_MAJOR = 9
 CUBLAS_SPEC = "nvidia-cublas-cu12>=12,<13"
 CUDNN_SPEC = "nvidia-cudnn-cu12>=9,<10"
-MANAGED_DIR = BASE_DIR / "tools" / "cuda"
+MANAGED_DIR = MANAGED_TOOLS_DIR / "cuda"
 MANAGED_PYTHON_DIR = MANAGED_DIR / "python"
 MANIFEST = MANAGED_DIR / "runtime.json"
 _prompt_lock = threading.Lock()
