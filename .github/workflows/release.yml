@@ -28,16 +28,19 @@ jobs:
             artifact: linux-appimage
             format: linux-appimage
             arch: x64
+            linux_arch: x86_64
             python: "3.13"
           - os: windows-latest
             artifact: windows-msi-x64
             format: windows-msi
             arch: x64
+            linux_arch: x86_64
             python: "3.13"
           - os: macos-15-intel
             artifact: macos-app
             format: native
             arch: x64
+            linux_arch: x86_64
             python: "3.13"
     runs-on: ${{ matrix.os }}
     steps:
@@ -68,13 +71,13 @@ jobs:
         shell: bash
         run: |
           curl -L --fail --silent --show-error \
-            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${{ matrix.linux_arch }}.AppImage \
             -o /tmp/appimagetool
           chmod +x /tmp/appimagetool
           sudo mv /tmp/appimagetool /usr/local/bin/appimagetool
       - name: Build desktop package
         shell: bash
-        run: uv run python scripts/build_desktop.py --clean --version "${{ steps.version.outputs.version }}" --format ${{ matrix.format }} --windows-arch ${{ matrix.arch }}
+        run: uv run python scripts/build_desktop.py --clean --version "${{ steps.version.outputs.version }}" --format ${{ matrix.format }} --windows-arch ${{ matrix.arch }} --linux-arch ${{ matrix.linux_arch }}
       - name: Validate macOS app
         if: runner.os == 'macOS'
         shell: bash
@@ -82,7 +85,7 @@ jobs:
       - name: Validate Linux AppImage
         if: runner.os == 'Linux'
         shell: bash
-        run: test -f "dist/VideoTranslationPipeline-${{ steps.version.outputs.version }}-linux-x86_64.AppImage"
+        run: test -f "dist/VideoTranslationPipeline-${{ steps.version.outputs.version }}-linux-${{ matrix.linux_arch }}.AppImage"
       - name: Validate Windows executable and MSI
         if: runner.os == 'Windows'
         shell: pwsh
@@ -106,6 +109,90 @@ jobs:
             dist/VideoTranslationPipeline-*.msi
             dist/VideoTranslationPipeline-*.app.zip
             dist/VideoTranslationPipeline-*-portable.zip
+          if-no-files-found: error
+
+  build-arm64:
+    name: Build ${{ matrix.artifact }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04-arm
+            artifact: linux-appimage-arm64
+            format: linux-appimage
+            linux_arch: aarch64
+            windows_arch: x64
+            python: "3.13"
+          - os: windows-11-arm
+            artifact: windows-msi-arm64
+            format: windows-msi
+            linux_arch: x86_64
+            windows_arch: arm64
+            python: "3.13"
+          - os: macos-15
+            artifact: macos-app-arm64
+            format: native
+            linux_arch: x86_64
+            windows_arch: x64
+            python: "3.13"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref_name }}
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
+        with:
+          version: latest-known
+          enable-cache: true
+      - run: uv python install ${{ matrix.python }}
+      - run: uv lock --check
+      - run: uv sync --locked --group dev
+      - name: Resolve release version
+        id: version
+        shell: bash
+        run: |
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          version="${tag#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Install WiX v6
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: dotnet tool install --global wix --version 6.0.2
+      - name: Install ARM64 AppImage tooling
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          curl -L --fail --silent --show-error https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-aarch64.AppImage -o /tmp/appimagetool
+          chmod +x /tmp/appimagetool
+          sudo mv /tmp/appimagetool /usr/local/bin/appimagetool
+      - name: Build ARM64 desktop package
+        shell: bash
+        run: uv run python scripts/build_desktop.py --clean --version "${{ steps.version.outputs.version }}" --format ${{ matrix.format }} --windows-arch ${{ matrix.windows_arch }} --linux-arch ${{ matrix.linux_arch }}
+      - name: Archive Windows ARM64 portable executable
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path 'dist\\VideoTranslationPipeline\\*' -DestinationPath "dist\\VideoTranslationPipeline-${{ steps.version.outputs.version }}-windows-arm64-portable.zip" -Force
+      - name: Archive macOS ARM64 app
+        if: runner.os == 'macOS'
+        shell: bash
+        run: ditto -c -k --sequesterRsrc --keepParent dist/VideoTranslationPipeline.app "dist/VideoTranslationPipeline-${{ steps.version.outputs.version }}-macos-arm64.app.zip"
+      - name: Validate ARM64 artifact
+        shell: bash
+        run: |
+          case "${{ matrix.artifact }}" in
+            linux-appimage-arm64) test -f "dist/VideoTranslationPipeline-${{ steps.version.outputs.version }}-linux-aarch64.AppImage" ;;
+            windows-msi-arm64) test -f "dist/VideoTranslationPipeline-${{ steps.version.outputs.version }}-windows-arm64.msi" ;;
+            macos-app-arm64) test -f "dist/VideoTranslationPipeline-${{ steps.version.outputs.version }}-macos-arm64.app.zip" ;;
+          esac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.artifact }}
+          path: |
+            dist/VideoTranslationPipeline-*.AppImage
+            dist/VideoTranslationPipeline-*.msi
+            dist/VideoTranslationPipeline-*-portable.zip
+            dist/VideoTranslationPipeline-*.app.zip
           if-no-files-found: error
 
   build-windows-x86:
