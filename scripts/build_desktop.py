@@ -106,7 +106,15 @@ def _build_appimage(version: str, linux_arch: str | None = None) -> int:
     )
     (app_dir / "VideoTranslationPipeline.desktop").chmod(0o644)
     architecture = linux_arch or platform.machine().lower()
-    architecture = {"amd64": "x86_64", "x86_64": "x86_64", "aarch64": "aarch64", "arm64": "aarch64", "armv7l": "armhf", "armv7": "armhf"}.get(architecture, architecture)
+    architecture_aliases = {
+        "amd64": "x86_64",
+        "x86_64": "x86_64",
+        "aarch64": "aarch64",
+        "arm64": "aarch64",
+        "armv7l": "armhf",
+        "armv7": "armhf",
+    }
+    architecture = architecture_aliases.get(architecture, architecture)
     if architecture not in {"x86_64", "aarch64", "armhf"}:
         print(f"Arquitectura Linux no soportada para AppImage: {architecture}", file=sys.stderr)
         return 2
@@ -143,9 +151,12 @@ def main() -> int:
     )
     parser.add_argument(
         "--windows-arch",
-        choices=["x64", "x86"],
+        choices=["x64", "x86", "arm64"],
         default=None,
-        help="Arquitectura del MSI de Windows; por defecto se utiliza la arquitectura de Python",
+        help=(
+            "Arquitectura del MSI de Windows; por defecto se utiliza "
+            "la arquitectura de Python"
+        ),
     )
     args = parser.parse_args()
     if args.clean:
