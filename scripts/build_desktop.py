@@ -165,10 +165,20 @@ def main() -> int:
     result = _build_pyinstaller()
     if result != 0:
         return result
+
+    uninstall_script = ROOT / "installer" / "uninstall.sh"
+    if args.format == "native" and sys.platform == "darwin":
+        resources_dir = DIST / f"{APP_NAME}.app" / "Contents" / "Resources"
+        resources_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(uninstall_script, resources_dir / "uninstall.sh")
+    elif args.format == "linux-appimage":
+        shutil.copy2(uninstall_script, DIST / APP_NAME / "uninstall.sh")
+    elif args.format == "windows-msi":
+        windows_uninstaller = ROOT / "installer" / "Uninstall-VideoTranslationPipeline.ps1"
+        app_dir = DIST / APP_NAME
+        if windows_uninstaller.is_file() and app_dir.is_dir():
+            shutil.copy2(windows_uninstaller, app_dir / windows_uninstaller.name)
     if args.format == "windows-msi":
-        uninstall_script = ROOT / "installer" / "Uninstall-VideoTranslationPipeline.ps1"
-        if uninstall_script.is_file() and (DIST / APP_NAME).is_dir():
-            shutil.copy2(uninstall_script, DIST / APP_NAME / uninstall_script.name)
         windows_arch = args.windows_arch or _windows_python_architecture()
         return _build_msi(args.version, windows_arch)
     if args.format == "linux-appimage":
