@@ -163,8 +163,12 @@ class DesktopApp:
         self.source = tk.StringVar(value=str(self.runtime["input"]))
         self.target = tk.StringVar(value=str(self.runtime["output"]))
         self._combo_row(paths, 0, "Proveedor", self.provider, ["local", "google_drive", "rclone"])
-        self._path_row(paths, 1, "Carpeta de entrada", self.source)
-        self._path_row(paths, 2, "Carpeta de salida", self.target)
+        self.source_kind = tk.StringVar(value="CARPETA")
+        self._combo_row(paths, 1, "Tipo de entrada", self.source_kind, ["CARPETA", "ARCHIVO", "ZIP", "URL", "CLOUD"])
+        self._path_row(paths, 2, "Entrada", self.source)
+        ttk.Button(paths, text="Archivo de entrada…", command=lambda: self._browse_media_file(self.source)).grid(row=2, column=3, padx=(4, 0))
+        ttk.Button(paths, text="Carpeta…", command=lambda: self._browse(self.source)).grid(row=2, column=4, padx=(4, 0))
+        self._path_row(paths, 3, "Destino", self.target)
         ttk.Label(
             paths,
             text=(
@@ -547,6 +551,18 @@ class DesktopApp:
             variable.set(selected)
 
     @staticmethod
+    def _browse_media_file(variable: tk.StringVar) -> None:
+        selected = filedialog.askopenfilename(
+            initialdir=(str(Path(variable.get()).parent) if variable.get() else str(Path.home())),
+            filetypes=[
+                ("Vídeo y ZIP", "*.mp4 *.mov *.mkv *.avi *.webm *.m4v *.wmv *.zip"),
+                ("Todos los archivos", "*.*"),
+            ],
+        )
+        if selected:
+            variable.set(selected)
+
+    @staticmethod
     def _browse_file(variable: tk.StringVar) -> None:
         selected = filedialog.askopenfilename(
             initialdir=(str(Path(variable.get()).parent) if variable.get() else str(Path.home())),
@@ -563,7 +579,7 @@ class DesktopApp:
         self.cancel.configure(state="normal" if busy else "disabled")
         if busy:
             self.progress["value"] = 0
-        self.status.set("Procesando…" if busy else "Listo")
+        self.status.set("PROCESSING" if busy else "IDLE")
 
     def _launch(self, task) -> None:
         if self.worker and self.worker.thread and self.worker.thread.is_alive():
@@ -606,13 +622,12 @@ class DesktopApp:
             "tts_voice": self.tts_voice.get().strip(),
             "tts_speed": self.tts_speed.get(),
         }
-        if provider == "local":
-            options["source"] = self.source.get().strip()
-            options["target"] = self.target.get().strip()
-            if not options["source"]:
+        options["source"] = self.source.get().strip()
+        options["target"] = self.target.get().strip()
+        if not options["source"]:
                 messagebox.showerror(
                     "Falta la entrada",
-                    "Selecciona una carpeta de entrada antes de ejecutar.",
+                    "Selecciona una carpeta, un archivo, un ZIP o una URL de entrada antes de ejecutar.",
                     parent=self.root,
                 )
                 return
@@ -725,7 +740,11 @@ class DesktopApp:
         import sys
 
         if sys.platform == "win32" and struct.calcsize("P") * 8 == 32:
-            return {"status": "success", "provider": "SAPI", "message": "Windows x86 utiliza el TTS nativo SAPI; no necesita recursos Kokoro."}
+            return {
+                "status": "success",
+                "provider": "SAPI",
+                "message": "Windows x86 utiliza el TTS nativo SAPI; no necesita recursos Kokoro.",
+            }
 
         def install():
             from src.tts_assets import ensure_tts_assets
@@ -788,13 +807,13 @@ class DesktopApp:
             self.progress["value"] = max(0, min(100, percent))
         if stage == "finished":
             self._busy(False)
-            self.status.set("Completado")
+            self.status.set("COMPLETED")
         elif stage == "cancelled":
             self._busy(False)
-            self.status.set("Cancelado")
+            self.status.set("CANCELED")
         elif stage == "error":
             self._busy(False)
-            self.status.set("Error")
+            self.status.set("ERROR")
             messagebox.showerror("Error de procesamiento", message, parent=self.root)
         else:
             completed = event.get("completed")
