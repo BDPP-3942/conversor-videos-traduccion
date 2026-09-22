@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 
@@ -11,16 +12,20 @@ class StorageUri:
 
 
 def parse_storage_uri(value: str) -> StorageUri:
-    parsed = urlparse(value)
-    if parsed.scheme and parsed.scheme != "local":
+    raw_value = str(value).strip()
+    if not raw_value:
+        raise ValueError("Storage URI cannot be empty")
+    if raw_value.startswith("local://"):
+        return StorageUri("local", unquote(raw_value[len("local://") :]))
+
+    parsed = urlparse(raw_value)
+    is_windows_path = len(parsed.scheme) == 1 and len(raw_value) > 2 and raw_value[1] == ":"
+    if parsed.scheme and not is_windows_path:
         scheme = parsed.scheme.lower()
+        if scheme in {"http", "https"}:
+            return StorageUri(scheme, raw_value)
         if scheme not in {"gdrive", "rclone"}:
             raise ValueError(f"Unsupported storage URI scheme: {parsed.scheme}")
         raw = parsed.netloc + parsed.path
         return StorageUri(scheme, unquote(raw).lstrip("/"))
-
-    if value.startswith("local://"):
-        raw = value[len("local://") :]
-        return StorageUri("local", unquote(raw))
-
-    raise ValueError(f"Storage URI must use local://, gdrive:// or rclone:// (received: {value!r})")
+    return StorageUri("local", str(Path(raw_value).expanduser()))

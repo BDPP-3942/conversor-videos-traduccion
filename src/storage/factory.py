@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from config.settings import AppSettings, resolve_project_path
 from src.storage.base import StorageProvider
+from src.storage.uri import parse_storage_uri
+from src.storage.url import URLStorageProvider
 from src.storage.google_drive import GoogleDriveStorageProvider
 from src.storage.rclone import RcloneStorageProvider
 from src.storage.runtime_local import RuntimeLocalStorageProvider
 from src.storage.tts import TTSAwareStorageProvider
 
 
-def create_storage_provider(provider: str, settings: AppSettings) -> StorageProvider:
+def create_storage_provider(provider: str, settings: AppSettings, *, apply_tts: bool = True) -> StorageProvider:
     normalized = provider.lower()
     if normalized == "local":
         storage: StorageProvider = RuntimeLocalStorageProvider(
@@ -29,4 +31,12 @@ def create_storage_provider(provider: str, settings: AppSettings) -> StorageProv
         )
     else:
         raise ValueError(f"Unsupported storage provider: {provider}")
-    return TTSAwareStorageProvider(storage, settings) if settings.tts_enabled else storage
+    return TTSAwareStorageProvider(storage, settings) if settings.tts_enabled and apply_tts else storage
+
+
+def create_storage_for_uri(location: str, settings: AppSettings) -> StorageProvider:
+    parsed = parse_storage_uri(location)
+    if parsed.scheme in {'http', 'https'}:
+        return URLStorageProvider(location)
+    provider = {'local': 'local', 'gdrive': 'google_drive', 'rclone': 'rclone'}[parsed.scheme]
+    return create_storage_provider(provider, settings, apply_tts=False)

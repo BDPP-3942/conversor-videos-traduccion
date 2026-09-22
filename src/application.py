@@ -12,7 +12,10 @@ from config.settings import BASE_DIR, AppSettings, resolve_project_path
 from src.controllable_pipeline import ControllableMediaPipeline, PipelineCancelled
 from src.output_deduplicator import OutputDeduplicator
 from src.reprocessor import SubtitleReprocessor
-from src.storage.factory import create_storage_provider
+from src.storage.bridge import BridgedStorageProvider
+from src.storage.factory import create_storage_for_uri
+from src.storage.tts import TTSAwareStorageProvider
+from src.storage.uri import parse_storage_uri
 
 logger = logging.getLogger(__name__)
 ProgressCallback = Callable[[dict[str, object]], None]
@@ -106,9 +109,9 @@ class VideoTranslationApplication:
         if provider:
             changes["provider"] = provider
         if source:
-            changes["source"] = self._as_local_uri(source)
+            changes["source"] = self._coerce_location(source)
         if target:
-            changes["target"] = self._as_local_uri(target)
+            changes["target"] = self._coerce_location(target)
         if overrides:
             invalid = sorted(set(overrides) - self._RUN_OPTIONS)
             if invalid:
@@ -132,7 +135,24 @@ class VideoTranslationApplication:
             provider=provider,
             overrides=overrides,
         )
-        storage = create_storage_provider(settings.provider, settings)
+        source_uri = parse_storage_uri(settings.source)
+        target_uri = parse_storage_uri(settings.target)
+        if target_uri.scheme in {"http", "https"}:
+            raise ApplicationError("HTTP(S) solo puede utilizarse como fuente, no como destino.")
+        settings = replace(settings, provider={"local": "local", "gdrive": "google_drive", "rclone": "rclone"}[target_uri.scheme])
+        source_storage = create_storage_for_uri(settings.source, settings)
+        target_storage = (
+            source_storage
+            if source_uri.scheme == target_uri.scheme and source_uri.scheme not in {"http", "https"}
+            else create_storage_for_uri(settings.target, settings)
+        )
+        storage = (
+            source_storage
+            if source_storage is target_storage
+            else BridgedStorageProvider(source_storage, target_storage, source_uri.value, target_uri.value)
+        )
+        if settings.tts_enabled and not isinstance(storage, TTSAwareStorageProvider):
+            storage = TTSAwareStorageProvider(storage, settings)
         try:
             pipeline = ControllableMediaPipeline(
                 settings,
@@ -214,9 +234,15 @@ class VideoTranslationApplication:
         raise ApplicationError(f"Unsupported duplicate action: {action}")
 
     @staticmethod
-    def _as_local_uri(value: str) -> str:
-        path = Path(value).expanduser().resolve()
-        return f"local://{path}"
+    def _coerce_location(value: str) -> str:
+        raw = str(value).strip()
+        try:
+            parsed = parse_storage_uri(raw)
+        except ValueError:
+            return f"local://{Path(raw).expanduser().resolve()}"
+        if parsed.scheme == "local":
+            return f"local://{Path(parsed.value).expanduser().resolve()}"
+        return raw
 
     @staticmethod
     def _emit(
