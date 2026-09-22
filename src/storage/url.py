@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import urljoin, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from src.runtime_paths import local_storage_paths
+from src.runtime_paths import runtime_storage_paths
 from src.storage.base import StorageFile, StorageProvider
 
 MAX_REMOTE_DOWNLOAD_BYTES = 10 * 1024**3
@@ -52,7 +52,7 @@ class URLStorageProvider(StorageProvider):
         self.url = url
         self.max_bytes = max(1, int(max_bytes))
         self.timeout = max(1, int(timeout))
-        work = local_storage_paths()['work']
+        work = runtime_storage_paths()['work']
         work.mkdir(parents=True, exist_ok=True)
         self._tempdir = tempfile.TemporaryDirectory(prefix='remote-input-', dir=work)
         self._downloaded: Path | None = None
