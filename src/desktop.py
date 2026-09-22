@@ -595,7 +595,9 @@ class DesktopApp:
             "source_lang": self.source_lang.get().strip(),
             "target_lang": self.target_lang.get().strip(),
             "translation_provider": self.translation.get(),
-            "translation_fallback_providers": tuple(x.strip() for x in self.fallback.get().split(",") if x.strip()),
+            "translation_fallback_providers": tuple(
+                x.strip() for x in self.fallback.get().split(",") if x.strip()
+            ),
             "max_parallel_videos": self.parallel.get(),
             "translation_batch_size": self.batch_size.get(),
             "generate_webm": self.webm.get(),
@@ -622,11 +624,6 @@ class DesktopApp:
             "tts_voice": self.tts_voice.get().strip(),
             "tts_speed": self.tts_speed.get(),
         }
-            "local_translation_compute_type": self.local_compute.get().strip(),
-            "local_translation_beam_size": self.local_beam.get(),
-            "tts_voice": self.tts_voice.get().strip(),
-            "tts_speed": self.tts_speed.get(),
-        }
         options["source"] = self.source.get().strip()
         options["target"] = self.target.get().strip()
         if not options["source"]:
@@ -639,8 +636,6 @@ class DesktopApp:
                 parent=self.root,
             )
             return
-        self._append("Iniciando la traducción en segundo plano.\n")
-        self._launch(
         self._append("Iniciando la traducción en segundo plano.\n")
         self._launch(
             lambda report, cancel: self._with_credentials(
