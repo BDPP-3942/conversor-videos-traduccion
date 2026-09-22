@@ -717,8 +717,7 @@ class DesktopApp:
         return {"status": "success", "whisper_model": settings.whisper_model}
 
     def start_tts_assets(self) -> None:
-        self._append("Preparando los recursos TTS de Kokoro.
-")
+        self._append("Preparando los recursos TTS de Kokoro.\n")
         self._launch(lambda _report, _cancel: self._install_tts_assets())
 
     def _install_tts_assets(self) -> dict[str, object]:
