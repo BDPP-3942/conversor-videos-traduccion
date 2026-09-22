@@ -622,15 +622,25 @@ class DesktopApp:
             "tts_voice": self.tts_voice.get().strip(),
             "tts_speed": self.tts_speed.get(),
         }
+            "local_translation_compute_type": self.local_compute.get().strip(),
+            "local_translation_beam_size": self.local_beam.get(),
+            "tts_voice": self.tts_voice.get().strip(),
+            "tts_speed": self.tts_speed.get(),
+        }
         options["source"] = self.source.get().strip()
         options["target"] = self.target.get().strip()
         if not options["source"]:
-                messagebox.showerror(
-                    "Falta la entrada",
-                    "Selecciona una carpeta, un archivo, un ZIP o una URL de entrada antes de ejecutar.",
-                    parent=self.root,
-                )
-                return
+            messagebox.showerror(
+                "Falta la entrada",
+                (
+                    "Selecciona una carpeta, un archivo, un ZIP o una URL de entrada "
+                    "antes de ejecutar."
+                ),
+                parent=self.root,
+            )
+            return
+        self._append("Iniciando la traducción en segundo plano.\n")
+        self._launch(
         self._append("Iniciando la traducción en segundo plano.\n")
         self._launch(
             lambda report, cancel: self._with_credentials(
