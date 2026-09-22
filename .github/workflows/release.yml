@@ -249,7 +249,7 @@ jobs:
 
   publish:
     name: Publish GitHub Release
-    needs: [build, build-windows-x86]
+    needs: [build, build-arm64, build-windows-x86]
     runs-on: ubuntu-latest
     steps:
       - name: Resolve release tag
@@ -272,15 +272,35 @@ jobs:
           git rev-parse --verify "refs/tags/${TAG}" >/dev/null
         env:
           TAG: ${{ steps.tag.outputs.tag }}
-      - name: Publish release and attach desktop artifacts
+      - name: Verify and publish all desktop artifacts
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.tag.outputs.tag }}
         shell: bash
         run: |
-          mapfile -t assets < <(find release-assets -type f -print)
-          if [ "${#assets[@]}" -eq 0 ]; then
-            echo "No se han encontrado artefactos de release" >&2
+          version="${TAG#v}"
+          expected=(
+            "VideoTranslationPipeline-${version}-linux-x86_64.AppImage"
+            "VideoTranslationPipeline-${version}-linux-aarch64.AppImage"
+            "VideoTranslationPipeline-${version}-windows-x64.msi"
+            "VideoTranslationPipeline-${version}-windows-x64-portable.zip"
+            "VideoTranslationPipeline-${version}-windows-arm64.msi"
+            "VideoTranslationPipeline-${version}-windows-arm64-portable.zip"
+            "VideoTranslationPipeline-${version}-windows-x86.msi"
+            "VideoTranslationPipeline-${version}-windows-x86-portable.zip"
+            "VideoTranslationPipeline-${version}-macos.app.zip"
+            "VideoTranslationPipeline-${version}-macos-arm64.app.zip"
+          )
+          for asset in "${expected[@]}"; do
+            if ! find release-assets -type f -name "$asset" -print -quit | grep -q .; then
+              echo "Falta artefacto de release: $asset" >&2
+              exit 1
+            fi
+          done
+          mapfile -t assets < <(find release-assets -type f -print | sort)
+          if [ "${#assets[@]}" -ne "${#expected[@]}" ]; then
+            echo "Número inesperado de artefactos: encontrados ${#assets[@]}, esperados ${#expected[@]}" >&2
+            printf '%s\n' "${assets[@]}"
             exit 1
           fi
           if gh release view "$TAG" >/dev/null 2>&1; then
