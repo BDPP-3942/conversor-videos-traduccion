@@ -8,7 +8,11 @@ elif [[ "$(uname -s)" == "Darwin" ]]; then
     target="$(cd -- "$script_dir/../.." && pwd)"
 else
     script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-    target="$script_dir"
+    if [[ "$script_dir" == *"/VideoTranslationPipeline.app/Contents/Resources" ]]; then
+        target="$(cd -- "$script_dir/../.." && pwd)"
+    else
+        target="$script_dir"
+    fi
 fi
 
 if [[ -z "$target" || "$target" == "/" || "$target" == "$HOME" ]]; then
