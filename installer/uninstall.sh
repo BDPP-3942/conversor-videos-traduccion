@@ -20,5 +20,10 @@ if [[ -z "$target" || "$target" == "/" || "$target" == "$HOME" ]]; then
     exit 1
 fi
 
+if [[ -z "${APPIMAGE:-}" && "$(basename -- "$target")" != "VideoTranslationPipeline" && "$(basename -- "$target")" != "VideoTranslationPipeline.app" ]]; then
+    echo "La ruta no corresponde a una instalación reconocida de Video Translation Pipeline: $target" >&2
+    exit 1
+fi
+
 printf 'Se eliminará la aplicación: %s\n' "$target"
 rm -rf -- "$target"
