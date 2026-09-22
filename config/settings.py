@@ -5,8 +5,6 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from src.runtime_paths import user_data_root
-
 
 def _resolve_base_dir() -> Path:
     if getattr(sys, "frozen", False):
@@ -15,10 +13,21 @@ def _resolve_base_dir() -> Path:
 
 
 BASE_DIR = _resolve_base_dir()
+APP_NAME = "VideoTranslationPipeline"
+if getattr(sys, "frozen", False):
+    if os.name == "nt":
+        _user_data_parent = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
+    elif sys.platform == "darwin":
+        _user_data_parent = Path.home() / "Library" / "Application Support"
+    else:
+        _user_data_parent = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+    USER_DATA_DIR = _user_data_parent / APP_NAME
+else:
+    USER_DATA_DIR = BASE_DIR
 CONFIG_DIR = BASE_DIR / "config"
-SECRETS_DIR = user_data_root() / "secrets"
-STORAGE_DIR = user_data_root()
-MANAGED_TOOLS_DIR = user_data_root() / "tools"
+SECRETS_DIR = USER_DATA_DIR / "secrets"
+STORAGE_DIR = USER_DATA_DIR / "storage"
+MANAGED_TOOLS_DIR = USER_DATA_DIR / "tools"
 
 
 @dataclass(frozen=True)
@@ -298,10 +307,12 @@ def resolve_project_path(value: str | Path) -> Path:
     path = Path(value).expanduser()
     if path.is_absolute():
         return path.resolve()
-    normalized = path.as_posix().lstrip("./")
-    managed_prefixes = ("storage/", "secrets/", "tools/models/", "tools/tts/", "tools/rclone/")
-    if normalized == "storage" or normalized == "secrets" or normalized.startswith(managed_prefixes):
-        return (user_data_root() / normalized).resolve()
+    if getattr(sys, "frozen", False):
+        parts = path.parts
+        if parts and parts[0] in {"storage", "secrets"}:
+            return (USER_DATA_DIR / path).resolve()
+        if len(parts) >= 2 and parts[0] == "tools" and parts[1] in {"models", "tts", "rclone", "cuda"}:
+            return (USER_DATA_DIR / path).resolve()
     return (BASE_DIR / path).resolve()
 
 
@@ -320,6 +331,6 @@ def local_storage_paths() -> dict[str, Path]:
 
 
 def ensure_directories() -> None:
-    for path in local_storage_paths().values():
-        path.mkdir(parents=True, exist_ok=True)
-    (SECRETS_DIR / "google").mkdir(parents=True, exist_ok=True)
+    # Evita poblar AppData con directorios que todavía no se necesitan.
+    for key in ("input", "output"):
+        local_storage_paths()[key].mkdir(parents=True, exist_ok=True)

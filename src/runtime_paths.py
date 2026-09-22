@@ -9,7 +9,7 @@ WORKING_DIRECTORY_NAME = "Video Translation Pipeline"
 
 
 def user_data_root() -> Path:
-    """Devuelve la raíz privada de datos de la aplicación, escribible por el usuario."""
+    """Devuelve la carpeta del sistema para el estado privado de la aplicación."""
     if os.name == "nt":
         root = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
     elif sys.platform == "darwin":
@@ -52,16 +52,8 @@ def runtime_storage_paths() -> dict[str, Path]:
 def ensure_runtime_storage() -> dict[str, Path]:
     """Crea las rutas predeterminadas sin escribir en la carpeta de instalación."""
     paths = runtime_storage_paths()
-    for key in (
-        "input",
-        "output",
-        "work",
-        "failures",
-        "archive",
-        "archive_sources",
-        "logs",
-        "state",
-        "manifests",
-    ):
+    # Solo se crean al arrancar las carpetas visibles de trabajo. El resto del
+    # estado privado se crea de forma perezosa cuando una etapa lo necesita.
+    for key in ("input", "output"):
         paths[key].mkdir(parents=True, exist_ok=True)
     return paths

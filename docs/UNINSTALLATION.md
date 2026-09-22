@@ -1,51 +1,39 @@
-# Desinstalación y conservación de recursos
+# Desinstalación
+
+La desinstalación elimina únicamente los archivos propios de la aplicación. No elimina automáticamente vídeos originales, resultados, modelos descargados, configuración, credenciales ni otros datos del usuario.
 
 ## Windows
 
-El instalador MSI incluye `Uninstall-VideoTranslationPipeline.ps1` dentro de la carpeta de instalación. Al ejecutarlo se localiza la instalación MSI registrada y se solicita a Windows Installer la desinstalación.
+Los instaladores MSI incluyen `Uninstall-VideoTranslationPipeline.ps1` dentro de la carpeta de instalación. El script localiza la instalación MSI registrada y solicita a Windows Installer la desinstalación.
 
-La desinstalación elimina la aplicación instalada y sus archivos propios. **No elimina automáticamente los datos de usuario**, incluidos vídeos, resultados, modelos descargados, configuración, credenciales o estado privado.
+Ejecuta el script con PowerShell desde la carpeta de instalación. Funciona en Windows x86, x64 y ARM64 siempre que la instalación MSI correspondiente esté registrada.
 
-La aplicación ya no crea una clave de registro propia para marcar la instalación; el registro utilizado por Windows Installer se limita a la información necesaria para administrar el MSI.
+## macOS
 
-## Datos de usuario
+La aplicación incluye `uninstall.sh` dentro de `VideoTranslationPipeline.app/Contents/Resources/`.
 
-Los datos de runtime se mantienen fuera de la carpeta de instalación:
-
-- Windows: datos privados bajo `%LOCALAPPDATA%\\VideoTranslationPipeline`.
-- macOS: `~/Library/Application Support/VideoTranslationPipeline`.
-- Linux: `$XDG_DATA_HOME/VideoTranslationPipeline` o `~/.local/share/VideoTranslationPipeline`.
-
-Los vídeos de entrada y resultados predeterminados permanecen en `Documentos/Video Translation Pipeline/input` y `Documentos/Video Translation Pipeline/output`.
-
-Los modelos, TTS, rclone gestionado, credenciales y estado técnico pertenecen a los datos de usuario y requieren una limpieza explícita.
-
-## Modelo local de traducción
-
-Para eliminar exclusivamente el modelo descargado por el proyecto:
+Desde Terminal:
 
 ```bash
-python scripts/manage_runtime_resources.py translation-model cleanup
+cd "/ruta/a/VideoTranslationPipeline.app/Contents/Resources"
+./uninstall.sh
 ```
 
-Esto elimina el modelo seleccionado sin borrar vídeos, subtítulos, manifests, configuración ni credenciales.
+El script elimina el bundle de la aplicación, pero no sus datos de usuario externos.
 
-## Bibliotecas CUDA gestionadas por el proyecto
+## Linux
+
+El AppImage es un formato portátil y no instala archivos en un directorio del sistema. La aplicación contiene `uninstall.sh` en el directorio de la aplicación cuando el AppImage se extrae.
+
+Para una instalación extraída:
 
 ```bash
-python scripts/manage_runtime_resources.py cuda cleanup
+cd "/ruta/a/VideoTranslationPipeline"
+./uninstall.sh
 ```
 
-Solo elimina las bibliotecas NVIDIA instaladas bajo el directorio gestionado por el proyecto. No desinstala el driver NVIDIA ni un CUDA Toolkit global.
+Cuando se ejecuta desde un AppImage montado, el script puede utilizar la variable `APPIMAGE` para eliminar el propio archivo AppImage. No elimina datos de usuario.
 
-## Limpieza completa de datos de aplicación
+## Seguridad y datos de usuario
 
-La eliminación de los datos privados debe ser una decisión explícita del usuario. Antes de hacerlo, conserva cualquier resultado, modelo o credencial que necesites posteriormente.
-
-El objetivo de la desinstalación es separar siempre:
-
-```text
-APLICACIÓN INSTALADA
-≠
-DATOS Y RECURSOS DEL USUARIO
-```
+El desinstalador no debe ejecutarse como administrador salvo que la propia plataforma lo requiera. Los directorios de datos de usuario permanecen intactos para evitar pérdida accidental de trabajo.

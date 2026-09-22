@@ -4,6 +4,13 @@ import sys
 from PyInstaller.utils.hooks import collect_submodules
 
 hiddenimports = collect_submodules("src") + collect_submodules("config")
+try:
+    import pyttsx3  # noqa: F401
+
+    hiddenimports += collect_submodules("pyttsx3")
+    hiddenimports += collect_submodules("win32com")
+except ImportError:
+    pass
 
 analysis = Analysis(
     ["src/desktop.py"],

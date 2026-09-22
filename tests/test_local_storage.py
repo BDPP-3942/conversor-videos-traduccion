@@ -163,3 +163,19 @@ def test_local_storage_rename_output_folder_updates_artifact_stems(tmp_path: Pat
     assert (output / "37x02_tema_nuevo" / "37x02_tema_nuevo.webm").is_file()
     assert (output / "37x02_tema_nuevo" / "37x02_tema_nuevo_en.vtt").is_file()
     assert (output / "37x02_tema_nuevo" / "original_transcriptions" / "37x02_tema_nuevo_original.vtt").is_file()
+
+
+def test_local_storage_accepts_single_zip_file(tmp_path: Path) -> None:
+    source = tmp_path / "single.zip"
+    source.write_bytes(b"zip")
+    provider = LocalStorageProvider(retain_sources=True, input_min_age_seconds=0)
+    files = provider.list_zip_files(str(source))
+    assert [item.name for item in files] == ["single.zip"]
+
+
+def test_local_storage_accepts_single_video_file(tmp_path: Path) -> None:
+    source = tmp_path / "clip.mp4"
+    source.write_bytes(b"video")
+    provider = LocalStorageProvider(retain_sources=True, input_min_age_seconds=0)
+    files = provider.list_children(str(source))
+    assert [item.name for item in files] == ["clip.mp4"]

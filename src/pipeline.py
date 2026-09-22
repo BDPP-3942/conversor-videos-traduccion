@@ -69,6 +69,14 @@ class MediaPipeline:
 
         zips = self.storage.list_zip_files(source)
         if not zips:
+            from src.raw_video_pipeline_v2 import RawVideoPipeline
+
+            children = self.storage.list_children(source)
+            if any(
+                not item.is_directory and Path(item.name).suffix.lower() in RawVideoPipeline.video_extensions()
+                for item in children
+            ):
+                return RawVideoPipeline(self.settings, self.storage).run(source, target)
             return {"status": "success", "message": "No ZIP files found", "zips_found": 0}
 
         results = []

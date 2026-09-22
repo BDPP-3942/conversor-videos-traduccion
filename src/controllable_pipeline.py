@@ -115,6 +115,31 @@ class ControllableMediaPipeline(MediaPipeline):
         self._emit("preparing", "Preparing processing run", percent=0)
         self._check_cancelled()
         try:
+            from src.raw_video_pipeline_v2 import RawVideoPipeline
+
+            zips = self.storage.list_zip_files(source)
+            if not zips:
+                children = self.storage.list_children(source)
+                raw_extensions = RawVideoPipeline.video_extensions()
+                if any(
+                    not item.is_directory and Path(item.name).suffix.lower() in raw_extensions
+                    for item in children
+                ):
+                    raw_result = RawVideoPipeline(
+                        self.settings,
+                        self.storage,
+                        event_callback=self._emit,
+                        cancel_checker=self._check_cancelled,
+                    ).run(source, target)
+                    self._check_cancelled()
+                    self._emit(
+                        "completed",
+                        "Processing completed",
+                        percent=100,
+                        result_status=raw_result.get("status"),
+                    )
+                    return raw_result
+
             result = super().run(
                 source,
                 target,

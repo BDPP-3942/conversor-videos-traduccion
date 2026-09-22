@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import threading
 import tkinter as tk
 import webbrowser
@@ -10,6 +11,47 @@ from tkinter import filedialog, messagebox, ttk
 from config.settings import BASE_DIR
 from src.application import ApplicationError, VideoTranslationApplication
 from src.runtime_paths import ensure_runtime_storage
+
+
+class ScrollableFrame(ttk.Frame):
+    """Contenedor con desplazamiento vertical y horizontal para formularios extensos."""
+
+    def __init__(self, parent, **kwargs):
+        super().__init__(parent, **kwargs)
+        self.canvas = tk.Canvas(self, highlightthickness=0)
+        self.vertical = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.horizontal = ttk.Scrollbar(self, orient="horizontal", command=self.canvas.xview)
+        self.content = ttk.Frame(self.canvas)
+        self.window_id = self.canvas.create_window((0, 0), window=self.content, anchor="nw")
+        self.canvas.configure(
+            yscrollcommand=self.vertical.set,
+            xscrollcommand=self.horizontal.set,
+        )
+        self.canvas.grid(row=0, column=0, sticky="nsew")
+        self.vertical.grid(row=0, column=1, sticky="ns")
+        self.horizontal.grid(row=1, column=0, sticky="ew")
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+        self.content.bind("<Configure>", self._update_scrollregion)
+        self.canvas.bind("<Configure>", self._update_canvas_width)
+        self.canvas.bind("<Enter>", self._bind_mousewheel)
+        self.canvas.bind("<Leave>", self._unbind_mousewheel)
+
+    def _update_scrollregion(self, _event=None):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def _update_canvas_width(self, event):
+        self.canvas.itemconfigure(self.window_id, width=max(event.width, self.content.winfo_reqwidth()))
+
+    def _bind_mousewheel(self, _event=None):
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel, add="+")
+
+    def _unbind_mousewheel(self, _event=None):
+        self.canvas.unbind_all("<MouseWheel>")
+
+    def _on_mousewheel(self, event):
+        if event.delta:
+            self.canvas.yview_scroll(int(-event.delta / 120), "units")
 
 
 class Worker:
@@ -78,30 +120,17 @@ class DesktopApp:
             "Recuperación de subtítulos",
             "Duplicados",
             "Diagnóstico",
+            "Credenciales",
             "CLI y programación",
         ):
-            frame = ttk.Frame(notebook)
-            canvas = tk.Canvas(frame, highlightthickness=0)
-            vertical = ttk.Scrollbar(frame, orient="vertical", command=canvas.yview)
-            horizontal = ttk.Scrollbar(frame, orient="horizontal", command=canvas.xview)
-            inner = ttk.Frame(canvas, padding=12)
-            inner.bind("<Configure>", lambda event, c=canvas: c.configure(scrollregion=c.bbox("all")))
-            window = canvas.create_window((0, 0), window=inner, anchor="nw")
-            canvas.configure(yscrollcommand=vertical.set, xscrollcommand=horizontal.set)
-            canvas.grid(row=0, column=0, sticky="nsew")
-            vertical.grid(row=0, column=1, sticky="ns")
-            horizontal.grid(row=1, column=0, sticky="ew")
-            frame.rowconfigure(0, weight=1)
-            frame.columnconfigure(0, weight=1)
-            canvas.bind("<Configure>", lambda event, c=canvas, w=window: c.itemconfigure(w, width=max(event.width, 1)))
-            canvas.bind("<Enter>", lambda event, c=canvas: self._bind_tab_scroll(c))
-            canvas.bind("<Leave>", lambda event, c=canvas: self._unbind_tab_scroll(c))
+            frame = ScrollableFrame(notebook)
             notebook.add(frame, text=title)
-            tabs[title] = inner
+            tabs[title] = frame.content
         self._build_processing(tabs["Procesamiento"])
         self._build_recovery(tabs["Recuperación de subtítulos"])
         self._build_duplicates(tabs["Duplicados"])
         self._build_diagnostics(tabs["Diagnóstico"])
+        self._build_credentials(tabs["Credenciales"])
         self._build_scheduling(tabs["CLI y programación"])
 
         status_bar = ttk.Frame(container)
@@ -119,19 +148,13 @@ class DesktopApp:
         self.cancel.pack(side="right")
         log_frame = ttk.LabelFrame(container, text="Registro de ejecución", padding=8)
         log_frame.pack(fill="both", expand=False, pady=(8, 0))
-        self.log = tk.Text(log_frame, height=9, wrap="word", state="disabled")
-        self.log.pack(fill="both", expand=True)
-
-
-    @staticmethod
-    def _bind_tab_scroll(canvas: tk.Canvas) -> None:
-        canvas.bind_all("<MouseWheel>", lambda event: canvas.yview_scroll(-int(event.delta / 120), "units"))
-        canvas.bind_all("<Shift-MouseWheel>", lambda event: canvas.xview_scroll(-int(event.delta / 120), "units"))
-
-    @staticmethod
-    def _unbind_tab_scroll(canvas: tk.Canvas) -> None:
-        canvas.unbind_all("<MouseWheel>")
-        canvas.unbind_all("<Shift-MouseWheel>")
+        log_body = ttk.Frame(log_frame)
+        log_body.pack(fill="both", expand=True)
+        self.log = tk.Text(log_body, height=9, wrap="word", state="disabled")
+        log_scroll = ttk.Scrollbar(log_body, orient="vertical", command=self.log.yview)
+        self.log.configure(yscrollcommand=log_scroll.set)
+        self.log.pack(side="left", fill="both", expand=True)
+        log_scroll.pack(side="right", fill="y")
 
     def _build_processing(self, parent: ttk.Frame) -> None:
         paths = ttk.LabelFrame(parent, text="Carpetas de trabajo", padding=10)
@@ -140,8 +163,12 @@ class DesktopApp:
         self.source = tk.StringVar(value=str(self.runtime["input"]))
         self.target = tk.StringVar(value=str(self.runtime["output"]))
         self._combo_row(paths, 0, "Proveedor", self.provider, ["local", "google_drive", "rclone"])
-        self._path_row(paths, 1, "Carpeta de entrada", self.source)
-        self._path_row(paths, 2, "Carpeta de salida", self.target)
+        self.source_kind = tk.StringVar(value="CARPETA")
+        self._combo_row(paths, 1, "Tipo de entrada", self.source_kind, ["CARPETA", "ARCHIVO", "ZIP", "URL", "CLOUD"])
+        self._path_row(paths, 2, "Entrada", self.source)
+        ttk.Button(paths, text="Archivo de entrada…", command=lambda: self._browse_media_file(self.source)).grid(row=2, column=3, padx=(4, 0))
+        ttk.Button(paths, text="Carpeta…", command=lambda: self._browse(self.source)).grid(row=2, column=4, padx=(4, 0))
+        self._path_row(paths, 3, "Destino", self.target)
         ttk.Label(
             paths,
             text=(
@@ -367,10 +394,77 @@ class DesktopApp:
         ttk.Button(buttons, text="Preparar modelo Whisper", command=self.start_prefetch).pack(side="left", padx=8)
         ttk.Button(
             buttons,
+            text="Preparar recursos TTS",
+            command=self.start_tts_assets,
+        ).pack(side="left", padx=8)
+        ttk.Button(
+            buttons,
             text="Instalar modelo de traducción local",
             command=self.start_local_translation_install,
         ).pack(side="left", padx=8)
         ttk.Button(buttons, text="Abrir datos privados", command=self.open_runtime_folder).pack(side="left")
+
+    def _build_credentials(self, parent: ttk.Frame) -> None:
+        ttk.Label(
+            parent,
+            text=(
+                "Las credenciales introducidas aquí solo se aplican durante la operación iniciada desde esta GUI. "
+                "No se guardan en la configuración ni se escriben en los logs."
+            ),
+            wraplength=820,
+        ).pack(anchor="w", pady=(0, 12))
+
+        form = ttk.LabelFrame(parent, text="Credenciales de proveedores", padding=10)
+        form.pack(fill="x")
+        self.credential_vars: dict[str, tk.StringVar] = {}
+        fields = (
+            ("MISTRAL_API_KEY", "Token Mistral"),
+            ("DEEPL_API_KEY", "Token DeepL"),
+            ("MICROSOFT_TRANSLATOR_API_KEY", "Token Microsoft Translator"),
+            ("MICROSOFT_TRANSLATOR_REGION", "Región Microsoft Translator"),
+            ("GOOGLE_TRANSLATE_API_KEY", "Token Google Translate"),
+            ("MYMEMORY_EMAIL", "Correo MyMemory"),
+            ("LOCAL_TRANSLATION_HF_TOKEN", "Token Hugging Face (modelo local)"),
+        )
+        for row, (name, label) in enumerate(fields):
+            variable = tk.StringVar()
+            self.credential_vars[name] = variable
+            ttk.Label(form, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=4)
+            show = name.endswith("_REGION") or name == "MYMEMORY_EMAIL"
+            ttk.Entry(
+                form,
+                textvariable=variable,
+                width=52,
+                show="" if show else "•",
+            ).grid(row=row, column=1, sticky="ew", pady=4)
+        form.columnconfigure(1, weight=1)
+
+        ttk.Label(
+            parent,
+            text=(
+                "Los tokens solo se necesitan para el proveedor correspondiente. "
+                "La descarga de modelos públicos de Hugging Face no debe requerir token salvo que el recurso "
+                "o el entorno exijan autenticación."
+            ),
+            wraplength=820,
+        ).pack(anchor="w", pady=10)
+
+    def _with_credentials(self, task):
+        previous = {}
+        for name, variable in getattr(self, "credential_vars", {}).items():
+            value = variable.get().strip()
+            if value:
+                previous[name] = os.environ.get(name)
+                os.environ[name] = value
+        try:
+            return task()
+        finally:
+            for name in previous:
+                old = previous[name]
+                if old is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = old
 
     def _build_scheduling(self, parent: ttk.Frame) -> None:
         text = (
@@ -457,6 +551,18 @@ class DesktopApp:
             variable.set(selected)
 
     @staticmethod
+    def _browse_media_file(variable: tk.StringVar) -> None:
+        selected = filedialog.askopenfilename(
+            initialdir=(str(Path(variable.get()).parent) if variable.get() else str(Path.home())),
+            filetypes=[
+                ("Vídeo y ZIP", "*.mp4 *.mov *.mkv *.avi *.webm *.m4v *.wmv *.zip"),
+                ("Todos los archivos", "*.*"),
+            ],
+        )
+        if selected:
+            variable.set(selected)
+
+    @staticmethod
     def _browse_file(variable: tk.StringVar) -> None:
         selected = filedialog.askopenfilename(
             initialdir=(str(Path(variable.get()).parent) if variable.get() else str(Path.home())),
@@ -473,7 +579,7 @@ class DesktopApp:
         self.cancel.configure(state="normal" if busy else "disabled")
         if busy:
             self.progress["value"] = 0
-        self.status.set("Procesando…" if busy else "Listo")
+        self.status.set("PROCESSING" if busy else "IDLE")
 
     def _launch(self, task) -> None:
         if self.worker and self.worker.thread and self.worker.thread.is_alive():
@@ -489,7 +595,9 @@ class DesktopApp:
             "source_lang": self.source_lang.get().strip(),
             "target_lang": self.target_lang.get().strip(),
             "translation_provider": self.translation.get(),
-            "translation_fallback_providers": tuple(x.strip() for x in self.fallback.get().split(",") if x.strip()),
+            "translation_fallback_providers": tuple(
+                x.strip() for x in self.fallback.get().split(",") if x.strip()
+            ),
             "max_parallel_videos": self.parallel.get(),
             "translation_batch_size": self.batch_size.get(),
             "generate_webm": self.webm.get(),
@@ -516,22 +624,26 @@ class DesktopApp:
             "tts_voice": self.tts_voice.get().strip(),
             "tts_speed": self.tts_speed.get(),
         }
-        if provider == "local":
-            options["source"] = self.source.get().strip()
-            options["target"] = self.target.get().strip()
-            if not options["source"]:
-                messagebox.showerror(
-                    "Falta la entrada",
-                    "Selecciona una carpeta de entrada antes de ejecutar.",
-                    parent=self.root,
-                )
-                return
+        options["source"] = self.source.get().strip()
+        options["target"] = self.target.get().strip()
+        if not options["source"]:
+            messagebox.showerror(
+                "Falta la entrada",
+                (
+                    "Selecciona una carpeta, un archivo, un ZIP o una URL de entrada "
+                    "antes de ejecutar."
+                ),
+                parent=self.root,
+            )
+            return
         self._append("Iniciando la traducción en segundo plano.\n")
         self._launch(
-            lambda report, cancel: VideoTranslationApplication().run(
-                progress=report,
-                cancel_event=cancel,
-                **options,
+            lambda report, cancel: self._with_credentials(
+                lambda: VideoTranslationApplication().run(
+                    progress=report,
+                    cancel_event=cancel,
+                    **options,
+                )
             )
         )
 
@@ -624,17 +736,50 @@ class DesktopApp:
         STTEngine(settings)
         return {"status": "success", "whisper_model": settings.whisper_model}
 
+    def start_tts_assets(self) -> None:
+        self._append("Preparando los recursos TTS de Kokoro.\n")
+        self._launch(lambda _report, _cancel: self._install_tts_assets())
+
+    def _install_tts_assets(self) -> dict[str, object]:
+        import struct
+        import sys
+
+        if sys.platform == "win32" and struct.calcsize("P") * 8 == 32:
+            return {
+                "status": "success",
+                "provider": "SAPI",
+                "message": "Windows x86 utiliza el TTS nativo SAPI; no necesita recursos Kokoro.",
+            }
+
+        def install():
+            from src.tts_assets import ensure_tts_assets
+
+            settings = VideoTranslationApplication().load_settings()
+            model, voices = ensure_tts_assets(
+                Path(settings.tts_model_path),
+                Path(settings.tts_voices_path),
+            )
+            return {"status": "success", "model": str(model), "voices": str(voices)}
+
+        return self._with_credentials(install)
+
     def start_local_translation_install(self) -> None:
         self._append("Instalando el modelo local de traducción.\n")
         self._launch(lambda _report, _cancel: self._install_local_translation_model())
 
-    @staticmethod
-    def _install_local_translation_model() -> dict[str, object]:
+    def _install_local_translation_model(self) -> dict[str, object]:
         from src.local_translation import LocalTranslationModelManager
 
-        manager = LocalTranslationModelManager()
-        path = manager.ensure(confirm=lambda status: True)
-        return {"status": "success", "model": manager.model_name, "path": str(path)}
+        def install():
+            settings = VideoTranslationApplication().load_settings()
+            manager = LocalTranslationModelManager(
+                settings.local_translation_model_dir,
+                settings.local_translation_model,
+            )
+            path = manager.ensure(confirm=lambda status: True)
+            return {"status": "success", "model": manager.model_name, "path": str(path)}
+
+        return self._with_credentials(install)
 
     def open_runtime_folder(self) -> None:
         path = self.runtime["root"].resolve()
@@ -667,13 +812,13 @@ class DesktopApp:
             self.progress["value"] = max(0, min(100, percent))
         if stage == "finished":
             self._busy(False)
-            self.status.set("Completado")
+            self.status.set("COMPLETED")
         elif stage == "cancelled":
             self._busy(False)
-            self.status.set("Cancelado")
+            self.status.set("CANCELED")
         elif stage == "error":
             self._busy(False)
-            self.status.set("Error")
+            self.status.set("ERROR")
             messagebox.showerror("Error de procesamiento", message, parent=self.root)
         else:
             completed = event.get("completed")

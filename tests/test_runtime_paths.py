@@ -30,30 +30,26 @@ def test_ensure_runtime_storage_creates_all_writable_directories(monkeypatch, tm
 
     paths = runtime_paths.ensure_runtime_storage()
 
-    for key in (
-        "input",
-        "output",
-        "work",
-        "failures",
-        "archive",
-        "archive_sources",
-        "logs",
-        "state",
-        "manifests",
-    ):
-        assert paths[key].is_dir(), key
+    assert paths["input"].is_dir()
+    assert paths["output"].is_dir()
+    for key in ("work", "failures", "archive", "archive_sources", "logs", "state", "manifests"):
+        assert not paths[key].exists(), key
 
 
-def test_managed_relative_paths_resolve_to_private_user_data(monkeypatch, tmp_path):
+def test_resolve_project_path_redirects_writable_frozen_paths(monkeypatch, tmp_path):
     import config.settings as settings
 
+    monkeypatch.setattr(settings.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(settings, "USER_DATA_DIR", tmp_path / "user-data")
     monkeypatch.setattr(settings, "BASE_DIR", tmp_path / "install")
-    monkeypatch.setattr(settings, "user_data_root", lambda: tmp_path / "user-data")
-    monkeypatch.setattr(settings, "STORAGE_DIR", tmp_path / "user-data")
-    monkeypatch.setattr(settings, "SECRETS_DIR", tmp_path / "user-data" / "secrets")
-    monkeypatch.setattr(settings, "MANAGED_TOOLS_DIR", tmp_path / "user-data" / "tools")
 
-    assert settings.resolve_project_path("storage/output") == tmp_path / "user-data" / "storage/output"
-    assert settings.resolve_project_path("secrets/providers") == tmp_path / "user-data" / "secrets/providers"
-    assert settings.resolve_project_path("tools/models/translation") == tmp_path / "user-data" / "tools/models/translation"
+    assert settings.resolve_project_path("storage/state/run.lock") == (
+        tmp_path / "user-data" / "storage/state/run.lock"
+    )
+    assert settings.resolve_project_path("secrets/providers/default/token.json") == (
+        tmp_path / "user-data" / "secrets/providers/default/token.json"
+    )
+    assert settings.resolve_project_path("tools/models/translation/model") == (
+        tmp_path / "user-data" / "tools/models/translation/model"
+    )
     assert settings.resolve_project_path("config/app.toml") == tmp_path / "install/config/app.toml"

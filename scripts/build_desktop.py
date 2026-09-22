@@ -19,7 +19,10 @@ def _run(command: list[str]) -> int:
 
 def _windows_python_architecture() -> str:
     """Devuelve la arquitectura del intérprete Python que genera el ejecutable."""
-    return "x64" if sys.maxsize > 2**32 else "x86"
+    if sys.maxsize <= 2**32:
+        return "x86"
+    machine = platform.machine().lower()
+    return "arm64" if machine in {"arm64", "aarch64"} else "x64"
 
 
 def _build_pyinstaller() -> int:
@@ -75,7 +78,7 @@ def _build_msi(version: str, windows_arch: str) -> int:
     return _run(command)
 
 
-def _build_appimage(version: str) -> int:
+def _build_appimage(version: str, linux_arch: str | None = None) -> int:
     """Construye el AppImage Linux a partir del directorio generado por PyInstaller."""
     appimagetool = shutil.which("appimagetool")
     if appimagetool is None:
@@ -102,7 +105,20 @@ def _build_appimage(version: str) -> int:
         encoding="utf-8",
     )
     (app_dir / "VideoTranslationPipeline.desktop").chmod(0o644)
-    output = DIST / f"{APP_NAME}-{version}-linux-x86_64.AppImage"
+    architecture = linux_arch or platform.machine().lower()
+    architecture_aliases = {
+        "amd64": "x86_64",
+        "x86_64": "x86_64",
+        "aarch64": "aarch64",
+        "arm64": "aarch64",
+        "armv7l": "armhf",
+        "armv7": "armhf",
+    }
+    architecture = architecture_aliases.get(architecture, architecture)
+    if architecture not in {"x86_64", "aarch64", "armhf"}:
+        print(f"Arquitectura Linux no soportada para AppImage: {architecture}", file=sys.stderr)
+        return 2
+    output = DIST / f"{APP_NAME}-{version}-linux-{architecture}.AppImage"
     return _run([appimagetool, str(app_dir), str(output)])
 
 
@@ -128,10 +144,19 @@ def main() -> int:
         help="Versión de release utilizada en los nombres de artefacto",
     )
     parser.add_argument(
-        "--windows-arch",
-        choices=["x64", "x86"],
+        "--linux-arch",
+        choices=["x86_64", "aarch64", "armhf"],
         default=None,
-        help="Arquitectura del MSI de Windows; por defecto se utiliza la arquitectura de Python",
+        help="Arquitectura Linux nativa para AppImage; debe coincidir con el runner.",
+    )
+    parser.add_argument(
+        "--windows-arch",
+        choices=["x64", "x86", "arm64"],
+        default=None,
+        help=(
+            "Arquitectura del MSI de Windows; por defecto se utiliza "
+            "la arquitectura de Python"
+        ),
     )
     args = parser.parse_args()
     if args.clean:
@@ -140,14 +165,24 @@ def main() -> int:
     result = _build_pyinstaller()
     if result != 0:
         return result
+
+    uninstall_script = ROOT / "installer" / "uninstall.sh"
+    if args.format == "native" and sys.platform == "darwin":
+        resources_dir = DIST / f"{APP_NAME}.app" / "Contents" / "Resources"
+        resources_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(uninstall_script, resources_dir / "uninstall.sh")
+    elif args.format == "linux-appimage":
+        shutil.copy2(uninstall_script, DIST / APP_NAME / "uninstall.sh")
+    elif args.format == "windows-msi":
+        windows_uninstaller = ROOT / "installer" / "Uninstall-VideoTranslationPipeline.ps1"
+        app_dir = DIST / APP_NAME
+        if windows_uninstaller.is_file() and app_dir.is_dir():
+            shutil.copy2(windows_uninstaller, app_dir / windows_uninstaller.name)
     if args.format == "windows-msi":
-        uninstall_script = ROOT / "installer" / "Uninstall-VideoTranslationPipeline.ps1"
-        if uninstall_script.is_file() and (DIST / APP_NAME).is_dir():
-            shutil.copy2(uninstall_script, DIST / APP_NAME / uninstall_script.name)
         windows_arch = args.windows_arch or _windows_python_architecture()
         return _build_msi(args.version, windows_arch)
     if args.format == "linux-appimage":
-        return _build_appimage(args.version)
+        return _build_appimage(args.version, args.linux_arch)
     print(f"Artefacto de escritorio creado en {DIST}")
     return 0
 

@@ -32,6 +32,9 @@ class LocalStorageProvider(StorageProvider):
         return self._folder(location)
 
     def list_zip_files(self, location: str) -> list[StorageFile]:
+        resolved = resolve_project_path(location)
+        if resolved.is_file():
+            return [StorageFile(id=str(resolved), name=resolved.name)] if resolved.suffix.lower() == ".zip" else []
         folder = self._storage_root(location)
         files: list[StorageFile] = []
         if self.input_min_age_seconds == 0:
@@ -81,6 +84,9 @@ class LocalStorageProvider(StorageProvider):
         return (self._folder(parent) / name).is_file()
 
     def list_children(self, parent: str) -> list[StorageFile]:
+        resolved = resolve_project_path(parent)
+        if resolved.is_file():
+            return [StorageFile(id=str(resolved), name=resolved.name)]
         folder = self._folder(parent)
         return [
             StorageFile(id=str(child), name=child.name, is_directory=child.is_dir())
